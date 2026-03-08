@@ -168,6 +168,7 @@ let state = {
   showProfile: false,
   musicOn: false,
   currentUser: null,
+  coins: 0,
   // Collection
   collSortBy: "id",
   collFilterSet: "all",
@@ -324,7 +325,7 @@ function renderGame(th){
         <span style="font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:${th.textMuted};text-transform:uppercase;">BETA</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
-        <div style="display:flex;align-items:center;gap:4px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};">🪙 1 000</div>
+        <div style="display:flex;align-items:center;gap:4px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};">${"🪙 " + (state.coins !== undefined ? state.coins.toLocaleString("fr-FR") : "…")}</div>
         <button id="btn-music" style="width:30px;height:30px;border-radius:50%;background:${state.musicOn?th.accent+'30':th.surface};color:${state.musicOn?th.accent:th.textFaint};border:1px solid ${state.musicOn?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;">
           ${state.musicOn?SVG.musicOn:SVG.musicOff}
         </button>
@@ -370,6 +371,7 @@ function renderGame(th){
     ${state.showNotif?renderNotifModal(th):''}
     ${state.collSelectedCard?renderCardDetailModal(state.collSelectedCard,th):''}
     ${state.showPioche?renderPiocheMechanic(th):''}
+    ${state.showProfile?renderProfileModal(th):''}
   </div>`;
 }
 
@@ -957,12 +959,13 @@ async function initAuth() {
       showDiscordLoginBtn();
       return;
     }
-    // Stocker le user dans le state
-    setState({ currentUser: user });
+    // Charger les coins depuis la DB
+    const { data: playerData } = await db.from('players').select('coins').eq('id', user.id).single();
+    const coins = playerData ? playerData.coins : 100;
     const s = document.getElementById('splash');
     if (s) s.style.opacity = '0';
     setTimeout(() => {
-      setState({ screen: 'game', musicOn: true, currentUser: user });
+      setState({ screen: 'game', musicOn: true, currentUser: user, coins: coins });
       audioPlay();
     }, 450);
   };
