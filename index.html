@@ -865,10 +865,10 @@ render();
 <script>
 // ─── AUTH DISCORD ─────────────────────────────────────────────────
 
-supabase.auth.onAuthStateChange((event, session) => {
+db.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session) {
     const user = session.user;
-    supabase.from('players').upsert({
+    db.from('players').upsert({
       id: user.id,
       discord_username: user.user_metadata.full_name || user.user_metadata.name,
       avatar_url: user.user_metadata.avatar_url,
@@ -877,14 +877,14 @@ supabase.auth.onAuthStateChange((event, session) => {
 });
 
 async function loginDiscord() {
-  await supabase.auth.signInWithOAuth({
+  await db.auth.signInWithOAuth({
     provider: 'discord',
     options: { redirectTo: window.location.href }
   });
 }
 
 async function checkAuthAndEnter() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await db.auth.getUser();
   if (!user) {
     showDiscordLoginBtn();
     return;
