@@ -6,6 +6,12 @@
 <title>TCG Discord — Ouverture de Booster</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Bebas+Neue&display=swap');
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#7c3aed">
+<script>
+  if ('serviceWorker' in navigator)
+    navigator.serviceWorker.register('/sw.js')
+</script>
 
 /* ===== CSS VARIABLES — Noir & Or ===== */
 :root {
