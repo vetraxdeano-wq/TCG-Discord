@@ -63,28 +63,46 @@ const themes = {
 const BOOSTERS = [
   {id:1,name:"Starter Pack",price:100,color:"#5865f2",rarity:"common",cards:5},
   {id:2,name:"Premium Pack",price:250,color:"#fee75c",rarity:"rare",cards:7},
-  {id:3,name:"Legendary Pack",price:500,color:"#eb459e",rarity:"legendary",cards:10},
+  {id:3,name:"Legendary Pack",price:500,color:"#eb459e",rarity:"mythic",cards:10},
 ];
 
-const ALL_CARDS = [
-  {id:"001",name:"Blaze Sentinel",set:"SET-1",rarity:"common",type:"Attaque",color:"#ed4245",owned:true,count:2,obtainedAt:"2024-11-03T14:22:00"},
-  {id:"002",name:"Void Walker",set:"SET-1",rarity:"rare",type:"Défense",color:"#5865f2",owned:true,count:1,obtainedAt:"2024-11-05T09:47:00"},
-  {id:"003",name:"Storm Herald",set:"SET-1",rarity:"epic",type:"Magie",color:"#fee75c",owned:false,count:0,obtainedAt:null},
-  {id:"004",name:"Shadow Raven",set:"SET-1",rarity:"legendary",type:"Invocation",color:"#eb459e",owned:false,count:0,obtainedAt:null},
-  {id:"005",name:"Iron Golem",set:"SET-2",rarity:"common",type:"Défense",color:"#96989d",owned:true,count:3,obtainedAt:"2024-11-10T18:05:00"},
-  {id:"006",name:"Frost Witch",set:"SET-2",rarity:"rare",type:"Magie",color:"#00d4ff",owned:false,count:0,obtainedAt:null},
-  {id:"007",name:"Thunder Drake",set:"SET-2",rarity:"epic",type:"Attaque",color:"#57f287",owned:true,count:1,obtainedAt:"2024-12-01T21:13:00"},
-  {id:"008",name:"Abyssal King",set:"SET-2",rarity:"legendary",type:"Invocation",color:"#ff7043",owned:false,count:0,obtainedAt:null},
-  {id:"009",name:"Crystal Sage",set:"SET-3",rarity:"common",type:"Magie",color:"#a8d8ea",owned:false,count:0,obtainedAt:null},
-  {id:"010",name:"Ember Phoenix",set:"SET-3",rarity:"rare",type:"Attaque",color:"#ff6b35",owned:true,count:1,obtainedAt:"2024-12-14T11:30:00"},
-  {id:"011",name:"Tide Caller",set:"SET-3",rarity:"epic",type:"Défense",color:"#4facfe",owned:false,count:0,obtainedAt:null},
-  {id:"012",name:"Null Dragon",set:"SET-3",rarity:"legendary",type:"Invocation",color:"#9b59b6",owned:false,count:0,obtainedAt:null},
-];
+// ALL_CARDS sera chargé depuis Supabase
+let ALL_CARDS = [];
+
+async function loadCollection() {
+  if (!window.db) return;
+  const { data: { user } } = await window.db.auth.getUser();
+  if (!user) return;
+
+  // Charger toutes les cartes du jeu
+  const { data: allCards } = await window.db.from("cards").select("*").order("id");
+  // Charger les cartes possédées par le joueur
+  const { data: playerCards } = await window.db.from("player_cards")
+    .select("card_id, quantity, created_at")
+    .eq("player_id", user.id);
+
+  const ownedMap = {};
+  if (playerCards) playerCards.forEach(pc => { ownedMap[pc.card_id] = pc; });
+
+  ALL_CARDS = (allCards || []).map(c => ({
+    id: String(c.id).padStart(3,"0"),
+    name: c.name,
+    set: c.set_name || "SET-1",
+    rarity: c.rarity || "common",
+    type: c.type || "Attaque",
+    color: RARITY_COLOR[c.rarity] || "#9ca3af",
+    owned: !!ownedMap[c.id],
+    count: ownedMap[c.id] ? ownedMap[c.id].quantity : 0,
+    obtainedAt: ownedMap[c.id] ? ownedMap[c.id].created_at : null,
+  }));
+
+  render();
+}
 
 const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
-const RARITY_ORDER=["common","rare","epic","legendary"];
-const RARITY_COLOR={common:"#96989d",rare:"#5865f2",epic:"#eb459e",legendary:"#fee75c"};
-const RARITY_LABEL={common:"Commun",rare:"Rare",epic:"Épique",legendary:"Légendaire"};
+const RARITY_ORDER=["mythic","rare","uncommon","common"];
+const RARITY_COLOR={mythic:"#ef4444",rare:"#a78bfa",uncommon:"#7dd3fc",common:"#9ca3af"};
+const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune"};
 
 function fmtDate(iso){if(!iso)return"—";return new Date(iso).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});}
 function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});}
@@ -980,6 +998,7 @@ async function initAuth() {
     setTimeout(() => {
       setState({ screen: 'game', musicOn: true, currentUser: user, coins: coins });
       audioPlay();
+      loadCollection();
     }, 450);
   };
 
