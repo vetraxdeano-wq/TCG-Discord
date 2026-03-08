@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>PWL TCG</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#7c3aed">
+<script>
+  if ('serviceWorker' in navigator)
+    navigator.serviceWorker.register('/sw.js')
+</script> 
 <style>
 :root{
   --bg:#08080d;--s1:#0f0f16;--s2:#14141e;--s3:#1a1a27;
