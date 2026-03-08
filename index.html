@@ -100,7 +100,7 @@ async function loadCollection() {
 }
 
 const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
-const RARITY_ORDER=["mythic","rare","uncommon","common"];
+const RARITY_ORDER=["common","uncommon","rare","mythic"];
 const RARITY_COLOR={mythic:"#ef4444",rare:"#a78bfa",uncommon:"#7dd3fc",common:"#9ca3af"};
 const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune"};
 
@@ -497,13 +497,14 @@ function renderTabCollection(th){
         <button class="sort-btn" data-sort="rarity" style="padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collSortBy==='rarity'?th.accent:th.surface};color:${state.collSortBy==='rarity'?'#fff':th.textMuted};border:none;transition:all .15s;">Rareté</button>
         <div style="margin-left:auto;position:relative;">
           <button id="set-filter-btn" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collFilterSet!=='all'?th.accent:th.surface};color:${state.collFilterSet!=='all'?'#fff':th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent:th.border};;white-space:nowrap;">
-            ${SET_LABELS[state.collFilterSet]}
+            ${state.collFilterSet === "all" ? "Tous les Sets" : state.collFilterSet}
             <span style="display:inline-block;transform:${state.collSetOpen?'rotate(180deg)':'none'};transition:transform .2s;">${SVG.chevron}</span>
           </button>
           ${state.collSetOpen?`
           <div id="set-dropdown" style="position:absolute;right:0;top:calc(100% + 6px);background:${th.bgSecondary};border:1px solid ${th.border};border-radius:10px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:50;min-width:140px;">
-            ${Object.entries(SET_LABELS).map(([v,l])=>`
-              <button class="set-opt" data-val="${v}" style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:11px;font-weight:600;background:${state.collFilterSet===v?th.accent+'20':'transparent'};color:${state.collFilterSet===v?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">${l}</button>`).join('')}
+            <button class="set-opt" data-val="all" style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:11px;font-weight:600;background:${state.collFilterSet==='all'?th.accent+'20':'transparent'};color:${state.collFilterSet==='all'?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">Tous les Sets</button>
+            ${[...new Set(ALL_CARDS.map(c=>c.set))].sort().map(s=>`
+              <button class="set-opt" data-val="${s}" style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:11px;font-weight:600;background:${state.collFilterSet===s?th.accent+'20':'transparent'};color:${state.collFilterSet===s?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">${s}</button>`).join('')}
           </div>`:''}
         </div>
       </div>
