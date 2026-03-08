@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Discord TCG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;}
+button{font-family:inherit;cursor:pointer;}
+::-webkit-scrollbar{width:3px;height:3px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:99px;}
+#app{width:100%;height:100vh;display:flex;flex-direction:column;font-family:'Rajdhani',sans-serif;}
+
+/* Splash animations */
+@keyframes ctaPulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes arrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes spinRing1{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes spinRing2{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+@keyframes conicSpin{from{--angle:0deg}to{--angle:360deg}}
+
+.cta-pulse{animation:ctaPulse 2.2s ease-in-out infinite;}
+.arrow-bounce{animation:arrowBounce 1.6s ease-in-out infinite;}
+.fade-up{animation:fadeUp .5s ease both;}
+.ring1{animation:spinRing1 8s linear infinite;}
+.ring2{animation:spinRing2 5.5s linear infinite;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ─── THEMES ───────────────────────────────────────────────────────
+const themes = {
+  dark:{
+    bg:"#1e1f22",bgSecondary:"#2b2d31",bgTertiary:"#313338",
+    surface:"#383a40",accent:"#5865f2",accentGlow:"rgba(88,101,242,0.35)",
+    green:"#57f287",red:"#ed4245",yellow:"#fee75c",
+    text:"#f2f3f5",textMuted:"#96989d",textFaint:"#4e5058",
+    border:"rgba(255,255,255,0.06)",
+  },
+  light:{
+    bg:"#f2f3f5",bgSecondary:"#e3e5e8",bgTertiary:"#ffffff",
+    surface:"#ffffff",accent:"#5865f2",accentGlow:"rgba(88,101,242,0.2)",
+    green:"#2d7d46",red:"#d83c3e",yellow:"#c48a0e",
+    text:"#060607",textMuted:"#4e5058",textFaint:"#96989d",
+    border:"rgba(0,0,0,0.08)",
+  },
+};
+
+const BOOSTERS = [
+  {id:1,name:"Starter Pack",price:100,color:"#5865f2",rarity:"common",cards:5},
+  {id:2,name:"Premium Pack",price:250,color:"#fee75c",rarity:"rare",cards:7},
+  {id:3,name:"Legendary Pack",price:500,color:"#eb459e",rarity:"legendary",cards:10},
+];
+
+const ALL_CARDS = [
+  {id:"001",name:"Blaze Sentinel",set:"SET-1",rarity:"common",type:"Attaque",color:"#ed4245",owned:true,count:2,obtainedAt:"2024-11-03T14:22:00"},
+  {id:"002",name:"Void Walker",set:"SET-1",rarity:"rare",type:"Défense",color:"#5865f2",owned:true,count:1,obtainedAt:"2024-11-05T09:47:00"},
+  {id:"003",name:"Storm Herald",set:"SET-1",rarity:"epic",type:"Magie",color:"#fee75c",owned:false,count:0,obtainedAt:null},
+  {id:"004",name:"Shadow Raven",set:"SET-1",rarity:"legendary",type:"Invocation",color:"#eb459e",owned:false,count:0,obtainedAt:null},
+  {id:"005",name:"Iron Golem",set:"SET-2",rarity:"common",type:"Défense",color:"#96989d",owned:true,count:3,obtainedAt:"2024-11-10T18:05:00"},
+  {id:"006",name:"Frost Witch",set:"SET-2",rarity:"rare",type:"Magie",color:"#00d4ff",owned:false,count:0,obtainedAt:null},
+  {id:"007",name:"Thunder Drake",set:"SET-2",rarity:"epic",type:"Attaque",color:"#57f287",owned:true,count:1,obtainedAt:"2024-12-01T21:13:00"},
+  {id:"008",name:"Abyssal King",set:"SET-2",rarity:"legendary",type:"Invocation",color:"#ff7043",owned:false,count:0,obtainedAt:null},
+  {id:"009",name:"Crystal Sage",set:"SET-3",rarity:"common",type:"Magie",color:"#a8d8ea",owned:false,count:0,obtainedAt:null},
+  {id:"010",name:"Ember Phoenix",set:"SET-3",rarity:"rare",type:"Attaque",color:"#ff6b35",owned:true,count:1,obtainedAt:"2024-12-14T11:30:00"},
+  {id:"011",name:"Tide Caller",set:"SET-3",rarity:"epic",type:"Défense",color:"#4facfe",owned:false,count:0,obtainedAt:null},
+  {id:"012",name:"Null Dragon",set:"SET-3",rarity:"legendary",type:"Invocation",color:"#9b59b6",owned:false,count:0,obtainedAt:null},
+];
+
+const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
+const RARITY_ORDER=["common","rare","epic","legendary"];
+const RARITY_COLOR={common:"#96989d",rare:"#5865f2",epic:"#eb459e",legendary:"#fee75c"};
+const RARITY_LABEL={common:"Commun",rare:"Rare",epic:"Épique",legendary:"Légendaire"};
+
+function fmtDate(iso){if(!iso)return"—";return new Date(iso).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});}
+function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});}
+
+// ─── AMBIENT MUSIC ────────────────────────────────────────────────
+let audioCtx=null, audioNodes=[], audioPlaying=false;
+
+function audioPlay(){
+  if(audioPlaying)return;
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  audioPlaying=true;
+  const ctx=audioCtx;
+  const master=ctx.createGain();
+  master.gain.setValueAtTime(0,ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.18,ctx.currentTime+3);
+  master.connect(ctx.destination);
+  const convolver=ctx.createConvolver();
+  const irLen=ctx.sampleRate*2.5;
+  const ir=ctx.createBuffer(2,irLen,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,2.2);}
+  convolver.buffer=ir;
+  const reverbGain=ctx.createGain();reverbGain.gain.value=0.35;
+  convolver.connect(reverbGain);reverbGain.connect(master);
+  const padNotes=[130.81,164.81,196.00,261.63,329.63];
+  padNotes.forEach((freq,i)=>{
+    const osc=ctx.createOscillator();const g=ctx.createGain();
+    osc.type=i%2===0?"sine":"triangle";osc.frequency.value=freq;
+    const lfo=ctx.createOscillator();const lfoG=ctx.createGain();
+    lfo.frequency.value=0.07+i*0.013;lfoG.gain.value=0.4;
+    lfo.connect(lfoG);lfoG.connect(osc.frequency);lfo.start();
+    g.gain.setValueAtTime(0,ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0.06-i*0.008,ctx.currentTime+4+i*1.2);
+    osc.connect(g);g.connect(master);g.connect(convolver);osc.start();
+    audioNodes.push(osc,lfo);
+  });
+  const bass=ctx.createOscillator();const bassG=ctx.createGain();
+  bass.type="sine";bass.frequency.value=65.41;
+  bassG.gain.setValueAtTime(0,ctx.currentTime);
+  bassG.gain.linearRampToValueAtTime(0.07,ctx.currentTime+5);
+  bass.connect(bassG);bassG.connect(master);bass.start();audioNodes.push(bass);
+  const shimmer=ctx.createOscillator();const shimG=ctx.createGain();
+  shimmer.type="sine";shimmer.frequency.value=1046.5;
+  const shimLfo=ctx.createOscillator();const shimLfoG=ctx.createGain();
+  shimLfo.frequency.value=0.04;shimLfoG.gain.value=0.015;
+  shimLfo.connect(shimLfoG);shimLfoG.connect(shimG.gain);shimLfo.start();
+  shimG.gain.setValueAtTime(0.018,ctx.currentTime);
+  shimmer.connect(shimG);shimG.connect(convolver);shimmer.start();
+  audioNodes.push(shimmer,shimLfo);
+  const melody=[261.63,293.66,329.63,392.00,440.00,392.00,329.63,293.66];
+  let mt=ctx.currentTime+6;
+  const scheduleMelody=()=>{
+    melody.forEach((freq,i)=>{
+      const osc=ctx.createOscillator();const env=ctx.createGain();
+      osc.type="triangle";osc.frequency.value=freq;
+      env.gain.setValueAtTime(0,mt+i*1.8);
+      env.gain.linearRampToValueAtTime(0.04,mt+i*1.8+0.05);
+      env.gain.exponentialRampToValueAtTime(0.001,mt+i*1.8+2.2);
+      osc.connect(env);env.connect(master);env.connect(convolver);
+      osc.start(mt+i*1.8);osc.stop(mt+i*1.8+2.5);audioNodes.push(osc);
+    });
+    mt+=melody.length*1.8+4;
+    if(audioPlaying)setTimeout(scheduleMelody,(melody.length*1.8+4)*1000-500);
+  };
+  scheduleMelody();
+}
+function audioStop(){
+  audioNodes.forEach(n=>{try{n.stop();}catch(e){}});
+  audioNodes=[];audioPlaying=false;
+}
+function audioToggle(){if(audioPlaying)audioStop();else audioPlay();}
+
+// ─── STATE ────────────────────────────────────────────────────────
+let state = {
+  isDark: true,
+  screen: "splash",
+  tab: 0,
+  showSettings: false,
+  showFriends: false,
+  showNotif: false,
+  musicOn: false,
+  // Collection
+  collSortBy: "id",
+  collFilterSet: "all",
+  collFilterRarity: "all",
+  collSetOpen: false,
+  collSelectedCard: null,
+  // Boosters
+  boosterOpening: null,
+  showPioche: false,
+  // Pioche
+  piocheFlipped: {},
+  piocheChosen: null,
+  piocheResult: null,
+};
+let splashTick = 0;
+let splashTimer = null;
+let touchStartX = null;
+
+function t(){ return state.isDark ? themes.dark : themes.light; }
+
+function setState(updates){
+  Object.assign(state, updates);
+  render();
+}
+
+// ─── SVG ICONS ────────────────────────────────────────────────────
+const SVG = {
+  swords:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/><line x1="19" y1="21" x2="21" y2="19"/></svg>`,
+  cards:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+  package:`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+  settings:`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+  users:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  bell:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+  x:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  musicOn:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
+  musicOff:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`,
+  chevron:`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+};
+
+// ─── RENDER ───────────────────────────────────────────────────────
+function render(){
+  const app = document.getElementById('app');
+  const th = t();
+  app.style.background = th.bg;
+  app.style.color = th.text;
+
+  if(state.screen === "splash"){
+    app.innerHTML = renderSplash(th);
+    bindSplash();
+    startSplashAnim();
+  } else {
+    stopSplashAnim();
+    app.innerHTML = renderGame(th);
+    bindGame();
+  }
+}
+
+// ─── SPLASH ───────────────────────────────────────────────────────
+function renderSplash(th){
+  return `
+  <div id="splash" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${th.bg};cursor:pointer;user-select:none;overflow:hidden;transition:opacity .45s;">
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 38%,${th.accentGlow} 0%,transparent 62%);"></div>
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 55% 60%,rgba(235,69,158,0.12) 0%,transparent 50%);"></div>
+    <svg id="splash-particles" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></svg>
+    <div style="position:relative;margin-bottom:40px;">
+      <div class="ring1" style="position:absolute;inset:-30px;border:1px solid rgba(88,101,242,.18);border-radius:50%;">
+        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:#5865f2;box-shadow:0 0 10px #5865f2;"></div>
+      </div>
+      <div class="ring2" style="position:absolute;inset:-18px;border:1px solid rgba(235,69,158,.2);border-radius:50%;">
+        <div style="position:absolute;bottom:-3px;right:15%;width:6px;height:6px;border-radius:50%;background:#eb459e;box-shadow:0 0 8px #eb459e;"></div>
+      </div>
+      <div id="conic-ring" style="width:112px;height:112px;border-radius:50%;background:conic-gradient(from 0deg,#5865f2,#eb459e,#fee75c,#57f287,#5865f2);display:flex;align-items:center;justify-content:center;box-shadow:0 0 50px rgba(88,101,242,.45);">
+        <div style="width:98px;height:98px;border-radius:50%;background:${th.bg};display:flex;align-items:center;justify-content:center;font-size:46px;">🃏</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:56px;">
+      <div style="font-family:'Cinzel',serif;font-size:34px;font-weight:900;letter-spacing:6px;color:${th.text};text-transform:uppercase;text-shadow:0 0 40px ${th.accentGlow};">DISCORD</div>
+      <div style="font-family:'Cinzel',serif;font-size:14px;letter-spacing:10px;color:${th.accent};text-transform:uppercase;margin-top:2px;margin-bottom:14px;">TCG</div>
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;">
+        <div style="width:44px;height:1px;background:linear-gradient(to right,transparent,${th.accent}80);"></div>
+        <div style="width:5px;height:5px;border-radius:50%;background:${th.accent};box-shadow:0 0 8px ${th.accent};"></div>
+        <div style="width:44px;height:1px;background:linear-gradient(to left,transparent,${th.accent}80);"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <div class="cta-pulse" style="font-size:11px;letter-spacing:3.5px;text-transform:uppercase;color:${th.textMuted};font-family:'Rajdhani',sans-serif;font-weight:600;">✦ &nbsp; Appuyer n'importe où &nbsp; ✦</div>
+      <div class="arrow-bounce" style="width:30px;height:30px;border-radius:50%;border:1px solid ${th.accent}50;display:flex;align-items:center;justify-content:center;color:${th.accent};font-size:13px;">▼</div>
+    </div>
+    <div style="position:absolute;bottom:18px;font-size:9px;color:${th.textFaint};letter-spacing:2px;font-family:'Rajdhani',sans-serif;">v0.1 · BETA</div>
+  </div>`;
+}
+
+function bindSplash(){
+  document.getElementById('splash').addEventListener('click', ()=>{
+    checkAuthAndEnter();
+  });
+}
+
+const splashPts = Array.from({length:20},(_,i)=>({
+  x:Math.random()*100, y:100+Math.random()*20,
+  size:Math.random()*2.5+1, speed:Math.random()*.25+.08,
+  offset:Math.random()*Math.PI*2,
+  color:["#5865f2","#eb459e","#fee75c","#57f287"][i%4],
+}));
+
+function startSplashAnim(){
+  stopSplashAnim();
+  splashTick = 0;
+  let angle = 0;
+  splashTimer = setInterval(()=>{
+    splashTick++;
+    angle += 0.6;
+    // Update particles
+    const svg = document.getElementById('splash-particles');
+    if(svg){
+      let circles = '';
+      splashPts.forEach((p,i)=>{
+        const y = ((p.y - splashTick*p.speed)%110+110)%110-5;
+        circles += `<circle cx="${p.x + Math.sin(splashTick*.03+p.offset)*2}%" cy="${y}%" r="${p.size}" fill="${p.color}" opacity="${0.2+Math.sin(splashTick*.06+p.offset)*.1}"/>`;
+      });
+      svg.innerHTML = circles;
+    }
+    // Update conic ring
+    const ring = document.getElementById('conic-ring');
+    if(ring) ring.style.background = `conic-gradient(from ${angle}deg,#5865f2,#eb459e,#fee75c,#57f287,#5865f2)`;
+  }, 50);
+}
+
+function stopSplashAnim(){
+  if(splashTimer){ clearInterval(splashTimer); splashTimer=null; }
+}
+
+// ─── GAME ─────────────────────────────────────────────────────────
+function renderGame(th){
+  const TABS = [
+    {label:"Jouer",icon:SVG.swords},
+    {label:"Collection",icon:SVG.cards},
+    {label:"Boosters",icon:SVG.package},
+  ];
+  const NOTIF_COUNT = 3;
+
+  let tabContent = '';
+  if(state.tab===0) tabContent = renderTabPlay(th);
+  else if(state.tab===1) tabContent = renderTabCollection(th);
+  else tabContent = renderTabBoosters(th);
+
+  return `
+  <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;padding:10px 14px 8px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;">
+        <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,${th.accent},#eb459e);display:flex;align-items:center;justify-content:center;font-size:15px;">🃏</div>
+        <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:2px;color:${th.text};">DCG</span>
+        <span style="font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:${th.textMuted};text-transform:uppercase;">BETA</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div style="display:flex;align-items:center;gap:4px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};">🪙 1 000</div>
+        <button id="btn-music" style="width:30px;height:30px;border-radius:50%;background:${state.musicOn?th.accent+'30':th.surface};color:${state.musicOn?th.accent:th.textFaint};border:1px solid ${state.musicOn?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;">
+          ${state.musicOn?SVG.musicOn:SVG.musicOff}
+        </button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <button id="btn-settings" style="width:32px;height:32px;border-radius:50%;background:${state.showSettings?th.accent:th.surface};color:${state.showSettings?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.settings}</button>
+        <button id="btn-friends" style="width:32px;height:32px;border-radius:50%;background:${state.showFriends?th.accent:th.surface};color:${state.showFriends?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.users}</button>
+        <div style="position:relative;">
+          <button id="btn-notif" style="width:32px;height:32px;border-radius:50%;background:${state.showNotif?th.accent:th.surface};color:${state.showNotif?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.bell}</button>
+          ${NOTIF_COUNT>0&&!state.showNotif?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
+        </div>
+      </div>
+    </div>
+    <!-- TAB LINE -->
+    <div style="display:flex;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      ${TABS.map((_,i)=>`<div style="flex:1;height:2px;background:${state.tab===i?th.accent:'transparent'};transition:background .25s;"></div>`).join('')}
+    </div>
+    <!-- CONTENT -->
+    <div style="flex:1;overflow:hidden;position:relative;">
+      <div id="tab-slider" style="display:flex;width:300%;height:100%;transform:translateX(${-state.tab*(100/3)}%);transition:transform .3s cubic-bezier(.25,.46,.45,.94);">
+        <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===0?renderTabPlay(th):'<div></div>'}</div>
+        <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===1?renderTabCollection(th):'<div></div>'}</div>
+        <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===2?renderTabBoosters(th):'<div></div>'}</div>
+      </div>
+    </div>
+    <!-- NAV BAS -->
+    <div style="display:flex;background:${th.bgSecondary};border-top:1px solid ${th.border};flex-shrink:0;">
+      ${TABS.map((tb,i)=>`
+        <button data-tab="${i}" style="flex:1;padding:9px 0 11px;display:flex;flex-direction:column;align-items:center;gap:3px;background:transparent;border:none;color:${state.tab===i?th.accent:th.textMuted};transition:color .15s;">
+          <div style="transform:${state.tab===i?'scale(1.12)':'scale(1)'};transition:transform .15s;">${tb.icon}</div>
+          <span style="font-size:9px;font-weight:700;letter-spacing:.5px;">${tb.label}</span>
+          <div style="width:4px;height:4px;border-radius:50%;background:${state.tab===i?th.accent:'transparent'};transition:background .15s;"></div>
+        </button>`).join('')}
+    </div>
+    <!-- MODALS -->
+    ${state.showSettings?renderSettingsModal(th):''}
+    ${state.showFriends?renderFriendsModal(th):''}
+    ${state.showNotif?renderNotifModal(th):''}
+    ${state.collSelectedCard?renderCardDetailModal(state.collSelectedCard,th):''}
+    ${state.showPioche?renderPiocheMechanic(th):''}
+  </div>`;
+}
+
+// ─── TAB PLAY ─────────────────────────────────────────────────────
+function renderTabPlay(th){
+  const modes=[
+    {id:"pvp",label:"PvP",sub:"Joueur contre Joueur",desc:"Affronte d'autres joueurs en temps réel sur Discord",icon:"⚔️",color:th.accent,available:true},
+    {id:"ia",label:"vs IA",sub:"Entraînement solo",desc:"Perfectionne ta stratégie contre notre IA adaptative",icon:"🤖",color:th.green,available:true},
+    {id:"secret",label:"???",sub:"Mode secret",desc:"Ce mode sera débloqué prochainement…",icon:"🔒",color:th.textFaint,available:false},
+  ];
+  return `
+  <div style="display:flex;flex-direction:column;height:100%;padding:14px;gap:10px;overflow:hidden;">
+    <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:4px;color:${th.textMuted};text-transform:uppercase;">Mode de jeu</div>
+    <div style="display:flex;flex-direction:column;gap:8px;flex:1;">
+      ${modes.map(m=>`
+        <button class="mode-btn" data-mode="${m.id}" style="flex:1;background:${m.available?`linear-gradient(135deg,${m.color}12,transparent)`:th.bgSecondary};border:1px solid ${m.available?m.color+'35':th.border};border-radius:14px;display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:${m.available?'pointer':'not-allowed'};opacity:${m.available?1:.42};transition:all .2s;width:100%;text-align:left;">
+          <div style="width:54px;height:54px;border-radius:14px;flex-shrink:0;background:${m.available?m.color+'20':th.surface};border:1px solid ${m.color}30;display:flex;align-items:center;justify-content:center;font-size:26px;">${m.icon}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${m.available?m.color:th.textFaint};">${m.label}</div>
+            <div style="font-size:12px;font-weight:600;color:${th.text};margin-top:1px;">${m.sub}</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:3px;line-height:1.4;">${m.desc}</div>
+          </div>
+          ${m.available
+            ?`<div style="padding:7px 14px;border-radius:99px;flex-shrink:0;background:transparent;border:1px solid ${m.color}60;color:${m.color};font-size:10px;font-weight:700;white-space:nowrap;">JOUER</div>`
+            :`<div style="padding:4px 10px;border-radius:99px;background:${th.surface};color:${th.textFaint};font-size:9px;font-weight:600;flex-shrink:0;">Bientôt</div>`}
+        </button>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;">
+      ${[{l:"Victoires",v:"—",c:th.green,i:"🏆"},{l:"Défaites",v:"—",c:th.red,i:"💀"},{l:"Rang",v:"—",c:th.yellow,i:"⭐"}].map(s=>`
+        <div style="flex:1;background:${th.bgSecondary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
+          <div style="font-size:16px;">${s.i}</div>
+          <div style="font-size:18px;font-weight:800;color:${s.c};margin-top:2px;">${s.v}</div>
+          <div style="font-size:9px;color:${th.textMuted};">${s.l}</div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ─── TAB COLLECTION ───────────────────────────────────────────────
+function renderTabCollection(th){
+  const owned = ALL_CARDS.filter(c=>c.owned).length;
+  let cards = [...ALL_CARDS]
+    .filter(c=>state.collFilterSet==="all"||c.set===state.collFilterSet)
+    .filter(c=>state.collFilterRarity==="all"||c.rarity===state.collFilterRarity)
+    .sort((a,b)=>state.collSortBy==="id"?a.id.localeCompare(b.id):RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
+
+  return `
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;position:relative;">
+    <div style="flex-shrink:0;padding:12px 14px 0;">
+      <div style="background:linear-gradient(135deg,${th.accent}18,${th.accent}06);border:1px solid ${th.accent}40;border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-8px;top:-8px;font-size:52px;opacity:.04;pointer-events:none;">🗂️</div>
+        <div style="width:42px;height:42px;border-radius:10px;flex-shrink:0;background:${th.accent}20;border:1px solid ${th.accent}50;display:flex;align-items:center;justify-content:center;font-size:20px;">🗂️</div>
+        <div style="flex:1;">
+          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">Deck Builder</div>
+          <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${owned} carte${owned>1?'s':''} disponible${owned>1?'s':''}</div>
+        </div>
+        <button style="padding:6px 12px;border-radius:99px;flex-shrink:0;background:${th.accent};color:#fff;border:none;cursor:not-allowed;font-size:10px;font-weight:700;opacity:.55;">Bientôt</button>
+      </div>
+    </div>
+    <div style="padding:8px 14px 6px;flex-shrink:0;display:flex;flex-direction:column;gap:5px;">
+      <div style="display:flex;gap:5px;align-items:center;">
+        <span style="font-size:10px;color:${th.textMuted};white-space:nowrap;">Tri :</span>
+        <button class="sort-btn" data-sort="id" style="padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collSortBy==='id'?th.accent:th.surface};color:${state.collSortBy==='id'?'#fff':th.textMuted};border:none;transition:all .15s;">ID</button>
+        <button class="sort-btn" data-sort="rarity" style="padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collSortBy==='rarity'?th.accent:th.surface};color:${state.collSortBy==='rarity'?'#fff':th.textMuted};border:none;transition:all .15s;">Rareté</button>
+        <div style="margin-left:auto;position:relative;">
+          <button id="set-filter-btn" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collFilterSet!=='all'?th.accent:th.surface};color:${state.collFilterSet!=='all'?'#fff':th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent:th.border};;white-space:nowrap;">
+            ${SET_LABELS[state.collFilterSet]}
+            <span style="display:inline-block;transform:${state.collSetOpen?'rotate(180deg)':'none'};transition:transform .2s;">${SVG.chevron}</span>
+          </button>
+          ${state.collSetOpen?`
+          <div id="set-dropdown" style="position:absolute;right:0;top:calc(100% + 6px);background:${th.bgSecondary};border:1px solid ${th.border};border-radius:10px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:50;min-width:140px;">
+            ${Object.entries(SET_LABELS).map(([v,l])=>`
+              <button class="set-opt" data-val="${v}" style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:11px;font-weight:600;background:${state.collFilterSet===v?th.accent+'20':'transparent'};color:${state.collFilterSet===v?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">${l}</button>`).join('')}
+          </div>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;overflow-x:auto;">
+        <button class="rar-btn" data-rar="all" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterRarity==='all'?th.text:th.surface};color:${state.collFilterRarity==='all'?th.bg:th.textMuted};border:none;">Tout</button>
+        ${RARITY_ORDER.map(r=>`<button class="rar-btn" data-rar="${r}" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterRarity===r?RARITY_COLOR[r]:th.surface};color:${state.collFilterRarity===r?'#fff':RARITY_COLOR[r]};border:1px solid ${RARITY_COLOR[r]}40;">${RARITY_LABEL[r]}</button>`).join('')}
+      </div>
+      <div style="font-size:9px;color:${th.textFaint};">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:0 14px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-content:start;">
+      ${cards.map(c=>renderCollCard(c,th)).join('')}
+      ${cards.length===0?`<div style="grid-column:1/-1;text-align:center;color:${th.textMuted};font-size:12px;padding-top:30px;">Aucune carte</div>`:''}
+    </div>
+  </div>`;
+}
+
+function renderCollCard(card,th){
+  if(!card.owned){
+    return `<div class="coll-card" data-cardid="${card.id}" style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:10px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.32;filter:grayscale(1);cursor:pointer;transition:all .15s;">
+      <div style="font-size:18px;">🂠</div>
+      <div style="font-size:9px;font-weight:700;color:${th.textMuted};">#${card.id}</div>
+    </div>`;
+  }
+  return `<div class="coll-card" data-cardid="${card.id}" style="background:linear-gradient(160deg,${card.color}18,${th.bgSecondary});border:1px solid ${card.color}30;border-radius:10px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;overflow:hidden;padding:8px 6px 6px;gap:4px;position:relative;">
+    ${card.count>1?`<div style="position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:50%;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">×${card.count}</div>`:''}
+    <div style="flex:1;width:100%;border-radius:6px;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>
+    <div style="font-size:8px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;">${card.name}</div>
+    <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+      <span style="font-size:8px;color:${th.textMuted};">#${card.id}</span>
+      <span style="font-size:9px;color:${RARITY_COLOR[card.rarity]};">◆</span>
+    </div>
+  </div>`;
+}
+
+// ─── CARD DETAIL MODAL ────────────────────────────────────────────
+function renderCardDetailModal(card,th){
+  return `
+  <div id="card-modal-bg" style="position:absolute;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px 16px;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);">
+    <div style="display:flex;gap:14px;align-items:flex-start;max-width:360px;width:100%;">
+      <div style="flex-shrink:0;width:140px;perspective:800px;">
+        <div id="card-flip" style="width:140px;aspect-ratio:2/3;position:relative;transform-style:preserve-3d;transform:rotateY(${card.owned?'0deg':'180deg'});transition:transform .65s cubic-bezier(.25,.46,.45,.94);">
+          <div style="position:absolute;inset:0;backface-visibility:hidden;background:linear-gradient(160deg,${card.color}28,${th.bgSecondary});border:1px solid ${card.color}60;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px ${card.color}50;display:flex;flex-direction:column;">
+            <div style="flex:1;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:46px;position:relative;">
+              🃏
+              <div style="position:absolute;bottom:6px;right:8px;font-size:9px;font-weight:800;color:${card.color};background:${card.color}20;padding:2px 6px;border-radius:99px;">${RARITY_LABEL[card.rarity]}</div>
+            </div>
+            <div style="padding:8px 10px;background:${th.bgSecondary};">
+              <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span style="font-size:9px;color:${th.textMuted};background:${th.surface};padding:2px 6px;border-radius:99px;">${card.type}</span>
+                <span style="font-size:10px;color:${RARITY_COLOR[card.rarity]};">◆</span>
+              </div>
+              <div style="font-size:8px;color:${th.textFaint};margin-top:3px;">#${card.id} · ${SET_LABELS[card.set]||card.set}</div>
+            </div>
+          </div>
+          <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,${th.accent}25,#eb459e15);border:1px solid ${th.border};border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+            <div style="font-size:44px;">🂠</div>
+            ${!card.owned?`<div style="font-size:10px;color:${th.textMuted};letter-spacing:2px;font-family:'Rajdhani',sans-serif;font-weight:600;">INCONNUE</div>`:''}
+          </div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding-top:4px;">
+        <div style="display:flex;justify-content:flex-end;">
+          <button id="card-modal-close" style="width:28px;height:28px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
+        </div>
+        ${card.owned?`
+          <div>
+            <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};line-height:1.2;">${card.name}</div>
+            <div style="font-size:10px;color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:3px;">◆ ${RARITY_LABEL[card.rarity]}</div>
+          </div>
+          ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]},{l:"ID",v:`#${card.id}`}].map(r=>`
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid ${th.border};">
+            <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
+            <span style="font-size:10px;font-weight:600;color:${th.text};">${r.v}</span>
+          </div>`).join('')}
+          <div style="background:${th.bgSecondary};border-radius:10px;padding:10px 12px;border:1px solid ${th.border};">
+            <div style="font-size:9px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Possession</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span style="font-size:10px;color:${th.textMuted};">Exemplaires</span>
+              <span style="font-size:13px;font-weight:800;color:${th.green};">×${card.count}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+              <span style="font-size:10px;color:${th.textMuted};">Obtenue le</span>
+              <span style="font-size:10px;font-weight:600;color:${th.text};">${fmtDate(card.obtainedAt)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-size:10px;color:${th.textMuted};">À</span>
+              <span style="font-size:10px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
+            </div>
+          </div>
+          <button style="padding:8px;border-radius:10px;background:${th.accent};color:#fff;border:1px solid ${th.accent};font-size:11px;font-weight:700;">＋ Ajouter au deck</button>
+        `:`
+          <div>
+            <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:900;color:${th.textMuted};letter-spacing:2px;">???</div>
+            <div style="font-size:10px;color:${th.textFaint};margin-top:4px;">Carte mystère</div>
+          </div>
+          <div style="background:${th.bgSecondary};border-radius:10px;padding:12px;border:1px solid ${th.border};display:flex;flex-direction:column;gap:6px;">
+            ${[{l:"ID",v:`#${card.id}`},{l:"Set",v:SET_LABELS[card.set]},{l:"Nom",v:"— — — —"},{l:"Rareté",v:"— — —"}].map(r=>`
+            <div style="display:flex;justify-content:space-between;">
+              <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
+              <span style="font-size:10px;color:${r.l==="ID"||r.l==="Set"?th.text:th.textFaint};">${r.v}</span>
+            </div>`).join('')}
+          </div>
+          <div style="font-size:10px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;">Cette carte n'a pas encore été découverte. Ouvre des boosters pour la trouver !</div>
+          <button style="padding:8px;border-radius:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:700;">→ Aller aux boosters</button>
+        `}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── TAB BOOSTERS ─────────────────────────────────────────────────
+function renderTabBoosters(th){
+  const bazar=[
+    {top:"6%",left:"2%",rotate:"-7deg",scale:1.0,zIndex:1},
+    {top:"18%",left:"34%",rotate:"5deg",scale:1.1,zIndex:3},
+    {top:"3%",right:"2%",rotate:"11deg",scale:0.95,zIndex:2},
+  ];
+  return `
+  <div style="display:flex;flex-direction:column;height:100%;padding:12px 14px 14px;gap:10px;overflow:hidden;position:relative;">
+    <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:4px;color:${th.textMuted};text-transform:uppercase;flex-shrink:0;">Boosters & Pioche</div>
+    <div style="flex:1;position:relative;min-height:0;">
+      ${BOOSTERS.map((b,i)=>{
+        const pos=bazar[i];
+        const isOpen=state.boosterOpening===b.id;
+        const styleExtra = pos.right ? `right:${pos.right};` : `left:${pos.left};`;
+        return `
+        <div class="booster-card" data-bid="${b.id}" style="position:absolute;top:${pos.top};${styleExtra}width:46%;background:linear-gradient(150deg,${b.color}22,${b.color}08);border:1px solid ${b.color}45;border-radius:18px;padding:14px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .25s;transform:rotate(${pos.rotate}) scale(${pos.scale});z-index:${pos.zIndex};">
+          <div style="position:absolute;inset:0;border-radius:18px;background:radial-gradient(ellipse at 50% 20%,${b.color}18,transparent 70%);pointer-events:none;"></div>
+          ${[0,1,2].map(k=>`<div style="position:absolute;bottom:36px;left:50%;width:44px;height:62px;border-radius:6px;background:linear-gradient(135deg,${b.color}30,${b.color}10);border:1px solid ${b.color}40;transform:translateX(-50%) rotate(${(k-1)*8}deg) translateY(${k*2}px);z-index:${k};pointer-events:none;"></div>`).join('')}
+          <div style="font-size:${i===1?42:36}px;filter:drop-shadow(0 0 12px ${b.color}90);animation:${isOpen?'shakePack .4s ease':'floatPack 1.5s ease-in-out infinite'};z-index:1;margin-top:8px;">🃏</div>
+          <div style="text-align:center;z-index:1;width:100%;">
+            <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${th.text};">${b.name}</div>
+            <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${b.cards} cartes</div>
+            <div style="font-size:9px;color:${RARITY_COLOR[b.rarity]};font-weight:700;margin-bottom:6px;">◆ ${RARITY_LABEL[b.rarity]}</div>
+            <div style="font-size:13px;font-weight:800;color:${b.color};margin-bottom:8px;">🪙 ${b.price}</div>
+            <button class="open-booster" data-bid="${b.id}" style="width:100%;padding:7px 0;border-radius:99px;background:${isOpen?b.color+'70':b.color};color:#fff;border:none;font-size:10px;font-weight:700;box-shadow:${isOpen?`0 0 20px ${b.color}`:'none'};transition:all .2s;">
+              ${isOpen?"⋯ Ouverture":"Ouvrir"}
+            </button>
+          </div>
+        </div>`}).join('')}
+      <div style="position:absolute;bottom:0;left:0;right:0;">
+        <div id="btn-pioche" style="background:linear-gradient(135deg,${th.green}18,${th.green}06);border:1px solid ${th.green}40;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;cursor:pointer;">
+          <div style="position:absolute;right:-8px;top:-8px;font-size:50px;opacity:.06;pointer-events:none;">🎴</div>
+          <div style="position:relative;width:44px;height:54px;flex-shrink:0;">
+            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}40,${th.green}15);border:1px solid ${th.green}50;border-radius:5px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:16px;">🂠</div>`).join('')}
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">Pioche Classique</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">50 cartes face cachée · Retourne-en une</div>
+          </div>
+          <div style="padding:6px 12px;border-radius:99px;background:${th.green};color:#fff;font-size:10px;font-weight:700;flex-shrink:0;">Piocher</div>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}</style>
+  </div>`;
+}
+
+// ─── PIOCHE MECHANIC ──────────────────────────────────────────────
+function renderPiocheMechanic(th){
+  const TOTAL=50,COLS=10,CW=34,CH=48,GAP=4;
+  return `
+  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:420px;">
+      <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:#f2f3f5;">Pioche Classique</div>
+      <button id="pioche-close" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);color:#96989d;display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
+    </div>
+    <div style="font-size:11px;color:#96989d;text-align:center;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
+    ${!state.piocheResult?`
+    <div style="position:relative;width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*5+GAP*4}px;flex-shrink:0;">
+      ${Array.from({length:TOTAL},(_,i)=>{
+        const col=i%COLS,row=Math.floor(i/COLS);
+        const rot=(((i*37+13)%20)-10)*0.5;
+        const isChosen=state.piocheChosen===i;
+        const isFlipped=state.piocheFlipped[i];
+        return `<div class="pioche-card" data-idx="${i}" style="position:absolute;left:${col*(CW+GAP)}px;top:${row*(CH+GAP)}px;width:${CW}px;height:${CH}px;cursor:${state.piocheChosen===null?'pointer':'default'};perspective:300px;">
+          <div style="width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:${isFlipped?'rotateY(180deg)':`rotate(${rot}deg)`};transition:transform .6s ease;">
+            <div style="position:absolute;inset:0;backface-visibility:hidden;background:${isChosen?'linear-gradient(135deg,#5865f2,#eb459e)':'linear-gradient(135deg,#2b2d31,#1e1f22)'};border:1px solid ${isChosen?'#5865f2':'rgba(255,255,255,.08)'};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:${isChosen?'0 0 16px #5865f280':'none'};transform:${isChosen?'scale(1.1)':'scale(1)'};transition:all .2s;">🂠</div>
+            <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,#5865f230,#eb459e20);border:1px solid #5865f260;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;">🃏</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+    ${state.piocheResult?`
+    <div class="fade-up" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+      <div style="width:110px;aspect-ratio:2/3;background:linear-gradient(160deg,${state.piocheResult.color}30,#2b2d31);border:2px solid ${state.piocheResult.color}80;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px ${state.piocheResult.color}50;">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:36px;background:linear-gradient(135deg,${state.piocheResult.color}30,${state.piocheResult.color}10);">🃏</div>
+        <div style="padding:6px 8px;background:#2b2d31;">
+          <div style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:#f2f3f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.piocheResult.name}</div>
+          <div style="font-size:8px;color:${RARITY_COLOR[state.piocheResult.rarity]};margin-top:2px;">◆ ${RARITY_LABEL[state.piocheResult.rarity]}</div>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:#f2f3f5;">${state.piocheResult.name}</div>
+        <div style="font-size:11px;color:${RARITY_COLOR[state.piocheResult.rarity]};margin-top:3px;">◆ ${RARITY_LABEL[state.piocheResult.rarity]} · ${state.piocheResult.type}</div>
+      </div>
+      <button id="pioche-collect" style="padding:8px 24px;border-radius:99px;background:#5865f2;color:#fff;border:none;font-size:11px;font-weight:700;">Ajouter à la collection</button>
+    </div>`:''}
+  </div>`;
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────
+function renderNotifModal(th){
+  const notifs=[
+    {id:1,icon:"⚔️",msg:"ShadowBlade t'invite à jouer",time:"2min",action:"Accepter"},
+    {id:2,icon:"👥",msg:"LunarKnight veut être ton ami",time:"15min",action:"Accepter"},
+    {id:3,icon:"🎁",msg:"Ton Starter Pack est prêt !",time:"1h",action:"Ouvrir"},
+  ];
+  return `
+  <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
+      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
+      <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};margin-bottom:16px;">Notifications</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        ${notifs.map(n=>`
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};border-radius:12px;padding:12px;border:1px solid ${th.border};">
+          <div style="font-size:22px;flex-shrink:0;">${n.icon}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:${th.text};line-height:1.3;">${n.msg}</div>
+            <div style="font-size:10px;color:${th.textFaint};margin-top:2px;">Il y a ${n.time}</div>
+          </div>
+          <button style="padding:5px 12px;border-radius:99px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:700;flex-shrink:0;">${n.action}</button>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSettingsModal(th){
+  return `
+  <div id="settings-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="settings-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
+      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
+      <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};margin-bottom:20px;">Paramètres</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid ${th.border};">
+        <div>
+          <div style="font-size:13px;color:${th.text};font-weight:600;">Thème</div>
+          <div style="font-size:11px;color:${th.textMuted};">${state.isDark?"Mode sombre":"Mode clair"}</div>
+        </div>
+        <button id="theme-toggle" style="width:52px;height:28px;border-radius:99px;background:${state.isDark?th.accent:th.surface};border:1px solid ${th.border};display:flex;align-items:center;padding:0 4px;transition:background .2s;">
+          <div style="width:20px;height:20px;border-radius:50%;background:#fff;transform:${state.isDark?'translateX(24px)':'translateX(0)'};transition:transform .2s;display:flex;align-items:center;justify-content:center;font-size:10px;">${state.isDark?"🌙":"☀️"}</div>
+        </button>
+      </div>
+      ${["Son & Musique","Notifications","Langue","À propos"].map(l=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid ${th.border};">
+        <div style="font-size:13px;color:${th.textMuted};">${l}</div>
+        <div style="font-size:11px;color:${th.textFaint};">Bientôt</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderFriendsModal(th){
+  return `
+  <div id="friends-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="friends-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
+      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};">Amis</div>
+        <button style="padding:6px 14px;border-radius:99px;font-size:11px;font-weight:700;background:${th.accent};color:#fff;border:none;">+ Ajouter</button>
+      </div>
+      <div style="text-align:center;padding:30px 0;color:${th.textMuted};font-size:13px;">
+        <div style="font-size:32px;margin-bottom:12px;">👥</div>
+        Aucun ami pour l'instant.<br/>
+        <span style="color:${th.textFaint};font-size:11px;">Invite des amis pour jouer ensemble !</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── BIND EVENTS ──────────────────────────────────────────────────
+function bindGame(){
+  const th = t();
+
+  // Tab nav
+  document.querySelectorAll('[data-tab]').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({tab:parseInt(btn.dataset.tab)}));
+  });
+
+  // Header buttons
+  const btnMusic = document.getElementById('btn-music');
+  if(btnMusic) btnMusic.addEventListener('click',()=>{
+    audioToggle();
+    setState({musicOn:!state.musicOn});
+  });
+
+  const btnSettings = document.getElementById('btn-settings');
+  if(btnSettings) btnSettings.addEventListener('click',()=>setState({showSettings:true,showFriends:false,showNotif:false}));
+
+  const btnFriends = document.getElementById('btn-friends');
+  if(btnFriends) btnFriends.addEventListener('click',()=>setState({showFriends:true,showSettings:false,showNotif:false}));
+
+  const btnNotif = document.getElementById('btn-notif');
+  if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false}));
+
+  // Collection filters
+  document.querySelectorAll('.sort-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({collSortBy:btn.dataset.sort}));
+  });
+  document.querySelectorAll('.rar-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({collFilterRarity:btn.dataset.rar}));
+  });
+  const setBtn = document.getElementById('set-filter-btn');
+  if(setBtn) setBtn.addEventListener('click',(e)=>{e.stopPropagation();setState({collSetOpen:!state.collSetOpen});});
+  document.querySelectorAll('.set-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({collFilterSet:btn.dataset.val,collSetOpen:false}));
+  });
+
+  // Coll cards
+  document.querySelectorAll('.coll-card').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const card = ALL_CARDS.find(c=>c.id===el.dataset.cardid);
+      if(card) setState({collSelectedCard:card});
+    });
+    if(!el.style.filter){ // owned
+      el.addEventListener('mouseenter',()=>{el.style.transform='translateY(-3px) scale(1.03)';el.style.boxShadow=`0 8px 20px rgba(0,0,0,.3)`;});
+      el.addEventListener('mouseleave',()=>{el.style.transform='';el.style.boxShadow='';});
+    } else {
+      el.addEventListener('mouseenter',()=>{el.style.opacity='.55';el.style.transform='scale(1.04)';});
+      el.addEventListener('mouseleave',()=>{el.style.opacity='.32';el.style.transform='scale(1)';});
+    }
+  });
+
+  // Card modal close
+  const cardModalBg = document.getElementById('card-modal-bg');
+  if(cardModalBg) cardModalBg.addEventListener('click',(e)=>{if(e.target===cardModalBg)setState({collSelectedCard:null});});
+  const cardModalClose = document.getElementById('card-modal-close');
+  if(cardModalClose) cardModalClose.addEventListener('click',()=>setState({collSelectedCard:null}));
+
+  // Boosters
+  document.querySelectorAll('.open-booster').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const bid=parseInt(btn.dataset.bid);
+      setState({boosterOpening:bid});
+      setTimeout(()=>setState({boosterOpening:null}),1400);
+    });
+  });
+
+  const btnPioche = document.getElementById('btn-pioche');
+  if(btnPioche) btnPioche.addEventListener('click',()=>setState({showPioche:true,piocheFlipped:{},piocheChosen:null,piocheResult:null}));
+
+  // Booster hover
+  document.querySelectorAll('.booster-card').forEach(el=>{
+    const bid=parseInt(el.dataset.bid);
+    const b=BOOSTERS.find(b=>b.id===bid);
+    if(!b)return;
+    el.addEventListener('mouseenter',()=>{
+      el.style.transform=`scale(${parseFloat(el.style.transform.match(/scale\(([^)]+)\)/)?.[1]||1)+0.04}) rotate(0deg)`;
+      el.style.boxShadow=`0 16px 40px ${b.color}50`;
+      el.style.zIndex=10;
+      el.style.border=`1px solid ${b.color}90`;
+    });
+    el.addEventListener('mouseleave',()=>{
+      const idx=BOOSTERS.indexOf(b);
+      const bazar=[{rotate:"-7deg",scale:1.0},{rotate:"5deg",scale:1.1},{rotate:"11deg",scale:0.95}];
+      const pos=bazar[idx];
+      el.style.transform=`rotate(${pos.rotate}) scale(${pos.scale})`;
+      el.style.boxShadow='0 4px 16px rgba(0,0,0,.3)';
+      el.style.zIndex=pos.zIndex||1;
+      el.style.border=`1px solid ${b.color}45`;
+    });
+  });
+
+  // Pioche
+  const piocheClose = document.getElementById('pioche-close');
+  if(piocheClose) piocheClose.addEventListener('click',()=>setState({showPioche:false}));
+
+  document.querySelectorAll('.pioche-card').forEach(el=>{
+    el.addEventListener('click',()=>{
+      if(state.piocheChosen!==null)return;
+      const idx=parseInt(el.dataset.idx);
+      const newFlipped={...state.piocheFlipped,[idx]:true};
+      setState({piocheChosen:idx,piocheFlipped:newFlipped});
+      setTimeout(()=>{
+        setState({piocheResult:ALL_CARDS[Math.floor(Math.random()*ALL_CARDS.length)]});
+      },700);
+    });
+  });
+
+  const piocheCollect = document.getElementById('pioche-collect');
+  if(piocheCollect) piocheCollect.addEventListener('click',()=>setState({showPioche:false}));
+
+  // Modal backdrops
+  const notifBg=document.getElementById('notif-bg');
+  if(notifBg) notifBg.addEventListener('click',(e)=>{if(e.target===notifBg)setState({showNotif:false});});
+  const settingsBg=document.getElementById('settings-bg');
+  if(settingsBg) settingsBg.addEventListener('click',(e)=>{if(e.target===settingsBg)setState({showSettings:false});});
+  const friendsBg=document.getElementById('friends-bg');
+  if(friendsBg) friendsBg.addEventListener('click',(e)=>{if(e.target===friendsBg)setState({showFriends:false});});
+
+  // Theme toggle
+  const themeToggle=document.getElementById('theme-toggle');
+  if(themeToggle) themeToggle.addEventListener('click',()=>setState({isDark:!state.isDark}));
+
+  // Close set dropdown on outside click
+  document.addEventListener('click',(e)=>{
+    if(state.collSetOpen){
+      const dd=document.getElementById('set-dropdown');
+      const btn=document.getElementById('set-filter-btn');
+      if(dd&&!dd.contains(e.target)&&btn&&!btn.contains(e.target)){
+        setState({collSetOpen:false});
+      }
+    }
+  },{once:true});
+
+  // Touch swipe
+  const app=document.getElementById('app');
+  app.addEventListener('touchstart',(e)=>{touchStartX=e.touches[0].clientX;},{passive:true});
+  app.addEventListener('touchend',(e)=>{
+    if(touchStartX===null)return;
+    const dx=e.changedTouches[0].clientX-touchStartX;
+    if(Math.abs(dx)>60){
+      if(dx<0&&state.tab<2)setState({tab:state.tab+1});
+      if(dx>0&&state.tab>0)setState({tab:state.tab-1});
+    }
+    touchStartX=null;
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+render();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-init.js"></script>
+<script>
+// ─── AUTH DISCORD ─────────────────────────────────────────────────
+
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    const user = session.user;
+    supabase.from('players').upsert({
+      id: user.id,
+      discord_username: user.user_metadata.full_name || user.user_metadata.name,
+      avatar_url: user.user_metadata.avatar_url,
+    }, { onConflict: 'id' });
+  }
+});
+
+async function loginDiscord() {
+  await supabase.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: window.location.href }
+  });
+}
+
+async function checkAuthAndEnter() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    showDiscordLoginBtn();
+    return;
+  }
+  const s = document.getElementById('splash');
+  if (s) s.style.opacity = '0';
+  setTimeout(() => {
+    setState({ screen: 'game', musicOn: true });
+    audioPlay();
+  }, 450);
+}
+
+function showDiscordLoginBtn() {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  const cta = splash.querySelector('.cta-pulse');
+  const arrow = splash.querySelector('.arrow-bounce');
+  if (cta) cta.innerHTML = '';
+  if (arrow) arrow.style.display = 'none';
+
+  const btn = document.createElement('button');
+  btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.032.054a19.9 19.9 0 0 0 5.993 3.03.077.077 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+  Se connecter avec Discord`;
+  btn.style.cssText = 'display:flex;align-items:center;gap:10px;padding:13px 28px;background:#5865f2;color:#fff;border:none;border-radius:8px;font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 24px rgba(88,101,242,0.5);transition:transform .2s,box-shadow .2s;';
+  btn.onmouseenter = () => { btn.style.transform = 'translateY(-2px)'; btn.style.boxShadow = '0 8px 32px rgba(88,101,242,0.7)'; };
+  btn.onmouseleave = () => { btn.style.transform = ''; btn.style.boxShadow = '0 4px 24px rgba(88,101,242,0.5)'; };
+  btn.onclick = (e) => { e.stopPropagation(); loginDiscord(); };
+
+  if (cta) cta.appendChild(btn);
+}
+</script>
+</body>
+</html>
