@@ -1,7 +1,7 @@
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open('tcg-v1').then(cache =>
-      cache.addAll(['/index.html', '/css/style.css'])
+      cache.addAll(['/index.html'])
     )
   )
 })
