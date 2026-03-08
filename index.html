@@ -166,7 +166,9 @@ let state = {
   showSettings: false,
   showFriends: false,
   showNotif: false,
+  showProfile: false,
   musicOn: false,
+  currentUser: null,
   // Collection
   collSortBy: "id",
   collFilterSet: "all",
@@ -335,6 +337,11 @@ function renderGame(th){
           <button id="btn-notif" style="width:32px;height:32px;border-radius:50%;background:${state.showNotif?th.accent:th.surface};color:${state.showNotif?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.bell}</button>
           ${NOTIF_COUNT>0&&!state.showNotif?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
         </div>
+        <button id="btn-profile" style="width:32px;height:32px;border-radius:50%;overflow:hidden;border:2px solid ${state.showProfile?th.accent:th.border};transition:border .15s;flex-shrink:0;background:${th.surface};display:flex;align-items:center;justify-content:center;">
+          ${state.currentUser?.user_metadata?.avatar_url
+            ? `<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+            : `<span style="font-size:13px;">👤</span>`}
+        </button>
       </div>
     </div>
     <!-- TAB LINE -->
@@ -365,6 +372,43 @@ function renderGame(th){
     ${state.collSelectedCard?renderCardDetailModal(state.collSelectedCard,th):''}
     ${state.showPioche?renderPiocheMechanic(th):''}
   </div>`;
+}
+
+// ─── PROFILE MODAL ───────────────────────────────────────────────
+function renderProfileModal(th){
+  const u = state.currentUser;
+  const name = u?.user_metadata?.full_name || u?.user_metadata?.name || 'Joueur';
+  const avatar = u?.user_metadata?.avatar_url;
+  const discordTag = u?.user_metadata?.custom_claims?.global_name || name;
+  return \`
+  <div id="profile-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="profile-sheet" style="width:100%;max-width:420px;background:\${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
+      <div style="width:36px;height:4px;border-radius:99px;background:\${th.border};margin:0 auto 20px;"></div>
+      <!-- Bannière + avatar -->
+      <div style="position:relative;margin-bottom:48px;">
+        <div style="height:72px;border-radius:12px;background:linear-gradient(135deg,\${th.accent},#eb459e);opacity:.7;"></div>
+        <div style="position:absolute;bottom:-36px;left:16px;width:64px;height:64px;border-radius:50%;border:3px solid \${th.bgSecondary};overflow:hidden;background:\${th.surface};display:flex;align-items:center;justify-content:center;">
+          \${avatar ? \`<img src="\${avatar}" style="width:100%;height:100%;object-fit:cover;" />\` : \`<span style="font-size:28px;">👤</span>\`}
+        </div>
+      </div>
+      <!-- Nom -->
+      <div style="margin-bottom:20px;">
+        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:\${th.text};">\${name}</div>
+        <div style="font-size:11px;color:\${th.textMuted};margin-top:2px;">Connecté via Discord ✓</div>
+      </div>
+      <!-- Stats placeholder -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;">
+        \${[{l:'Victoires',v:'—',c:th.green,i:'🏆'},{l:'Défaites',v:'—',c:th.red,i:'💀'},{l:'Cartes',v:'—',c:th.accent,i:'🃏'}].map(s=>\`
+        <div style="background:\${th.bgTertiary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid \${th.border};">
+          <div style="font-size:18px;">\${s.i}</div>
+          <div style="font-size:16px;font-weight:800;color:\${s.c};margin-top:2px;">\${s.v}</div>
+          <div style="font-size:9px;color:\${th.textMuted};">\${s.l}</div>
+        </div>\`).join('')}
+      </div>
+      <!-- Déconnexion -->
+      <button id="btn-logout" style="width:100%;padding:11px;border-radius:10px;background:transparent;border:1px solid \${th.red}40;color:\${th.red};font-size:12px;font-weight:700;cursor:pointer;">Se déconnecter</button>
+    </div>
+  </div>\`;
 }
 
 // ─── TAB PLAY ─────────────────────────────────────────────────────
@@ -733,6 +777,18 @@ function bindGame(){
   const btnNotif = document.getElementById('btn-notif');
   if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false}));
 
+  const btnProfile = document.getElementById('btn-profile');
+  if(btnProfile) btnProfile.addEventListener('click',()=>setState({showProfile:true,showSettings:false,showFriends:false,showNotif:false}));
+
+  const profileBg = document.getElementById('profile-bg');
+  if(profileBg) profileBg.addEventListener('click',(e)=>{if(e.target===profileBg)setState({showProfile:false});});
+
+  const btnLogout = document.getElementById('btn-logout');
+  if(btnLogout) btnLogout.addEventListener('click', async ()=>{
+    await db.auth.signOut();
+    setState({showProfile:false, currentUser:null, screen:'splash'});
+  });
+
   // Collection filters
   document.querySelectorAll('.sort-btn').forEach(btn=>{
     btn.addEventListener('click',()=>setState({collSortBy:btn.dataset.sort}));
@@ -865,10 +921,10 @@ render();
 <script>
 // ─── AUTH DISCORD ─────────────────────────────────────────────────
 
-db.auth.onAuthStateChange((event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session) {
     const user = session.user;
-    db.from('players').upsert({
+    supabase.from('players').upsert({
       id: user.id,
       discord_username: user.user_metadata.full_name || user.user_metadata.name,
       avatar_url: user.user_metadata.avatar_url,
@@ -877,14 +933,14 @@ db.auth.onAuthStateChange((event, session) => {
 });
 
 async function loginDiscord() {
-  await db.auth.signInWithOAuth({
+  await supabase.auth.signInWithOAuth({
     provider: 'discord',
     options: { redirectTo: window.location.href }
   });
 }
 
 async function checkAuthAndEnter() {
-  const { data: { user } } = await db.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     showDiscordLoginBtn();
     return;
