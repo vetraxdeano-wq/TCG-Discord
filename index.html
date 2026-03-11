@@ -1082,13 +1082,12 @@ async function initAuth() {
     render();
   };
 
-  // Vérifier si déjà connecté au chargement
+  // Vérifier si déjà connecté au chargement → entrer auto
   const { data: { session } } = await db.auth.getSession();
   if (session && session.user && !window.location.hash.includes('access_token')) {
     const user = session.user;
     const { data: playerData } = await db.from('players').select('coins').eq('id', user.id).single();
     const coins = playerData ? playerData.coins : 100;
-    // Déjà connecté → entrer directement sans attendre un clic
     const s = document.getElementById('splash');
     if (s) s.style.opacity = '0';
     setTimeout(() => {
@@ -1096,12 +1095,7 @@ async function initAuth() {
       audioPlay();
       loadCollection();
     }, 600);
-    return; // ne pas afficher le bouton Discord
   }
-  // Pas de session → exposer checkAuthAndEnter pour le clic
-  window.checkAuthAndEnter = window.checkAuthAndEnter || async function() {
-    showDiscordLoginBtn();
-  };
 
   function showDiscordLoginBtn() {
     const splash = document.getElementById('splash');
