@@ -74,16 +74,17 @@ const BOOSTERS = [
 let ALL_CARDS = [];
 
 async function loadCollection() {
-  // Attendre window.db si pas encore prêt
   let tries = 0;
-  while (!window.db && tries < 30) { await new Promise(r => setTimeout(r, 100)); tries++; }
-  if (!window.db) { console.warn('db indispo'); return; }
+  while (!window.db && tries < 50) { await new Promise(r => setTimeout(r, 100)); tries++; }
+  if (!window.db) { console.error('[Collection] window.db indispo après 5s'); return; }
 
   const { data: { user } } = await window.db.auth.getUser();
-  if (!user) return;
+  if (!user) { console.warn('[Collection] pas de user connecté'); return; }
 
+  console.log('[Collection] chargement depuis Supabase...');
   const { data: allCards, error } = await window.db.from('cards').select('*').order('id');
-  if (error) { console.error('Erreur chargement cartes:', error); return; }
+  if (error) { console.error('[Collection] erreur:', error.message, error.details); return; }
+  console.log('[Collection]', allCards?.length, 'cartes trouvées');
 
   const { data: playerCards } = await window.db.from('player_cards')
     .select('card_id, quantity, created_at')
@@ -106,6 +107,7 @@ async function loadCollection() {
 
   render();
 }
+window.loadCollection = loadCollection;
 
 const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
 const RARITY_ORDER=["common","uncommon","rare","mythic"];
@@ -984,7 +986,7 @@ function bindGame(){
   const addFriendBg=document.getElementById('add-friend-bg');
   if(addFriendBg) addFriendBg.addEventListener('click',(e)=>{if(e.target===addFriendBg)setState({showAddFriend:false});});
   const btnSearchFriend=document.getElementById('btn-search-friend');
-  if(btnSearchFriend) btnSearchFriend.addEventListener('click', searchAndSendFriendRequest);
+  if(btnSearchFriend) btnSearchFriend.addEventListener('click', ()=>{ if(window.searchAndSendFriendRequest) window.searchAndSendFriendRequest(); });
   document.querySelectorAll('.accept-friend, .notif-accept-friend').forEach(btn=>{
     btn.addEventListener('click',()=>respondFriendRequest(btn.dataset.rid, true));
   });
@@ -1089,7 +1091,7 @@ async function initAuth() {
     setTimeout(() => {
       setState({ screen: 'game', musicOn: true, currentUser: user, coins: coins });
       audioPlay();
-      loadCollection();
+      window.loadCollection && window.loadCollection();
     }, 450);
   };
 
@@ -1211,6 +1213,7 @@ window.respondFriendRequest = async function(requestId, accept) {
 };
 
 window.loadFriends = loadFriends;
+window.searchAndSendFriendRequest = searchAndSendFriendRequest;
 </script>
 </body>
 </html>
