@@ -1060,11 +1060,12 @@ async function initAuth() {
 
   window.checkAuthAndEnter = async function() {
     if (window.location.hash.includes('access_token')) return;
-    const { data: { user } } = await db.auth.getUser();
-    if (!user) {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session || !session.user) {
       showDiscordLoginBtn();
       return;
     }
+    const user = session.user;
     const { data: playerData } = await db.from('players').select('coins').eq('id', user.id).single();
     const coins = playerData ? playerData.coins : 100;
     const s = document.getElementById('splash');
