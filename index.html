@@ -260,7 +260,17 @@ function renderSplash(th){
 
 function bindSplash(){
   document.getElementById('splash').addEventListener('click', ()=>{
-    checkAuthAndEnter();
+    if (window.checkAuthAndEnter) {
+      window.checkAuthAndEnter();
+    } else {
+      // Auth pas encore prête, attendre
+      const wait = setInterval(()=>{
+        if (window.checkAuthAndEnter) {
+          clearInterval(wait);
+          window.checkAuthAndEnter();
+        }
+      }, 100);
+    }
   });
 }
 
