@@ -1134,17 +1134,22 @@ waitForSupabase(() => {
 
 // ─── COLLECTION ───────────────────────────────────────────────────
 async function loadCollection() {
+  // Attendre db
+  let tries = 0;
+  while (!window.db && tries++ < 50) await new Promise(r => setTimeout(r, 100));
   const db = window.db;
-  if (!db) { waitForSupabase(loadCollection); return; }
-  const stored = getStoredSession();
-  if (!stored || !stored.user) return;
+  if (!db) { console.error('[Collection] db indispo'); return; }
+
+  // Récupérer l'user depuis la session active
+  const userId = state.currentUser?.id;
+  if (!userId) { console.warn('[Collection] pas de currentUser'); return; }
 
   const { data: allCards, error } = await db.from('cards').select('*').order('id');
   if (error) { console.error('[Collection]', error.message); return; }
   console.log('[Collection]', allCards?.length, 'cartes');
 
   const { data: playerCards } = await db.from('player_cards')
-    .select('card_id, quantity, created_at').eq('player_id', stored.user.id);
+    .select('card_id, quantity, created_at').eq('player_id', userId);
 
   const ownedMap = {};
   if (playerCards) playerCards.forEach(pc => { ownedMap[pc.card_id] = pc; });
@@ -1167,9 +1172,8 @@ async function loadCollection() {
 async function loadFriends() {
   const db = window.db;
   if (!db) return;
-  const stored = getStoredSession();
-  if (!stored || !stored.user) return;
-  const userId = stored.user.id;
+  const userId = state.currentUser?.id;
+  if (!userId) return;
 
   const { data: inReqs } = await db
     .from('friend_requests')
@@ -1204,12 +1208,16 @@ async function searchAndSendFriendRequest() {
   if (!input || !resultsDiv) return;
   const query = input.value.trim();
   if (!query) return;
-  const stored = getStoredSession();
-  if (!stored) return;
-  const { data: found } = await db.from('players')
+  const userId = state.currentUser?.id;
+  if (!userId) return;
+
+  resultsDiv.innerHTML = '<div style="font-size:11px;color:#96989d;text-align:center;padding:8px;">Recherche...</div>';
+
+  const { data: found, error } = await db.from('players')
     .select('id, discord_username, avatar_url')
-    .ilike('discord_username', query).neq('id', stored.user.id).limit(5);
-  if (!found || found.length === 0) {
+    .ilike('discord_username', '%' + query + '%').neq('id', userId).limit(5);
+
+  if (error || !found || found.length === 0) {
     resultsDiv.innerHTML = '<div style="font-size:11px;color:#96989d;text-align:center;padding:8px;">Aucun joueur trouvé.</div>';
     return;
   }
@@ -1219,9 +1227,10 @@ async function searchAndSendFriendRequest() {
         ${p.avatar_url?'<img src="'+p.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:14px;">👤</span>'}
       </div>
       <div style="flex:1;font-size:12px;font-weight:600;">${p.discord_username||'Joueur'}</div>
-      <button onclick="sendFriendRequest('${p.id}')" style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;background:#5865f2;color:#fff;border:none;cursor:pointer;">Ajouter</button>
+      <button onclick="window.sendFriendRequest('${p.id}')" style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;background:#5865f2;color:#fff;border:none;cursor:pointer;">Ajouter</button>
     </div>`).join('');
 }
+window.searchAndSendFriendRequest = searchAndSendFriendRequest;
 
 window.sendFriendRequest = async function(receiverId) {
   const db = window.db;
