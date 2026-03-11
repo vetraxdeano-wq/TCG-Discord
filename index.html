@@ -1014,9 +1014,22 @@ render();
   
   function tryInit() {
     if (window.supabase && window.supabase.createClient) {
-      window.db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      window.db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+        }
+      });
       console.log('[Supabase] client initialisé');
-      initAuth();
+      // Timeout de sécurité : si getSession bloque, vider le cache et réessayer
+      const sessionTimeout = setTimeout(() => {
+        console.warn('[Supabase] getSession timeout — reset localStorage');
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+        keys.forEach(k => localStorage.removeItem(k));
+        window.location.reload();
+      }, 4000);
+      initAuth().then(() => clearTimeout(sessionTimeout)).catch(() => clearTimeout(sessionTimeout));
     } else {
       setTimeout(tryInit, 50);
     }
