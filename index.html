@@ -10,8 +10,12 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#7c3aed">
 <script>
-  if ('serviceWorker' in navigator)
-    navigator.serviceWorker.register('/sw.js')
+  // Désinscrire tous les service workers pour éviter les problèmes de cache
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    });
+  }
 </script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -70,27 +74,31 @@ const BOOSTERS = [
 let ALL_CARDS = [];
 
 async function loadCollection() {
-  if (!window.db) return;
+  // Attendre window.db si pas encore prêt
+  let tries = 0;
+  while (!window.db && tries < 30) { await new Promise(r => setTimeout(r, 100)); tries++; }
+  if (!window.db) { console.warn('db indispo'); return; }
+
   const { data: { user } } = await window.db.auth.getUser();
   if (!user) return;
 
-  // Charger toutes les cartes du jeu
-  const { data: allCards } = await window.db.from("cards").select("*").order("id");
-  // Charger les cartes possédées par le joueur
-  const { data: playerCards } = await window.db.from("player_cards")
-    .select("card_id, quantity, created_at")
-    .eq("player_id", user.id);
+  const { data: allCards, error } = await window.db.from('cards').select('*').order('id');
+  if (error) { console.error('Erreur chargement cartes:', error); return; }
+
+  const { data: playerCards } = await window.db.from('player_cards')
+    .select('card_id, quantity, created_at')
+    .eq('player_id', user.id);
 
   const ownedMap = {};
   if (playerCards) playerCards.forEach(pc => { ownedMap[pc.card_id] = pc; });
 
   ALL_CARDS = (allCards || []).map(c => ({
-    id: String(c.id).padStart(3,"0"),
+    id: String(c.id).padStart(3,'0'),
     name: c.name,
-    set: c.set_name || "SET-1",
-    rarity: c.rarity || "common",
-    type: c.type || "Attaque",
-    color: RARITY_COLOR[c.rarity] || "#9ca3af",
+    set: c.set_name || 'SET-1',
+    rarity: c.rarity || 'common',
+    type: c.type || 'Attaque',
+    color: RARITY_COLOR[c.rarity] || '#9ca3af',
     owned: !!ownedMap[c.id],
     count: ownedMap[c.id] ? ownedMap[c.id].quantity : 0,
     obtainedAt: ownedMap[c.id] ? ownedMap[c.id].created_at : null,
@@ -187,6 +195,10 @@ let state = {
   musicOn: false,
   currentUser: null,
   coins: 0,
+  friends: [],
+  friendRequestsIn: [],
+  friendsTab: 'list',
+  showAddFriend: false,
   // Collection
   collSortBy: "id",
   collFilterSet: "all",
@@ -326,7 +338,7 @@ function renderGame(th){
     {label:"Collection",icon:SVG.cards},
     {label:"Boosters",icon:SVG.package},
   ];
-  const NOTIF_COUNT = 3;
+  const NOTIF_COUNT = (state.friendRequestsIn||[]).length;
 
   let tabContent = '';
   if(state.tab===0) tabContent = renderTabPlay(th);
@@ -343,7 +355,7 @@ function renderGame(th){
         <span style="font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:${th.textMuted};text-transform:uppercase;">BETA</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
-        <div style="display:flex;align-items:center;gap:4px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};">${"🪙 " + (state.coins !== undefined ? state.coins.toLocaleString("fr-FR") : "…")}</div>
+        <div style="display:flex;align-items:center;gap:5px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</div>
         <button id="btn-music" style="width:30px;height:30px;border-radius:50%;background:${state.musicOn?th.accent+'30':th.surface};color:${state.musicOn?th.accent:th.textFaint};border:1px solid ${state.musicOn?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;">
           ${state.musicOn?SVG.musicOn:SVG.musicOff}
         </button>
@@ -390,6 +402,7 @@ function renderGame(th){
     ${state.collSelectedCard?renderCardDetailModal(state.collSelectedCard,th):''}
     ${state.showPioche?renderPiocheMechanic(th):''}
     ${state.showProfile?renderProfileModal(th):''}
+    ${state.showAddFriend?renderAddFriendModal(th):''}
   </div>`;
 }
 
@@ -709,31 +722,32 @@ function renderPiocheMechanic(th){
 
 // ─── MODALS ───────────────────────────────────────────────────────
 function renderNotifModal(th){
-  const notifs=[
-    {id:1,icon:"⚔️",msg:"ShadowBlade t'invite à jouer",time:"2min",action:"Accepter"},
-    {id:2,icon:"👥",msg:"LunarKnight veut être ton ami",time:"15min",action:"Accepter"},
-    {id:3,icon:"🎁",msg:"Ton Starter Pack est prêt !",time:"1h",action:"Ouvrir"},
-  ];
+  const reqs = state.friendRequestsIn || [];
   return `
   <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
     <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
       <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
       <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};margin-bottom:16px;">Notifications</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        ${notifs.map(n=>`
-        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};border-radius:12px;padding:12px;border:1px solid ${th.border};">
-          <div style="font-size:22px;flex-shrink:0;">${n.icon}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:600;color:${th.text};line-height:1.3;">${n.msg}</div>
-            <div style="font-size:10px;color:${th.textFaint};margin-top:2px;">Il y a ${n.time}</div>
+      ${reqs.length===0 ? `
+        <div style="text-align:center;padding:24px 0;color:${th.textMuted};font-size:12px;">
+          <div style="font-size:28px;margin-bottom:8px;">🔔</div>
+          Aucune notification.
+        </div>` : reqs.map(r=>`
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};border-radius:12px;padding:12px;border:1px solid ${th.border};margin-bottom:8px;">
+          <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+            ${r.avatar_url?'<img src="'+r.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:16px;">👤</span>'}
           </div>
-          <button style="padding:5px 12px;border-radius:99px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:700;flex-shrink:0;">${n.action}</button>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;color:${th.text};">${r.discord_username||'Joueur'} veut être ton ami</div>
+          </div>
+          <div style="display:flex;gap:5px;">
+            <button class="notif-accept-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.green};color:#000;border:none;cursor:pointer;">✓</button>
+            <button class="notif-decline-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;cursor:pointer;">✕</button>
+          </div>
         </div>`).join('')}
-      </div>
     </div>
   </div>`;
 }
-
 function renderSettingsModal(th){
   return `
   <div id="settings-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
@@ -749,28 +763,82 @@ function renderSettingsModal(th){
           <div style="width:20px;height:20px;border-radius:50%;background:#fff;transform:${state.isDark?'translateX(24px)':'translateX(0)'};transition:transform .2s;display:flex;align-items:center;justify-content:center;font-size:10px;">${state.isDark?"🌙":"☀️"}</div>
         </button>
       </div>
-      ${["Son & Musique","Notifications","Langue","À propos"].map(l=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid ${th.border};">
-        <div style="font-size:13px;color:${th.textMuted};">${l}</div>
-        <div style="font-size:11px;color:${th.textFaint};">Bientôt</div>
-      </div>`).join('')}
+
     </div>
   </div>`;
 }
 
 function renderFriendsModal(th){
+  const myId = state.currentUser?.id;
+  const friends = state.friends || [];
+  const pendingIn = state.friendRequestsIn || [];
+  const friendsTab = state.friendsTab || 'list';
   return `
   <div id="friends-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="friends-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
-      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div id="friends-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);max-height:80vh;overflow-y:auto;">
+      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 16px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};">Amis</div>
-        <button style="padding:6px 14px;border-radius:99px;font-size:11px;font-weight:700;background:${th.accent};color:#fff;border:none;">+ Ajouter</button>
+        <button id="btn-add-friend" style="padding:6px 14px;border-radius:99px;font-size:11px;font-weight:700;background:${th.accent};color:#fff;border:none;cursor:pointer;">+ Ajouter</button>
       </div>
-      <div style="text-align:center;padding:30px 0;color:${th.textMuted};font-size:13px;">
-        <div style="font-size:32px;margin-bottom:12px;">👥</div>
-        Aucun ami pour l'instant.<br/>
-        <span style="color:${th.textFaint};font-size:11px;">Invite des amis pour jouer ensemble !</span>
+      <!-- Tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="friends-tab-btn" data-ftab="list" style="flex:1;padding:6px;border-radius:8px;font-size:11px;font-weight:700;border:none;background:${friendsTab==='list'?th.accent:th.surface};color:${friendsTab==='list'?'#fff':th.textMuted};cursor:pointer;">Amis (${friends.length})</button>
+        <button class="friends-tab-btn" data-ftab="requests" style="flex:1;padding:6px;border-radius:8px;font-size:11px;font-weight:700;border:none;background:${friendsTab==='requests'?th.accent:th.surface};color:${friendsTab==='requests'?'#fff':th.textMuted};cursor:pointer;">Demandes ${pendingIn.length>0?'<span style="background:'+th.red+';color:#fff;border-radius:99px;padding:1px 6px;font-size:9px;">'+pendingIn.length+'</span>':''}</button>
+      </div>
+      ${friendsTab==='list' ? `
+        ${friends.length===0 ? `
+          <div style="text-align:center;padding:24px 0;color:${th.textMuted};font-size:12px;">
+            <div style="font-size:28px;margin-bottom:8px;">👥</div>
+            Aucun ami pour l'instant.
+          </div>` : friends.map(f=>`
+          <div class="friend-item" data-fid="${f.id}" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};margin-bottom:6px;cursor:pointer;">
+            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+              ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:16px;">👤</span>'}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Joueur'}</div>
+              <div style="font-size:10px;color:${th.textMuted};">Ami</div>
+            </div>
+            <div style="display:flex;gap:5px;">
+              <button class="friend-trade" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:not-allowed;opacity:.5;">Échange</button>
+              <button class="friend-battle" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.red}20;color:${th.red};border:1px solid ${th.red}40;cursor:not-allowed;opacity:.5;">Combat</button>
+            </div>
+          </div>`).join('')}
+      ` : `
+        ${pendingIn.length===0 ? `
+          <div style="text-align:center;padding:24px 0;color:${th.textMuted};font-size:12px;">
+            <div style="font-size:28px;margin-bottom:8px;">📭</div>
+            Aucune demande en attente.
+          </div>` : pendingIn.map(r=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};margin-bottom:6px;">
+            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+              ${r.avatar_url?`<img src="${r.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:16px;">👤</span>'}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;color:${th.text};">${r.discord_username||'Joueur'}</div>
+              <div style="font-size:10px;color:${th.textMuted};">veut être ton ami</div>
+            </div>
+            <div style="display:flex;gap:5px;">
+              <button class="accept-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.green};color:#000;border:none;cursor:pointer;">✓</button>
+              <button class="decline-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;cursor:pointer;">✕</button>
+            </div>
+          </div>`).join('')}
+      `}
+    </div>
+  </div>`;
+}
+
+function renderAddFriendModal(th){
+  return `
+  <div id="add-friend-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;z-index:200;">
+    <div style="width:100%;max-width:340px;background:${th.bgSecondary};border-radius:16px;padding:20px;">
+      <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};margin-bottom:14px;">Ajouter un ami</div>
+      <input id="friend-search-input" placeholder="Pseudo Discord exact..." style="width:100%;padding:10px 12px;border-radius:8px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:13px;outline:none;margin-bottom:8px;"/>
+      <div id="friend-search-results" style="margin-bottom:10px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button id="btn-search-friend" style="flex:1;padding:9px;border-radius:8px;background:${th.accent};color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;">Rechercher</button>
+        <button id="btn-cancel-add-friend" style="padding:9px 14px;border-radius:8px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:12px;cursor:pointer;">Annuler</button>
       </div>
     </div>
   </div>`;
@@ -796,7 +864,10 @@ function bindGame(){
   if(btnSettings) btnSettings.addEventListener('click',()=>setState({showSettings:true,showFriends:false,showNotif:false}));
 
   const btnFriends = document.getElementById('btn-friends');
-  if(btnFriends) btnFriends.addEventListener('click',()=>setState({showFriends:true,showSettings:false,showNotif:false}));
+  if(btnFriends) btnFriends.addEventListener('click',()=>{
+    setState({showFriends:true,showSettings:false,showNotif:false});
+    loadFriends();
+  });
 
   const btnNotif = document.getElementById('btn-notif');
   if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false}));
@@ -901,6 +972,25 @@ function bindGame(){
   // Modal backdrops
   const notifBg=document.getElementById('notif-bg');
   if(notifBg) notifBg.addEventListener('click',(e)=>{if(e.target===notifBg)setState({showNotif:false});});
+
+  // Friends modal binds
+  document.querySelectorAll('.friends-tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({friendsTab:btn.dataset.ftab}));
+  });
+  const btnAddFriend=document.getElementById('btn-add-friend');
+  if(btnAddFriend) btnAddFriend.addEventListener('click',()=>setState({showAddFriend:true}));
+  const btnCancelAdd=document.getElementById('btn-cancel-add-friend');
+  if(btnCancelAdd) btnCancelAdd.addEventListener('click',()=>setState({showAddFriend:false}));
+  const addFriendBg=document.getElementById('add-friend-bg');
+  if(addFriendBg) addFriendBg.addEventListener('click',(e)=>{if(e.target===addFriendBg)setState({showAddFriend:false});});
+  const btnSearchFriend=document.getElementById('btn-search-friend');
+  if(btnSearchFriend) btnSearchFriend.addEventListener('click', searchAndSendFriendRequest);
+  document.querySelectorAll('.accept-friend, .notif-accept-friend').forEach(btn=>{
+    btn.addEventListener('click',()=>respondFriendRequest(btn.dataset.rid, true));
+  });
+  document.querySelectorAll('.decline-friend, .notif-decline-friend').forEach(btn=>{
+    btn.addEventListener('click',()=>respondFriendRequest(btn.dataset.rid, false));
+  });
   const settingsBg=document.getElementById('settings-bg');
   if(settingsBg) settingsBg.addEventListener('click',(e)=>{if(e.target===settingsBg)setState({showSettings:false});});
   const friendsBg=document.getElementById('friends-bg');
@@ -1027,6 +1117,100 @@ async function initAuth() {
 }
 
 initAuth();
+
+// ─── FRIENDS SYSTEM ───────────────────────────────────────────────
+async function loadFriends() {
+  if (!window.db) return;
+  const { data: { user } } = await window.db.auth.getUser();
+  if (!user) return;
+
+  // Demandes reçues en attente
+  const { data: inReqs } = await window.db
+    .from('friend_requests')
+    .select('id, sender_id, players!friend_requests_sender_id_fkey(discord_username, avatar_url)')
+    .eq('receiver_id', user.id)
+    .eq('status', 'pending');
+
+  const friendRequestsIn = (inReqs||[]).map(r=>({
+    request_id: r.id,
+    discord_username: r.players?.discord_username,
+    avatar_url: r.players?.avatar_url,
+  }));
+
+  // Liste d'amis acceptés
+  const { data: friendsData } = await window.db
+    .from('friend_requests')
+    .select('sender_id, receiver_id, players!friend_requests_sender_id_fkey(id,discord_username,avatar_url), receiver:players!friend_requests_receiver_id_fkey(id,discord_username,avatar_url)')
+    .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+    .eq('status', 'accepted');
+
+  const friends = (friendsData||[]).map(f=>{
+    const other = f.sender_id === user.id ? f.receiver : f.players;
+    return { id: other?.id, discord_username: other?.discord_username, avatar_url: other?.avatar_url };
+  }).filter(f=>f.id);
+
+  setState({ friends, friendRequestsIn });
+}
+
+async function searchAndSendFriendRequest() {
+  if (!window.db) return;
+  const input = document.getElementById('friend-search-input');
+  const resultsDiv = document.getElementById('friend-search-results');
+  if (!input || !resultsDiv) return;
+  const query = input.value.trim();
+  if (!query) return;
+
+  const { data: { user } } = await window.db.auth.getUser();
+  const { data: found } = await window.db
+    .from('players')
+    .select('id, discord_username, avatar_url')
+    .ilike('discord_username', query)
+    .neq('id', user.id)
+    .limit(5);
+
+  if (!found || found.length === 0) {
+    resultsDiv.innerHTML = '<div style="font-size:11px;color:#96989d;text-align:center;padding:8px;">Aucun joueur trouvé.</div>';
+    return;
+  }
+
+  resultsDiv.innerHTML = found.map(p=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px;background:rgba(255,255,255,.04);margin-bottom:4px;">
+      <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:#383a40;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        ${p.avatar_url?'<img src="'+p.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:14px;">👤</span>'}
+      </div>
+      <div style="flex:1;font-size:12px;font-weight:600;">${p.discord_username||'Joueur'}</div>
+      <button onclick="sendFriendRequest('${p.id}')" style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;background:#5865f2;color:#fff;border:none;cursor:pointer;">Ajouter</button>
+    </div>`).join('');
+}
+
+window.sendFriendRequest = async function(receiverId) {
+  if (!window.db) return;
+  const { data: { user } } = await window.db.auth.getUser();
+  const { error } = await window.db.from('friend_requests').insert({
+    sender_id: user.id,
+    receiver_id: receiverId,
+    status: 'pending'
+  });
+  if (!error) {
+    setState({ showAddFriend: false });
+    alert('Demande envoyée !');
+  } else {
+    alert('Demande déjà envoyée ou erreur.');
+  }
+};
+
+window.respondFriendRequest = async function(requestId, accept) {
+  if (!window.db) return;
+  if (accept) {
+    await window.db.from('friend_requests').update({ status: 'accepted' }).eq('id', requestId);
+  } else {
+    await window.db.from('friend_requests').delete().eq('id', requestId);
+  }
+  loadFriends();
+  setState({ showNotif: false });
+};
+
+window.loadFriends = loadFriends;
 </script>
 </body>
 </html>
