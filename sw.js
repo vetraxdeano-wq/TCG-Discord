@@ -1,10 +1,6 @@
-self.addEventListener('install', e => {
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.open('tcg-v1').then(cache =>
-      cache.addAll(['/index.html'])
-    )
-  )
-})
-self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)))
-})
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+  );
+});
