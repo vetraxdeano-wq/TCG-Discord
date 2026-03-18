@@ -892,11 +892,21 @@ function bindGame(){
   const cardModalClose = document.getElementById('card-modal-close');
   if(cardModalClose) cardModalClose.addEventListener('click',()=>setState({collSelectedCard:null}));
 
+  // Mode de jeu
+  document.querySelectorAll('.mode-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const mode = btn.dataset.mode;
+      if (mode === 'ia') window.location.href = 'PVE.html';
+      else if (mode === 'pvp') window.location.href = 'GAMEPLAY.html?mode=pvp';
+    });
+  });
+
   // Boosters
   document.querySelectorAll('.open-booster').forEach(btn=>{
     btn.addEventListener('click',(e)=>{
       e.stopPropagation();
       const bid=parseInt(btn.dataset.bid);
+      if (bid === 1) { window.location.href = 'booster1.html'; return; }
       setState({boosterOpening:bid});
       setTimeout(()=>setState({boosterOpening:null}),1400);
     });
