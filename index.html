@@ -318,15 +318,13 @@ function renderGame(th){
     {label:"Jouer",icon:SVG.swords},
     {label:"Collection",icon:SVG.cards},
     {label:"Boosters",icon:SVG.package},
-    {label:"Messages",icon:SVG.chat},
   ];
   const NOTIF_COUNT = (state.friendRequestsIn||[]).length;
 
   let tabContent = '';
   if(state.tab===0) tabContent = renderTabPlay(th);
   else if(state.tab===1) tabContent = renderTabCollection(th);
-  else if(state.tab===2) tabContent = renderTabBoosters(th);
-  else tabContent = renderTabMessages(th);
+  else tabContent = renderTabBoosters(th);
 
   return `
   <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
@@ -346,6 +344,7 @@ function renderGame(th){
       <div style="display:flex;flex-direction:column;gap:4px;">
         <button id="btn-settings" style="width:32px;height:32px;border-radius:50%;background:${state.showSettings?th.accent:th.surface};color:${state.showSettings?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.settings}</button>
         <button id="btn-friends" style="width:32px;height:32px;border-radius:50%;background:${state.showFriends?th.accent:th.surface};color:${state.showFriends?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.users}</button>
+        <button id="btn-messages" style="width:32px;height:32px;border-radius:50%;background:${state.showMessages?th.accent:th.surface};color:${state.showMessages?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.chat}</button>
         <div style="position:relative;">
           <button id="btn-notif" style="width:32px;height:32px;border-radius:50%;background:${state.showNotif?th.accent:th.surface};color:${state.showNotif?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.bell}</button>
           ${NOTIF_COUNT>0&&!state.showNotif?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
@@ -365,9 +364,8 @@ function renderGame(th){
     <div style="flex:1;overflow:hidden;position:relative;">
       <div id="tab-slider" style="display:flex;width:300%;height:100%;transform:translateX(${-state.tab*(100/3)}%);transition:transform .3s cubic-bezier(.25,.46,.45,.94);">
         <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===0?renderTabPlay(th):'<div></div>'}</div>
-        <div style="width:25%;height:100%;overflow:hidden;">${state.tab===1?renderTabCollection(th):'<div></div>'}</div>
-        <div style="width:25%;height:100%;overflow:hidden;">${state.tab===2?renderTabBoosters(th):'<div></div>'}</div>
-        <div style="width:25%;height:100%;overflow:hidden;">${state.tab===3?renderTabMessages(th):'<div></div>'}</div>
+        <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===1?renderTabCollection(th):'<div></div>'}</div>
+        <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===2?renderTabBoosters(th):'<div></div>'}</div>
       </div>
     </div>
     <!-- NAV BAS -->
@@ -383,6 +381,7 @@ function renderGame(th){
     ${state.showSettings?renderSettingsModal(th):''}
     ${state.showFriends?renderFriendsModal(th):''}
     ${state.showNotif?renderNotifModal(th):''}
+    ${state.showMessages?renderMessagesModal(th):''}
     ${state.collSelectedCard?renderCardDetailModal(state.collSelectedCard,th):''}
     ${state.showPioche?renderPiocheMechanic(th):''}
     ${state.showProfile?renderProfileModal(th):''}
@@ -668,49 +667,45 @@ function renderTabBoosters(th){
 }
 
 // ─── TAB MESSAGES ────────────────────────────────────────────────
-function renderTabMessages(th){
+function renderMessagesModal(th){
   const friends = state.friends || [];
   const activeId = state.activeConvId;
   const msgs = (state.messages[activeId] || []);
   const myId = state.currentUser?.id;
 
-  if (activeId && friends.find(f=>f.id===activeId)) {
+  const innerContent = activeId && friends.find(f=>f.id===activeId) ? (() => {
     const friend = friends.find(f=>f.id===activeId);
     return `
-    <div style="display:flex;flex-direction:column;height:100%;">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
-        <button id="msg-back" style="background:none;border:none;color:${th.textMuted};font-size:18px;cursor:pointer;padding:0 4px;">←</button>
-        <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          ${friend.avatar_url?`<img src="${friend.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
-        </div>
-        <div style="font-size:13px;font-weight:700;color:${th.text};">${friend.discord_username||'Ami'}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <button id="msg-back" style="background:none;border:none;color:${th.textMuted};font-size:20px;cursor:pointer;padding:0;line-height:1;">←</button>
+      <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        ${friend.avatar_url?`<img src="${friend.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
       </div>
-      <div id="msg-list" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
-        ${msgs.length===0?`<div style="text-align:center;color:${th.textFaint};font-size:11px;padding:20px;">Commencez la conversation !</div>`:
-          msgs.map(m=>`
-          <div style="display:flex;flex-direction:${m.from===myId?'row-reverse':'row'};gap:6px;align-items:flex-end;">
-            <div style="max-width:72%;background:${m.from===myId?th.accent:th.bgTertiary};color:${m.from===myId?'#fff':th.text};padding:8px 12px;border-radius:${m.from===myId?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${m.text}</div>
-          </div>`).join('')}
-      </div>
-      <div style="display:flex;gap:8px;padding:10px 14px;background:${th.bgSecondary};border-top:1px solid ${th.border};flex-shrink:0;">
-        <input id="msg-input" placeholder="Message..." style="flex:1;padding:9px 12px;border-radius:99px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:12px;outline:none;"/>
-        <button id="msg-send" style="width:36px;height:36px;border-radius:50%;background:${th.accent};color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">↑</button>
-      </div>
+      <div style="font-size:13px;font-weight:700;color:${th.text};">${friend.discord_username||'Ami'}</div>
+    </div>
+    <div id="msg-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:4px;min-height:0;">
+      ${msgs.length===0
+        ? `<div style="text-align:center;color:${th.textFaint};font-size:11px;padding:20px 0;">Aucun message pour le moment.<br><span style="font-size:10px;">Envoie le premier !</span></div>`
+        : msgs.map(m=>`
+        <div style="display:flex;flex-direction:${m.from===myId?'row-reverse':'row'};gap:6px;align-items:flex-end;">
+          <div style="max-width:75%;background:${m.from===myId?th.accent:th.bgTertiary};color:${m.from===myId?'#fff':th.text};padding:8px 12px;border-radius:${m.from===myId?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${m.text}</div>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;padding-top:10px;flex-shrink:0;">
+      <input id="msg-input" placeholder="Message..." style="flex:1;padding:9px 12px;border-radius:99px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:12px;outline:none;"/>
+      <button id="msg-send" style="width:36px;height:36px;border-radius:50%;background:${th.accent};color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">↑</button>
     </div>`;
-  }
-
-  return `
-  <div style="display:flex;flex-direction:column;height:100%;padding:14px;gap:8px;">
-    <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:4px;color:${th.textMuted};text-transform:uppercase;flex-shrink:0;">Messages</div>
-    ${friends.length===0?`
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:${th.textMuted};font-size:12px;text-align:center;">
-        <div style="font-size:32px;">💬</div>
-        Ajoute des amis pour leur envoyer des messages.
-      </div>` :
-      friends.map(f=>`
-      <div class="conv-item" data-fid="${f.id}" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:${th.bgSecondary};border:1px solid ${th.border};cursor:pointer;">
-        <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-          ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:18px;">👤</span>'}
+  })() : `
+    <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};margin-bottom:14px;">Messages</div>
+    ${friends.length===0
+      ? `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:${th.textMuted};font-size:12px;text-align:center;">
+           <div style="font-size:28px;">💬</div>
+           Aucun message pour le moment.
+         </div>`
+      : friends.map(f=>`
+      <div class="conv-item" data-fid="${f.id}" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:${th.bgTertiary};border:1px solid ${th.border};cursor:pointer;margin-bottom:6px;">
+        <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+          ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:16px;">👤</span>'}
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Ami'}</div>
@@ -718,6 +713,14 @@ function renderTabMessages(th){
         </div>
         <div style="font-size:18px;color:${th.textFaint};">›</div>
       </div>`).join('')}
+  `;
+
+  return `
+  <div id="messages-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);max-height:85vh;display:flex;flex-direction:column;">
+      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 16px;flex-shrink:0;"></div>
+      ${innerContent}
+    </div>
   </div>`;
 }
 
@@ -847,6 +850,7 @@ function renderFriendsModal(th){
             <div style="display:flex;gap:5px;">
               <button class="friend-trade" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:not-allowed;opacity:.5;">Échange</button>
               <button class="friend-battle" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.red}20;color:${th.red};border:1px solid ${th.red}40;cursor:not-allowed;opacity:.5;">Combat</button>
+              <button class="friend-dm" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.green}20;color:${th.green};border:1px solid ${th.green}40;cursor:pointer;">DM</button>
             </div>
           </div>`).join('')}
       ` : `
@@ -909,12 +913,21 @@ function bindGame(){
 
   const btnFriends = document.getElementById('btn-friends');
   if(btnFriends) btnFriends.addEventListener('click',()=>{
-    setState({showFriends:true,showSettings:false,showNotif:false});
+    setState({showFriends:true,showSettings:false,showNotif:false,showMessages:false});
     loadFriends();
   });
 
   const btnNotif = document.getElementById('btn-notif');
-  if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false}));
+  if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false,showMessages:false}));
+
+  const btnMessages = document.getElementById('btn-messages');
+  if(btnMessages) btnMessages.addEventListener('click',()=>{
+    setState({showMessages:true,showSettings:false,showFriends:false,showNotif:false});
+    if((state.friends||[]).length===0) loadFriends();
+  });
+
+  const messagesBg = document.getElementById('messages-bg');
+  if(messagesBg) messagesBg.addEventListener('click',(e)=>{if(e.target===messagesBg)setState({showMessages:false,activeConvId:null});});
 
   const btnProfile = document.getElementById('btn-profile');
   if(btnProfile) btnProfile.addEventListener('click',()=>setState({showProfile:true,showSettings:false,showFriends:false,showNotif:false}));
@@ -963,6 +976,10 @@ function bindGame(){
     msgSend.addEventListener('click', sendMsg);
     msgInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') sendMsg(); });
   }
+
+  // Fermer autres modals quand messages s'ouvre
+  const messagesBg2 = document.getElementById('messages-bg');
+  if(messagesBg2) messagesBg2.addEventListener('click',(e)=>{if(e.target===messagesBg2)setState({showMessages:false,activeConvId:null});});
   const setBtn = document.getElementById('set-filter-btn');
   if(setBtn) setBtn.addEventListener('click',(e)=>{e.stopPropagation();setState({collSetOpen:!state.collSetOpen});});
   document.querySelectorAll('.set-opt').forEach(btn=>{
@@ -1078,6 +1095,16 @@ function bindGame(){
   });
   document.querySelectorAll('.decline-friend, .notif-decline-friend').forEach(btn=>{
     btn.addEventListener('click',()=>respondFriendRequest(btn.dataset.rid, false));
+  });
+
+  // DM depuis liste amis
+  document.querySelectorAll('.friend-dm').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const fid = btn.dataset.fid;
+      setState({showMessages:true, showFriends:false, activeConvId:fid});
+      loadMessages(fid);
+    });
   });
   const settingsBg=document.getElementById('settings-bg');
   if(settingsBg) settingsBg.addEventListener('click',(e)=>{if(e.target===settingsBg)setState({showSettings:false});});
