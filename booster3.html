@@ -970,9 +970,88 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
 
 <div class="particle-container" id="particleContainer"></div>
 <div class="particle3d-container" id="p3dContainer"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ===== DATA =====
-const ALL_CARDS=[{"id":"#34","rarity":"COMMUNE","name":"2zo réapparaît","character":"2zo","type":"Héro","text":"","hp":"10","atk":"8","def":"1","precision":"62%"},{"id":"#10","rarity":"COMMUNE","name":"Cédric ouvre un nouveau serveur Minecraft (le 50e)","character":"Cédric","type":"Héro","text":"","hp":"11","atk":"7","def":"2","precision":"65%"},{"id":"#11","rarity":"COMMUNE","name":"Malik le sensei de Dylan","character":"Dylan","type":"Héro","text":"","hp":"10","atk":"8","def":"2","precision":"58%"},{"id":"#12","rarity":"COMMUNE","name":"Freddy le raciste","character":"Freddy","type":"Héro","text":"","hp":"10","atk":"8","def":"3","precision":"55%"},{"id":"#13","rarity":"COMMUNE","name":"RIP Byson","character":"Freddy","type":"Héro","text":"","hp":"11","atk":"8","def":"1","precision":"60%"},{"id":"#14","rarity":"COMMUNE","name":"Jacob Fatu la mère de Sam","character":"Freddy/Sam","type":"Héro","text":"","hp":"10","atk":"7","def":"1","precision":"58%"},{"id":"#15","rarity":"COMMUNE","name":"Hugo bouteille de champomi dans le cul","character":"Hugo","type":"Héro","text":"","hp":"14","atk":"7","def":"2","precision":"62%"},{"id":"#16","rarity":"COMMUNE","name":"MC se la prend dans le cul par un trans thaï","character":"MC","type":"Héro","text":"","hp":"12","atk":"8","def":"1","precision":"65%"},{"id":"#17","rarity":"COMMUNE","name":"Arabe Mental de Morgan","character":"Morgan","type":"Héro","text":"","hp":"10","atk":"7","def":"3","precision":"60%"},{"id":"#18","rarity":"COMMUNE","name":"Nathan maillot OM Gambardella","character":"Nathan","type":"Héro","text":"","hp":"11","atk":"7","def":"1","precision":"65%"},{"id":"#19","rarity":"COMMUNE","name":"Poupou invente une excuse (le PSG perd)","character":"Poupou","type":"Héro","text":"","hp":"12","atk":"7","def":"2","precision":"70%"},{"id":"#20","rarity":"COMMUNE","name":"Who is Cody ?","character":"PWL","type":"Héro","text":"","hp":"10","atk":"7","def":"2","precision":"65%"},{"id":"#21","rarity":"COMMUNE","name":"Sam en after infini","character":"Sam","type":"Héro","text":"","hp":"11","atk":"6","def":"3","precision":"68%"},{"id":"#22","rarity":"COMMUNE","name":"Sam Tshirt déchiré par une meuf","character":"Sam","type":"Héro","text":"","hp":"12","atk":"6","def":"1","precision":"68%"},{"id":"#23","rarity":"COMMUNE","name":"Shawn envoie un pavé à Océane","character":"Shawn","type":"Héro","text":"","hp":"11","atk":"7","def":"3","precision":"65%"},{"id":"#24","rarity":"COMMUNE","name":"C'est quoi le but ? de Teo","character":"Téo","type":"Héro","text":"","hp":"13","atk":"7","def":"3","precision":"70%"},{"id":"#25","rarity":"COMMUNE","name":"Cédric Harry Potter Plage","character":"Cédric","type":"Héro","text":"","hp":"15","atk":"6","def":"2","precision":"68%"},{"id":"#26","rarity":"COMMUNE","name":"Montre son cul au bureau","character":"Benoit","type":"Héro","text":"","hp":"14","atk":"6","def":"2","precision":"70%"},{"id":"#27","rarity":"COMMUNE","name":"Carte CPB","character":"Freddy","type":"Héro","text":"","hp":"12","atk":"6","def":"3","precision":"80%"},{"id":"#28","rarity":"COMMUNE","name":"La Parka & K-way (Rumble)","character":"Freddy","type":"Héro","text":"","hp":"11","atk":"6","def":"1","precision":"80%"},{"id":"#29","rarity":"COMMUNE","name":"Le voisin de Nathan qui toque au mur","character":"Nathan","type":"Héro","text":"","hp":"12","atk":"8","def":"3","precision":"82%"},{"id":"#30","rarity":"COMMUNE","name":"ReoZ et les arbitres de PL","character":"ReoZ","type":"Héro","text":"","hp":"10","atk":"6","def":"3","precision":"65%"},{"id":"#31","rarity":"COMMUNE","name":"Va à la salle à 23h","character":"Shawn","type":"Héro","text":"","hp":"11","atk":"6","def":"2","precision":"82%"},{"id":"#32","rarity":"COMMUNE","name":"Insulte la Roma","character":"Yohan","type":"Héro","text":"","hp":"15","atk":"8","def":"3","precision":"80%"},{"id":"#33","rarity":"COMMUNE","name":"La hype Lenny Martinez","character":"Discord","type":"Héro","text":"","hp":"12","atk":"8","def":"2","precision":"82%"},{"id":"#R1","rarity":"COMMUNE","name":"La Grange","character":"Freddy","type":"Ruse","text":"La Grange intéresse pas mal de monde ! Mais est vite abandonnée...","hp":"x","atk":"+3 ATQ"},{"id":"#R2","rarity":"COMMUNE","name":"La hype Rematch","character":"Discord","type":"Ruse","text":"Rematch sera le jeu du Discord !","hp":"x","atk":"+2 ATQ"},{"id":"#R3","rarity":"COMMUNE","name":"Montage de Sam","character":"Sam","type":"Ruse","text":"Sam se prépare à démarrer son 100m..","hp":"x","atk":"+2 ATQ"},{"id":"#R4","rarity":"COMMUNE","name":"Fait un run strava","character":"Téo","type":"Ruse","text":"Téo fait du sport, ça vous motive !","hp":"x","atk":"+2 DEF"},{"id":"#R5","rarity":"COMMUNE","name":"Game trio TEW","character":"Nat/Yo/Freddy","type":"Ruse","text":"3 ans de game TEW à 3, c'est pas rien !","hp":"x","atk":"+2 ATQ et +1 DEF"},{"id":"#A1","rarity":"COMMUNE","name":"Le niveau Ben/Nathan Rematch","character":"Ben & Nathan","type":"Arcane","text":"Vous regardez Ben & Nathan sur Rematch, quelle horreur !","hp":"x","atk":"-1 ATQ adversaire"},{"id":"#A2","rarity":"COMMUNE","name":"Insulte de merde","character":"Flo","type":"Arcane","text":"Florian vous insulte à tout va, vous appelez l'hôpital psy.","hp":"x","atk":"-1 ATQ adversaire"},{"id":"#35","rarity":"PEU COMMMUNE","name":"Montre son cul au bureau","character":"Benoit","type":"Héro","text":"","hp":"17","atk":"7","def":"2","precision":"62%"},{"id":"#36","rarity":"PEU COMMMUNE","name":"Cédric Harry Potter Plage","character":"Cédric","type":"Héro","text":"","hp":"13","atk":"8","def":"2","precision":"52%"},{"id":"#37","rarity":"PEU COMMMUNE","name":"Dylan & Ben sous PP Coman","character":"Dylan & Ben","type":"Héro","text":"","hp":"14","atk":"8","def":"1","precision":"52%"},{"id":"#38","rarity":"PEU COMMMUNE","name":"Elchapo se branle sur Maryse","character":"Elchapo","type":"Héro","text":"","hp":"13","atk":"8","def":"3","precision":"62%"},{"id":"#40","rarity":"PEU COMMMUNE","name":"Carte CPB","character":"Freddy","type":"Héro","text":"","hp":"17","atk":"8","def":"3","precision":"55%"},{"id":"#42","rarity":"PEU COMMMUNE","name":"Maître","character":"Nathan","type":"Héro","text":"","hp":"13","atk":"7","def":"3","precision":"68%"},{"id":"#44","rarity":"PEU COMMMUNE","name":"Nathan se remet avec Lola","character":"Nathan","type":"Héro","text":"","hp":"15","atk":"6","def":"2","precision":"70%"},{"id":"#45","rarity":"PEU COMMMUNE","name":"Unforgiven clan","character":"PWL","type":"Héro","text":"","hp":"14","atk":"8","def":"2","precision":"68%"},{"id":"#46","rarity":"PEU COMMMUNE","name":"ReoZ et les arbitres de PL","character":"ReoZ","type":"Héro","text":"","hp":"18","atk":"7","def":"3","precision":"68%"},{"id":"#47","rarity":"PEU COMMMUNE","name":"Les 38 DC de Sam","character":"Sam","type":"Héro","text":"","hp":"18","atk":"6","def":"3","precision":"70%"},{"id":"#49","rarity":"PEU COMMMUNE","name":"Va à la salle à 23h","character":"Shawn","type":"Héro","text":"","hp":"14","atk":"6","def":"2","precision":"70%"},{"id":"#50","rarity":"PEU COMMMUNE","name":"Téo cris de singe / kick Discord","character":"Téo","type":"Héro","text":"","hp":"14","atk":"6","def":"3","precision":"68%"},{"id":"#52","rarity":"PEU COMMMUNE","name":"Insulte la Roma","character":"Yohan","type":"Héro","text":"","hp":"13","atk":"6","def":"3","precision":"80%"},{"id":"#R12","rarity":"PEU COMMMUNE","name":"Wolfy avec les QC","character":"Discord","type":"Ruse","text":"Une nouvelle session torride de Wolfy avec les québécois..","hp":"x","atk":"+2 ATQ"},{"id":"#R13","rarity":"PEU COMMMUNE","name":"Rap Contenders","character":"Discord","type":"Ruse","text":"Un nouveau Rap Contenders, qui pour la couronne de Sam ?","hp":"x","atk":"+2 ATQ"},{"id":"#R18","rarity":"PEU COMMMUNE","name":"Odette parle de la bite","character":"Nathan","type":"Ruse","text":"Odette dit à Nathan et toi vous avez des grosses bites","hp":"x","atk":"+2 ATQ et +2 DEF"},{"id":"#A12","rarity":"PEU COMMMUNE","name":"Dylan supprime la PWL","character":"Dylan","type":"Arcane","text":"Dylan supprime la PWL, vous êtes en deuil...","hp":"x","atk":"Annule 1 Magie OU 1 Piège adverse"},{"id":"#A17","rarity":"PEU COMMMUNE","name":"L'appart brulé de Yohan","character":"Yohan","type":"Arcane","text":"Un fou a mis le feu à l'appart de Yo, il fuit en vitesse !","hp":"x","atk":"-3 ATQ adversaire"},{"id":"#55","rarity":"RARE","name":"Les pieds, carte duo","character":"Ben & Freddy","type":"Héro","text":"","hp":"16","atk":"8","def":"1","precision":"80%"},{"id":"#56","rarity":"RARE","name":"McDo","character":"Dylan","type":"Héro","text":"","hp":"16","atk":"8","def":"2","precision":"62%"},{"id":"#57","rarity":"RARE","name":"Freddy le harceleur / il bloque Nathan","character":"Freddy","type":"Héro","text":"","hp":"17","atk":"8","def":"2","precision":"78%"},{"id":"#58","rarity":"RARE","name":"Gueye sale babouin","character":"MC","type":"Héro","text":"","hp":"16","atk":"8","def":"3","precision":"55%"},{"id":"#59","rarity":"RARE","name":"Nathan le nouvel homme délégué","character":"Nathan","type":"Héro","text":"","hp":"17","atk":"8","def":"1","precision":"55%"},{"id":"#60","rarity":"RARE","name":"Stagiaire pokémon","character":"Nathan","type":"Héro","text":"","hp":"17","atk":"8","def":"3","precision":"55%"},{"id":"#3","rarity":"RARE","name":"Coming soon","character":"Sam","type":"Héro","text":"","hp":"17","atk":"7","def":"2","precision":"65%"},{"id":"#61","rarity":"RARE","name":"Pepi rappelé de prêt","character":"Téo","type":"Héro","text":"","hp":"16","atk":"7","def":"2","precision":"68%"},{"id":"#62","rarity":"RARE","name":"Insulte les turcs","character":"Yohan","type":"Héro","text":"","hp":"16","atk":"7","def":"3","precision":"65%"},{"id":"#R19","rarity":"RARE","name":"Création du Discord","character":"Discord","type":"Ruse","text":"Le Discord renaît de ses cendres !","hp":"x","atk":"+3 ATQ et +2 DEF"},{"id":"#R21","rarity":"RARE","name":"Multi Eredivisie","character":"Discord","type":"Ruse","text":"Un nouveau multi Eredivisie, on s'amuse comme des petits fous !","hp":"x","atk":"+3 ATQ et +3 DEF"},{"id":"#A20","rarity":"RARE","name":"Show 10 PWL, Pavlard de Yohan","character":"Yohan","type":"Arcane","text":"Yohan fait un pavlard pour se plaindre","hp":"x","atk":"Annule TOUS les sorts adverses + -2 ATQ"},{"id":"#A22","rarity":"RARE","name":"T'a IR ? PAS MOI","character":"Benoit","type":"Arcane","text":"Vous tournez une situation à votre avantage en mentant","hp":"x","atk":"Échange tous les buffs/debuffs actifs"},{"id":"#63","rarity":"MYTHIQUE","name":"Ben le vieux débris, doyen","character":"Benoit","type":"Héro","text":"","hp":"19","atk":"8","def":"1","precision":"58%"},{"id":"#64","rarity":"MYTHIQUE","name":"Cédric et sa MARVEL","character":"Cédric","type":"Héro","text":"","hp":"19","atk":"8","def":"2","precision":"58%"},{"id":"#65","rarity":"MYTHIQUE","name":"PC se rallume pas les connard","character":"Dylan","type":"Héro","text":"","hp":"20","atk":"8","def":"2","precision":"65%"},{"id":"#66","rarity":"MYTHIQUE","name":"Arrivée de Freddy le grand Heel","character":"Freddy","type":"Héro","text":"","hp":"20","atk":"8","def":"1","precision":"60%"},{"id":"#1","rarity":"MYTHIQUE","name":"Retourne","character":"Nathan","type":"Héro","text":"","hp":"20","atk":"7","def":"2","precision":"65%"},{"id":"#67","rarity":"MYTHIQUE","name":"ReoZ le maître des stats","character":"ReoZ","type":"Héro","text":"","hp":"21","atk":"7","def":"3","precision":"70%"},{"id":"#68","rarity":"MYTHIQUE","name":"Sam à son mariage","character":"Sam","type":"Héro","text":"","hp":"21","atk":"6","def":"3","precision":"82%"},{"id":"#69","rarity":"MYTHIQUE","name":"Shawn au chômage (Master Histoire)","character":"Shawn","type":"Héro","text":"","hp":"20","atk":"6","def":"3","precision":"80%"},{"id":"#4","rarity":"MYTHIQUE","name":"Téo Bryant","character":"Téo","type":"Héro","text":"","hp":"21","atk":"6","def":"2","precision":"78%"},{"id":"#5","rarity":"MYTHIQUE","name":"Bégaiement","character":"Yohan","type":"Héro","text":"","hp":"19","atk":"6","def":"3","precision":"85%"},{"id":"??","rarity":"MYTHIQUE","name":"LOVE","character":"Discord","type":"Ruse","text":"Ne peut être défaussée. Combinée avec PEACE : effets activés.","hp":"x","atk":"+2 ATQ, +2 DEF, +1 HP"},{"id":"??","rarity":"MYTHIQUE","name":"PEACE","character":"Discord","type":"Ruse","text":"Ne peut être défaussée. Combinée avec LOVE : effets activés.","hp":"x","atk":"+2 ATQ, +2 DEF, +1 HP"}];
+// ===== DATA — chargé depuis Supabase =====
+const SUPABASE_URL = 'https://ndsnbvvcbkblkncvoroc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kc25idnZjYmtibGtuY3Zvcm9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjczMTksImV4cCI6MjA4ODU0MzMxOX0.mMsaBIrDI3BIoeTFBsCXo2AbuBLRnzqk625fKRkYCtM';
+
+// Mapping rarités Supabase → format interne du booster
+const RARITY_MAP = {
+  'common':   'COMMUNE',
+  'uncommon': 'PEU COMMMUNE',
+  'rare':     'RARE',
+  'mythic':   'MYTHIQUE',
+};
+
+// % de drop Legendary Pack (booster3)
+const DROP_WEIGHTS = {
+  'COMMUNE':      12,
+  'PEU COMMMUNE': 38,
+  'RARE':         35,
+  'MYTHIQUE':     15,
+};
+
+let ALL_CARDS = [];
+let _dbReady = false;
+
+function rollRarity() {
+  const r = Math.random() * 100;
+  if (r < 15) return 'MYTHIQUE';
+  if (r < 50) return 'RARE';
+  if (r < 88) return 'PEU COMMMUNE';
+  return 'COMMUNE';
+}
+
+function pickWeightedCards(n) {
+  const result = [];
+  const byRarity = {
+    'COMMUNE':      ALL_CARDS.filter(c => c.rarity === 'COMMUNE'),
+    'PEU COMMMUNE': ALL_CARDS.filter(c => c.rarity === 'PEU COMMMUNE'),
+    'RARE':         ALL_CARDS.filter(c => c.rarity === 'RARE'),
+    'MYTHIQUE':     ALL_CARDS.filter(c => c.rarity === 'MYTHIQUE'),
+  };
+  for (let i = 0; i < n; i++) {
+    let rarity = rollRarity();
+    // Fallback si pas de carte de cette rareté
+    while (!byRarity[rarity] || byRarity[rarity].length === 0) {
+      rarity = 'COMMUNE';
+    }
+    const pool = byRarity[rarity];
+    result.push(pool[Math.floor(Math.random() * pool.length)]);
+  }
+  return result;
+}
+
+async function loadCardsFromSupabase() {
+  if (typeof supabase === 'undefined') {
+    console.error('[Booster] Supabase SDK non chargé');
+    return;
+  }
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data, error } = await db.from('cards').select('*');
+  if (error) { console.error('[Booster] erreur chargement cartes:', error.message); return; }
+
+  ALL_CARDS = (data || []).map(c => ({
+    id:        '#' + c.id,
+    rarity:    RARITY_MAP[c.rarity] || 'COMMUNE',
+    name:      c.name,
+    character: c.character_name || '',
+    type:      c.type || 'Héro',
+    text:      c.description || '',
+    hp:        c.hp != null ? String(c.hp) : 'x',
+    atk:       c.attack != null ? String(c.attack) : 'x',
+    def:       c.defense != null ? String(c.defense) : 'x',
+    precision: c.precision != null ? c.precision + '%' : 'x',
+    image_url: c.image_url || null,
+  }));
+
+  console.log('[Booster] ' + ALL_CARDS.length + ' cartes chargées depuis Supabase');
+  _dbReady = true;
+}
+
+// Charger dès que possible
+loadCardsFromSupabase();
 
 const TE={'Héro':'⚔️','Ruse':'🌀','Arcane':'💀','Sort':'✨'};
 const RS={'COMMUNE':'★','PEU COMMMUNE':'★★','RARE':'★★★','MYTHIQUE':'★★★★'};
@@ -1369,7 +1448,11 @@ function physicalTear(wrap){
   haptic([50,20,100,20,60]); // strong rip pattern
 
   // Build booster cards data first
-  boosterCards=[...ALL_CARDS].sort(()=>Math.random()-.5).slice(0,5);
+  if (!_dbReady || ALL_CARDS.length === 0) {
+    alert('Chargement des cartes en cours, réessaie dans un instant.');
+    return;
+  }
+  boosterCards = pickWeightedCards(5);
   currentIdx=0;revealed=[];
   const RO={COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
   const bestR=boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
