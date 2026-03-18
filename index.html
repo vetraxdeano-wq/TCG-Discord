@@ -335,25 +335,30 @@ function renderGame(th){
         <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:2px;color:${th.text};">DCG</span>
         <span style="font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:${th.textMuted};text-transform:uppercase;">BETA</span>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <div style="display:flex;align-items:center;gap:5px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</div>
-        <button id="btn-music" style="width:30px;height:30px;border-radius:50%;background:${state.musicOn?th.accent+'30':th.surface};color:${state.musicOn?th.accent:th.textFaint};border:1px solid ${state.musicOn?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;">
-          ${state.musicOn?SVG.musicOn:SVG.musicOff}
-        </button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <button id="btn-settings" style="width:32px;height:32px;border-radius:50%;background:${state.showSettings?th.accent:th.surface};color:${state.showSettings?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.settings}</button>
-        <button id="btn-friends" style="width:32px;height:32px;border-radius:50%;background:${state.showFriends?th.accent:th.surface};color:${state.showFriends?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.users}</button>
-        <button id="btn-messages" style="width:32px;height:32px;border-radius:50%;background:${state.showMessages?th.accent:th.surface};color:${state.showMessages?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.chat}</button>
-        <div style="position:relative;">
-          <button id="btn-notif" style="width:32px;height:32px;border-radius:50%;background:${state.showNotif?th.accent:th.surface};color:${state.showNotif?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.bell}</button>
-          ${NOTIF_COUNT>0&&!state.showNotif?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
+      <!-- Coins -->
+      <div style="display:flex;align-items:center;gap:5px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</div>
+      <!-- Ligne haute : profil + musique + paramètres -->
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
+        <div style="display:flex;gap:4px;">
+          <button id="btn-profile" style="width:32px;height:32px;border-radius:50%;overflow:hidden;border:2px solid ${state.showProfile?th.accent:th.border};transition:border .15s;flex-shrink:0;background:${th.surface};display:flex;align-items:center;justify-content:center;">
+            ${state.currentUser?.user_metadata?.avatar_url
+              ? `<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
+              : `<span style="font-size:13px;">👤</span>`}
+          </button>
+          <button id="btn-music" style="width:32px;height:32px;border-radius:50%;background:${state.musicOn?th.accent+'30':th.surface};color:${state.musicOn?th.accent:th.textFaint};border:1px solid ${state.musicOn?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;">
+            ${state.musicOn?SVG.musicOn:SVG.musicOff}
+          </button>
+          <button id="btn-settings" style="width:32px;height:32px;border-radius:50%;background:${state.showSettings?th.accent:th.surface};color:${state.showSettings?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.settings}</button>
         </div>
-        <button id="btn-profile" style="width:32px;height:32px;border-radius:50%;overflow:hidden;border:2px solid ${state.showProfile?th.accent:th.border};transition:border .15s;flex-shrink:0;background:${th.surface};display:flex;align-items:center;justify-content:center;">
-          ${state.currentUser?.user_metadata?.avatar_url
-            ? `<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-            : `<span style="font-size:13px;">👤</span>`}
-        </button>
+        <!-- Ligne basse : amis + messages + notifs -->
+        <div style="display:flex;gap:4px;">
+          <button id="btn-friends" style="width:32px;height:32px;border-radius:50%;background:${state.showFriends?th.accent:th.surface};color:${state.showFriends?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.users}</button>
+          <button id="btn-messages" style="width:32px;height:32px;border-radius:50%;background:${state.showMessages?th.accent:th.surface};color:${state.showMessages?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.chat}</button>
+          <div style="position:relative;">
+            <button id="btn-notif" style="width:32px;height:32px;border-radius:50%;background:${state.showNotif?th.accent:th.surface};color:${state.showNotif?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.bell}</button>
+            ${NOTIF_COUNT>0&&!state.showNotif?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
+          </div>
+        </div>
       </div>
     </div>
     <!-- TAB LINE -->
@@ -717,8 +722,8 @@ function renderMessagesModal(th){
 
   return `
   <div id="messages-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);max-height:85vh;display:flex;flex-direction:column;">
-      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 16px;flex-shrink:0;"></div>
+    <div style="width:100%;max-width:420px;height:92%;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:16px 16px 28px;box-shadow:0 -8px 40px rgba(0,0,0,.4);display:flex;flex-direction:column;">
+      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 14px;flex-shrink:0;"></div>
       ${innerContent}
     </div>
   </div>`;
@@ -726,16 +731,16 @@ function renderMessagesModal(th){
 
 // ─── PIOCHE MECHANIC ──────────────────────────────────────────────
 function renderPiocheMechanic(th){
-  const TOTAL=50,COLS=10,CW=34,CH=48,GAP=4;
+  const TOTAL=50,COLS=10,CW=28,CH=40,GAP=3;
   return `
-  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;">
+  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.95);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:20px;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:420px;">
       <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:#f2f3f5;">Pioche Classique</div>
       <button id="pioche-close" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);color:#96989d;display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
     </div>
     <div style="font-size:11px;color:#96989d;text-align:center;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
     ${!state.piocheResult?`
-    <div style="position:relative;width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*5+GAP*4}px;flex-shrink:0;">
+    <div style="position:relative;width:100%;max-width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*5+GAP*4}px;flex-shrink:0;margin:0 auto;">
       ${Array.from({length:TOTAL},(_,i)=>{
         const col=i%COLS,row=Math.floor(i/COLS);
         const rot=(((i*37+13)%20)-10)*0.5;
