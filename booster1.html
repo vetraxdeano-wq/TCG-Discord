@@ -6,12 +6,6 @@
 <title>TCG Discord — Ouverture de Booster</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Bebas+Neue&display=swap');
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#7c3aed">
-<script>
-  if ('serviceWorker' in navigator)
-    navigator.serviceWorker.register('/sw.js')
-</script>
 
 /* ===== CSS VARIABLES — Noir & Or ===== */
 :root {
@@ -1758,7 +1752,7 @@ function dealFanCard(cardEl, card, idx){
 
 // ===== YOUTUBE MUSIC PLAYER =====
 // ── Hardcode your mythique music URL here ──
-const MYTH_MUSIC_URL = 'https://www.youtube.com/watch?v=_TcXaAcbQ5Q&list=RD_TcXaAcbQ5Q&start_radio=1'; // ← Coller ici le lien YouTube (ex: 'https://youtu.be/XXXXXXXXXXX')
+const MYTH_MUSIC_URL = 'https://www.youtube.com/watch?v=_TcXaAcbQ5Q&list=RD_TcXaAcbQ5Q&start_radio=1';
 
 let ytPlayer=null, ytReady=false, ytMythStarted=false;
 
@@ -2149,50 +2143,125 @@ function buildScratchSurface(parentEl,w,h){
   canvas.width=w;canvas.height=h;
   canvas.style.cssText=`position:absolute;left:0;top:0;width:${w}px;height:${h}px;border-radius:22px;z-index:20;touch-action:none;cursor:crosshair`;
   const ctx=canvas.getContext('2d');
-  // Gold gradient scratch surface
+
+  // ── Fond grattable : gradient or sombre ──
   const grad=ctx.createLinearGradient(0,0,w,h);
-  grad.addColorStop(0,'#4a2000');grad.addColorStop(.25,'#7c3800');grad.addColorStop(.55,'#5a2e00');grad.addColorStop(1,'#2d1500');
+  grad.addColorStop(0,'#3a1800');grad.addColorStop(.3,'#6b2e00');
+  grad.addColorStop(.6,'#4e2400');grad.addColorStop(1,'#2a1200');
   ctx.fillStyle=grad;
   ctx.beginPath();
-  if(ctx.roundRect) ctx.roundRect(0,0,w,h,22);
-  else ctx.rect(0,0,w,h);
-  ctx.fill();
-  // Fine texture lines
-  ctx.save();ctx.globalAlpha=.12;ctx.strokeStyle='#fbbf24';ctx.lineWidth=1;
-  for(let i=0;i<70;i++){ctx.beginPath();ctx.moveTo(Math.random()*w,Math.random()*h);ctx.lineTo(Math.random()*w,Math.random()*h);ctx.stroke();}
-  ctx.restore();
-  // Shimmer overlay
-  const shim=ctx.createLinearGradient(0,0,w,h);
-  shim.addColorStop(0,'rgba(251,191,36,.06)');shim.addColorStop(.5,'rgba(253,230,138,.14)');shim.addColorStop(1,'rgba(251,191,36,.05)');
-  ctx.fillStyle=shim;ctx.beginPath();
   if(ctx.roundRect) ctx.roundRect(0,0,w,h,22); else ctx.rect(0,0,w,h);
   ctx.fill();
-  // Central hint text
-  ctx.fillStyle='rgba(251,191,36,.75)';
-  ctx.font=`bold 14px 'Cinzel Decorative',cursive`;
+
+  // Lignes texture fines
+  ctx.save();ctx.globalAlpha=.1;ctx.strokeStyle='#f0c060';ctx.lineWidth=1;
+  for(let i=0;i<60;i++){ctx.beginPath();ctx.moveTo(Math.random()*w,Math.random()*h);ctx.lineTo(Math.random()*w,Math.random()*h);ctx.stroke();}
+  ctx.restore();
+
+  // Texte central
+  ctx.fillStyle='rgba(240,192,96,.85)';
+  ctx.font=`bold 15px 'Cinzel',serif`;
   ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('✦ MYTHIQUE ✦',w/2,h/2-14);
-  ctx.fillStyle='rgba(251,191,36,.5)';
-  ctx.font=`700 10px 'Rajdhani',sans-serif`;
-  ctx.fillText('GRATTER POUR RÉVÉLER',w/2,h/2+12);
+  ctx.fillText('✦ MYTHIQUE ✦',w/2,h/2-16);
+  ctx.fillStyle='rgba(200,149,58,.65)';
+  ctx.font=`600 11px 'Bebas Neue',sans-serif`;
+  ctx.fillText('GRATTER POUR RÉVÉLER',w/2,h/2+10);
+
   parentEl.appendChild(canvas);
-  // Manual scratch — mouse and touch
+
+  // ── Animation pulsante sur le canvas (shimmer qui traverse) ──
+  let shimX=-w;
+  let animId;
+  function animateShimmer(){
+    // draw shimmer band over existing pixels (source-atop = only where pixels exist)
+    ctx.save();
+    ctx.globalCompositeOperation='source-atop';
+    ctx.globalAlpha=0.06;
+    const sg=ctx.createLinearGradient(shimX,0,shimX+w*.4,h);
+    sg.addColorStop(0,'transparent');
+    sg.addColorStop(.5,'#f0c060');
+    sg.addColorStop(1,'transparent');
+    ctx.fillStyle=sg;
+    ctx.fillRect(0,0,w,h);
+    ctx.restore();
+    shimX+=4;
+    if(shimX>w*1.5) shimX=-w*.4;
+    animId=requestAnimationFrame(animateShimmer);
+  }
+  animId=requestAnimationFrame(animateShimmer);
+  canvas._animId=animId;
+
+  // ── Petites étincelles qui s'échappent du canvas ──
+  const sparkInterval=setInterval(()=>{
+    if(!canvas.isConnected){clearInterval(sparkInterval);return;}
+    const r=canvas.getBoundingClientRect();
+    const sx=r.left+Math.random()*r.width;
+    const sy=r.top+Math.random()*r.height;
+    const p=document.createElement('div');
+    const sz=Math.random()*4+2;
+    p.style.cssText=`
+      position:fixed;border-radius:50%;pointer-events:none;z-index:701;
+      width:${sz}px;height:${sz}px;
+      background:#f0c060;box-shadow:0 0 ${sz*2}px #c8953a;
+      left:${sx}px;top:${sy}px;
+      animation:particleFly ${.5+Math.random()*.5}s ease-out forwards;
+      --px:${-20+Math.random()*40}px;
+      --py:${-25-Math.random()*35}px;
+    `;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),1200);
+  },200);
+  canvas._sparkInterval=sparkInterval;
+
+  // ── Grattage manuel ──
   let isDown=false, lastPos=null, lastSndTime=0;
+  let scratchedPixels=0;
+  const TOTAL_PIXELS=w*h;
+  const REVEAL_THRESHOLD=0.52; // 52% grattés → révèle
+  let completed=false;
+
   function getPos(e,rect){
     const src=e.touches?e.touches[0]:e;
     const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
     return {x:(src.clientX-rect.left)*scaleX, y:(src.clientY-rect.top)*scaleY};
   }
+
   function doScratch(pos,prev){
-    if(!prev) return;
-    scratchLine(ctx,prev.x,prev.y,pos.x,pos.y,18);
-    const dist=Math.hypot(pos.x-prev.x,pos.y-prev.y);
+    if(!prev||completed) return;
+    const r2=20;
+    scratchLine(ctx,prev.x,prev.y,pos.x,pos.y,r2);
+    // Approx pixels scratched
+    const dist=Math.hypot(pos.x-prev.x,pos.y-prev.y)+r2*2;
+    scratchedPixels+=dist*r2*2;
+    const dist2=Math.hypot(pos.x-prev.x,pos.y-prev.y);
     const now=performance.now();
-    if(dist>4&&now-lastSndTime>60){
-      lastSndTime=now;
-      playScratchSound(Math.min(dist/40,.9));
+    if(dist2>4&&now-lastSndTime>55){lastSndTime=now;playScratchSound(Math.min(dist2/35,.9));}
+    // Check threshold
+    if(!completed&&scratchedPixels/TOTAL_PIXELS>=REVEAL_THRESHOLD){
+      completed=true;
+      clearInterval(sparkInterval);
+      cancelAnimationFrame(animId);
+      // Final sweep fade
+      finalFade(()=>{ canvas.remove(); scratchCanvas=null; onScratchComplete(); });
     }
   }
+
+  function finalFade(cb){
+    // Sweep clear then fade out
+    for(let row=0;row<h;row+=18) scratchLine(ctx,0,row,w,row+6,12);
+    let a=1;
+    function fade(){
+      ctx.save();ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=.15;
+      ctx.fillStyle='rgba(0,0,0,1)';ctx.beginPath();
+      if(ctx.roundRect) ctx.roundRect(0,0,w,h,22); else ctx.rect(0,0,w,h);
+      ctx.fill();ctx.restore();
+      a-=.08;
+      if(a>0) requestAnimationFrame(fade);
+      else{canvas.style.transition='opacity .25s';canvas.style.opacity='0';setTimeout(cb,260);}
+    }
+    fade();
+  }
+
   canvas.addEventListener('mousedown',e=>{isDown=true;const r=canvas.getBoundingClientRect();lastPos=getPos(e,r);e.stopPropagation();},{passive:false});
   canvas.addEventListener('mousemove',e=>{if(!isDown)return;const r=canvas.getBoundingClientRect();const p=getPos(e,r);doScratch(p,lastPos);lastPos=p;});
   canvas.addEventListener('mouseup',()=>isDown=false);
@@ -2211,52 +2280,10 @@ function scratchLine(ctx,x1,y1,x2,y2,r){
   ctx.restore();
 }
 
-function autoScratch(canvas,onDone){
-  const ctx=canvas.getContext('2d');
-  const w=canvas.width,h=canvas.height;
-  // Generate random strokes
-  const strokes=[];
-  for(let i=0;i<42;i++){
-    const x=18+Math.random()*(w-36),y=18+Math.random()*(h-36);
-    const len=28+Math.random()*75,angle=Math.random()*Math.PI*2;
-    strokes.push({x1:x,y1:y,x2:x+Math.cos(angle)*len,y2:y+Math.sin(angle)*len,r:10+Math.random()*10});
-  }
-  let i=0;
-  // Wave 1: 9 slow scratches (partial reveal, looks like natural scratching)
-  function wave1(){
-    if(i>=9){setTimeout(wave2,280);return;}
-    scratchLine(ctx,strokes[i].x1,strokes[i].y1,strokes[i].x2,strokes[i].y2,strokes[i].r);
-    i++;setTimeout(wave1,95);
-  }
-  // Wave 2: 13 faster scratches
-  function wave2(){
-    if(i>=22){setTimeout(wave3,200);return;}
-    scratchLine(ctx,strokes[i].x1,strokes[i].y1,strokes[i].x2,strokes[i].y2,strokes[i].r);
-    i++;setTimeout(wave2,50);
-  }
-  // Wave 3: sweep remaining, then fade out canvas
-  function wave3(){
-    for(let row=0;row<h;row+=20) scratchLine(ctx,0,row,w,row+8,14);
-    let a=1;
-    function fade(){
-      ctx.save();ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=.14;
-      ctx.fillStyle='rgba(0,0,0,1)';ctx.beginPath();
-      if(ctx.roundRect) ctx.roundRect(0,0,w,h,22); else ctx.rect(0,0,w,h);
-      ctx.fill();ctx.restore();
-      a-=.08;
-      if(a>0) requestAnimationFrame(fade);
-      else{
-        canvas.style.transition='opacity .25s';canvas.style.opacity='0';
-        setTimeout(()=>{canvas.remove();scratchCanvas=null;onDone();},260);
-      }
-    }
-    fade();
-  }
-  wave1();
-}
-
 function clearScratchNow(){
   if(!scratchCanvas) return;
+  if(scratchCanvas._animId) cancelAnimationFrame(scratchCanvas._animId);
+  if(scratchCanvas._sparkInterval) clearInterval(scratchCanvas._sparkInterval);
   const ctx=scratchCanvas.getContext('2d');
   ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='rgba(0,0,0,1)';
   ctx.beginPath();
@@ -2430,7 +2457,7 @@ function startMythZoom(card){
         setTimeout(()=>{
           scratchCanvas=buildScratchSurface(zCard,CW,CH);
           scratchPhase=1;
-          autoScratch(scratchCanvas,()=>{ onScratchComplete(); });
+          // Grattage manuel uniquement — onScratchComplete() déclenché depuis buildScratchSurface
         },800);
       }, 11600);
     }, 500);
@@ -2618,8 +2645,6 @@ function restart(){
   const b=document.getElementById('booster');
   b.style.animation='none';void b.offsetWidth;b.style.animation='';
 }
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-init.js"></script>
 </script>
 </body>
 </html>
