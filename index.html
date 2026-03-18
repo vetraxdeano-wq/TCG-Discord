@@ -171,8 +171,12 @@ let state = {
   collSortBy: "id",
   collFilterSet: "all",
   collFilterRarity: "all",
+  collShowOwned: "all",
   collSetOpen: false,
   collSelectedCard: null,
+  showMessages: false,
+  activeConvId: null,
+  messages: {},
   // Boosters
   boosterOpening: null,
   showPioche: false,
@@ -314,13 +318,15 @@ function renderGame(th){
     {label:"Jouer",icon:SVG.swords},
     {label:"Collection",icon:SVG.cards},
     {label:"Boosters",icon:SVG.package},
+    {label:"Messages",icon:SVG.chat},
   ];
   const NOTIF_COUNT = (state.friendRequestsIn||[]).length;
 
   let tabContent = '';
   if(state.tab===0) tabContent = renderTabPlay(th);
   else if(state.tab===1) tabContent = renderTabCollection(th);
-  else tabContent = renderTabBoosters(th);
+  else if(state.tab===2) tabContent = renderTabBoosters(th);
+  else tabContent = renderTabMessages(th);
 
   return `
   <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
@@ -359,8 +365,9 @@ function renderGame(th){
     <div style="flex:1;overflow:hidden;position:relative;">
       <div id="tab-slider" style="display:flex;width:300%;height:100%;transform:translateX(${-state.tab*(100/3)}%);transition:transform .3s cubic-bezier(.25,.46,.45,.94);">
         <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===0?renderTabPlay(th):'<div></div>'}</div>
-        <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===1?renderTabCollection(th):'<div></div>'}</div>
-        <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===2?renderTabBoosters(th):'<div></div>'}</div>
+        <div style="width:25%;height:100%;overflow:hidden;">${state.tab===1?renderTabCollection(th):'<div></div>'}</div>
+        <div style="width:25%;height:100%;overflow:hidden;">${state.tab===2?renderTabBoosters(th):'<div></div>'}</div>
+        <div style="width:25%;height:100%;overflow:hidden;">${state.tab===3?renderTabMessages(th):'<div></div>'}</div>
       </div>
     </div>
     <!-- NAV BAS -->
@@ -465,6 +472,7 @@ function renderTabCollection(th){
   let cards = [...ALL_CARDS]
     .filter(c=>state.collFilterSet==="all"||c.set===state.collFilterSet)
     .filter(c=>state.collFilterRarity==="all"||c.rarity===state.collFilterRarity)
+    .filter(c=>state.collShowOwned==="all"||(state.collShowOwned==="owned"&&c.owned)||(state.collShowOwned==="missing"&&!c.owned))
     .sort((a,b)=>state.collSortBy==="id"?a.id.localeCompare(b.id):RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
 
   return `
@@ -486,7 +494,12 @@ function renderTabCollection(th){
         <button class="sort-btn" data-sort="id" style="padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collSortBy==='id'?th.accent:th.surface};color:${state.collSortBy==='id'?'#fff':th.textMuted};border:none;transition:all .15s;">ID</button>
         <button class="sort-btn" data-sort="rarity" style="padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collSortBy==='rarity'?th.accent:th.surface};color:${state.collSortBy==='rarity'?'#fff':th.textMuted};border:none;transition:all .15s;">Rareté</button>
         <div style="margin-left:auto;position:relative;">
-          <button id="set-filter-btn" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collFilterSet!=='all'?th.accent:th.surface};color:${state.collFilterSet!=='all'?'#fff':th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent:th.border};;white-space:nowrap;">
+          <div style="display:flex;gap:4px;margin-bottom:2px;">
+          <button class="owned-filter-btn" data-val="all" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;border:none;background:${state.collShowOwned==='all'?th.text:th.surface};color:${state.collShowOwned==='all'?th.bg:th.textMuted};">Toutes</button>
+          <button class="owned-filter-btn" data-val="owned" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid ${th.green}60;background:${state.collShowOwned==='owned'?th.green:th.surface};color:${state.collShowOwned==='owned'?'#000':th.green};">Possédées</button>
+          <button class="owned-filter-btn" data-val="missing" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid ${th.red}60;background:${state.collShowOwned==='missing'?th.red:th.surface};color:${state.collShowOwned==='missing'?'#fff':th.red};">Manquantes</button>
+        </div>
+        <button id="set-filter-btn" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collFilterSet!=='all'?th.accent:th.surface};color:${state.collFilterSet!=='all'?'#fff':th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent:th.border};;white-space:nowrap;">
             ${state.collFilterSet === "all" ? "Tous les Sets" : state.collFilterSet}
             <span style="display:inline-block;transform:${state.collSetOpen?'rotate(180deg)':'none'};transition:transform .2s;">${SVG.chevron}</span>
           </button>
@@ -630,7 +643,7 @@ function renderTabBoosters(th){
             <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${th.text};">${b.name}</div>
             <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${b.cards} cartes</div>
             <div style="font-size:9px;color:${RARITY_COLOR[b.rarity]};font-weight:700;margin-bottom:6px;">◆ ${RARITY_LABEL[b.rarity]}</div>
-            <div style="font-size:13px;font-weight:800;color:${b.color};margin-bottom:8px;">🪙 ${b.price}</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:13px;font-weight:800;color:${b.color};margin-bottom:8px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${b.price}</div>
             <button class="open-booster" data-bid="${b.id}" style="width:100%;padding:7px 0;border-radius:99px;background:${isOpen?b.color+'70':b.color};color:#fff;border:none;font-size:10px;font-weight:700;box-shadow:${isOpen?`0 0 20px ${b.color}`:'none'};transition:all .2s;">
               ${isOpen?"⋯ Ouverture":"Ouvrir"}
             </button>
@@ -651,6 +664,60 @@ function renderTabBoosters(th){
       </div>
     </div>
     <style>@keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}</style>
+  </div>`;
+}
+
+// ─── TAB MESSAGES ────────────────────────────────────────────────
+function renderTabMessages(th){
+  const friends = state.friends || [];
+  const activeId = state.activeConvId;
+  const msgs = (state.messages[activeId] || []);
+  const myId = state.currentUser?.id;
+
+  if (activeId && friends.find(f=>f.id===activeId)) {
+    const friend = friends.find(f=>f.id===activeId);
+    return `
+    <div style="display:flex;flex-direction:column;height:100%;">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+        <button id="msg-back" style="background:none;border:none;color:${th.textMuted};font-size:18px;cursor:pointer;padding:0 4px;">←</button>
+        <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          ${friend.avatar_url?`<img src="${friend.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
+        </div>
+        <div style="font-size:13px;font-weight:700;color:${th.text};">${friend.discord_username||'Ami'}</div>
+      </div>
+      <div id="msg-list" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+        ${msgs.length===0?`<div style="text-align:center;color:${th.textFaint};font-size:11px;padding:20px;">Commencez la conversation !</div>`:
+          msgs.map(m=>`
+          <div style="display:flex;flex-direction:${m.from===myId?'row-reverse':'row'};gap:6px;align-items:flex-end;">
+            <div style="max-width:72%;background:${m.from===myId?th.accent:th.bgTertiary};color:${m.from===myId?'#fff':th.text};padding:8px 12px;border-radius:${m.from===myId?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${m.text}</div>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;padding:10px 14px;background:${th.bgSecondary};border-top:1px solid ${th.border};flex-shrink:0;">
+        <input id="msg-input" placeholder="Message..." style="flex:1;padding:9px 12px;border-radius:99px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:12px;outline:none;"/>
+        <button id="msg-send" style="width:36px;height:36px;border-radius:50%;background:${th.accent};color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">↑</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div style="display:flex;flex-direction:column;height:100%;padding:14px;gap:8px;">
+    <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:4px;color:${th.textMuted};text-transform:uppercase;flex-shrink:0;">Messages</div>
+    ${friends.length===0?`
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:${th.textMuted};font-size:12px;text-align:center;">
+        <div style="font-size:32px;">💬</div>
+        Ajoute des amis pour leur envoyer des messages.
+      </div>` :
+      friends.map(f=>`
+      <div class="conv-item" data-fid="${f.id}" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:${th.bgSecondary};border:1px solid ${th.border};cursor:pointer;">
+        <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+          ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:18px;">👤</span>'}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Ami'}</div>
+          <div style="font-size:10px;color:${th.textFaint};">Appuyer pour écrire</div>
+        </div>
+        <div style="font-size:18px;color:${th.textFaint};">›</div>
+      </div>`).join('')}
   </div>`;
 }
 
@@ -865,6 +932,37 @@ function bindGame(){
   document.querySelectorAll('.rar-btn').forEach(btn=>{
     btn.addEventListener('click',()=>setState({collFilterRarity:btn.dataset.rar}));
   });
+
+  // Filtre possédées/toutes/manquantes
+  document.querySelectorAll('.owned-filter-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({collShowOwned:btn.dataset.val}));
+  });
+
+  // Messages : liste conversations
+  document.querySelectorAll('.conv-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      setState({activeConvId:el.dataset.fid});
+      loadMessages(el.dataset.fid);
+    });
+  });
+
+  // Messages : retour liste
+  const msgBack = document.getElementById('msg-back');
+  if(msgBack) msgBack.addEventListener('click',()=>setState({activeConvId:null}));
+
+  // Messages : envoi
+  const msgSend = document.getElementById('msg-send');
+  const msgInput = document.getElementById('msg-input');
+  if(msgSend && msgInput){
+    const sendMsg = () => {
+      const text = msgInput.value.trim();
+      if(!text) return;
+      msgInput.value='';
+      sendMessage(state.activeConvId, text);
+    };
+    msgSend.addEventListener('click', sendMsg);
+    msgInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') sendMsg(); });
+  }
   const setBtn = document.getElementById('set-filter-btn');
   if(setBtn) setBtn.addEventListener('click',(e)=>{e.stopPropagation();setState({collSetOpen:!state.collSetOpen});});
   document.querySelectorAll('.set-opt').forEach(btn=>{
@@ -897,7 +995,10 @@ function bindGame(){
     btn.addEventListener('click',()=>{
       const mode = btn.dataset.mode;
       if (mode === 'ia') window.location.href = 'PVE.html';
-      else if (mode === 'pvp') window.location.href = 'GAMEPLAY.html?mode=pvp';
+      else if (mode === 'pvp') {
+        setState({showFriends:true, friendsTab:'list'});
+        loadFriends();
+      }
     });
   });
 
@@ -1045,6 +1146,14 @@ function waitForSupabase(cb) {
   } else {
     setTimeout(() => waitForSupabase(cb), 50);
   }
+}
+
+function showToast(msg, icon='ℹ') {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#23252a;color:#fff;padding:10px 18px;border-radius:99px;font-size:12px;font-weight:700;z-index:9999;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;white-space:nowrap;';
+  el.innerHTML = '<span style="font-size:14px;">'+icon+'</span> '+msg;
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2500);
 }
 
 function enterGame(user, coins) {
@@ -1250,8 +1359,12 @@ window.sendFriendRequest = async function(receiverId) {
   const { error } = await db.from('friend_requests').insert({
     sender_id: stored.user.id, receiver_id: receiverId, status: 'pending'
   });
-  if (!error) { setState({ showAddFriend: false }); alert('Demande envoyée !'); }
-  else alert('Demande déjà envoyée ou erreur.');
+  if (!error) {
+    setState({ showAddFriend: false });
+    showToast('Demande envoyée !', '✓');
+  } else {
+    showToast('Demande déjà envoyée ou déjà ami.', '✗');
+  }
 };
 
 window.respondFriendRequest = async function(requestId, accept) {
@@ -1266,6 +1379,56 @@ window.respondFriendRequest = async function(requestId, accept) {
 window.loadFriends = loadFriends;
 window.loadCollection = loadCollection;
 window.searchAndSendFriendRequest = searchAndSendFriendRequest;
+
+// ─── MESSAGES ─────────────────────────────────────────────────────
+async function loadMessages(friendId) {
+  const db = window.db;
+  if (!db || !friendId) return;
+  const myId = state.currentUser?.id;
+  if (!myId) return;
+
+  const { data } = await db.from('messages')
+    .select('id, from_id, to_id, text, created_at')
+    .or(`and(from_id.eq.${myId},to_id.eq.${friendId}),and(from_id.eq.${friendId},to_id.eq.${myId})`)
+    .order('created_at', { ascending: true });
+
+  const msgs = (data||[]).map(m=>({ from: m.from_id, text: m.text, ts: m.created_at }));
+  const newMessages = { ...state.messages, [friendId]: msgs };
+  setState({ messages: newMessages });
+
+  // Scroll en bas
+  setTimeout(()=>{
+    const list = document.getElementById('msg-list');
+    if(list) list.scrollTop = list.scrollHeight;
+  }, 50);
+}
+
+async function sendMessage(toId, text) {
+  const db = window.db;
+  if (!db || !toId || !text) return;
+  const myId = state.currentUser?.id;
+  if (!myId) return;
+
+  // Optimistic update
+  const prev = state.messages[toId] || [];
+  const newMsg = { from: myId, text, ts: new Date().toISOString() };
+  setState({ messages: { ...state.messages, [toId]: [...prev, newMsg] } });
+  setTimeout(()=>{ const l=document.getElementById('msg-list'); if(l) l.scrollTop=l.scrollHeight; },50);
+
+  // Envoyer en base
+  await db.from('messages').insert({ from_id: myId, to_id: toId, text });
+
+  // Notif au recevant via la table notifications
+  await db.from('notifications').insert({
+    user_id: toId,
+    type: 'message',
+    from_id: myId,
+    text: text.length > 40 ? text.slice(0,40)+'…' : text,
+  }).then(()=>{}).catch(()=>{});
+}
+
+window.loadMessages = loadMessages;
+window.sendMessage = sendMessage;
 </script>
 </body>
 </html>
