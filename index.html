@@ -171,6 +171,7 @@ let state = {
   collSortBy: "id",
   collFilterSet: "all",
   collFilterRarity: "all",
+  collFilterType: "all",
   collShowOwned: "all",
   collSetOpen: false,
   collSelectedCard: null,
@@ -208,6 +209,7 @@ const SVG = {
   musicOn:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`,
   musicOff:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`,
   chevron:`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+  chat:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
 };
 
 // ─── RENDER ───────────────────────────────────────────────────────
@@ -477,6 +479,7 @@ function renderTabCollection(th){
     .filter(c=>state.collFilterSet==="all"||c.set===state.collFilterSet)
     .filter(c=>state.collFilterRarity==="all"||c.rarity===state.collFilterRarity)
     .filter(c=>state.collShowOwned==="all"||(state.collShowOwned==="owned"&&c.owned)||(state.collShowOwned==="missing"&&!c.owned))
+    .filter(c=>state.collFilterType==="all"||c.type===state.collFilterType)
     .sort((a,b)=>state.collSortBy==="id"?a.id.localeCompare(b.id):RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
 
   return `
@@ -518,6 +521,12 @@ function renderTabCollection(th){
       <div style="display:flex;gap:5px;overflow-x:auto;">
         <button class="rar-btn" data-rar="all" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterRarity==='all'?th.text:th.surface};color:${state.collFilterRarity==='all'?th.bg:th.textMuted};border:none;">Tout</button>
         ${RARITY_ORDER.map(r=>`<button class="rar-btn" data-rar="${r}" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterRarity===r?RARITY_COLOR[r]:th.surface};color:${state.collFilterRarity===r?'#fff':RARITY_COLOR[r]};border:1px solid ${RARITY_COLOR[r]}40;">${RARITY_LABEL[r]}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;">
+        <button class="type-btn" data-type="all" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='all'?th.text:th.surface};color:${state.collFilterType==='all'?th.bg:th.textMuted};border:none;flex-shrink:0;">Tous</button>
+        <button class="type-btn" data-type="Hero" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='Hero'?'#f59e0b':th.surface};color:${state.collFilterType==='Hero'?'#000':th.yellow};border:1px solid #f59e0b40;flex-shrink:0;">⚔ Héros</button>
+        <button class="type-btn" data-type="Ruse" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='Ruse'?'#10b981':th.surface};color:${state.collFilterType==='Ruse'?'#000':th.green};border:1px solid #10b98140;flex-shrink:0;">🃏 Ruse</button>
+        <button class="type-btn" data-type="Arcane" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='Arcane'?'#8b5cf6':th.surface};color:${state.collFilterType==='Arcane'?'#fff':'#8b5cf6'};border:1px solid #8b5cf640;flex-shrink:0;">✦ Arcane</button>
       </div>
       <div style="font-size:9px;color:${th.textFaint};">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
     </div>
@@ -731,7 +740,7 @@ function renderMessagesModal(th){
 
 // ─── PIOCHE MECHANIC ──────────────────────────────────────────────
 function renderPiocheMechanic(th){
-  const TOTAL=50,COLS=10,CW=28,CH=40,GAP=3;
+  const TOTAL=50,COLS=10,GAP=3,CW=Math.floor((Math.min(window.innerWidth,420)-40-GAP*9)/10),CH=Math.round(CW*1.43);
   return `
   <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.95);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:20px;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:420px;">
@@ -740,7 +749,7 @@ function renderPiocheMechanic(th){
     </div>
     <div style="font-size:11px;color:#96989d;text-align:center;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
     ${!state.piocheResult?`
-    <div style="position:relative;width:100%;max-width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*5+GAP*4}px;flex-shrink:0;margin:0 auto;">
+    <div style="position:relative;width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*5+GAP*4}px;flex-shrink:0;margin:0 auto;">
       ${Array.from({length:TOTAL},(_,i)=>{
         const col=i%COLS,row=Math.floor(i/COLS);
         const rot=(((i*37+13)%20)-10)*0.5;
@@ -950,6 +959,9 @@ function bindGame(){
   document.querySelectorAll('.rar-btn').forEach(btn=>{
     btn.addEventListener('click',()=>setState({collFilterRarity:btn.dataset.rar}));
   });
+  document.querySelectorAll('.type-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({collFilterType:btn.dataset.type}));
+  });
 
   // Filtre possédées/toutes/manquantes
   document.querySelectorAll('.owned-filter-btn').forEach(btn=>{
@@ -1030,6 +1042,8 @@ function bindGame(){
       e.stopPropagation();
       const bid=parseInt(btn.dataset.bid);
       if (bid === 1) { window.location.href = 'booster1.html'; return; }
+      if (bid === 2) { window.location.href = 'booster2.html'; return; }
+      if (bid === 3) { window.location.href = 'booster3.html'; return; }
       setState({boosterOpening:bid});
       setTimeout(()=>setState({boosterOpening:null}),1400);
     });
