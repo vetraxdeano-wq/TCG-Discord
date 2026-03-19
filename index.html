@@ -1315,12 +1315,10 @@ window.checkAuthAndEnter = async function() {
   const stored = getStoredSession();
   if (stored && stored.user) {
     const user = stored.user;
-    // Entrer immédiatement avec les données stockées
-    enterGame(user, 100);
-    // Charger les vraies coins en arrière-plan
-    waitForSupabase(() => {
-      window.db.from('players').select('coins').eq('id', user.id).single()
-        .then(({ data }) => { if (data) setState({ coins: data.coins }); });
+    // Récupérer les vraies coins avant d'entrer (évite le flash à 100)
+    waitForSupabase(async () => {
+      const { data } = await window.db.from('players').select('coins').eq('id', user.id).single();
+      enterGame(user, data ? data.coins : 0);
     });
     return;
   }
@@ -1373,9 +1371,10 @@ waitForSupabase(() => {
   // Session déjà stockée → entrer auto sans clic
   const stored = getStoredSession();
   if (stored && stored.user) {
-    enterGame(stored.user, 100);
     db.from('players').select('coins').eq('id', stored.user.id).single()
-      .then(({ data }) => { if (data) setState({ coins: data.coins }); });
+      .then(({ data }) => {
+        enterGame(stored.user, data ? data.coins : 0);
+      });
   }
 });
 
