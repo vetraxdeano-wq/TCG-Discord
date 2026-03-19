@@ -555,6 +555,7 @@ function renderDeckList(th){
             </div>
             <div style="display:flex;gap:5px;flex-shrink:0;">
               ${!isDefault?`<button class="db-set-default" data-deckid="${deck.id}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;" title="Mettre par défaut">⭐</button>`:''}
+              <button class="db-rename" data-deckid="${deck.id}" data-deckname="${deck.name}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;" title="Renommer">✏️</button>
               <button class="db-delete" data-deckid="${deck.id}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.red}15;color:${th.red};border:1px solid ${th.red}40;cursor:pointer;" title="Supprimer">🗑</button>
             </div>
           </div>
@@ -592,10 +593,14 @@ function renderDeckEdit(th){
   const canAdd = (card)=>{
     if(deckTotal>=30) return {ok:false,reason:'30 cartes max'};
     const qty=qtyInDeck(card.id);
+    // Ne pas mettre plus que ce qu'on possède
+    if(qty>= card.count) return {ok:false,reason:`Tu n'as que ${card.count} exemplaire${card.count>1?'s':''}`};
+    // Rare/Mythic : max 2 exemplaires dans le deck
     if(card.rarity==='mythic'||card.rarity==='rare'){
-      if(qty>=2) return {ok:false,reason:'2 exemplaires max'};
+      if(qty>=2) return {ok:false,reason:'2 exemplaires max (Rare/Myth)'};
     }
-    if(card.rarity==='mythic'&&mythCount>=2&&qty===0) return {ok:false,reason:'2 Mythiques max'};
+    // Max 2 Mythiques au total dans le deck
+    if(card.rarity==='mythic'&&mythCount>=2&&qty===0) return {ok:false,reason:'2 Mythiques max dans le deck'};
     return {ok:true};
   };
 
@@ -605,7 +610,10 @@ function renderDeckEdit(th){
     <div style="display:flex;align-items:center;gap:8px;padding:12px 14px 10px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
       <button id="db-back" style="width:30px;height:30px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;">←</button>
       <div style="flex:1;min-width:0;">
-        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${deck.name}</div>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${deck.name}</div>
+          <button id="db-rename-edit" data-deckid="${deck.id}" data-deckname="${deck.name}" style="width:20px;height:20px;border-radius:4px;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">✏️</button>
+        </div>
         <div style="font-size:9px;color:${isPlayable?th.green:th.red};font-weight:600;">${isPlayable?'✓ Deck prêt':deckTotal+'/30 · Inutilisable'} · ${mythCount}/2 Myth.</div>
       </div>
       <button id="db-save" style="padding:6px 14px;border-radius:99px;background:${th.green};color:#000;border:none;font-size:11px;font-weight:700;cursor:pointer;">💾 Sauvegarder</button>
@@ -1276,7 +1284,7 @@ function bindGame(){
   // Clic sur un deck → éditer
   document.querySelectorAll('.deck-item').forEach(el=>{
     el.addEventListener('click',(e)=>{
-      if(e.target.closest('.db-set-default')||e.target.closest('.db-delete')) return;
+      if(e.target.closest('.db-set-default')||e.target.closest('.db-delete')||e.target.closest('.db-rename')) return;
       setState({activeDeckId:el.dataset.deckid,deckBuilderView:'edit'});
     });
   });
@@ -1284,6 +1292,18 @@ function bindGame(){
   // Mettre par défaut
   document.querySelectorAll('.db-set-default').forEach(btn=>{
     btn.addEventListener('click',(e)=>{e.stopPropagation();setDefaultDeck(btn.dataset.deckid);});
+  });
+
+  // Renommer deck (depuis la liste)
+  document.querySelectorAll('.db-rename').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{e.stopPropagation();promptRenameDeck(btn.dataset.deckid,btn.dataset.deckname);});
+  });
+
+  // Renommer deck (depuis la vue édition)
+  const dbRenameEdit = document.getElementById('db-rename-edit');
+  if(dbRenameEdit) dbRenameEdit.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    promptRenameDeck(dbRenameEdit.dataset.deckid, dbRenameEdit.dataset.deckname);
   });
 
   // Supprimer deck
@@ -2038,9 +2058,14 @@ async function setDefaultDeck(deckId) {
   const myId = state.currentUser?.id;
   if (!db || !myId) return;
 
-  // Retirer le défaut de tous les decks du joueur
+  const deck = (state.decks||[]).find(d=>d.id===deckId);
+  if (!deck) return;
+  const total = (deck.cards||[]).reduce((s,c)=>s+c.quantity,0);
+  if (total < 30) {
+    showToast('Sauvegarde le deck avec 30 cartes avant de le mettre par défaut', '⚠'); return;
+  }
+
   await db.from('decks').update({ is_default: false }).eq('player_id', myId);
-  // Mettre le nouveau par défaut
   await db.from('decks').update({ is_default: true }).eq('id', deckId);
 
   const updated = (state.decks||[]).map(d=>({...d, is_default: d.id===deckId}));
@@ -2068,7 +2093,11 @@ function addCardToDeck(cardId) {
   const existing = deckCards.find(c=>parseInt(c.card_id)===parseInt(cardId));
   const currentQty = existing ? existing.quantity : 0;
 
-  // Règles de limite
+  // Ne pas dépasser le nombre d'exemplaires possédés
+  if (currentQty >= card.count) {
+    showToast(`Tu ne possèdes que ${card.count} exemplaire${card.count>1?'s':''} de cette carte`, '⚠'); return;
+  }
+  // Règles de limite Rare/Mythic
   if ((card.rarity==='mythic'||card.rarity==='rare') && currentQty >= 2) {
     showToast(`Max 2 exemplaires pour les ${card.rarity==='mythic'?'Mythiques':'Rares'}`, '⚠'); return;
   }
@@ -2107,23 +2136,53 @@ function removeCardFromDeck(cardId) {
   setState({ decks: updatedDecks });
 }
 
+async function promptRenameDeck(deckId, currentName) {
+  const newName = prompt('Nouveau nom du deck :', currentName);
+  if (!newName || newName.trim() === '' || newName.trim() === currentName) return;
+  const trimmed = newName.trim().slice(0, 30);
+  const db = window.db;
+  if (!db) return;
+  const { error } = await db.from('decks').update({ name: trimmed }).eq('id', deckId);
+  if (error) { showToast('Erreur renommage', '✗'); return; }
+  const updated = (state.decks||[]).map(d=>d.id===deckId?{...d,name:trimmed}:d);
+  setState({ decks: updated });
+  showToast(`Renommé en "${trimmed}"`, '✓');
+}
+
 async function saveDeck() {
   const db = window.db;
   if (!db) return;
   const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
   if (!deck) return;
 
-  // Supprimer toutes les cartes existantes puis réinsérer
-  await db.from('deck_cards').delete().eq('deck_id', deck.id);
-
   const cards = deck.cards || [];
-  if (cards.length > 0) {
-    const rows = cards.map(c=>({ deck_id: deck.id, card_id: parseInt(c.card_id), quantity: c.quantity }));
-    const { error } = await db.from('deck_cards').insert(rows);
-    if (error) { showToast('Erreur sauvegarde', '✗'); return; }
-  }
+  const deckTotal = cards.reduce((s,c)=>s+c.quantity,0);
 
-  showToast(`${deck.name} sauvegardé !`, '✓');
+  try {
+    // Supprimer toutes les cartes existantes
+    const { error: delErr } = await db.from('deck_cards').delete().eq('deck_id', deck.id);
+    if (delErr) throw delErr;
+
+    // Réinsérer si des cartes sont présentes
+    if (cards.length > 0) {
+      const rows = cards.map(c=>({
+        deck_id: deck.id,
+        card_id: parseInt(c.card_id),
+        quantity: c.quantity
+      }));
+      const { error: insErr } = await db.from('deck_cards').insert(rows);
+      if (insErr) throw insErr;
+    }
+
+    if (deckTotal < 30) {
+      showToast(`${deck.name} sauvegardé (${deckTotal}/30 cartes)`, '💾');
+    } else {
+      showToast(`${deck.name} sauvegardé !`, '✓');
+    }
+  } catch(e) {
+    console.error('[saveDeck]', e);
+    showToast('Erreur sauvegarde : ' + (e.message || 'inconnue'), '✗');
+  }
 }
 
 window.loadDecks = loadDecks;
