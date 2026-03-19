@@ -875,6 +875,9 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
       <div class="sparkle" style="--sd:1.6s;--ss:.2s;top:10%;left:50%"></div>
     </div>
     <div class="click-hint">◆ CLIQUER POUR OUVRIR ◆</div>
+    <div style="position:absolute;bottom:-82px;left:50%;transform:translateX(-50%);white-space:nowrap;">
+      <button onclick="window.location.href='index.html'" style="background:none;border:1px solid var(--gold-subtle);color:var(--text-muted);font-family:'Bebas Neue',sans-serif;font-size:.65rem;letter-spacing:.25em;padding:7px 22px;border-radius:2px;cursor:pointer;transition:color .2s,border-color .2s;" onmouseenter="this.style.color='var(--gold-main)';this.style.borderColor='var(--gold-deep)'" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--gold-subtle)'">← RETOUR AU MENU</button>
+    </div>
   </div>
 
   <div class="card-stack-wrap" id="stackWrap">
@@ -966,6 +969,7 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
   <div class="done-sub">◆ Récap du Booster ◆</div>
   <div class="summary-spread" id="summarySpread"></div>
   <button class="btn-restart" onclick="restart()">◆ Ouvrir un nouveau booster ◆</button>
+  <button class="btn-restart" onclick="window.location.href='index.html'" style="margin-top:10px;background:linear-gradient(135deg,var(--noir-panel),var(--noir-mid));color:var(--gold-main);border-color:var(--gold-deep);box-shadow:none;">← Retour au menu</button>
 </div>
 
 <div class="particle-container" id="particleContainer"></div>
@@ -984,12 +988,12 @@ const RARITY_MAP = {
   'mythic':   'MYTHIQUE',
 };
 
-// % de drop Premium Pack (booster2)
+// % de drop : Commune 54%, Peu Commune 42%, Rare 3%, Mythique 1%
 const DROP_WEIGHTS = {
-  'COMMUNE':      25,
-  'PEU COMMMUNE': 52,
-  'RARE':         18,
-  'MYTHIQUE':      5,
+  'COMMUNE':      54,
+  'PEU COMMMUNE': 42,
+  'RARE':          3,
+  'MYTHIQUE':      1,
 };
 
 let ALL_CARDS = [];
@@ -997,9 +1001,9 @@ let _dbReady = false;
 
 function rollRarity() {
   const r = Math.random() * 100;
-  if (r < 5)  return 'MYTHIQUE';
-  if (r < 23) return 'RARE';
-  if (r < 75) return 'PEU COMMMUNE';
+  if (r < 1)   return 'MYTHIQUE';
+  if (r < 4)   return 'RARE';
+  if (r < 46)  return 'PEU COMMMUNE';
   return 'COMMUNE';
 }
 
@@ -1028,12 +1032,34 @@ async function loadCardsFromSupabase() {
     console.error('[Booster] Supabase SDK non chargé');
     return;
   }
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  window._db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { autoRefreshToken: true, persistSession: true }
+  });
+  const db = window._db;
+
+  // Session joueur
+  const { data: { session } } = await db.auth.getSession();
+  window._currentUserId = session?.user?.id || null;
+
+  // Solde coins + cartes possédées
+  if (window._currentUserId) {
+    const { data: p } = await db.from('players').select('coins').eq('id', window._currentUserId).single();
+    window._playerCoins = p ? p.coins : 0;
+    const { data: owned } = await db.from('player_cards')
+      .select('card_id, quantity').eq('player_id', window._currentUserId);
+    window._ownedMap = {};
+    (owned || []).forEach(row => { window._ownedMap[row.card_id] = row.quantity; });
+  } else {
+    window._playerCoins = 0;
+    window._ownedMap = {};
+  }
+
   const { data, error } = await db.from('cards').select('*');
   if (error) { console.error('[Booster] erreur chargement cartes:', error.message); return; }
 
   ALL_CARDS = (data || []).map(c => ({
     id:        '#' + c.id,
+    dbId:      c.id,
     rarity:    RARITY_MAP[c.rarity] || 'COMMUNE',
     name:      c.name,
     character: c.character_name || '',
@@ -1048,6 +1074,99 @@ async function loadCardsFromSupabase() {
 
   console.log('[Booster] ' + ALL_CARDS.length + ' cartes chargées depuis Supabase');
   _dbReady = true;
+}
+
+// Sauvegarde toutes les cartes révélées en collection Supabase
+async function saveBoosterToCollection(cards) {
+  const db = window._db;
+  const myId = window._currentUserId;
+  if (!db || !myId) return;
+  for (const card of cards) {
+    const cardId = card.dbId;
+    if (!cardId) continue;
+    const existing = window._ownedMap[cardId];
+    if (existing) {
+      await db.from('player_cards')
+        .update({ quantity: existing + 1 })
+        .eq('player_id', myId).eq('card_id', cardId);
+      window._ownedMap[cardId] = existing + 1;
+    } else {
+      await db.from('player_cards')
+        .insert({ player_id: myId, card_id: cardId, quantity: 1 });
+      window._ownedMap[cardId] = 1;
+    }
+  }
+  console.log('[Booster] Collection sauvegardée');
+}
+
+// Vérifie le solde et déduit 150 coins — retourne true si OK
+async function deductBoosterCost() {
+  const db = window._db;
+  const myId = window._currentUserId;
+  if (!db || !myId) return true; // non connecté → laisser ouvrir
+  const { data: p } = await db.from('players').select('coins').eq('id', myId).single();
+  const current = p ? p.coins : 0;
+  window._playerCoins = current;
+  if (current < 150) return false;
+  await db.from('players').update({ coins: current - 150 }).eq('id', myId);
+  window._playerCoins = current - 150;
+  return true;
+}
+
+function showInsufficientCoins() {
+  // Supprimer un éventuel modal précédent
+  const old = document.getElementById('insufficientModal');
+  if (old) old.remove();
+  const msg = document.createElement('div');
+  msg.id = 'insufficientModal';
+  msg.style.cssText = `
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:9999;padding:28px 40px;border-radius:6px;text-align:center;
+    background:var(--noir-panel);border:1px solid var(--gold-deep);
+    box-shadow:0 0 60px #c8953a30;font-family:'Cinzel',serif;
+  `;
+  msg.innerHTML = `
+    <div style="font-size:.85rem;color:var(--gold-bright);letter-spacing:.2em;margin-bottom:12px;">COINS INSUFFISANTS</div>
+    <div style="font-size:.65rem;color:var(--text-muted);letter-spacing:.12em;line-height:1.7;margin-bottom:22px;">
+      Il vous faut <span style="color:var(--gold-main)">150 coins</span> pour ouvrir un booster.<br>
+      Solde actuel&nbsp;: <span style="color:var(--gold-main)">${window._playerCoins || 0} coins</span>
+    </div>
+    <button onclick="window.location.href='index.html'" style="
+      padding:10px 28px;border-radius:2px;
+      background:linear-gradient(135deg,var(--gold-deep),var(--gold-main));
+      color:var(--noir-deep);border:1px solid var(--gold-bright);
+      font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:.25em;cursor:pointer;
+      box-shadow:0 0 24px #c8953a40;
+    ">← Retour au menu</button>
+  `;
+  document.body.appendChild(msg);
+}
+
+// Badge éphémère "déjà possédée" / "nouvelle carte" + son
+function showOwnershipBadge(card) {
+  const owned = window._ownedMap && card.dbId && window._ownedMap[card.dbId];
+  const badge = document.createElement('div');
+  badge.style.cssText = `
+    position:fixed;top:calc(50% - 130px);left:50%;
+    transform:translateX(-50%);z-index:700;
+    padding:7px 20px;border-radius:99px;pointer-events:none;
+    font-family:'Bebas Neue',sans-serif;font-size:.72rem;letter-spacing:.2em;
+    transition:opacity .4s;
+    ${owned
+      ? 'background:#1a1208cc;color:#c8953a;border:1px solid #c8953a55;'
+      : 'background:#071a07cc;color:#4ade80;border:1px solid #4ade8055;'}
+  `;
+  badge.textContent = owned ? `◆ DÉJÀ POSSÉDÉE  ×${owned}` : '✦ NOUVELLE CARTE !';
+  document.body.appendChild(badge);
+  if (!owned) sndNewCard();
+  setTimeout(() => { badge.style.opacity = '0'; setTimeout(() => badge.remove(), 420); }, 2200);
+}
+
+function sndNewCard() {
+  resumeAC();
+  playTone(1047, 'sine', .12, .005, .18, .4);
+  setTimeout(() => playTone(1319, 'sine', .10, .005, .14, .32), 80);
+  setTimeout(() => playTone(1568, 'sine', .08, .005, .10, .26), 160);
 }
 
 // Charger dès que possible
@@ -1445,13 +1564,21 @@ function handleBoosterClick(){
 
 function physicalTear(wrap){
   sndTear();
-  haptic([50,20,100,20,60]); // strong rip pattern
+  haptic([50,20,100,20,60]);
 
-  // Build booster cards data first
   if (!_dbReady || ALL_CARDS.length === 0) {
     alert('Chargement des cartes en cours, réessaie dans un instant.');
+    tearPhase = false;
     return;
   }
+  // Vérifier & déduire les coins avant d'ouvrir
+  deductBoosterCost().then(ok => {
+    if (!ok) { tearPhase = false; showInsufficientCoins(); return; }
+    _doPhysicalTear(wrap);
+  });
+}
+
+function _doPhysicalTear(wrap){
   boosterCards = pickWeightedCards(5);
   currentIdx=0;revealed=[];
   const RO={COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
@@ -2180,6 +2307,7 @@ function showCard(card){
     spawn3DParticles(window.innerWidth/2,window.innerHeight/2,color,R==='COMMUNE'?8:18);
     if(R==='COMMUNE'){ sndCommune(); haptic(HAPTIC.deal); }
     else { sndPeuCommune(); haptic(HAPTIC.deal); }
+    showOwnershipBadge(card);
     // Art shine
     const art=rc.querySelector('.card-art');
     if(art){art.classList.remove('shine');void art.offsetWidth;art.classList.add('shine');}
@@ -2210,6 +2338,7 @@ function showFullscreen(card){
     fc.classList.add('anim-rare');
     attachTilt(fc,'fsFoil');
     const color=RC[R];
+    showOwnershipBadge(card);
     setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,color,40),150);
     setTimeout(()=>spawn3DParticles(window.innerWidth/2,window.innerHeight/2,color,20),150);
     setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,'#fff',20),380);
@@ -2422,6 +2551,7 @@ function buildMythZoomCard(card,CW,CH){
 }
 
 function startMythZoom(card){
+  window._pendingMythCard = card;
   scratchPhase=0;
   const stage=document.getElementById('mythZoomStage');
   const zCard=document.getElementById('mythZoomCard');
@@ -2584,6 +2714,7 @@ function onScratchComplete(){
         spawnParticles(W/2,H/2,'#f0c060',80);spawn3DParticles(W/2,H/2,'#c8953a',40);
         spawnParticles(W/2,H/2,'#fff',40);spawnParticles(W/2,H/2,'#f0c060',45);
         setTimeout(()=>spawnParticles(W/2,H/2,'#fff',30),220);
+        if(window._pendingMythCard) setTimeout(()=>showOwnershipBadge(window._pendingMythCard),600);
         attachTilt(zCard,null,'scale(1)');
         const mArt=zCard.querySelector('[style*="height:130px"]');
         if(mArt){setTimeout(()=>{mArt.classList&&mArt.classList.add('shine');},350);}
@@ -2704,10 +2835,16 @@ function showDone(){
   sndDone(); haptic(HAPTIC.done);
   spawnParticles(window.innerWidth/2,window.innerHeight/2,'#f0c060',65);
   spawn3DParticles(window.innerWidth/2,window.innerHeight/2,'#c8953a',30);
+  // Sauvegarder les cartes en collection Supabase
+  saveBoosterToCollection(revealed);
 }
 
 // ===== RESTART =====
-function restart(){
+async function restart(){
+  // Revérifier le solde pour le nouveau booster
+  const ok = await deductBoosterCost();
+  if (!ok) { showInsufficientCoins(); return; }
+
   document.getElementById('doneOverlay').classList.remove('active');
   document.getElementById('stackWrap').classList.remove('visible','appearing');
   const bw=document.getElementById('boosterWrap');
@@ -2725,6 +2862,7 @@ function restart(){
   if(fanOpen) closeFan();
   stopYT();
   ytMythStarted=false;
+  window._pendingMythCard=null;
   const b=document.getElementById('booster');
   b.style.animation='none';void b.offsetWidth;b.style.animation='';
 }
