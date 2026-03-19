@@ -65,9 +65,9 @@ const themes = {
 };
 
 const BOOSTERS = [
-  {id:1,name:"Starter Pack",price:100,color:"#5865f2",rarity:"common",cards:5},
-  {id:2,name:"Premium Pack",price:250,color:"#fee75c",rarity:"rare",cards:7},
-  {id:3,name:"Legendary Pack",price:500,color:"#eb459e",rarity:"mythic",cards:10},
+  {id:1,name:"Normal",price:150,color:"#5865f2",rarity:"common",cards:5},
+  {id:2,name:"Prestige",price:1000,color:"#fee75c",rarity:"rare",cards:5},
+  {id:3,name:"Légendaire",price:2000,color:"#eb459e",rarity:"mythic",cards:5},
 ];
 
 // ALL_CARDS sera chargé depuis Supabase
@@ -1050,11 +1050,17 @@ function bindGame(){
     btn.addEventListener('click',(e)=>{
       e.stopPropagation();
       const bid=parseInt(btn.dataset.bid);
+      const booster = BOOSTERS.find(b=>b.id===bid);
+      if (!booster) return;
+      // Vérifier le solde sans déduire (la déduction est gérée dans la page booster)
+      const coins = state.coins || 0;
+      if (coins < booster.price) {
+        showToast(`Il vous faut ${booster.price.toLocaleString('fr-FR')} coins pour ouvrir ce booster.`, '🚫');
+        return;
+      }
       if (bid === 1) { window.location.href = 'booster1.html'; return; }
       if (bid === 2) { window.location.href = 'booster2.html'; return; }
       if (bid === 3) { window.location.href = 'booster3.html'; return; }
-      setState({boosterOpening:bid});
-      setTimeout(()=>setState({boosterOpening:null}),1400);
     });
   });
 
@@ -1549,7 +1555,24 @@ async function subscribeNotifications() {
     .eq('read', false)
     .order('created_at', { ascending: false });
 
-  const msgNotifs = (notifs||[]).filter(n => n.type === 'message');
+  // Filtrer celles de la conv déjà ouverte (si on revient d'une conv)
+  // et les marquer lues en base pour éviter qu'elles réapparaissent au prochain refresh
+  const activeConv = state.activeConvId;
+  const allMsgNotifs = (notifs||[]).filter(n => n.type === 'message');
+
+  // Notifs de convs déjà actives → marquer lues silencieusement
+  const toMarkRead = activeConv ? allMsgNotifs.filter(n => n.from_id === activeConv) : [];
+  if (toMarkRead.length > 0) {
+    db.from('notifications')
+      .update({ read: true })
+      .eq('user_id', myId)
+      .eq('type', 'message')
+      .eq('from_id', activeConv)
+      .eq('read', false)
+      .then(()=>{}).catch(()=>{});
+  }
+
+  const msgNotifs = allMsgNotifs.filter(n => !activeConv || n.from_id !== activeConv);
   setState({ msgNotifCount: msgNotifs.length, pendingMsgNotifs: msgNotifs });
 
   // Realtime : écouter les nouvelles notifications
@@ -1563,6 +1586,11 @@ async function subscribeNotifications() {
     }, payload => {
       const n = payload.new;
       if (!n) return;
+      // Si la conv de cet expéditeur est déjà ouverte → marquer lu directement, pas de badge
+      if (state.activeConvId && n.from_id === state.activeConvId) {
+        markMsgNotifsRead(n.from_id);
+        return;
+      }
       const prev = state.pendingMsgNotifs || [];
       setState({
         msgNotifCount: (state.msgNotifCount || 0) + 1,
@@ -1604,17 +1632,19 @@ async function sendMessage(toId, text) {
 async function markMsgNotifsRead(fromId) {
   const db = window.db;
   const myId = state.currentUser?.id;
-  // Mise à jour immédiate du state (sync) pour que le badge disparaisse sans attendre
+  // Mise à jour immédiate du state pour que le badge disparaisse sans attendre
   const remaining = (state.pendingMsgNotifs || []).filter(n => n.from_id !== fromId);
   setState({ msgNotifCount: remaining.length, pendingMsgNotifs: remaining });
-  // Puis persistance en base
+  // Persistance en base (impératif pour que le badge ne revienne pas au refresh)
   if (!db || !myId) return;
-  await db.from('notifications')
-    .update({ read: true })
-    .eq('user_id', myId)
-    .eq('type', 'message')
-    .eq('from_id', fromId)
-    .catch(()=>{});
+  try {
+    await db.from('notifications')
+      .update({ read: true })
+      .eq('user_id', myId)
+      .eq('type', 'message')
+      .eq('from_id', fromId)
+      .eq('read', false);
+  } catch(e) { console.warn('[markMsgNotifsRead]', e); }
 }
 
 window.loadMessages = loadMessages;
