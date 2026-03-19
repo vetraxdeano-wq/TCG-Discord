@@ -2026,7 +2026,7 @@ async function createDeck() {
   const name = `Deck #${num}`;
 
   const { data, error } = await db.from('decks')
-    .insert({ player_id: myId, name, is_default: decks.length === 0 })
+    .insert({ player_id: myId, name, is_default: false })
     .select().single();
 
   if (error) { showToast('Erreur création deck', '✗'); return; }
@@ -2044,11 +2044,8 @@ async function deleteDeck(deckId) {
 
   await db.from('decks').delete().eq('id', deckId);
   const remaining = (state.decks||[]).filter(d=>d.id!==deckId);
-  // Si c'était le deck par défaut, mettre le premier restant par défaut
-  if (deck.is_default && remaining.length > 0) {
-    await db.from('decks').update({ is_default: true }).eq('id', remaining[0].id);
-    remaining[0].is_default = true;
-  }
+  // On ne remet jamais automatiquement un autre deck par défaut :
+  // c'est au joueur de choisir explicitement son deck par défaut
   setState({ decks: remaining });
   showToast(`${deck.name} supprimé`, '🗑');
 }
@@ -2177,7 +2174,17 @@ async function saveDeck() {
     if (deckTotal < 30) {
       showToast(`${deck.name} sauvegardé (${deckTotal}/30 cartes)`, '💾');
     } else {
-      showToast(`${deck.name} sauvegardé !`, '✓');
+      // Si c'est le seul deck et qu'aucun n'est par défaut → le mettre par défaut automatiquement
+      const allDecks = state.decks || [];
+      const hasDefault = allDecks.some(d => d.is_default);
+      if (allDecks.length === 1 && !hasDefault) {
+        await db.from('decks').update({ is_default: true }).eq('id', deck.id);
+        const updated = allDecks.map(d => d.id===deck.id ? {...d, is_default:true} : d);
+        setState({ decks: updated });
+        showToast(`${deck.name} sauvegardé et mis par défaut !`, '⭐');
+      } else {
+        showToast(`${deck.name} sauvegardé !`, '✓');
+      }
     }
   } catch(e) {
     console.error('[saveDeck]', e);
