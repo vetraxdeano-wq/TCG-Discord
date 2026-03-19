@@ -2829,9 +2829,8 @@ function showInsufficientCoins() {
   msg.innerHTML = `
     <div style="font-size:.85rem;color:var(--gold-bright);letter-spacing:.2em;margin-bottom:12px;">COINS INSUFFISANTS</div>
     <div style="font-size:.65rem;color:var(--text-muted);letter-spacing:.15em;margin-bottom:20px;">Il vous faut <span style="color:var(--gold-main)">150 coins</span> pour ouvrir un booster.<br>Solde actuel : <span style="color:var(--gold-main)">${window._playerCoins||0} coins</span></div>
-    <div style="display:flex;gap:10px;justify-content:center;">
-      <button onclick="this.closest('div[style]').remove()" style="padding:8px 22px;border-radius:2px;background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep);font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:.2em;cursor:pointer;">Rester</button>
-      <button onclick="window.location.href='index.html'" style="padding:8px 22px;border-radius:2px;background:none;color:var(--text-muted);border:1px solid var(--gold-subtle);font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:.2em;cursor:pointer;">← Menu</button>
+    <div style="display:flex;justify-content:center;">
+      <button onclick="window.location.href='index.html'" style="padding:8px 22px;border-radius:2px;background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep);font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:.2em;cursor:pointer;">← Retour au menu</button>
     </div>
   `;
   document.body.appendChild(msg);
