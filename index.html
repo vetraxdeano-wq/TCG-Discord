@@ -943,6 +943,8 @@ function bindGame(){
   if(btnMessages) btnMessages.addEventListener('click',()=>{
     setState({showMessages:true,showSettings:false,showFriends:false,showNotif:false});
     if((state.friends||[]).length===0) loadFriends();
+    // Si une conv est déjà ouverte, effacer son badge
+    if (state.activeConvId) markMsgNotifsRead(state.activeConvId);
   });
 
   const messagesBg = document.getElementById('messages-bg');
@@ -1092,13 +1094,53 @@ function bindGame(){
       const newFlipped={...state.piocheFlipped,[idx]:true};
       setState({piocheChosen:idx,piocheFlipped:newFlipped});
       setTimeout(()=>{
-        setState({piocheResult:ALL_CARDS[Math.floor(Math.random()*ALL_CARDS.length)]});
+        // Tirage pondéré par rareté : Mythique 0.1%, Rare 1%, Peu Commune 11.9%, Commune 87%
+        const roll = Math.random() * 100;
+        let targetRarity;
+        if (roll < 0.1)       targetRarity = 'mythic';
+        else if (roll < 1.1)  targetRarity = 'rare';
+        else if (roll < 13.0) targetRarity = 'uncommon';
+        else                  targetRarity = 'common';
+
+        const pool = ALL_CARDS.filter(c => c.rarity === targetRarity);
+        // Fallback si le pool est vide pour cette rareté
+        const finalPool = pool.length > 0 ? pool : ALL_CARDS;
+        const drawn = finalPool[Math.floor(Math.random() * finalPool.length)];
+        setState({piocheResult: drawn});
       },700);
     });
   });
 
   const piocheCollect = document.getElementById('pioche-collect');
-  if(piocheCollect) piocheCollect.addEventListener('click',()=>setState({showPioche:false}));
+  if(piocheCollect) piocheCollect.addEventListener('click', async ()=>{
+    const card = state.piocheResult;
+    if (card) {
+      // Ajouter la carte en base Supabase
+      const db = window.db;
+      const myId = state.currentUser?.id;
+      if (db && myId) {
+        const cardIdNum = parseInt(card.id, 10);
+        // Vérifier si le joueur a déjà cette carte
+        const { data: existing } = await db.from('player_cards')
+          .select('id, quantity')
+          .eq('player_id', myId)
+          .eq('card_id', cardIdNum)
+          .single();
+        if (existing) {
+          await db.from('player_cards')
+            .update({ quantity: existing.quantity + 1 })
+            .eq('id', existing.id);
+        } else {
+          await db.from('player_cards')
+            .insert({ player_id: myId, card_id: cardIdNum, quantity: 1 });
+        }
+        // Recharger la collection
+        if (window.loadCollection) window.loadCollection();
+        showToast(`${card.name} ajoutée à la collection !`, '✓');
+      }
+    }
+    setState({showPioche:false});
+  });
 
   // Modal backdrops
   const notifBg=document.getElementById('notif-bg');
@@ -1474,8 +1516,15 @@ async function loadMessages(friendId) {
       // Seulement si c'est de cet ami
       if (m.from_id !== friendId) {
         // Message d'un autre ami : juste mettre à jour le compteur notif
-        setState({ msgNotifCount: (state.msgNotifCount || 0) + 1 });
+        // (uniquement si la conv de cet autre ami n'est pas ouverte)
+        if (state.activeConvId !== m.from_id) {
+          setState({ msgNotifCount: (state.msgNotifCount || 0) + 1 });
+        }
         return;
+      }
+      // Si la conv est ouverte, marquer directement comme lu (pas de badge)
+      if (state.activeConvId === friendId) {
+        markMsgNotifsRead(friendId);
       }
       const prev = state.messages[friendId] || [];
       // Éviter les doublons
@@ -1554,18 +1603,18 @@ async function sendMessage(toId, text) {
 // Marquer les notifs message comme lues quand on ouvre la conv
 async function markMsgNotifsRead(fromId) {
   const db = window.db;
-  if (!db) return;
   const myId = state.currentUser?.id;
-  if (!myId) return;
+  // Mise à jour immédiate du state (sync) pour que le badge disparaisse sans attendre
+  const remaining = (state.pendingMsgNotifs || []).filter(n => n.from_id !== fromId);
+  setState({ msgNotifCount: remaining.length, pendingMsgNotifs: remaining });
+  // Puis persistance en base
+  if (!db || !myId) return;
   await db.from('notifications')
     .update({ read: true })
     .eq('user_id', myId)
     .eq('type', 'message')
     .eq('from_id', fromId)
     .catch(()=>{});
-  // Recalculer le compteur
-  const remaining = (state.pendingMsgNotifs || []).filter(n => n.from_id !== fromId);
-  setState({ msgNotifCount: remaining.length, pendingMsgNotifs: remaining });
 }
 
 window.loadMessages = loadMessages;
