@@ -178,6 +178,8 @@ let state = {
   showMessages: false,
   activeConvId: null,
   messages: {},
+  msgNotifCount: 0,
+  pendingMsgNotifs: [],
   // Boosters
   boosterOpening: null,
   showPioche: false,
@@ -355,7 +357,10 @@ function renderGame(th){
         <!-- Ligne basse : amis + messages + notifs -->
         <div style="display:flex;gap:4px;">
           <button id="btn-friends" style="width:32px;height:32px;border-radius:50%;background:${state.showFriends?th.accent:th.surface};color:${state.showFriends?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.users}</button>
-          <button id="btn-messages" style="width:32px;height:32px;border-radius:50%;background:${state.showMessages?th.accent:th.surface};color:${state.showMessages?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.chat}</button>
+          <div style="position:relative;">
+            <button id="btn-messages" style="width:32px;height:32px;border-radius:50%;background:${state.showMessages?th.accent:th.surface};color:${state.showMessages?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.chat}</button>
+            ${(state.msgNotifCount||0)>0&&!state.showMessages?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${state.msgNotifCount}</div>`:''}
+          </div>
           <div style="position:relative;">
             <button id="btn-notif" style="width:32px;height:32px;border-radius:50%;background:${state.showNotif?th.accent:th.surface};color:${state.showNotif?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.bell}</button>
             ${NOTIF_COUNT>0&&!state.showNotif?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
@@ -665,8 +670,8 @@ function renderTabBoosters(th){
       <div style="position:absolute;bottom:0;left:0;right:0;">
         <div id="btn-pioche" style="background:linear-gradient(135deg,${th.green}18,${th.green}06);border:1px solid ${th.green}40;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;cursor:pointer;">
           <div style="position:absolute;right:-8px;top:-8px;font-size:50px;opacity:.06;pointer-events:none;">🎴</div>
-          <div style="position:relative;width:44px;height:54px;flex-shrink:0;">
-            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}40,${th.green}15);border:1px solid ${th.green}50;border-radius:5px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:16px;">🂠</div>`).join('')}
+          <div style="position:relative;width:52px;height:66px;flex-shrink:0;">
+            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}40,${th.green}15);border:1px solid ${th.green}50;border-radius:6px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:20px;">🂠</div>`).join('')}
           </div>
           <div style="flex:1;">
             <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">Pioche Classique</div>
@@ -740,7 +745,7 @@ function renderMessagesModal(th){
 
 // ─── PIOCHE MECHANIC ──────────────────────────────────────────────
 function renderPiocheMechanic(th){
-  const TOTAL=50,COLS=10,GAP=3,CW=Math.floor((Math.min(window.innerWidth,420)-40-GAP*9)/10),CH=Math.round(CW*1.43);
+  const TOTAL=50,COLS=8,GAP=5,CW=Math.floor((Math.min(window.innerWidth,420)-40-GAP*(COLS-1))/COLS),CH=Math.round(CW*1.43);
   return `
   <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.95);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:20px;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:420px;">
@@ -757,8 +762,8 @@ function renderPiocheMechanic(th){
         const isFlipped=state.piocheFlipped[i];
         return `<div class="pioche-card" data-idx="${i}" style="position:absolute;left:${col*(CW+GAP)}px;top:${row*(CH+GAP)}px;width:${CW}px;height:${CH}px;cursor:${state.piocheChosen===null?'pointer':'default'};perspective:300px;">
           <div style="width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:${isFlipped?'rotateY(180deg)':`rotate(${rot}deg)`};transition:transform .6s ease;">
-            <div style="position:absolute;inset:0;backface-visibility:hidden;background:${isChosen?'linear-gradient(135deg,#5865f2,#eb459e)':'linear-gradient(135deg,#2b2d31,#1e1f22)'};border:1px solid ${isChosen?'#5865f2':'rgba(255,255,255,.08)'};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;box-shadow:${isChosen?'0 0 16px #5865f280':'none'};transform:${isChosen?'scale(1.1)':'scale(1)'};transition:all .2s;">🂠</div>
-            <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,#5865f230,#eb459e20);border:1px solid #5865f260;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;">🃏</div>
+            <div style="position:absolute;inset:0;backface-visibility:hidden;background:${isChosen?'linear-gradient(135deg,#5865f2,#eb459e)':'linear-gradient(135deg,#2b2d31,#1e1f22)'};border:1px solid ${isChosen?'#5865f2':'rgba(255,255,255,.12)'};border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:${isChosen?'0 0 16px #5865f280':'none'};transform:${isChosen?'scale(1.1)':'scale(1)'};transition:all .2s;">🂠</div>
+            <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,#5865f230,#eb459e20);border:1px solid #5865f260;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>
           </div>
         </div>`;
       }).join('')}
@@ -971,8 +976,10 @@ function bindGame(){
   // Messages : liste conversations
   document.querySelectorAll('.conv-item').forEach(el=>{
     el.addEventListener('click',()=>{
-      setState({activeConvId:el.dataset.fid});
-      loadMessages(el.dataset.fid);
+      const fid = el.dataset.fid;
+      setState({activeConvId:fid});
+      loadMessages(fid);
+      markMsgNotifsRead(fid);
     });
   });
 
@@ -1123,6 +1130,7 @@ function bindGame(){
       const fid = btn.dataset.fid;
       setState({showMessages:true, showFriends:false, activeConvId:fid});
       loadMessages(fid);
+      markMsgNotifsRead(fid);
     });
   });
   const settingsBg=document.getElementById('settings-bg');
@@ -1209,6 +1217,7 @@ function enterGame(user, coins) {
     setState({ screen: 'game', musicOn: true, currentUser: user, coins: coins });
     audioPlay();
     loadCollection();
+    if (window.subscribeNotifications) window.subscribeNotifications();
   }, 450);
 }
 
@@ -1427,6 +1436,9 @@ window.loadCollection = loadCollection;
 window.searchAndSendFriendRequest = searchAndSendFriendRequest;
 
 // ─── MESSAGES ─────────────────────────────────────────────────────
+let _msgRealtimeSub = null;
+let _notifRealtimeSub = null;
+
 async function loadMessages(friendId) {
   const db = window.db;
   if (!db || !friendId) return;
@@ -1447,7 +1459,72 @@ async function loadMessages(friendId) {
     const list = document.getElementById('msg-list');
     if(list) list.scrollTop = list.scrollHeight;
   }, 50);
+
+  // Realtime : écouter les nouveaux messages pour cette conversation
+  if (_msgRealtimeSub) { try { db.removeChannel(_msgRealtimeSub); } catch(e){} }
+  _msgRealtimeSub = db.channel('messages-rt-' + friendId)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `to_id=eq.${myId}`,
+    }, payload => {
+      const m = payload.new;
+      if (!m) return;
+      // Seulement si c'est de cet ami
+      if (m.from_id !== friendId) {
+        // Message d'un autre ami : juste mettre à jour le compteur notif
+        setState({ msgNotifCount: (state.msgNotifCount || 0) + 1 });
+        return;
+      }
+      const prev = state.messages[friendId] || [];
+      // Éviter les doublons
+      if (prev.some(x => x.ts === m.created_at && x.text === m.text)) return;
+      const updated = [...prev, { from: m.from_id, text: m.text, ts: m.created_at }];
+      setState({ messages: { ...state.messages, [friendId]: updated } });
+      setTimeout(()=>{ const l=document.getElementById('msg-list'); if(l) l.scrollTop=l.scrollHeight; },50);
+    })
+    .subscribe();
 }
+
+async function subscribeNotifications() {
+  const db = window.db;
+  if (!db) return;
+  const myId = state.currentUser?.id;
+  if (!myId) return;
+
+  // Charger les notifications non lues (type message)
+  const { data: notifs } = await db.from('notifications')
+    .select('id, type, from_id, text, created_at, read')
+    .eq('user_id', myId)
+    .eq('read', false)
+    .order('created_at', { ascending: false });
+
+  const msgNotifs = (notifs||[]).filter(n => n.type === 'message');
+  setState({ msgNotifCount: msgNotifs.length, pendingMsgNotifs: msgNotifs });
+
+  // Realtime : écouter les nouvelles notifications
+  if (_notifRealtimeSub) { try { db.removeChannel(_notifRealtimeSub); } catch(e){} }
+  _notifRealtimeSub = db.channel('notif-rt-' + myId)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'notifications',
+      filter: `user_id=eq.${myId}`,
+    }, payload => {
+      const n = payload.new;
+      if (!n) return;
+      const prev = state.pendingMsgNotifs || [];
+      setState({
+        msgNotifCount: (state.msgNotifCount || 0) + 1,
+        pendingMsgNotifs: [n, ...prev],
+      });
+      showToast(n.text || 'Nouveau message !', '💬');
+    })
+    .subscribe();
+}
+
+window.subscribeNotifications = subscribeNotifications;
 
 async function sendMessage(toId, text) {
   const db = window.db;
@@ -1464,17 +1541,36 @@ async function sendMessage(toId, text) {
   // Envoyer en base
   await db.from('messages').insert({ from_id: myId, to_id: toId, text });
 
-  // Notif au recevant via la table notifications
+  // Notif au receveur via la table notifications
   await db.from('notifications').insert({
     user_id: toId,
     type: 'message',
     from_id: myId,
     text: text.length > 40 ? text.slice(0,40)+'…' : text,
+    read: false,
   }).then(()=>{}).catch(()=>{});
+}
+
+// Marquer les notifs message comme lues quand on ouvre la conv
+async function markMsgNotifsRead(fromId) {
+  const db = window.db;
+  if (!db) return;
+  const myId = state.currentUser?.id;
+  if (!myId) return;
+  await db.from('notifications')
+    .update({ read: true })
+    .eq('user_id', myId)
+    .eq('type', 'message')
+    .eq('from_id', fromId)
+    .catch(()=>{});
+  // Recalculer le compteur
+  const remaining = (state.pendingMsgNotifs || []).filter(n => n.from_id !== fromId);
+  setState({ msgNotifCount: remaining.length, pendingMsgNotifs: remaining });
 }
 
 window.loadMessages = loadMessages;
 window.sendMessage = sendMessage;
+window.markMsgNotifsRead = markMsgNotifsRead;
 </script>
 </body>
 </html>
