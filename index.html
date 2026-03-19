@@ -250,6 +250,11 @@ let state = {
   piocheFlipped: {},
   piocheChosen: null,
   piocheResult: null,
+  // Deck Builder
+  showDeckBuilder: false,
+  decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
+  activeDeckId: null,  // deck en cours d'édition
+  deckBuilderView: 'list', // 'list' | 'edit'
 };
 let splashTick = 0;
 let splashTimer = null;
@@ -461,6 +466,7 @@ function renderGame(th){
     ${state.showPioche?renderPiocheMechanic(th):''}
     ${state.showProfile?renderProfileModal(th):''}
     ${state.showAddFriend?renderAddFriendModal(th):''}
+    ${state.showDeckBuilder?renderDeckBuilder(th):''}
   </div>`;
 }
 
@@ -504,6 +510,139 @@ function renderProfileModal(th){
         </div>
       </div>
       <button id="btn-logout" style="width:100%;padding:11px;border-radius:10px;background:transparent;border:1px solid ${th.red}40;color:${th.red};font-size:12px;font-weight:700;cursor:pointer;">Se déconnecter</button>
+    </div>
+  </div>`;
+}
+
+// ─── DECK BUILDER ────────────────────────────────────────────────
+function renderDeckBuilder(th){
+  if(state.deckBuilderView==='edit') return renderDeckEdit(th);
+  return renderDeckList(th);
+}
+
+function renderDeckList(th){
+  const decks = state.decks || [];
+  return `
+  <div id="deckbuilder-bg" style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px 10px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="db-close" style="width:30px;height:30px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;">✕</button>
+      <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};flex:1;">Deck Builder</div>
+      <button id="db-new" style="padding:6px 14px;border-radius:99px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:700;cursor:pointer;">＋ Nouveau</button>
+    </div>
+    <!-- Liste decks -->
+    <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">
+      ${decks.length===0?`
+        <div style="text-align:center;padding:40px 20px;color:${th.textMuted};">
+          <div style="font-size:36px;margin-bottom:10px;">🗂️</div>
+          <div style="font-size:13px;font-weight:600;">Aucun deck créé</div>
+          <div style="font-size:11px;margin-top:4px;">Crée ton premier deck !</div>
+        </div>
+      `:decks.map(deck=>{
+        const total = deck.cards ? deck.cards.reduce((s,c)=>s+c.quantity,0) : 0;
+        const isPlayable = total===30;
+        const isDefault = deck.is_default;
+        return `
+        <div class="deck-item" data-deckid="${deck.id}" style="background:${isDefault?th.accent+'18':th.bgSecondary};border:1px solid ${isDefault?th.accent:isPlayable?th.green+'50':th.red+'60'};border-radius:14px;padding:13px 14px;cursor:pointer;position:relative;">
+          ${isDefault?`<div style="position:absolute;top:8px;right:10px;font-size:9px;font-weight:700;color:${th.accent};background:${th.accent}20;padding:2px 8px;border-radius:99px;letter-spacing:.5px;">⭐ PAR DÉFAUT</div>`:''}
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:${isDefault?th.accent+'30':th.surface};border:1px solid ${isDefault?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🗂️</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">${deck.name}</div>
+              <div style="font-size:10px;margin-top:2px;color:${isPlayable?th.green:th.red};font-weight:600;">
+                ${isPlayable?`✓ Prêt · ${total}/30`:`⚠ Inutilisable · ${total}/30 cartes`}
+              </div>
+            </div>
+            <div style="display:flex;gap:5px;flex-shrink:0;">
+              ${!isDefault?`<button class="db-set-default" data-deckid="${deck.id}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;" title="Mettre par défaut">⭐</button>`:''}
+              <button class="db-delete" data-deckid="${deck.id}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.red}15;color:${th.red};border:1px solid ${th.red}40;cursor:pointer;" title="Supprimer">🗑</button>
+            </div>
+          </div>
+          <!-- Mini aperçu des cartes -->
+          ${total>0?`<div style="margin-top:8px;font-size:9px;color:${th.textMuted};">${deck.cards.slice(0,8).map(c=>{const card=ALL_CARDS.find(x=>String(x.id)===String(c.card_id)||parseInt(x.id)===c.card_id);return card?`<span style="margin-right:3px;color:${RARITY_COLOR[card.rarity]};">◆</span>`:''}).join('')}${deck.cards.length>8?`<span>+${deck.cards.length-8}</span>`:''}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderDeckEdit(th){
+  const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
+  if(!deck) return renderDeckList(th);
+  const deckCards = deck.cards || []; // [{card_id, quantity}]
+  const deckTotal = deckCards.reduce((s,c)=>s+c.quantity,0);
+  const isPlayable = deckTotal===30;
+
+  // Compter mythiques dans le deck
+  const mythCount = deckCards.reduce((s,c)=>{
+    const card=ALL_CARDS.find(x=>parseInt(x.id)===parseInt(c.card_id));
+    return s+(card&&card.rarity==='mythic'?c.quantity:0);
+  },0);
+
+  // Cartes possédées triées
+  const ownedCards = ALL_CARDS.filter(c=>c.owned).sort((a,b)=>RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
+
+  // Helper: quantité d'une carte dans le deck
+  const qtyInDeck = (cardId)=>{
+    const e=deckCards.find(c=>parseInt(c.card_id)===parseInt(cardId));
+    return e?e.quantity:0;
+  };
+
+  // Helper: peut-on ajouter cette carte ?
+  const canAdd = (card)=>{
+    if(deckTotal>=30) return {ok:false,reason:'30 cartes max'};
+    const qty=qtyInDeck(card.id);
+    if(card.rarity==='mythic'||card.rarity==='rare'){
+      if(qty>=2) return {ok:false,reason:'2 exemplaires max'};
+    }
+    if(card.rarity==='mythic'&&mythCount>=2&&qty===0) return {ok:false,reason:'2 Mythiques max'};
+    return {ok:true};
+  };
+
+  return `
+  <div id="deckbuilder-bg" style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px 10px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="db-back" style="width:30px;height:30px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;">←</button>
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${deck.name}</div>
+        <div style="font-size:9px;color:${isPlayable?th.green:th.red};font-weight:600;">${isPlayable?'✓ Deck prêt':deckTotal+'/30 · Inutilisable'} · ${mythCount}/2 Myth.</div>
+      </div>
+      <button id="db-save" style="padding:6px 14px;border-radius:99px;background:${th.green};color:#000;border:none;font-size:11px;font-weight:700;cursor:pointer;">💾 Sauvegarder</button>
+    </div>
+
+    <!-- Deck actuel (scrollable horizontal) -->
+    <div style="background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;padding:10px 14px;">
+      <div style="font-size:10px;color:${th.textMuted};margin-bottom:6px;font-weight:600;">CARTES DU DECK (${deckTotal}/30)</div>
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;min-height:60px;align-items:center;">
+        ${deckTotal===0?`<div style="color:${th.textFaint};font-size:11px;padding:0 8px;">Aucune carte — ajoute des cartes ci-dessous</div>`
+          :deckCards.map(entry=>{
+            const card=ALL_CARDS.find(x=>parseInt(x.id)===parseInt(entry.card_id));
+            if(!card) return '';
+            return `<div class="db-deck-card" data-cardid="${card.id}" style="flex-shrink:0;width:36px;height:50px;border-radius:6px;background:linear-gradient(135deg,${card.color}40,${card.color}15);border:1px solid ${card.color}70;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px;" title="${card.name}">
+              🃏
+              ${entry.quantity>1?`<div style="position:absolute;top:-4px;right:-4px;width:13px;height:13px;border-radius:50%;background:${th.accent};color:#fff;font-size:7px;font-weight:800;display:flex;align-items:center;justify-content:center;">×${entry.quantity}</div>`:''}
+              <div style="position:absolute;bottom:2px;font-size:6px;color:${card.color};font-weight:700;">◆</div>
+            </div>`;
+          }).join('')}
+      </div>
+    </div>
+
+    <!-- Collection filtrée (cartes possédées) -->
+    <div style="flex:1;overflow-y:auto;padding:10px 14px;">
+      <div style="font-size:10px;color:${th.textMuted};margin-bottom:8px;font-weight:600;">MA COLLECTION (${ownedCards.length} cartes)</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
+        ${ownedCards.map(card=>{
+          const qty=qtyInDeck(card.id);
+          const chk=canAdd(card);
+          return `<div class="${chk.ok?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};border-radius:8px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:5px 3px 3px;cursor:${chk.ok?'pointer':'default'};opacity:${chk.ok?1:.45};position:relative;overflow:hidden;gap:2px;" title="${chk.ok?'Ajouter':chk.reason}">
+            <div style="flex:1;width:100%;border-radius:4px;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:16px;">🃏</div>
+            <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%;">${card.name.slice(0,9)}</div>
+            <div style="font-size:7px;color:${RARITY_COLOR[card.rarity]};">◆</div>
+            ${qty>0?`<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:${th.accent};color:#fff;font-size:7px;font-weight:800;display:flex;align-items:center;justify-content:center;">${qty}</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>
     </div>
   </div>`;
 }
@@ -563,7 +702,7 @@ function renderTabCollection(th){
           <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">Deck Builder</div>
           <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${owned} carte${owned>1?'s':''} disponible${owned>1?'s':''}</div>
         </div>
-        <button style="padding:6px 12px;border-radius:99px;flex-shrink:0;background:${th.accent};color:#fff;border:none;cursor:not-allowed;font-size:10px;font-weight:700;opacity:.55;">Bientôt</button>
+        <button id="btn-open-deckbuilder" style="padding:6px 12px;border-radius:99px;flex-shrink:0;background:${th.accent};color:#fff;border:none;cursor:pointer;font-size:10px;font-weight:700;">Ouvrir</button>
       </div>
     </div>
     <div style="padding:8px 14px 6px;flex-shrink:0;display:flex;flex-direction:column;gap:5px;">
@@ -682,7 +821,7 @@ function renderCardDetailModal(card,th){
               <span style="font-size:10px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
             </div>
           </div>
-          <button style="padding:8px;border-radius:10px;background:${th.accent};color:#fff;border:1px solid ${th.accent};font-size:11px;font-weight:700;">＋ Ajouter au deck</button>
+          <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:8px;border-radius:10px;background:${th.accent};color:#fff;border:1px solid ${th.accent};font-size:11px;font-weight:700;cursor:pointer;">＋ Ajouter au deck</button>
         `:`
           <div>
             <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:900;color:${th.textMuted};letter-spacing:2px;">???</div>
@@ -1103,6 +1242,64 @@ function bindGame(){
   if(cardModalBg) cardModalBg.addEventListener('click',(e)=>{if(e.target===cardModalBg)setState({collSelectedCard:null});});
   const cardModalClose = document.getElementById('card-modal-close');
   if(cardModalClose) cardModalClose.addEventListener('click',()=>setState({collSelectedCard:null}));
+
+  // Bouton "Ajouter au deck" dans modal carte → ouvre deck builder
+  const btnAddToDeck = document.getElementById('btn-add-to-deck');
+  if(btnAddToDeck) btnAddToDeck.addEventListener('click',()=>{
+    setState({collSelectedCard:null,showDeckBuilder:true,deckBuilderView:'list'});
+    loadDecks();
+  });
+
+  // Ouvrir Deck Builder depuis la collection
+  const btnOpenDB = document.getElementById('btn-open-deckbuilder');
+  if(btnOpenDB) btnOpenDB.addEventListener('click',()=>{
+    setState({showDeckBuilder:true,deckBuilderView:'list'});
+    loadDecks();
+  });
+
+  // Fermer Deck Builder
+  const dbClose = document.getElementById('db-close');
+  if(dbClose) dbClose.addEventListener('click',()=>setState({showDeckBuilder:false,deckBuilderView:'list'}));
+
+  // Retour liste depuis édition
+  const dbBack = document.getElementById('db-back');
+  if(dbBack) dbBack.addEventListener('click',()=>setState({deckBuilderView:'list'}));
+
+  // Nouveau deck
+  const dbNew = document.getElementById('db-new');
+  if(dbNew) dbNew.addEventListener('click',()=>createDeck());
+
+  // Sauvegarder deck
+  const dbSave = document.getElementById('db-save');
+  if(dbSave) dbSave.addEventListener('click',()=>saveDeck());
+
+  // Clic sur un deck → éditer
+  document.querySelectorAll('.deck-item').forEach(el=>{
+    el.addEventListener('click',(e)=>{
+      if(e.target.closest('.db-set-default')||e.target.closest('.db-delete')) return;
+      setState({activeDeckId:el.dataset.deckid,deckBuilderView:'edit'});
+    });
+  });
+
+  // Mettre par défaut
+  document.querySelectorAll('.db-set-default').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{e.stopPropagation();setDefaultDeck(btn.dataset.deckid);});
+  });
+
+  // Supprimer deck
+  document.querySelectorAll('.db-delete').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{e.stopPropagation();deleteDeck(btn.dataset.deckid);});
+  });
+
+  // Ajouter une carte au deck (vue édition)
+  document.querySelectorAll('.db-add-card').forEach(el=>{
+    el.addEventListener('click',()=>addCardToDeck(el.dataset.cardid));
+  });
+
+  // Retirer une carte du deck (clic sur carte dans le deck)
+  document.querySelectorAll('.db-deck-card').forEach(el=>{
+    el.addEventListener('click',()=>removeCardFromDeck(el.dataset.cardid));
+  });
 
   // Mode de jeu
   document.querySelectorAll('.mode-btn').forEach(btn=>{
@@ -1740,6 +1937,196 @@ async function markMsgNotifsRead(fromId) {
 window.loadMessages = loadMessages;
 window.sendMessage = sendMessage;
 window.markMsgNotifsRead = markMsgNotifsRead;
+
+// ─── DECK BUILDER — SUPABASE ──────────────────────────────────────
+/*
+  SQL À EXÉCUTER DANS SUPABASE (SQL Editor) :
+
+  CREATE TABLE IF NOT EXISTS decks (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT 'Deck #01',
+    is_default BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  CREATE TABLE IF NOT EXISTS deck_cards (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    deck_id UUID NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+    card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 1 AND quantity <= 2),
+    UNIQUE(deck_id, card_id)
+  );
+
+  -- RLS (optionnel mais recommandé)
+  ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE deck_cards ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "Users manage own decks" ON decks FOR ALL USING (player_id = auth.uid());
+  CREATE POLICY "Users manage own deck_cards" ON deck_cards FOR ALL
+    USING (deck_id IN (SELECT id FROM decks WHERE player_id = auth.uid()));
+*/
+
+async function loadDecks() {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) return;
+
+  const { data: decksData } = await db.from('decks')
+    .select('id, name, is_default, created_at')
+    .eq('player_id', myId)
+    .order('created_at', { ascending: true });
+
+  if (!decksData) return;
+
+  // Charger les cartes de chaque deck
+  const deckIds = decksData.map(d=>d.id);
+  let allDeckCards = [];
+  if (deckIds.length > 0) {
+    const { data: dc } = await db.from('deck_cards')
+      .select('deck_id, card_id, quantity')
+      .in('deck_id', deckIds);
+    allDeckCards = dc || [];
+  }
+
+  const decks = decksData.map(d=>({
+    ...d,
+    cards: allDeckCards.filter(c=>c.deck_id===d.id)
+  }));
+
+  setState({ decks });
+}
+
+async function createDeck() {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) return;
+
+  const decks = state.decks || [];
+  const num = String(decks.length + 1).padStart(2,'0');
+  const name = `Deck #${num}`;
+
+  const { data, error } = await db.from('decks')
+    .insert({ player_id: myId, name, is_default: decks.length === 0 })
+    .select().single();
+
+  if (error) { showToast('Erreur création deck', '✗'); return; }
+  const newDeck = { ...data, cards: [] };
+  setState({ decks: [...decks, newDeck], activeDeckId: data.id, deckBuilderView: 'edit' });
+  showToast(`${name} créé !`, '✓');
+}
+
+async function deleteDeck(deckId) {
+  const db = window.db;
+  if (!db) return;
+  const deck = (state.decks||[]).find(d=>d.id===deckId);
+  if (!deck) return;
+  if (!confirm(`Supprimer "${deck.name}" ?`)) return;
+
+  await db.from('decks').delete().eq('id', deckId);
+  const remaining = (state.decks||[]).filter(d=>d.id!==deckId);
+  // Si c'était le deck par défaut, mettre le premier restant par défaut
+  if (deck.is_default && remaining.length > 0) {
+    await db.from('decks').update({ is_default: true }).eq('id', remaining[0].id);
+    remaining[0].is_default = true;
+  }
+  setState({ decks: remaining });
+  showToast(`${deck.name} supprimé`, '🗑');
+}
+
+async function setDefaultDeck(deckId) {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) return;
+
+  // Retirer le défaut de tous les decks du joueur
+  await db.from('decks').update({ is_default: false }).eq('player_id', myId);
+  // Mettre le nouveau par défaut
+  await db.from('decks').update({ is_default: true }).eq('id', deckId);
+
+  const updated = (state.decks||[]).map(d=>({...d, is_default: d.id===deckId}));
+  setState({ decks: updated });
+  showToast('Deck par défaut mis à jour', '⭐');
+}
+
+function addCardToDeck(cardId) {
+  const decks = state.decks || [];
+  const deck = decks.find(d=>d.id===state.activeDeckId);
+  if (!deck) return;
+
+  const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(cardId));
+  if (!card || !card.owned) return;
+
+  const deckCards = deck.cards || [];
+  const deckTotal = deckCards.reduce((s,c)=>s+c.quantity,0);
+  if (deckTotal >= 30) { showToast('30 cartes max dans un deck', '⚠'); return; }
+
+  const mythCount = deckCards.reduce((s,c)=>{
+    const cd=ALL_CARDS.find(x=>parseInt(x.id)===parseInt(c.card_id));
+    return s+(cd&&cd.rarity==='mythic'?c.quantity:0);
+  },0);
+
+  const existing = deckCards.find(c=>parseInt(c.card_id)===parseInt(cardId));
+  const currentQty = existing ? existing.quantity : 0;
+
+  // Règles de limite
+  if ((card.rarity==='mythic'||card.rarity==='rare') && currentQty >= 2) {
+    showToast(`Max 2 exemplaires pour les ${card.rarity==='mythic'?'Mythiques':'Rares'}`, '⚠'); return;
+  }
+  if (card.rarity==='mythic' && mythCount >= 2 && currentQty === 0) {
+    showToast('Max 2 cartes Mythiques par deck', '⚠'); return;
+  }
+
+  let newCards;
+  if (existing) {
+    newCards = deckCards.map(c=>parseInt(c.card_id)===parseInt(cardId)?{...c,quantity:c.quantity+1}:c);
+  } else {
+    newCards = [...deckCards, {card_id: parseInt(cardId), quantity:1, deck_id: deck.id}];
+  }
+
+  const updatedDecks = decks.map(d=>d.id===deck.id?{...d,cards:newCards}:d);
+  setState({ decks: updatedDecks });
+}
+
+function removeCardFromDeck(cardId) {
+  const decks = state.decks || [];
+  const deck = decks.find(d=>d.id===state.activeDeckId);
+  if (!deck) return;
+
+  const deckCards = deck.cards || [];
+  const existing = deckCards.find(c=>parseInt(c.card_id)===parseInt(cardId));
+  if (!existing) return;
+
+  let newCards;
+  if (existing.quantity > 1) {
+    newCards = deckCards.map(c=>parseInt(c.card_id)===parseInt(cardId)?{...c,quantity:c.quantity-1}:c);
+  } else {
+    newCards = deckCards.filter(c=>parseInt(c.card_id)!==parseInt(cardId));
+  }
+
+  const updatedDecks = decks.map(d=>d.id===deck.id?{...d,cards:newCards}:d);
+  setState({ decks: updatedDecks });
+}
+
+async function saveDeck() {
+  const db = window.db;
+  if (!db) return;
+  const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
+  if (!deck) return;
+
+  // Supprimer toutes les cartes existantes puis réinsérer
+  await db.from('deck_cards').delete().eq('deck_id', deck.id);
+
+  const cards = deck.cards || [];
+  if (cards.length > 0) {
+    const rows = cards.map(c=>({ deck_id: deck.id, card_id: parseInt(c.card_id), quantity: c.quantity }));
+    const { error } = await db.from('deck_cards').insert(rows);
+    if (error) { showToast('Erreur sauvegarde', '✗'); return; }
+  }
+
+  showToast(`${deck.name} sauvegardé !`, '✓');
+}
+
+window.loadDecks = loadDecks;
 </script>
 </body>
 </html>
