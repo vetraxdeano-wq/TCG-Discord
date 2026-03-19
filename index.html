@@ -917,7 +917,12 @@ function bindGame(){
 
   // Tab nav
   document.querySelectorAll('[data-tab]').forEach(btn=>{
-    btn.addEventListener('click',()=>setState({tab:parseInt(btn.dataset.tab)}));
+    btn.addEventListener('click',()=>{
+      const tab = parseInt(btn.dataset.tab);
+      setState({tab});
+      // Rafraîchir les coins à l'ouverture de l'onglet Boosters
+      if (tab === 2 && state.currentUser?.id) refreshCoins(state.currentUser.id);
+    });
   });
 
   // Header buttons
@@ -1266,8 +1271,28 @@ function enterGame(user, coins) {
     audioPlay();
     loadCollection();
     if (window.subscribeNotifications) window.subscribeNotifications();
+    // Lancer le rafraîchissement automatique des coins toutes les 30s
+    startCoinsPolling(user.id);
   }, 450);
 }
+
+// ─── COINS POLLING ────────────────────────────────────────────────
+let _coinsInterval = null;
+
+async function refreshCoins(userId) {
+  const db = window.db;
+  if (!db || !userId) return;
+  const { data } = await db.from('players').select('coins').eq('id', userId).single();
+  if (data && data.coins !== state.coins) {
+    setState({ coins: data.coins });
+  }
+}
+
+function startCoinsPolling(userId) {
+  if (_coinsInterval) clearInterval(_coinsInterval);
+  _coinsInterval = setInterval(() => refreshCoins(userId), 30000);
+}
+window.refreshCoins = refreshCoins;
 
 function showDiscordLoginBtn() {
   const splash = document.getElementById('splash');
