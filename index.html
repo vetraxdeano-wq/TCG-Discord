@@ -92,58 +92,121 @@ function audioPlay(){
   if(audioCtx.state==="suspended")audioCtx.resume();
   audioPlaying=true;
   const ctx=audioCtx;
+
+  // ── Master + compresseur doux ──
   const master=ctx.createGain();
   master.gain.setValueAtTime(0,ctx.currentTime);
-  master.gain.linearRampToValueAtTime(0.18,ctx.currentTime+3);
+  master.gain.linearRampToValueAtTime(0.22,ctx.currentTime+4);
   master.connect(ctx.destination);
-  const convolver=ctx.createConvolver();
-  const irLen=ctx.sampleRate*2.5;
+  const comp=ctx.createDynamicsCompressor();
+  comp.threshold.value=-18;comp.knee.value=12;comp.ratio.value=3;
+  comp.attack.value=0.1;comp.release.value=0.4;
+  comp.connect(master);
+
+  // ── Filtre passe-bas global (coupe tous les aigus stridents) ──
+  const lpf=ctx.createBiquadFilter();
+  lpf.type='lowpass';lpf.frequency.value=700;lpf.Q.value=0.4;
+  lpf.connect(comp);
+
+  // ── Grande reverb douce ──
+  const irLen=ctx.sampleRate*4;
   const ir=ctx.createBuffer(2,irLen,ctx.sampleRate);
-  for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<irLen;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,2.2);}
-  convolver.buffer=ir;
-  const reverbGain=ctx.createGain();reverbGain.gain.value=0.35;
-  convolver.connect(reverbGain);reverbGain.connect(master);
-  const padNotes=[130.81,164.81,196.00,261.63,329.63];
-  padNotes.forEach((freq,i)=>{
-    const osc=ctx.createOscillator();const g=ctx.createGain();
-    osc.type=i%2===0?"sine":"triangle";osc.frequency.value=freq;
-    const lfo=ctx.createOscillator();const lfoG=ctx.createGain();
-    lfo.frequency.value=0.07+i*0.013;lfoG.gain.value=0.4;
-    lfo.connect(lfoG);lfoG.connect(osc.frequency);lfo.start();
-    g.gain.setValueAtTime(0,ctx.currentTime);
-    g.gain.linearRampToValueAtTime(0.06-i*0.008,ctx.currentTime+4+i*1.2);
-    osc.connect(g);g.connect(master);g.connect(convolver);osc.start();
-    audioNodes.push(osc,lfo);
+  for(let ch=0;ch<2;ch++){
+    const d=ir.getChannelData(ch);
+    for(let i=0;i<irLen;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,1.6);
+  }
+  const reverb=ctx.createConvolver();reverb.buffer=ir;
+  const rvGain=ctx.createGain();rvGain.gain.value=0.5;
+  reverb.connect(rvGain);rvGain.connect(master);
+  lpf.connect(reverb);
+
+  // ── Pads continus Am9 (A2 C3 E3 G3 B3) — sine pur, très doux ──
+  const padFreqs=[110,130.81,164.81,196.00,246.94];
+  padFreqs.forEach((freq,i)=>{
+    const osc=ctx.createOscillator();
+    const env=ctx.createGain();
+    osc.type='sine';
+    osc.frequency.value=freq;
+    osc.detune.value=(i%2===0?-5:6);
+    // Respiration ultra-lente
+    const lfo=ctx.createOscillator();
+    const lfoG=ctx.createGain();
+    lfo.type='sine';lfo.frequency.value=0.025+i*0.006;
+    lfoG.gain.value=0.006;
+    lfo.connect(lfoG);lfoG.connect(env.gain);
+    lfo.start();audioNodes.push(lfo);
+    const vol=0.048-i*0.007;
+    env.gain.setValueAtTime(0,ctx.currentTime);
+    env.gain.linearRampToValueAtTime(vol,ctx.currentTime+5+i*1.8);
+    osc.connect(env);env.connect(lpf);
+    osc.start();audioNodes.push(osc);
   });
-  const bass=ctx.createOscillator();const bassG=ctx.createGain();
-  bass.type="sine";bass.frequency.value=65.41;
-  bassG.gain.setValueAtTime(0,ctx.currentTime);
-  bassG.gain.linearRampToValueAtTime(0.07,ctx.currentTime+5);
-  bass.connect(bassG);bassG.connect(master);bass.start();audioNodes.push(bass);
-  const shimmer=ctx.createOscillator();const shimG=ctx.createGain();
-  shimmer.type="sine";shimmer.frequency.value=1046.5;
-  const shimLfo=ctx.createOscillator();const shimLfoG=ctx.createGain();
-  shimLfo.frequency.value=0.04;shimLfoG.gain.value=0.015;
-  shimLfo.connect(shimLfoG);shimLfoG.connect(shimG.gain);shimLfo.start();
-  shimG.gain.setValueAtTime(0.018,ctx.currentTime);
-  shimmer.connect(shimG);shimG.connect(convolver);shimmer.start();
-  audioNodes.push(shimmer,shimLfo);
-  const melody=[261.63,293.66,329.63,392.00,440.00,392.00,329.63,293.66];
-  let mt=ctx.currentTime+6;
+
+  // ── Basse profonde A1 (55 Hz) ──
+  const bassOsc=ctx.createOscillator();
+  const bassEnv=ctx.createGain();
+  bassOsc.type='sine';bassOsc.frequency.value=55;
+  bassEnv.gain.setValueAtTime(0,ctx.currentTime);
+  bassEnv.gain.linearRampToValueAtTime(0.09,ctx.currentTime+6);
+  const bLfo=ctx.createOscillator();const bLfoG=ctx.createGain();
+  bLfo.type='sine';bLfo.frequency.value=0.02;bLfoG.gain.value=0.01;
+  bLfo.connect(bLfoG);bLfoG.connect(bassEnv.gain);bLfo.start();audioNodes.push(bLfo);
+  bassOsc.connect(bassEnv);bassEnv.connect(comp);
+  bassOsc.start();audioNodes.push(bassOsc);
+
+  // ── Mélodie lo-fi espacée (Am pentatonique, sine pur, notes longues) ──
+  const scale=[220,261.63,293.66,329.63,392.00,440.00,392.00,329.63,261.63,220];
+  const noteDur=3.8;
+  const noteGap=3.0;
+  const loopLen=scale.length*(noteDur+noteGap)+8;
+  let mt=ctx.currentTime+10;
   const scheduleMelody=()=>{
-    melody.forEach((freq,i)=>{
-      const osc=ctx.createOscillator();const env=ctx.createGain();
-      osc.type="triangle";osc.frequency.value=freq;
-      env.gain.setValueAtTime(0,mt+i*1.8);
-      env.gain.linearRampToValueAtTime(0.04,mt+i*1.8+0.05);
-      env.gain.exponentialRampToValueAtTime(0.001,mt+i*1.8+2.2);
-      osc.connect(env);env.connect(master);env.connect(convolver);
-      osc.start(mt+i*1.8);osc.stop(mt+i*1.8+2.5);audioNodes.push(osc);
+    if(!audioPlaying) return;
+    scale.forEach((freq,i)=>{
+      const t=mt+i*(noteDur+noteGap);
+      const o=ctx.createOscillator();const e=ctx.createGain();
+      o.type='sine';o.frequency.value=freq;o.detune.value=3;
+      e.gain.setValueAtTime(0,t);
+      e.gain.linearRampToValueAtTime(0.022,t+noteDur*0.3);
+      e.gain.setValueAtTime(0.022,t+noteDur*0.65);
+      e.gain.linearRampToValueAtTime(0,t+noteDur);
+      o.connect(e);e.connect(lpf);
+      o.start(t);o.stop(t+noteDur+0.1);audioNodes.push(o);
     });
-    mt+=melody.length*1.8+4;
-    if(audioPlaying)setTimeout(scheduleMelody,(melody.length*1.8+4)*1000-500);
+    mt+=loopLen;
+    if(audioPlaying) setTimeout(scheduleMelody,(loopLen-1)*1000);
   };
   scheduleMelody();
+
+  // ── Accords qui évoluent toutes les 16s ──
+  const chords=[
+    [110,164.81,220,261.63],   // Am
+    [87.31,130.81,174.61,220], // Fm
+    [65.41,130.81,164.81,196], // C
+    [82.41,123.47,164.81,196], // Em
+  ];
+  let ci=0;
+  const chordOscs=[];
+  const scheduleChord=()=>{
+    if(!audioPlaying) return;
+    // Fade out anciens
+    chordOscs.forEach(({o,g})=>{
+      g.gain.linearRampToValueAtTime(0,ctx.currentTime+2.5);
+      setTimeout(()=>{try{o.stop();}catch(e){}},2700);
+    });
+    chordOscs.length=0;
+    chords[ci%chords.length].forEach((freq,i)=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.type='sine';o.frequency.value=freq;o.detune.value=i%2===0?-4:5;
+      g.gain.setValueAtTime(0,ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.018-i*0.003,ctx.currentTime+3);
+      o.connect(g);g.connect(lpf);o.start();
+      audioNodes.push(o);chordOscs.push({o,g});
+    });
+    ci++;
+    if(audioPlaying) setTimeout(scheduleChord,16000);
+  };
+  setTimeout(scheduleChord,3000);
 }
 function audioStop(){
   audioNodes.forEach(n=>{try{n.stop();}catch(e){}});
