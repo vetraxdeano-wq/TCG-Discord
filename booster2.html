@@ -1099,7 +1099,7 @@ async function saveBoosterToCollection(cards) {
   console.log('[Booster] Collection sauvegardée');
 }
 
-// Vérifie le solde et déduit 150 coins — retourne true si OK
+// Vérifie le solde et déduit 1000 coins — retourne true si OK
 async function deductBoosterCost() {
   const db = window._db;
   const myId = window._currentUserId;
@@ -1107,9 +1107,9 @@ async function deductBoosterCost() {
   const { data: p } = await db.from('players').select('coins').eq('id', myId).single();
   const current = p ? p.coins : 0;
   window._playerCoins = current;
-  if (current < 150) return false;
-  await db.from('players').update({ coins: current - 150 }).eq('id', myId);
-  window._playerCoins = current - 150;
+  if (current < 1000) return false;
+  await db.from('players').update({ coins: current - 1000 }).eq('id', myId);
+  window._playerCoins = current - 1000;
   return true;
 }
 
@@ -1128,7 +1128,7 @@ function showInsufficientCoins() {
   msg.innerHTML = `
     <div style="font-size:.85rem;color:var(--gold-bright);letter-spacing:.2em;margin-bottom:12px;">COINS INSUFFISANTS</div>
     <div style="font-size:.65rem;color:var(--text-muted);letter-spacing:.12em;line-height:1.7;margin-bottom:22px;">
-      Il vous faut <span style="color:var(--gold-main)">150 coins</span> pour ouvrir un booster.<br>
+      Il vous faut <span style="color:var(--gold-main)">1000 coins</span> pour ouvrir un booster.<br>
       Solde actuel&nbsp;: <span style="color:var(--gold-main)">${window._playerCoins || 0} coins</span>
     </div>
     <button onclick="window.location.href='index.html'" style="
