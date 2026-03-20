@@ -226,6 +226,8 @@ let state = {
   musicOn: false,
   currentUser: null,
   coins: 0,
+  wins: null,
+  losses: null,
   friends: [],
   friendRequestsIn: [],
   friendsTab: 'list',
@@ -495,12 +497,12 @@ function renderProfileModal(th){
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;">
         <div style="background:${th.bgTertiary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
           <div style="font-size:18px;">🏆</div>
-          <div style="font-size:16px;font-weight:800;color:${th.green};margin-top:2px;">—</div>
+          <div style="font-size:16px;font-weight:800;color:${th.green};margin-top:2px;">${state.wins!==null?state.wins:'—'}</div>
           <div style="font-size:9px;color:${th.textMuted};">Victoires</div>
         </div>
         <div style="background:${th.bgTertiary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
           <div style="font-size:18px;">💀</div>
-          <div style="font-size:16px;font-weight:800;color:${th.red};margin-top:2px;">—</div>
+          <div style="font-size:16px;font-weight:800;color:${th.red};margin-top:2px;">${state.losses!==null?state.losses:'—'}</div>
           <div style="font-size:9px;color:${th.textMuted};">Défaites</div>
         </div>
         <div style="background:${th.bgTertiary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
@@ -617,6 +619,7 @@ function renderDeckEdit(th){
         <div style="font-size:9px;color:${isPlayable?th.green:th.red};font-weight:600;">${isPlayable?'✓ Deck prêt':deckTotal+'/30 · Inutilisable'} · ${mythCount}/2 Myth.</div>
       </div>
       <button id="db-save" style="padding:6px 14px;border-radius:99px;background:${th.green};color:#000;border:none;font-size:11px;font-weight:700;cursor:pointer;">💾 Sauvegarder</button>
+      <button id="db-autofill" style="padding:6px 10px;border-radius:99px;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}50;font-size:10px;font-weight:700;cursor:pointer;" title="Remplir automatiquement avec les meilleures cartes">✨ Auto</button>
     </div>
 
     <!-- Deck actuel (scrollable horizontal) -->
@@ -680,7 +683,11 @@ function renderTabPlay(th){
         </button>`).join('')}
     </div>
     <div style="display:flex;gap:8px;">
-      ${[{l:"Victoires",v:"—",c:th.green,i:"🏆"},{l:"Défaites",v:"—",c:th.red,i:"💀"},{l:"Rang",v:"—",c:th.yellow,i:"⭐"}].map(s=>`
+      ${[
+        {l:"Victoires",v:state.wins!==null?state.wins:'—',c:th.green,i:"🏆"},
+        {l:"Défaites",v:state.losses!==null?state.losses:'—',c:th.red,i:"💀"},
+        {l:"Rang",v:"—",c:th.yellow,i:"⭐"}
+      ].map(s=>`
         <div style="flex:1;background:${th.bgSecondary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
           <div style="font-size:16px;">${s.i}</div>
           <div style="font-size:18px;font-weight:800;color:${s.c};margin-top:2px;">${s.v}</div>
@@ -1281,6 +1288,10 @@ function bindGame(){
   const dbSave = document.getElementById('db-save');
   if(dbSave) dbSave.addEventListener('click',()=>saveDeck());
 
+  // Sélection automatique du deck
+  const dbAutofill = document.getElementById('db-autofill');
+  if(dbAutofill) dbAutofill.addEventListener('click',()=>autoFillDeck());
+
   // Clic sur un deck → éditer
   document.querySelectorAll('.deck-item').forEach(el=>{
     el.addEventListener('click',(e)=>{
@@ -1323,10 +1334,15 @@ function bindGame(){
 
   // Mode de jeu
   document.querySelectorAll('.mode-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
+    btn.addEventListener('click',async ()=>{
       const mode = btn.dataset.mode;
-      if (mode === 'ia') window.location.href = 'PVE.html';
-      else if (mode === 'pvp') {
+      if (mode === 'ia' || mode === 'pvp') {
+        // Vérifier qu'un deck par défaut jouable existe
+        const ok = await checkDefaultDeck();
+        if (!ok) return;
+        if (mode === 'ia') { window.location.href = 'PVE.html'; return; }
+      }
+      if (mode === 'pvp') {
         setState({showFriends:true, friendsTab:'list'});
         loadFriends();
       }
@@ -1556,6 +1572,8 @@ function enterGame(user, coins) {
     if (window.subscribeNotifications) window.subscribeNotifications();
     // Lancer le rafraîchissement automatique des coins toutes les 30s
     startCoinsPolling(user.id);
+    // Charger les stats V/D
+    loadPlayerStats(user.id);
   }, 450);
 }
 
@@ -1575,6 +1593,44 @@ function startCoinsPolling(userId) {
   if (_coinsInterval) clearInterval(_coinsInterval);
   _coinsInterval = setInterval(() => refreshCoins(userId), 30000);
 }
+
+async function loadPlayerStats(userId) {
+  const db = window.db;
+  if (!db || !userId) return;
+  const { data } = await db.from('players').select('wins, losses').eq('id', userId).single();
+  if (data) setState({ wins: data.wins ?? 0, losses: data.losses ?? 0 });
+}
+
+// Vérifie qu'un deck par défaut jouable (30 cartes) existe — affiche un toast sinon
+async function checkDefaultDeck() {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) { showToast('Non connecté', '✗'); return false; }
+
+  const { data: deck } = await db.from('decks')
+    .select('id, name, is_default')
+    .eq('player_id', myId)
+    .eq('is_default', true)
+    .single();
+
+  if (!deck) {
+    showToast('Aucun deck par défaut — configure un deck dans le Deck Builder', '🗂️');
+    return false;
+  }
+
+  const { data: dc } = await db.from('deck_cards')
+    .select('quantity')
+    .eq('deck_id', deck.id);
+
+  const total = (dc || []).reduce((s, c) => s + c.quantity, 0);
+  if (total < 30) {
+    showToast(`Deck "${deck.name}" incomplet (${total}/30) — complète-le avant de jouer`, '⚠');
+    return false;
+  }
+
+  return true;
+}
+
 window.refreshCoins = refreshCoins;
 
 function showDiscordLoginBtn() {
@@ -2131,6 +2187,70 @@ function removeCardFromDeck(cardId) {
 
   const updatedDecks = decks.map(d=>d.id===deck.id?{...d,cards:newCards}:d);
   setState({ decks: updatedDecks });
+}
+
+// ─── AUTO-FILL DECK ───────────────────────────────────────────────
+function autoFillDeck() {
+  const decks = state.decks || [];
+  const deck = decks.find(d => d.id === state.activeDeckId);
+  if (!deck) return;
+
+  // Cartes possédées, triées par rareté décroissante (mythic > rare > uncommon > common)
+  const rarityPriority = { mythic: 0, rare: 1, uncommon: 2, common: 3 };
+  const ownedCards = ALL_CARDS
+    .filter(c => c.owned && c.count > 0)
+    .sort((a, b) => {
+      const rDiff = rarityPriority[a.rarity] - rarityPriority[b.rarity];
+      if (rDiff !== 0) return rDiff;
+      // À rareté égale, prioriser les cartes avec plus d'exemplaires
+      return b.count - a.count;
+    });
+
+  // Construire le deck en appliquant toutes les règles
+  let newCards = []; // [{card_id, quantity}]
+  let total = 0;
+  let mythCount = 0;
+
+  const qtyInNew = (cardId) => {
+    const e = newCards.find(c => parseInt(c.card_id) === parseInt(cardId));
+    return e ? e.quantity : 0;
+  };
+
+  for (const card of ownedCards) {
+    if (total >= 30) break;
+
+    // Combien d'exemplaires peut-on ajouter ?
+    let maxAdd = card.count; // limité par ce qu'on possède
+
+    // Rare/Mythic : max 2 exemplaires dans le deck
+    if (card.rarity === 'mythic' || card.rarity === 'rare') {
+      maxAdd = Math.min(maxAdd, 2);
+    }
+
+    // Mythic : max 2 au total dans le deck
+    if (card.rarity === 'mythic') {
+      maxAdd = Math.min(maxAdd, 2 - mythCount);
+    }
+
+    if (maxAdd <= 0) continue;
+
+    // Limiter à ce qu'il reste à remplir
+    const toAdd = Math.min(maxAdd, 30 - total);
+    if (toAdd <= 0) continue;
+
+    newCards.push({ card_id: parseInt(card.id), quantity: toAdd, deck_id: deck.id });
+    total += toAdd;
+    if (card.rarity === 'mythic') mythCount += toAdd;
+  }
+
+  if (total === 0) {
+    showToast('Aucune carte possédée pour remplir le deck', '⚠');
+    return;
+  }
+
+  const updatedDecks = decks.map(d => d.id === deck.id ? { ...d, cards: newCards } : d);
+  setState({ decks: updatedDecks });
+  showToast(`Deck rempli automatiquement (${total}/30 cartes)`, total === 30 ? '✨' : '⚠');
 }
 
 async function promptRenameDeck(deckId, currentName) {
