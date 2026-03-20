@@ -728,8 +728,8 @@ function renderTradeModal(th){
   // Vue step 2 : saisir le numéro de la carte voulue en échange
   if (state.tradeStep === 'pick_their_card' && state.tradeMyCard) {
     const maxCardId = ALL_CARDS.length > 0 ? Math.max(...ALL_CARDS.map(c=>parseInt(c.id))) : 999;
-    const wantedNum = state.tradeWantedNum || '';
-    const wantedCard = wantedNum ? ALL_CARDS.find(c=>parseInt(c.id)===parseInt(wantedNum)) : null;
+    const wantedNum = state.tradeWantedNum ? String(parseInt(state.tradeWantedNum)) : '';
+    const wantedCard = wantedNum && parseInt(wantedNum) > 0 ? ALL_CARDS.find(c=>parseInt(c.id)===parseInt(wantedNum)) : null;
     const rarityOk = wantedCard && wantedCard.rarity === state.tradeMyCard.rarity;
     const notSame = wantedCard && parseInt(wantedCard.id) !== parseInt(state.tradeMyCard.id);
     const canSend = wantedCard && rarityOk && notSame;
@@ -756,18 +756,21 @@ function renderTradeModal(th){
             wantedCard
               ? rarityOk
                 ? notSame
-                  ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-                      <div style="width:32px;height:44px;border-radius:5px;background:linear-gradient(135deg,${wantedCard.color}30,${wantedCard.color}10);border:1px solid ${wantedCard.color}60;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">🃏</div>
-                      <div>
-                        <div style="font-size:11px;font-weight:700;color:${th.text};">${wantedCard.name}</div>
-                        <div style="font-size:9px;color:${RARITY_COLOR[wantedCard.rarity]};">◆ ${RARITY_LABEL[wantedCard.rarity]}</div>
+                  ? `<div style="margin-top:8px;display:flex;align-items:center;gap:10px;background:${th.green}12;border:1px solid ${th.green}40;border-radius:8px;padding:8px 10px;">
+                      <div style="width:32px;height:44px;border-radius:5px;background:${th.surface};border:1px solid ${th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0;opacity:.7;">
+                        <div style="font-size:14px;">🂠</div>
+                        <div style="font-size:7px;font-weight:800;color:${th.textMuted};">#${wantedNum}</div>
                       </div>
-                      <div style="margin-left:auto;font-size:9px;color:${th.green};font-weight:700;">✓ Valide</div>
+                      <div style="flex:1;">
+                        <div style="font-size:11px;font-weight:700;color:${th.green};">✓ Carte valide</div>
+                        <div style="font-size:9px;color:${th.textMuted};margin-top:2px;">Carte #${wantedNum} · <span style="color:${RARITY_COLOR[wantedCard.rarity]};font-weight:700;">◆ ${RARITY_LABEL[wantedCard.rarity]}</span> — même rareté que ta carte</div>
+                        <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">Tu peux proposer l'échange !</div>
+                      </div>
                     </div>`
                   : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ C'est la même carte que tu proposes</div>`
-                : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ Rareté différente — tu proposes ${RARITY_LABEL[state.tradeMyCard.rarity]}</div>`
-              : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ Carte #${wantedNum} inconnue</div>`
-          ) : `<div style="margin-top:8px;font-size:10px;color:${th.textMuted};">Les deux joueurs se basent sur les numéros pour compléter leur collection.</div>`}
+                : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ Rareté différente — la carte #${wantedNum} est <b>${RARITY_LABEL[wantedCard.rarity]}</b>, tu proposes du <b>${RARITY_LABEL[state.tradeMyCard.rarity]}</b></div>`
+              : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ Carte #${wantedNum} introuvable dans le jeu</div>`
+          ) : `<div style="margin-top:8px;font-size:10px;color:${th.textMuted};">Entre un numéro — la carte restera mystère jusqu'à l'échange.</div>`}
         </div>
         <button id="trade-confirm-send" ${canSend?'':'disabled'} style="padding:12px;border-radius:10px;background:${canSend?th.accent:th.surface};color:${canSend?'#fff':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${canSend?'pointer':'default'};opacity:${canSend?1:.5};">
           Proposer l'échange →
@@ -1683,7 +1686,7 @@ function bindGame(){
   const tradeWantedInput = document.getElementById('trade-wanted-input');
   if(tradeWantedInput){
     tradeWantedInput.addEventListener('input',()=>{
-      state.tradeWantedNum = tradeWantedInput.value;
+      state.tradeWantedNum = tradeWantedInput.value ? String(parseInt(tradeWantedInput.value) || '') : '';
       render();
       // Remettre le focus sur l'input après re-render
       const inp = document.getElementById('trade-wanted-input');
