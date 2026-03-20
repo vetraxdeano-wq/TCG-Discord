@@ -243,6 +243,7 @@ let state = {
   showMessages: false,
   activeConvId: null,
   messages: {},
+  convTrades: {},   // { [friendId]: [{id, from_id, to_id, from_card_id, to_card_id, status, created_at}] }
   msgNotifCount: 0,
   pendingMsgNotifs: [],
   // Boosters
@@ -1078,12 +1079,83 @@ function renderMessagesModal(th){
       <div style="font-size:13px;font-weight:700;color:${th.text};">${friend.discord_username||'Ami'}</div>
     </div>
     <div id="msg-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:4px;min-height:0;">
-      ${msgs.length===0
-        ? `<div style="text-align:center;color:${th.textFaint};font-size:11px;padding:20px 0;">Aucun message pour le moment.<br><span style="font-size:10px;">Envoie le premier !</span></div>`
-        : msgs.map(m=>`
-        <div style="display:flex;flex-direction:${m.from===myId?'row-reverse':'row'};gap:6px;align-items:flex-end;">
-          <div style="max-width:75%;background:${m.from===myId?th.accent:th.bgTertiary};color:${m.from===myId?'#fff':th.text};padding:8px 12px;border-radius:${m.from===myId?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${m.text}</div>
-        </div>`).join('')}
+      ${(()=>{
+        const trades = (state.convTrades[activeId] || []).map(t=>({...t, _type:'trade', _ts: t.created_at}));
+        const allItems = [...msgs.map(m=>({...m, _type:'msg', _ts: m.ts})), ...trades]
+          .sort((a,b)=>new Date(a._ts)-new Date(b._ts));
+
+        if(allItems.length===0) return `<div style="text-align:center;color:${th.textFaint};font-size:11px;padding:20px 0;">Aucun message pour le moment.<br><span style="font-size:10px;">Envoie le premier !</span></div>`;
+
+        return allItems.map(item=>{
+          if(item._type === 'msg') return `
+            <div style="display:flex;flex-direction:${item.from===myId?'row-reverse':'row'};gap:6px;align-items:flex-end;">
+              <div style="max-width:75%;background:${item.from===myId?th.accent:th.bgTertiary};color:${item.from===myId?'#fff':th.text};padding:8px 12px;border-radius:${item.from===myId?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${item.text}</div>
+            </div>`;
+
+          // ── Trade card ──
+          const isMine = item.from_id === myId;
+          const fromCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.from_card_id));
+          const toCard   = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.to_card_id));
+          // Le propriétaire voit ses propres cartes, l'autre voit en mystère si non possédée
+          const showFromCard = isMine || (fromCard && fromCard.owned);
+          const showToCard   = !isMine || (toCard && toCard.owned);
+
+          const STATUS = {
+            pending:  { label:'En attente…',   color:'#fee75c', icon:'⏳', bg:'rgba(254,231,92,.08)',  border:'rgba(254,231,92,.25)' },
+            accepted: { label:'Échange accepté !', color:'#57f287', icon:'✓',  bg:'rgba(87,242,135,.08)', border:'rgba(87,242,135,.25)' },
+            declined: { label:'Refusé',          color:'#ed4245', icon:'✕',  bg:'rgba(237,66,69,.08)',  border:'rgba(237,66,69,.25)'  },
+            cancelled:{ label:'Annulé',          color:'#96989d', icon:'—',  bg:'rgba(150,152,157,.08)',border:'rgba(150,152,157,.2)' },
+          };
+          const st = STATUS[item.status] || STATUS.pending;
+          const tradeLabel = isMine ? 'Tu proposes' : 'Proposition reçue';
+
+          const cardBox = (card, show, isLeft) => {
+            const col = card ? RARITY_COLOR[card.rarity] : '#96989d';
+            if(show && card) return `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+                <div style="width:44px;height:62px;border-radius:7px;background:linear-gradient(135deg,${col}30,${col}10);border:1px solid ${col}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+                  <div style="font-size:18px;">🃏</div>
+                  <div style="font-size:6px;color:${col};font-weight:800;">◆</div>
+                </div>
+                <div style="font-size:8px;font-weight:700;color:${th.text};text-align:center;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+                <div style="font-size:7px;color:${th.textMuted};">#${card.id}</div>
+              </div>`;
+            return `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
+                <div style="width:44px;height:62px;border-radius:7px;background:${th.surface};border:1px solid ${th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:.65;">
+                  <div style="font-size:18px;">🂠</div>
+                  <div style="font-size:7px;font-weight:700;color:${th.textMuted};">#${isLeft?item.from_card_id:item.to_card_id}</div>
+                </div>
+                <div style="font-size:7px;color:${th.textMuted};text-align:center;">Mystère</div>
+              </div>`;
+          };
+
+          return `
+            <div style="display:flex;flex-direction:${isMine?'row-reverse':'row'};gap:6px;align-items:flex-end;">
+              <div style="max-width:88%;background:${st.bg};border:1px solid ${st.border};border-radius:${isMine?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:10px 12px;min-width:200px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <div style="font-size:9px;font-weight:700;color:${th.textMuted};text-transform:uppercase;letter-spacing:1px;">🔄 ${tradeLabel}</div>
+                  <div style="display:flex;align-items:center;gap:4px;background:${st.bg};border:1px solid ${st.border};border-radius:99px;padding:2px 7px;">
+                    <span style="font-size:10px;">${st.icon}</span>
+                    <span style="font-size:9px;font-weight:700;color:${st.color};">${st.label}</span>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                    <div style="font-size:8px;color:${th.textMuted};margin-bottom:2px;">${isMine?'Tu donnes':'Il donne'}</div>
+                    ${cardBox(fromCard, showFromCard, true)}
+                  </div>
+                  <div style="font-size:16px;color:${th.textMuted};">⇄</div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                    <div style="font-size:8px;color:${th.textMuted};margin-bottom:2px;">${isMine?'Tu reçois':'Il veut'}</div>
+                    ${cardBox(toCard, showToCard, false)}
+                  </div>
+                </div>
+                <div style="margin-top:6px;font-size:8px;color:${th.textFaint};text-align:center;">${new Date(item.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+              </div>
+            </div>`;
+        }).join('');
+      })()}
     </div>
     <div style="display:flex;gap:8px;padding-top:10px;flex-shrink:0;">
       <button id="msg-trade-btn" data-fid="${friend.id}" style="width:36px;height:36px;border-radius:50%;background:${th.surface};color:${th.accent};border:1px solid ${th.accent}50;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Proposer un échange">＋</button>
@@ -1362,6 +1434,7 @@ function bindGame(){
       const fid = el.dataset.fid;
       setState({activeConvId:fid});
       loadMessages(fid);
+      loadConvTrades(fid);
       markMsgNotifsRead(fid);
     });
   });
@@ -1638,6 +1711,7 @@ function bindGame(){
       const fid = btn.dataset.fid;
       setState({showMessages:true, showFriends:false, activeConvId:fid});
       loadMessages(fid);
+      loadConvTrades(fid);
       markMsgNotifsRead(fid);
     });
   });
@@ -2140,6 +2214,31 @@ async function loadMessages(friendId) {
   // Le canal realtime est géré globalement par subscribeMessagesGlobal (appelé à l'entrée dans le jeu)
 }
 
+async function loadConvTrades(friendId) {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId || !friendId) return;
+
+  const { data } = await db.from('trades')
+    .select('id, from_id, to_id, from_card_id, to_card_id, status, created_at')
+    .or(`and(from_id.eq.${myId},to_id.eq.${friendId}),and(from_id.eq.${friendId},to_id.eq.${myId})`)
+    .order('created_at', { ascending: true });
+
+  setState({ convTrades: { ...state.convTrades, [friendId]: data || [] } });
+
+  // Realtime sur les trades de cette conv (UPDATE de status)
+  if (!window._tradeConvSub) {
+    window._tradeConvSub = db.channel('trade-conv-rt-' + myId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trades', filter: `from_id=eq.${myId}` }, async () => {
+        if (state.activeConvId) await loadConvTrades(state.activeConvId);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trades', filter: `to_id=eq.${myId}` }, async () => {
+        if (state.activeConvId) await loadConvTrades(state.activeConvId);
+      })
+      .subscribe();
+  }
+}
+
 async function subscribeNotifications() {
   const db = window.db;
   if (!db) return;
@@ -2638,6 +2737,8 @@ async function sendTradeOffer(theirCardId) {
 
     setState({ showTrade: false, tradeMyCard: null, tradeStep: null, tradeWantedNum: null });
     showToast('Proposition envoyée !', '🔄');
+    // Rafraîchir les trades dans la conv si elle est ouverte
+    if (state.activeConvId === toId) loadConvTrades(toId);
   } catch(e) {
     console.error('[sendTradeOffer] exception', e);
     showToast('Erreur envoi trade', '✗');
@@ -2707,6 +2808,9 @@ async function respondTrade(tradeId, accept) {
   }
 
   setState({ showTrade: false, tradeIncoming: null, tradeStep: null, tradeWantedNum: null });
+  // Rafraîchir les trades dans la conv si elle est ouverte avec cet ami
+  const partnerId = incoming?.from_id;
+  if (partnerId && state.activeConvId === partnerId) loadConvTrades(partnerId);
 }
 
 // Écouter les trades entrants en realtime
