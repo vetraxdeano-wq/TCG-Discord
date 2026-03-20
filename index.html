@@ -257,6 +257,12 @@ let state = {
   decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
   activeDeckId: null,  // deck en cours d'édition
   deckBuilderView: 'list', // 'list' | 'edit'
+  // Trade
+  showTrade: false,
+  tradeWithId: null,
+  tradeMyCard: null,
+  tradeIncoming: null,
+  _tradeRealtimeSub: null,
 };
 let splashTick = 0;
 let splashTimer = null;
@@ -469,6 +475,7 @@ function renderGame(th){
     ${state.showProfile?renderProfileModal(th):''}
     ${state.showAddFriend?renderAddFriendModal(th):''}
     ${state.showDeckBuilder?renderDeckBuilder(th):''}
+    ${state.showTrade?renderTradeModal(th):''}
   </div>`;
 }
 
@@ -653,6 +660,111 @@ function renderDeckEdit(th){
             ${qty>0?`<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:${th.accent};color:#fff;font-size:7px;font-weight:800;display:flex;align-items:center;justify-content:center;">${qty}</div>`:''}
           </div>`;
         }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── TRADE MODAL ──────────────────────────────────────────────────
+function renderTradeModal(th){
+  const friend = (state.friends||[]).find(f=>f.id===state.tradeWithId);
+  const friendName = friend?.discord_username || 'Ami';
+  const ownedCards = ALL_CARDS.filter(c=>c.owned);
+  const myCard = state.tradeMyCard;
+  const incoming = state.tradeIncoming;
+
+  // Vue : offre entrante à accepter/refuser
+  if (incoming && incoming.status === 'pending' && incoming.to_id === state.currentUser?.id) {
+    const fromCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.from_card_id));
+    const toCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.to_card_id));
+    return `
+    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="width:100%;max-width:360px;background:${th.bgSecondary};border-radius:18px;padding:20px;box-shadow:0 -8px 40px rgba(0,0,0,.5);">
+        <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};margin-bottom:4px;">Offre d'échange</div>
+        <div style="font-size:11px;color:${th.textMuted};margin-bottom:16px;">de <b>${incoming.from_name||'Ami'}</b></div>
+        <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px;">
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Il propose</div>
+            <div style="width:70px;height:98px;border-radius:8px;background:${fromCard?`linear-gradient(135deg,${fromCard.color}30,${fromCard.color}10)`:th.surface};border:1px solid ${fromCard?fromCard.color+'60':th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+              <div style="font-size:22px;">🃏</div>
+              <div style="font-size:7px;color:${fromCard?RARITY_COLOR[fromCard.rarity]:th.textMuted};font-weight:700;">${fromCard?fromCard.name.slice(0,10):'?'}</div>
+            </div>
+          </div>
+          <div style="font-size:20px;color:${th.textMuted};">⇄</div>
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Contre ta carte</div>
+            <div style="width:70px;height:98px;border-radius:8px;background:${toCard?`linear-gradient(135deg,${toCard.color}30,${toCard.color}10)`:th.surface};border:1px solid ${toCard?toCard.color+'60':th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+              <div style="font-size:22px;">🃏</div>
+              <div style="font-size:7px;color:${toCard?RARITY_COLOR[toCard.rarity]:th.textMuted};font-weight:700;">${toCard?toCard.name.slice(0,10):'?'}</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button id="trade-accept" style="flex:1;padding:10px;border-radius:10px;background:${th.green};color:#000;border:none;font-size:12px;font-weight:700;cursor:pointer;">✓ Accepter</button>
+          <button id="trade-decline" style="flex:1;padding:10px;border-radius:10px;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;font-size:12px;font-weight:700;cursor:pointer;">✕ Refuser</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Vue step 2 : choisir quelle carte de même rareté on veut en échange
+  if (state.tradeStep === 'pick_their_card' && state.tradeMyCard) {
+    const sameRarityOwned = ownedCards.filter(c =>
+      c.rarity === state.tradeMyCard.rarity && parseInt(c.id) !== parseInt(state.tradeMyCard.id)
+    );
+    return `
+    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.8);display:flex;align-items:flex-end;justify-content:center;">
+      <div style="width:100%;max-width:420px;height:90%;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:16px;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.5);">
+        <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 14px;flex-shrink:0;"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0;">
+          <button id="trade-step-back" style="width:28px;height:28px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};font-size:14px;cursor:pointer;">←</button>
+          <div>
+            <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">Que veux-tu en échange ?</div>
+            <div style="font-size:10px;color:${th.textMuted};">Cartes de même rareté — ${RARITY_LABEL[state.tradeMyCard.rarity]}</div>
+          </div>
+        </div>
+        ${sameRarityOwned.length === 0
+          ? `<div style="flex:1;display:flex;align-items:center;justify-content:center;color:${th.textMuted};font-size:12px;text-align:center;padding:20px;">Aucune carte de cette rareté disponible à demander à ${friendName}</div>`
+          : `<div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;align-content:start;">
+          ${sameRarityOwned.map(card=>`
+            <div class="trade-request-card" data-cardid="${card.id}" style="background:${th.bgTertiary};border:1px solid ${card.color}50;border-radius:8px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:5px 3px 3px;cursor:pointer;gap:2px;">
+              <div style="flex:1;width:100%;border-radius:4px;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:16px;">🃏</div>
+              <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%;">${card.name.slice(0,9)}</div>
+              <div style="font-size:7px;color:${RARITY_COLOR[card.rarity]};">◆</div>
+            </div>`).join('')}
+          </div>`}
+      </div>
+    </div>`;
+  }
+  return `
+  <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.8);display:flex;align-items:flex-end;justify-content:center;">
+    <div style="width:100%;max-width:420px;height:90%;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:16px;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.5);">
+      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 14px;flex-shrink:0;"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0;">
+        <button id="trade-close" style="width:28px;height:28px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};font-size:14px;cursor:pointer;">✕</button>
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};">Proposer un échange</div>
+          <div style="font-size:10px;color:${th.textMuted};">avec ${friendName} · même rareté · 1 contre 1</div>
+        </div>
+      </div>
+      ${myCard ? `
+      <div style="background:${th.bgTertiary};border-radius:12px;padding:10px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-shrink:0;border:1px solid ${myCard.color}50;">
+        <div style="width:40px;height:56px;border-radius:6px;background:linear-gradient(135deg,${myCard.color}30,${myCard.color}10);border:1px solid ${myCard.color}60;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">🃏</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${myCard.name}</div>
+          <div style="font-size:9px;color:${RARITY_COLOR[myCard.rarity]};">◆ ${RARITY_LABEL[myCard.rarity]}</div>
+        </div>
+        <button id="trade-clear-card" style="padding:4px 8px;border-radius:6px;font-size:9px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;">Changer</button>
+      </div>
+      <button id="trade-send" style="padding:10px;border-radius:10px;background:${th.accent};color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:10px;flex-shrink:0;">Envoyer la proposition →</button>
+      ` : `<div style="font-size:11px;color:${th.textMuted};margin-bottom:10px;flex-shrink:0;">Sélectionne une de tes cartes à proposer :</div>`}
+      <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;align-content:start;">
+        ${ownedCards.map(card=>`
+          <div class="trade-pick-card" data-cardid="${card.id}" style="background:${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color+'30':th.bgTertiary};border:1px solid ${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color+'80':th.border};border-radius:8px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:5px 3px 3px;cursor:pointer;gap:2px;position:relative;">
+            <div style="flex:1;width:100%;border-radius:4px;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:16px;">🃏</div>
+            <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%;">${card.name.slice(0,9)}</div>
+            <div style="font-size:7px;color:${RARITY_COLOR[card.rarity]};">◆</div>
+          </div>`).join('')}
       </div>
     </div>
   </div>`;
@@ -931,6 +1043,7 @@ function renderMessagesModal(th){
         </div>`).join('')}
     </div>
     <div style="display:flex;gap:8px;padding-top:10px;flex-shrink:0;">
+      <button id="msg-trade-btn" data-fid="${friend.id}" style="width:36px;height:36px;border-radius:50%;background:${th.surface};color:${th.accent};border:1px solid ${th.accent}50;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Proposer un échange">＋</button>
       <input id="msg-input" placeholder="Message..." style="flex:1;padding:9px 12px;border-radius:99px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:12px;outline:none;"/>
       <button id="msg-send" style="width:36px;height:36px;border-radius:50%;background:${th.accent};color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">↑</button>
     </div>`;
@@ -1087,7 +1200,7 @@ function renderFriendsModal(th){
               <div style="font-size:10px;color:${th.textMuted};">Ami</div>
             </div>
             <div style="display:flex;gap:5px;">
-              <button class="friend-trade" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:not-allowed;opacity:.5;">Échange</button>
+              <button class="friend-trade" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;">Échange</button>
               <button class="friend-battle" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.red}20;color:${th.red};border:1px solid ${th.red}40;cursor:not-allowed;opacity:.5;">Combat</button>
               <button class="friend-dm" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.green}20;color:${th.green};border:1px solid ${th.green}40;cursor:pointer;">DM</button>
             </div>
@@ -1212,7 +1325,7 @@ function bindGame(){
 
   // Messages : retour liste
   const msgBack = document.getElementById('msg-back');
-  if(msgBack) msgBack.addEventListener('click',()=>setState({activeConvId:null}));
+  if(msgBack) msgBack.addEventListener('click',()=>{ _activeConvFriendId=null; setState({activeConvId:null}); });
 
   // Messages : envoi
   const msgSend = document.getElementById('msg-send');
@@ -1485,6 +1598,57 @@ function bindGame(){
       markMsgNotifsRead(fid);
     });
   });
+
+  // Échange depuis liste amis
+  document.querySelectorAll('.friend-trade').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      setState({showTrade:true, showFriends:false, tradeWithId:btn.dataset.fid, tradeMyCard:null});
+    });
+  });
+
+  // Échange "+" depuis zone DM
+  const msgTradeBtn = document.getElementById('msg-trade-btn');
+  if(msgTradeBtn) msgTradeBtn.addEventListener('click',()=>{
+    setState({showTrade:true, tradeWithId:msgTradeBtn.dataset.fid, tradeMyCard:null});
+  });
+
+  // Fermer trade
+  const tradeClose = document.getElementById('trade-close');
+  if(tradeClose) tradeClose.addEventListener('click',()=>setState({showTrade:false,tradeMyCard:null,tradeIncoming:null}));
+  const tradeBg = document.getElementById('trade-bg');
+  if(tradeBg) tradeBg.addEventListener('click',(e)=>{if(e.target===tradeBg)setState({showTrade:false,tradeMyCard:null,tradeIncoming:null});});
+
+  // Choisir une carte à proposer
+  document.querySelectorAll('.trade-pick-card').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const card = ALL_CARDS.find(c=>c.id===el.dataset.cardid);
+      if(card) setState({tradeMyCard:card});
+    });
+  });
+
+  // Changer la carte sélectionnée
+  const tradeClear = document.getElementById('trade-clear-card');
+  if(tradeClear) tradeClear.addEventListener('click',()=>setState({tradeMyCard:null}));
+
+  // Envoyer la proposition de trade
+  const tradeSend = document.getElementById('trade-send');
+  if(tradeSend) tradeSend.addEventListener('click',()=>setState({tradeStep:'pick_their_card'}));
+
+  // Retour step 1 depuis step 2
+  const tradeStepBack = document.getElementById('trade-step-back');
+  if(tradeStepBack) tradeStepBack.addEventListener('click',()=>setState({tradeStep:null}));
+
+  // Choisir la carte voulue en échange (step 2)
+  document.querySelectorAll('.trade-request-card').forEach(el=>{
+    el.addEventListener('click',()=>sendTradeOffer(el.dataset.cardid));
+  });
+
+  // Accepter/refuser un trade entrant
+  const tradeAccept = document.getElementById('trade-accept');
+  if(tradeAccept) tradeAccept.addEventListener('click',()=>respondTrade(state.tradeIncoming?.id, true));
+  const tradeDecline = document.getElementById('trade-decline');
+  if(tradeDecline) tradeDecline.addEventListener('click',()=>respondTrade(state.tradeIncoming?.id, false));
   const settingsBg=document.getElementById('settings-bg');
   if(settingsBg) settingsBg.addEventListener('click',(e)=>{if(e.target===settingsBg)setState({showSettings:false});});
   const friendsBg=document.getElementById('friends-bg');
@@ -1570,6 +1734,7 @@ function enterGame(user, coins) {
     audioPlay();
     loadCollection();
     if (window.subscribeNotifications) window.subscribeNotifications();
+    if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
     // Lancer le rafraîchissement automatique des coins toutes les 30s
     startCoinsPolling(user.id);
     // Charger les stats V/D
@@ -1849,12 +2014,15 @@ window.searchAndSendFriendRequest = searchAndSendFriendRequest;
 // ─── MESSAGES ─────────────────────────────────────────────────────
 let _msgRealtimeSub = null;
 let _notifRealtimeSub = null;
+let _activeConvFriendId = null; // ref globale stable, survit aux re-renders
 
 async function loadMessages(friendId) {
   const db = window.db;
   if (!db || !friendId) return;
   const myId = state.currentUser?.id;
   if (!myId) return;
+
+  _activeConvFriendId = friendId; // mémoriser avant tout re-render
 
   const { data } = await db.from('messages')
     .select('id, from_id, to_id, text, created_at')
@@ -1865,15 +2033,15 @@ async function loadMessages(friendId) {
   const newMessages = { ...state.messages, [friendId]: msgs };
   setState({ messages: newMessages });
 
-  // Scroll en bas
   setTimeout(()=>{
     const list = document.getElementById('msg-list');
     if(list) list.scrollTop = list.scrollHeight;
   }, 50);
 
-  // Realtime : écouter les nouveaux messages pour cette conversation
-  if (_msgRealtimeSub) { try { db.removeChannel(_msgRealtimeSub); } catch(e){} }
-  _msgRealtimeSub = db.channel('messages-rt-' + friendId)
+  // Réabonner seulement si on change de conversation
+  if (_msgRealtimeSub) { try { db.removeChannel(_msgRealtimeSub); } catch(e){} _msgRealtimeSub = null; }
+
+  _msgRealtimeSub = db.channel('messages-rt-' + friendId + '-' + myId)
     .on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
@@ -1882,25 +2050,35 @@ async function loadMessages(friendId) {
     }, payload => {
       const m = payload.new;
       if (!m) return;
-      // Seulement si c'est de cet ami
-      if (m.from_id !== friendId) {
-        // Message d'un autre ami : juste mettre à jour le compteur notif
-        // (uniquement si la conv de cet autre ami n'est pas ouverte)
-        if (state.activeConvId !== m.from_id) {
-          setState({ msgNotifCount: (state.msgNotifCount || 0) + 1 });
+
+      // Message venant de l'ami actif
+      if (m.from_id === _activeConvFriendId) {
+        // Éviter les doublons
+        const prev = state.messages[_activeConvFriendId] || [];
+        if (prev.some(x => x.ts === m.created_at && x.text === m.text)) return;
+        const updated = [...prev, { from: m.from_id, text: m.text, ts: m.created_at }];
+        // Mise à jour directe du DOM sans re-render complet pour éviter de casser le canal
+        const existing = state.messages;
+        existing[_activeConvFriendId] = updated;
+        state.messages = { ...existing };
+        // Appender le message dans le DOM sans setState (évite le re-render qui casse le canal)
+        const list = document.getElementById('msg-list');
+        if (list) {
+          const div = document.createElement('div');
+          const th = t();
+          div.style.cssText = `display:flex;flex-direction:row;gap:6px;align-items:flex-end;`;
+          div.innerHTML = `<div style="max-width:75%;background:${th.bgTertiary};color:${th.text};padding:8px 12px;border-radius:14px 14px 14px 4px;font-size:12px;line-height:1.4;">${m.text}</div>`;
+          list.appendChild(div);
+          list.scrollTop = list.scrollHeight;
         }
+        markMsgNotifsRead(_activeConvFriendId);
         return;
       }
-      // Si la conv est ouverte, marquer directement comme lu (pas de badge)
-      if (state.activeConvId === friendId) {
-        markMsgNotifsRead(friendId);
+
+      // Message d'une autre conversation
+      if (state.activeConvId !== m.from_id) {
+        setState({ msgNotifCount: (state.msgNotifCount || 0) + 1 });
       }
-      const prev = state.messages[friendId] || [];
-      // Éviter les doublons
-      if (prev.some(x => x.ts === m.created_at && x.text === m.text)) return;
-      const updated = [...prev, { from: m.from_id, text: m.text, ts: m.created_at }];
-      setState({ messages: { ...state.messages, [friendId]: updated } });
-      setTimeout(()=>{ const l=document.getElementById('msg-list'); if(l) l.scrollTop=l.scrollHeight; },50);
     })
     .subscribe();
 }
@@ -2281,11 +2459,12 @@ async function saveDeck() {
     if (delErr) throw delErr;
 
     // Réinsérer si des cartes sont présentes
+    // quantity est clampée à 2 max (contrainte DB deck_cards_quantity_check)
     if (cards.length > 0) {
       const rows = cards.map(c=>({
         deck_id: deck.id,
         card_id: parseInt(c.card_id),
-        quantity: c.quantity
+        quantity: Math.min(c.quantity, 2)
       }));
       const { error: insErr } = await db.from('deck_cards').insert(rows);
       if (insErr) throw insErr;
@@ -2308,11 +2487,189 @@ async function saveDeck() {
     }
   } catch(e) {
     console.error('[saveDeck]', e);
-    showToast('Erreur sauvegarde : ' + (e.message || 'inconnue'), '✗');
+    // Si c'est une erreur de contrainte check, le delete a réussi mais l'insert a échoué partiellement
+    // → recharger le deck depuis la DB pour avoir l'état réel
+    if (e.message && e.message.includes('check constraint')) {
+      await loadDecks();
+      showToast('Sauvegarde partielle — modifie la contrainte SQL (voir console)', '⚠');
+    } else {
+      showToast('Erreur sauvegarde : ' + (e.message || 'inconnue'), '✗');
+    }
   }
 }
 
 window.loadDecks = loadDecks;
+
+// ─── TRADE SYSTEM ─────────────────────────────────────────────────
+/*
+  SQL À EXÉCUTER DANS SUPABASE :
+
+  CREATE TABLE IF NOT EXISTS trades (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    from_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    to_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    from_card_id INTEGER NOT NULL REFERENCES cards(id),
+    to_card_id INTEGER NOT NULL REFERENCES cards(id),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined','cancelled')),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY "Players see own trades" ON trades FOR ALL
+    USING (from_id = auth.uid() OR to_id = auth.uid());
+*/
+
+let _tradeRealtimeSub = null;
+
+// Ouvrir le picker de carte adverse (deuxième étape du trade)
+function openTradeCardPicker() {
+  if (!state.tradeMyCard || !state.tradeWithId) return;
+  // La carte adverse sera choisie via un prompt simplifié :
+  // On affiche une sélection des cartes de MÊME RARETÉ possédées par l'ami
+  // Pour l'instant on passe directement à sendTradeOffer avec un sélecteur inline
+  sendTradeFlow();
+}
+
+async function sendTradeFlow() {
+  // Le joueur a déjà choisi sa carte (tradeMyCard).
+  // On doit maintenant lui demander quelle carte il veut en échange (même rareté).
+  // On affiche un 2ème modal en réutilisant le state tradeStep
+  setState({ tradeStep: 'pick_their_card' });
+}
+
+// Envoyer l'offre de trade en DB
+async function sendTradeOffer(theirCardId) {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  const toId = state.tradeWithId;
+  const myCard = state.tradeMyCard;
+  if (!db || !myId || !toId || !myCard || !theirCardId) return;
+
+  // Vérifier même rareté
+  const theirCard = ALL_CARDS.find(c => parseInt(c.id) === parseInt(theirCardId));
+  if (!theirCard || theirCard.rarity !== myCard.rarity) {
+    showToast('Échange de même rareté uniquement', '⚠'); return;
+  }
+
+  const { data, error } = await db.from('trades').insert({
+    from_id: myId,
+    to_id: toId,
+    from_card_id: parseInt(myCard.id),
+    to_card_id: parseInt(theirCardId),
+    status: 'pending',
+  }).select().single();
+
+  if (error) { showToast('Erreur envoi trade', '✗'); return; }
+
+  // Notifier l'ami
+  await db.from('notifications').insert({
+    user_id: toId, type: 'trade', from_id: myId,
+    text: `Proposition d'échange : ${myCard.name} ↔ ${theirCard.name}`,
+    read: false,
+  }).then(()=>{}).catch(()=>{});
+
+  setState({ showTrade: false, tradeMyCard: null, tradeStep: null });
+  showToast('Proposition envoyée !', '🔄');
+}
+
+// Accepter ou refuser un trade entrant
+async function respondTrade(tradeId, accept) {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId || !tradeId) return;
+
+  const incoming = state.tradeIncoming;
+  if (!incoming) return;
+
+  if (accept) {
+    // Vérifier que les deux joueurs possèdent encore les cartes
+    const { data: myCards } = await db.from('player_cards')
+      .select('card_id, quantity').eq('player_id', myId).eq('card_id', incoming.to_card_id).single();
+    const { data: theirCards } = await db.from('player_cards')
+      .select('card_id, quantity').eq('player_id', incoming.from_id).eq('card_id', incoming.from_card_id).single();
+
+    if (!myCards || myCards.quantity < 1) { showToast('Tu ne possèdes plus cette carte', '✗'); return; }
+    if (!theirCards || theirCards.quantity < 1) { showToast("L'autre joueur ne possède plus sa carte", '✗'); return; }
+
+    // Exécuter l'échange
+    // Retirer les cartes des deux joueurs
+    if (myCards.quantity > 1) {
+      await db.from('player_cards').update({ quantity: myCards.quantity - 1 }).eq('player_id', myId).eq('card_id', incoming.to_card_id);
+    } else {
+      await db.from('player_cards').delete().eq('player_id', myId).eq('card_id', incoming.to_card_id);
+    }
+    if (theirCards.quantity > 1) {
+      await db.from('player_cards').update({ quantity: theirCards.quantity - 1 }).eq('player_id', incoming.from_id).eq('card_id', incoming.from_card_id);
+    } else {
+      await db.from('player_cards').delete().eq('player_id', incoming.from_id).eq('card_id', incoming.from_card_id);
+    }
+
+    // Donner les cartes aux deux joueurs
+    const upsertMy = await db.from('player_cards').select('quantity').eq('player_id', myId).eq('card_id', incoming.from_card_id).single();
+    if (upsertMy.data) {
+      await db.from('player_cards').update({ quantity: upsertMy.data.quantity + 1 }).eq('player_id', myId).eq('card_id', incoming.from_card_id);
+    } else {
+      await db.from('player_cards').insert({ player_id: myId, card_id: incoming.from_card_id, quantity: 1 });
+    }
+    const upsertTheir = await db.from('player_cards').select('quantity').eq('player_id', incoming.from_id).eq('card_id', incoming.to_card_id).single();
+    if (upsertTheir.data) {
+      await db.from('player_cards').update({ quantity: upsertTheir.data.quantity + 1 }).eq('player_id', incoming.from_id).eq('card_id', incoming.to_card_id);
+    } else {
+      await db.from('player_cards').insert({ player_id: incoming.from_id, card_id: incoming.to_card_id, quantity: 1 });
+    }
+
+    await db.from('trades').update({ status: 'accepted' }).eq('id', tradeId);
+
+    // Notifier l'expéditeur
+    await db.from('notifications').insert({
+      user_id: incoming.from_id, type: 'trade_accepted', from_id: myId,
+      text: 'Ton échange a été accepté !', read: false,
+    }).then(()=>{}).catch(()=>{});
+
+    // Recharger la collection
+    if (window.loadCollection) window.loadCollection();
+    showToast('Échange effectué !', '🔄');
+  } else {
+    await db.from('trades').update({ status: 'declined' }).eq('id', tradeId);
+    showToast('Échange refusé', '✗');
+  }
+
+  setState({ showTrade: false, tradeIncoming: null, tradeStep: null });
+}
+
+// Écouter les trades entrants en realtime
+async function subscribeTradeNotifications() {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) return;
+
+  if (_tradeRealtimeSub) { try { db.removeChannel(_tradeRealtimeSub); } catch(e){} }
+
+  _tradeRealtimeSub = db.channel('trades-rt-' + myId)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'trades',
+      filter: `to_id=eq.${myId}`,
+    }, async payload => {
+      const trade = payload.new;
+      if (!trade || trade.status !== 'pending') return;
+
+      // Charger le nom de l'expéditeur
+      const { data: sender } = await db.from('players').select('discord_username').eq('id', trade.from_id).single();
+      const fromName = sender?.discord_username || 'Un joueur';
+
+      setState({
+        showTrade: true,
+        tradeIncoming: { ...trade, from_name: fromName },
+        tradeMyCard: null,
+      });
+      showToast(`${fromName} propose un échange !`, '🔄');
+    })
+    .subscribe();
+}
+
+window.subscribeTradeNotifications = subscribeTradeNotifications;
 </script>
 </body>
 </html>
