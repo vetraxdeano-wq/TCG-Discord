@@ -1166,8 +1166,10 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 <div class="ov" id="ov-end"><div class="ov-box">
   <div class="ov-title" id="ov-title">?</div>
   <div class="ov-sub" id="ov-sub"></div>
+  <div id="ov-reward" style="font-size:15px;font-weight:700;margin:8px 0;color:var(--gold)"></div>
   <div class="ov-stats" id="ov-stats"></div>
   <button class="btn btn-gold" onclick="restartGame()">Rejouer</button>
+  <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="margin-top:8px;">← Menu principal</button>
 </div></div>
 <div class="coin-ov" id="coin-ov" style="display:none"><div class="coin-box" id="coin-box"><span class="coin-emoji" id="coin-emoji">🪙</span><div class="coin-who" id="coin-who">—</div><div class="coin-detail" id="coin-detail">—</div></div></div>
 <div class="toast" id="toast"></div>
@@ -2346,4 +2348,209 @@ function restartGame(){
   if(G.fp==='bot'){setTimeout(()=>{botChooseFighter();render();},1800);}
   else resetChrono();
 }
+</script>
+
+<!-- ═══ SUPABASE INTEGRATION ═══ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── Config ──────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://ndsnbvvcbkblkncvoroc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kc25idnZjYmtibGtuY3Zvcm9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjczMTksImV4cCI6MjA4ODU0MzMxOX0.mMsaBIrDI3BIoeTFBsCXo2AbuBLRnzqk625fKRkYCtM';
+
+let _db = null;
+let _currentUser = null;
+let _playerDeckCards = []; // cartes du deck par défaut sous format jeu
+
+// Mapping rareté Supabase → format interne jeu
+const RARITY_MAP_PVE = { common:'C', uncommon:'PC', rare:'R', mythic:'M' };
+
+// Mapping type Supabase → ct jeu
+function mapType(type) {
+  if (type === 'Héro' || type === 'Hero') return 'fighter';
+  return 'sort';
+}
+
+// Conversion carte Supabase → format AF/AS selon type
+function supaCardToGame(c) {
+  const rarete = RARITY_MAP_PVE[c.rarity] || 'C';
+  if (mapType(c.type) === 'fighter') {
+    return {
+      nom: c.name,
+      perso: c.character_name || c.name,
+      hp: c.hp || 10,
+      atq: c.attack || 5,
+      def: c.defense || 1,
+      prec: c.precision != null ? c.precision / 100 : 0.65,
+      rarete,
+      img: null,
+      ct: 'fighter',
+      hpCur: c.hp || 10,
+      hpBase: c.hp || 10,
+    };
+  } else {
+    // Mapper les types de sort selon la description/type
+    let effet = 'buff_atq';
+    let val = 2;
+    let dur = 1;
+    if (c.type === 'Ruse') { effet = 'buff_def'; val = 2; dur = 2; }
+    if (c.type === 'Arcane') { effet = 'debuff_atq'; val = 2; dur = 2; }
+    return {
+      nom: c.name,
+      type: c.type === 'Ruse' ? 'Magie' : c.type === 'Arcane' ? 'Piège' : 'Magie',
+      effet,
+      val,
+      dur,
+      survit: false,
+      rarete,
+      img: null,
+      ct: 'sort',
+      desc: c.description || '',
+    };
+  }
+}
+
+// Construire la pioche du JOUEUR à partir des cartes du deck par défaut
+function buildHumanPioche() {
+  if (_playerDeckCards.length === 0) return buildPioche(); // fallback
+  const cards = [];
+  _playerDeckCards.forEach(entry => {
+    for (let i = 0; i < entry.quantity; i++) {
+      cards.push({ ...entry.gameCard,
+        hpCur: entry.gameCard.hp || entry.gameCard.hpBase,
+        hpBase: entry.gameCard.hp || entry.gameCard.hpBase,
+      });
+    }
+  });
+  return shuf(cards);
+}
+
+// Patcher initGame pour utiliser le deck du joueur
+const _origInitGame = initGame;
+initGame = function() {
+  _origInitGame();
+  if (_playerDeckCards.length > 0) {
+    const hd = buildHumanPioche();
+    G.human.hand = hd.slice(0, 5);
+    G.human.pioche = hd.slice(5);
+  }
+};
+
+// Patcher endGame pour sauvegarder résultat + coins
+const _origEndGame = endGame;
+endGame = function(w) {
+  _origEndGame(w);
+  const isWin = w === 'human';
+  const coins = isWin ? 100 : 50;
+  // Afficher la récompense
+  const rewardEl = document.getElementById('ov-reward');
+  if (rewardEl) rewardEl.textContent = `+${coins} coins ${isWin ? '🏆' : '🤝'}`;
+  // Sauvegarder en DB
+  saveGameResult(isWin, coins);
+};
+
+async function saveGameResult(isWin, coinsGained) {
+  if (!_db || !_currentUser) return;
+  const myId = _currentUser.id;
+  try {
+    // 1. Mettre à jour victoires/défaites sur le joueur
+    const col = isWin ? 'wins' : 'losses';
+    const { data: p } = await _db.from('players').select('wins, losses, coins').eq('id', myId).single();
+    if (p) {
+      await _db.from('players').update({
+        [col]: (p[col] || 0) + 1,
+        coins: (p.coins || 0) + coinsGained,
+      }).eq('id', myId);
+    }
+    console.log(`[PVE] Résultat sauvegardé : ${isWin?'victoire':'défaite'} +${coinsGained} coins`);
+  } catch(e) {
+    console.error('[PVE] Erreur saveGameResult:', e);
+  }
+}
+
+// ── Chargement au démarrage ──────────────────────────────────────────
+async function initSupabase() {
+  if (!window.supabase) { console.error('[PVE] Supabase SDK manquant'); return; }
+  _db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { autoRefreshToken: true, persistSession: true }
+  });
+
+  // Récupérer la session
+  const { data: { session } } = await _db.auth.getSession();
+  if (!session) {
+    showNoSession();
+    return;
+  }
+  _currentUser = session.user;
+
+  // Charger le deck par défaut
+  const { data: decks } = await _db.from('decks')
+    .select('id, name, is_default')
+    .eq('player_id', _currentUser.id)
+    .eq('is_default', true)
+    .single();
+
+  if (!decks) {
+    showNoDeck('Aucun deck par défaut trouvé. Crée et configure un deck dans le menu principal.');
+    return;
+  }
+
+  // Charger les cartes du deck
+  const { data: dc } = await _db.from('deck_cards')
+    .select('card_id, quantity')
+    .eq('deck_id', decks.id);
+
+  const total = (dc || []).reduce((s, c) => s + c.quantity, 0);
+  if (total < 30) {
+    showNoDeck(`Ton deck "${decks.name}" n'a que ${total}/30 cartes. Complète-le avant de jouer.`);
+    return;
+  }
+
+  // Charger les détails des cartes
+  const cardIds = (dc || []).map(c => c.card_id);
+  const { data: cards } = await _db.from('cards')
+    .select('id, name, character_name, type, rarity, hp, attack, defense, precision, description')
+    .in('id', cardIds);
+
+  const cardMap = {};
+  (cards || []).forEach(c => { cardMap[c.id] = c; });
+
+  _playerDeckCards = (dc || []).map(entry => ({
+    card_id: entry.card_id,
+    quantity: entry.quantity,
+    gameCard: supaCardToGame(cardMap[entry.card_id] || {}),
+  })).filter(e => e.gameCard);
+
+  console.log(`[PVE] Deck "${decks.name}" chargé : ${total} cartes`);
+
+  // Activer le bouton Jouer
+  const btn = document.querySelector('.start-btn');
+  if (btn) {
+    btn.textContent = `Jouer (${decks.name})`;
+    btn.disabled = false;
+  }
+}
+
+function showNoDeck(msg) {
+  const si = document.getElementById('si');
+  const inner = si ? si.querySelector('.si-inner') : null;
+  if (!inner) return;
+  inner.innerHTML = `
+    <div style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);margin-bottom:16px;">PWL TCG</div>
+    <div style="color:var(--red);font-size:.85rem;margin-bottom:20px;max-width:280px;text-align:center;line-height:1.5;">${msg}</div>
+    <button onclick="window.location.href='index.html'" style="background:var(--gold);color:#000;border:none;border-radius:6px;padding:12px 28px;font-size:.85rem;font-weight:700;cursor:pointer;font-family:'Cinzel',serif;">← Retour au menu</button>
+  `;
+}
+
+function showNoSession() {
+  showNoDeck('Tu n\'es pas connecté. Connecte-toi via le menu principal.');
+}
+
+// Démarrer
+initSupabase().then(() => {
+  // Si pas de deck chargé, désactiver le bouton jouer par sécurité
+  if (_playerDeckCards.length === 0) {
+    const btn = document.querySelector('.start-btn');
+    if (btn) btn.disabled = true;
+  }
+});
 </script></body></html>
