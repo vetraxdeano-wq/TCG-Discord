@@ -43,6 +43,35 @@ button{font-family:inherit;cursor:pointer;}
 .ring2{animation:spinRing2 7s linear infinite;}
 .btn-hover{transition:all .18s cubic-bezier(.4,0,.2,1);}
 .btn-hover:active{transform:scale(.96);}
+
+/* Glass card */
+.glass{background:rgba(13,18,32,0.7);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+
+/* Pill tag */
+.pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:9px;font-weight:800;letter-spacing:.6px;}
+
+/* Nav tab active underline */
+@keyframes tabUnderline{from{width:0;opacity:0}to{width:24px;opacity:1}}
+.tab-underline{animation:tabUnderline .2s ease both;}
+
+/* Card hover lift */
+@keyframes cardLift{to{transform:translateY(-3px) scale(1.02);box-shadow:0 12px 32px rgba(0,0,0,.4);}}
+
+/* Pulse dot */
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+.pulse-dot{animation:pulseDot 2s ease-in-out infinite;}
+
+/* Slide up modal */
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.slide-up{animation:slideUp .3s cubic-bezier(.22,.68,0,1.1) both;}
+
+/* Fade in */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.fade-in{animation:fadeIn .25s ease both;}
+
+/* Number ticker */
+@keyframes countUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.count-up{animation:countUp .3s ease both;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -325,43 +354,58 @@ function render(){
 function renderSplash(th){
   return `
   <div id="splash" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${th.bg};cursor:pointer;user-select:none;overflow:hidden;transition:opacity .5s;">
-    <!-- bg atmosphere -->
-    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(56,189,248,0.07) 0%,transparent 70%);"></div>
-    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 30% 70%,rgba(129,140,248,0.05) 0%,transparent 60%);"></div>
-    <!-- Grid lines subtle -->
-    <div style="position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);background-size:48px 48px;"></div>
+
+    <!-- Layered atmosphere -->
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 90% 70% at 50% 35%,rgba(56,189,248,0.06) 0%,transparent 70%);pointer-events:none;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 20% 80%,rgba(129,140,248,0.04) 0%,transparent 60%);pointer-events:none;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 50% 40% at 80% 20%,rgba(244,63,94,0.03) 0%,transparent 55%);pointer-events:none;"></div>
+
+    <!-- Grid -->
+    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.025) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;"></div>
+
+    <!-- Horizon line -->
+    <div style="position:absolute;top:62%;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 5%,rgba(56,189,248,.08) 30%,rgba(56,189,248,.15) 50%,rgba(56,189,248,.08) 70%,transparent 95%);pointer-events:none;"></div>
+
     <svg id="splash-particles" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></svg>
-    <!-- Logo orbe -->
-    <div style="position:relative;margin-bottom:44px;">
-      <div class="ring1" style="position:absolute;inset:-36px;border:1px solid rgba(56,189,248,.1);border-radius:50%;">
-        <div style="position:absolute;top:-3px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#38bdf8;box-shadow:0 0 12px #38bdf8,0 0 24px rgba(56,189,248,.5);"></div>
+
+    <!-- Orbe logo -->
+    <div style="position:relative;margin-bottom:48px;">
+      <div class="ring1" style="position:absolute;inset:-40px;border:1px solid rgba(56,189,248,.08);border-radius:50%;">
+        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:#38bdf8;box-shadow:0 0 16px #38bdf8,0 0 32px rgba(56,189,248,.4);"></div>
       </div>
-      <div class="ring2" style="position:absolute;inset:-20px;border:1px solid rgba(129,140,248,.12);border-radius:50%;">
-        <div style="position:absolute;bottom:-3px;right:18%;width:5px;height:5px;border-radius:50%;background:#818cf8;box-shadow:0 0 10px #818cf8;"></div>
+      <div class="ring2" style="position:absolute;inset:-24px;border:1px solid rgba(129,140,248,.1);border-radius:50%;">
+        <div style="position:absolute;bottom:-4px;right:20%;width:6px;height:6px;border-radius:50%;background:#818cf8;box-shadow:0 0 12px #818cf8;"></div>
       </div>
-      <div id="conic-ring" style="width:110px;height:110px;border-radius:50%;background:conic-gradient(from 0deg,#38bdf8,#818cf8,#f43f5e,#34d399,#38bdf8);display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(56,189,248,.25),inset 0 0 30px rgba(56,189,248,.05);">
-        <div style="width:96px;height:96px;border-radius:50%;background:${th.bg};display:flex;align-items:center;justify-content:center;font-size:44px;border:1px solid rgba(56,189,248,.08);">🃏</div>
-      </div>
-    </div>
-    <!-- Title -->
-    <div style="text-align:center;margin-bottom:52px;">
-      <div style="font-family:'Cinzel',serif;font-size:38px;font-weight:900;letter-spacing:8px;color:${th.text};text-transform:uppercase;text-shadow:0 0 60px rgba(56,189,248,.2);">DISCORD</div>
-      <div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:12px;color:${th.accent};text-transform:uppercase;margin-top:0px;margin-bottom:16px;opacity:.85;">TCG</div>
-      <div style="display:flex;align-items:center;gap:12px;justify-content:center;">
-        <div style="width:50px;height:1px;background:linear-gradient(to right,transparent,${th.accent}60);"></div>
-        <div style="width:4px;height:4px;border-radius:50%;background:${th.accent};box-shadow:0 0 10px ${th.accent};"></div>
-        <div style="width:50px;height:1px;background:linear-gradient(to left,transparent,${th.accent}60);"></div>
+      <!-- Outer glow -->
+      <div style="position:absolute;inset:-16px;border-radius:50%;background:radial-gradient(circle,rgba(56,189,248,.06) 0%,transparent 70%);pointer-events:none;"></div>
+      <div id="conic-ring" style="width:116px;height:116px;border-radius:50%;background:conic-gradient(from 0deg,#38bdf8,#818cf8,#f43f5e,#34d399,#38bdf8);display:flex;align-items:center;justify-content:center;box-shadow:0 0 80px rgba(56,189,248,.18);">
+        <div style="width:100px;height:100px;border-radius:50%;background:${th.bg};display:flex;align-items:center;justify-content:center;font-size:48px;">🃏</div>
       </div>
     </div>
+
+    <!-- Title block -->
+    <div style="text-align:center;margin-bottom:56px;">
+      <div style="font-family:'Cinzel',serif;font-size:40px;font-weight:900;letter-spacing:10px;color:${th.text};text-transform:uppercase;line-height:1;">DISCORD</div>
+      <div style="font-family:'Cinzel',serif;font-size:12px;letter-spacing:14px;background:linear-gradient(90deg,${th.accent},${th.accentAlt});-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-transform:uppercase;margin-top:6px;margin-bottom:20px;">TCG</div>
+      <div style="display:flex;align-items:center;gap:14px;justify-content:center;">
+        <div style="width:60px;height:1px;background:linear-gradient(to right,transparent,${th.accent}50);"></div>
+        <div style="width:4px;height:4px;border-radius:50%;background:${th.accent};box-shadow:0 0 12px ${th.accent};"></div>
+        <div style="width:60px;height:1px;background:linear-gradient(to left,transparent,${th.accent}50);"></div>
+      </div>
+    </div>
+
     <!-- CTA -->
-    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-      <div class="cta-pulse" style="font-size:10px;letter-spacing:4px;text-transform:uppercase;color:${th.textMuted};font-family:'Rajdhani',sans-serif;font-weight:600;">✦ &nbsp; Appuyer pour commencer &nbsp; ✦</div>
-      <div class="arrow-bounce" style="width:32px;height:32px;border-radius:50%;border:1px solid ${th.accent}40;display:flex;align-items:center;justify-content:center;color:${th.accent};font-size:12px;background:rgba(56,189,248,.04);">▼</div>
+    <div class="cta-pulse" style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <div style="font-size:9px;letter-spacing:5px;text-transform:uppercase;color:${th.textMuted};font-weight:700;">Appuyer pour commencer</div>
+      <div class="arrow-bounce" style="width:36px;height:36px;border-radius:50%;border:1px solid ${th.accent}30;display:flex;align-items:center;justify-content:center;color:${th.accent};font-size:13px;background:rgba(56,189,248,.03);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
     </div>
-    <div style="position:absolute;bottom:20px;display:flex;align-items:center;gap:8px;">
-      <div style="width:5px;height:5px;border-radius:50%;background:${th.accent};opacity:.4;"></div>
-      <span style="font-size:9px;color:${th.textFaint};letter-spacing:3px;font-family:'Rajdhani',sans-serif;">v0.1 · BETA</span>
-      <div style="width:5px;height:5px;border-radius:50%;background:${th.accent};opacity:.4;"></div>
+
+    <!-- Version badge -->
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.1);border-radius:99px;padding:4px 14px;">
+      <div style="width:5px;height:5px;border-radius:50%;background:${th.green};box-shadow:0 0 6px ${th.green};" class="pulse-dot"></div>
+      <span style="font-size:9px;color:${th.textMuted};letter-spacing:2px;font-weight:700;">v0.1 · BETA</span>
     </div>
   </div>`;
 }
@@ -418,74 +462,76 @@ function stopSplashAnim(){
 // ─── GAME ─────────────────────────────────────────────────────────
 function renderGame(th){
   const TABS = [
-    {label:"Jouer",icon:SVG.swords},
-    {label:"Collection",icon:SVG.cards},
-    {label:"Boosters",icon:SVG.package},
+    {label:"Jouer",icon:SVG.swords,id:0},
+    {label:"Collection",icon:SVG.cards,id:1},
+    {label:"Boosters",icon:SVG.package,id:2},
   ];
   const NOTIF_COUNT = (state.friendRequestsIn||[]).length;
   const MSG_COUNT = state.msgNotifCount || 0;
 
-  let tabContent = '';
-  if(state.tab===0) tabContent = renderTabPlay(th);
-  else if(state.tab===1) tabContent = renderTabCollection(th);
-  else tabContent = renderTabBoosters(th);
-
   return `
   <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;background:${th.bg};">
-    <!-- HEADER -->
-    <div style="display:flex;align-items:center;padding:10px 16px 10px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:12px;backdrop-filter:blur(12px);">
+
+    <!-- ═══ HEADER ═══ -->
+    <div style="display:flex;align-items:center;padding:8px 14px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:10px;position:relative;z-index:10;">
+
       <!-- Logo -->
-      <div style="display:flex;align-items:center;gap:10px;flex:1;">
-        <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 16px ${th.accentGlow};">🃏</div>
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:3px;color:${th.text};line-height:1;">DCG</div>
-          <div style="font-size:7px;letter-spacing:2px;color:${th.textMuted};font-weight:600;text-transform:uppercase;">BETA</div>
+      <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;">
+        <div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">🃏</div>
+        <div style="display:flex;align-items:baseline;gap:5px;">
+          <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:900;letter-spacing:3px;color:${th.text};">DCG</span>
+          <span style="font-size:7px;letter-spacing:2px;color:${th.textMuted};font-weight:700;text-transform:uppercase;background:rgba(56,189,248,.08);border:1px solid ${th.border};border-radius:4px;padding:1px 5px;">BETA</span>
         </div>
       </div>
-      <!-- Coins pill -->
-      <div style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:800;color:${th.yellow};flex-shrink:0;">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
-        ${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}
+
+      <!-- Coins (pill compacte) -->
+      <div style="display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);flex-shrink:0;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="${th.yellow}"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
+        <span style="font-size:12px;font-weight:900;color:${th.yellow};letter-spacing:.3px;">${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</span>
       </div>
-      <!-- Action icons -->
-      <div style="display:flex;gap:6px;align-items:center;">
-        <button id="btn-messages" style="position:relative;width:34px;height:34px;border-radius:10px;background:${MSG_COUNT>0?th.accent+'18':'transparent'};border:1px solid ${MSG_COUNT>0?th.accent+'40':th.border};color:${MSG_COUNT>0?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
+
+      <!-- Icon cluster -->
+      <div style="display:flex;gap:4px;align-items:center;">
+        <!-- Messages -->
+        <button id="btn-messages" style="position:relative;width:32px;height:32px;border-radius:9px;background:${MSG_COUNT>0?th.accent+'14':'transparent'};border:1px solid ${MSG_COUNT>0?th.accent+'35':th.border};color:${MSG_COUNT>0?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
           ${SVG.chat}
-          ${MSG_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:99px;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid ${th.bgSecondary};">${MSG_COUNT}</div>`:''}
+          ${MSG_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:99px;background:${th.accent};color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;border:2px solid ${th.bgSecondary};">${MSG_COUNT}</div>`:''}
         </button>
-        <button id="btn-friends" style="width:34px;height:34px;border-radius:10px;background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
-          ${SVG.users}
-        </button>
-        <button id="btn-notif" style="position:relative;width:34px;height:34px;border-radius:10px;background:${NOTIF_COUNT>0?th.red+'15':'transparent'};border:1px solid ${NOTIF_COUNT>0?th.red+'40':th.border};color:${NOTIF_COUNT>0?th.red:th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
+        <!-- Friends -->
+        <button id="btn-friends" style="width:32px;height:32px;border-radius:9px;background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${SVG.users}</button>
+        <!-- Notifs -->
+        <button id="btn-notif" style="position:relative;width:32px;height:32px;border-radius:9px;background:${NOTIF_COUNT>0?th.red+'12':'transparent'};border:1px solid ${NOTIF_COUNT>0?th.red+'35':th.border};color:${NOTIF_COUNT>0?th.red:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
           ${SVG.bell}
-          ${NOTIF_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
+          ${NOTIF_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;width:15px;height:15px;border-radius:50%;background:${th.red};color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
         </button>
-        <button id="btn-music" style="width:34px;height:34px;border-radius:10px;background:transparent;border:1px solid ${th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
-          ${state.musicOn?SVG.musicOn:SVG.musicOff}
-        </button>
-        <button id="btn-profile" style="width:34px;height:34px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid ${th.borderStrong};flex-shrink:0;">
-          ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'👤'}
+        <!-- Music -->
+        <button id="btn-music" style="width:32px;height:32px;border-radius:9px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>
+        <!-- Avatar -->
+        <button id="btn-profile" style="width:32px;height:32px;border-radius:9px;overflow:hidden;border:1px solid ${th.borderStrong};flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
+          ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
         </button>
       </div>
     </div>
-    <!-- CONTENT -->
+
+    <!-- ═══ CONTENT (slider) ═══ -->
     <div style="flex:1;overflow:hidden;position:relative;">
-      <div id="tab-slider" style="display:flex;width:300%;height:100%;transform:translateX(${-state.tab*(100/3)}%);transition:transform .3s cubic-bezier(.25,.46,.45,.94);">
+      <div id="tab-slider" style="display:flex;width:300%;height:100%;transform:translateX(${-state.tab*(100/3)}%);transition:transform .32s cubic-bezier(.25,.46,.45,.94);">
         <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===0?renderTabPlay(th):'<div></div>'}</div>
         <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===1?renderTabCollection(th):'<div></div>'}</div>
         <div style="width:33.333%;height:100%;overflow:hidden;">${state.tab===2?renderTabBoosters(th):'<div></div>'}</div>
       </div>
     </div>
-    <!-- NAV BAS -->
-    <div style="display:flex;background:${th.bgSecondary};border-top:1px solid ${th.border};flex-shrink:0;padding:0 8px;padding-bottom:max(env(safe-area-inset-bottom),6px);">
+
+    <!-- ═══ BOTTOM NAV ═══ -->
+    <div style="background:${th.bgSecondary};border-top:1px solid ${th.border};flex-shrink:0;padding:6px 8px;padding-bottom:max(env(safe-area-inset-bottom,0px),6px);display:flex;gap:4px;">
       ${TABS.map((tb,i)=>`
-        <button data-tab="${i}" style="flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;color:${state.tab===i?th.accent:th.textMuted};transition:color .15s;position:relative;">
-          <div style="transform:${state.tab===i?'scale(1.1)':'scale(1)'};transition:transform .2s;opacity:${state.tab===i?1:.6};">${tb.icon}</div>
-          <span style="font-size:9px;font-weight:700;letter-spacing:.8px;">${tb.label}</span>
-          ${state.tab===i?`<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:24px;height:2px;border-radius:99px;background:${th.accent};box-shadow:0 0 8px ${th.accent};"></div>`:''}
+        <button data-tab="${i}" style="flex:1;padding:7px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;background:${state.tab===i?th.accent+'12':'transparent'};border:1px solid ${state.tab===i?th.accent+'25':'transparent'};border-radius:12px;color:${state.tab===i?th.accent:th.textMuted};transition:all .2s;cursor:pointer;">
+          <div style="transform:${state.tab===i?'scale(1.1)':'scale(1)'};transition:transform .2s;">${tb.icon}</div>
+          <span style="font-size:9px;font-weight:${state.tab===i?'800':'600'};letter-spacing:.5px;">${tb.label}</span>
         </button>`).join('')}
     </div>
-    <!-- MODALS -->
+
+    <!-- ═══ MODALS ═══ -->
     ${state.showSettings?renderSettingsModal(th):''}
     ${state.showFriends?renderFriendsModal(th):''}
     ${state.showNotif?renderNotifModal(th):''}
@@ -499,6 +545,7 @@ function renderGame(th){
   </div>`;
 }
 
+
 // ─── PROFILE MODAL ───────────────────────────────────────────────
 function renderProfileModal(th){
   const u = state.currentUser;
@@ -506,60 +553,86 @@ function renderProfileModal(th){
   const avatar = u && u.user_metadata && u.user_metadata.avatar_url;
   const totalCards = ALL_CARDS.length;
   const ownedCards = ALL_CARDS.filter(c => c.owned).length;
-  const cardsDisplay = totalCards > 0 ? `${ownedCards}/${totalCards}` : '—';
   const pct = totalCards > 0 ? Math.round(ownedCards/totalCards*100) : 0;
+  const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
+    ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
+
   return `
-  <div id="profile-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="profile-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:0 0 36px;box-shadow:0 -12px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};overflow:hidden;">
-      <!-- Banner -->
-      <div style="height:90px;background:linear-gradient(135deg,${th.bg},${th.accent}25,${th.accentAlt}20);position:relative;overflow:hidden;">
-        <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.04) 1px,transparent 1px);background-size:24px 24px;"></div>
-        <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,${th.bgSecondary},transparent);"></div>
+  <div id="profile-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="profile-sheet" class="slide-up" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:24px 24px 0 0;border-top:1px solid ${th.borderStrong};overflow:hidden;box-shadow:0 -20px 80px rgba(0,0,0,.7);padding-bottom:max(env(safe-area-inset-bottom,0px),24px);">
+
+      <!-- Pull handle -->
+      <div style="display:flex;justify-content:center;padding:10px 0 0;">
+        <div style="width:40px;height:4px;border-radius:99px;background:rgba(255,255,255,.12);"></div>
       </div>
-      <!-- Drag handle -->
-      <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.15);"></div>
-      <!-- Avatar -->
-      <div style="position:relative;padding:0 20px 20px;margin-top:-36px;">
-        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
-          <div style="width:68px;height:68px;border-radius:16px;border:3px solid ${th.bgSecondary};overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.4);">
-            ${avatar ? '<img src="' + avatar + '" style="width:100%;height:100%;object-fit:cover;" />' : '<span style="font-size:30px;">👤</span>'}
+
+      <!-- Banner with avatar overlay -->
+      <div style="position:relative;margin:0;height:80px;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bg} 0%,rgba(56,189,248,.12) 50%,rgba(129,140,248,.12) 100%);"></div>
+        <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.04) 1px,transparent 1px);background-size:20px 20px;"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:50px;background:linear-gradient(to top,${th.bgSecondary},transparent);"></div>
+      </div>
+
+      <div style="padding:0 20px 0;margin-top:-38px;position:relative;">
+
+        <!-- Avatar row -->
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px;">
+          <div style="position:relative;">
+            <div style="width:72px;height:72px;border-radius:18px;border:3px solid ${th.bgSecondary};overflow:hidden;background:${th.surface};box-shadow:0 8px 24px rgba(0,0,0,.5);">
+              ${avatar ? `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;">` : '<span style="font-size:32px;display:flex;align-items:center;justify-content:center;height:100%;">👤</span>'}
+            </div>
+            <div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:${th.green};border:2px solid ${th.bgSecondary};box-shadow:0 0 8px ${th.green};" class="pulse-dot"></div>
           </div>
-          <button id="btn-logout" style="padding:7px 16px;border-radius:99px;background:transparent;border:1px solid ${th.red}40;color:${th.red};font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.5px;">DÉCONNEXION</button>
+          <button id="btn-logout" style="padding:7px 14px;border-radius:99px;background:transparent;border:1px solid ${th.red}35;color:${th.red};font-size:9px;font-weight:800;cursor:pointer;letter-spacing:.8px;transition:all .18s;">DÉCONNEXION</button>
         </div>
-        <div style="margin-bottom:20px;">
-          <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:${th.text};margin-bottom:3px;">${name}</div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div style="width:6px;height:6px;border-radius:50%;background:${th.green};box-shadow:0 0 6px ${th.green};"></div>
-            <div style="font-size:10px;color:${th.textMuted};">Connecté via Discord</div>
-          </div>
+
+        <!-- Name + status -->
+        <div style="margin-bottom:18px;">
+          <div style="font-family:'Cinzel',serif;font-size:18px;font-weight:700;color:${th.text};letter-spacing:.5px;">${name}</div>
+          <div style="font-size:10px;color:${th.textMuted};margin-top:3px;">Connecté via Discord ✓</div>
         </div>
-        <!-- Stats -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;">
+
+        <!-- Stats row (4 cards) -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">
           ${[
             {i:'🏆',v:state.wins!==null?state.wins:'—',l:'Victoires',c:th.green},
             {i:'💀',v:state.losses!==null?state.losses:'—',l:'Défaites',c:th.red},
-            {i:'⭐',v:'—',l:'Rang',c:th.yellow},
+            {i:'📊',v:winRate!==null?winRate+'%':'—',l:'Win rate',c:th.yellow},
+            {i:'⭐',v:'—',l:'Rang',c:th.accentAlt},
           ].map(s=>`
-          <div style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:14px;padding:14px 8px;text-align:center;">
-            <div style="font-size:18px;margin-bottom:4px;">${s.i}</div>
-            <div style="font-size:20px;font-weight:900;color:${s.c};line-height:1;">${s.v}</div>
-            <div style="font-size:8px;color:${th.textMuted};margin-top:3px;letter-spacing:.5px;text-transform:uppercase;">${s.l}</div>
+          <div style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:12px;padding:10px 6px;text-align:center;">
+            <div style="font-size:16px;margin-bottom:3px;">${s.i}</div>
+            <div style="font-size:16px;font-weight:900;color:${s.c};line-height:1;">${s.v}</div>
+            <div style="font-size:7px;color:${th.textMuted};margin-top:3px;letter-spacing:.4px;text-transform:uppercase;">${s.l}</div>
           </div>`).join('')}
         </div>
-        <!-- Collection progress -->
-        <div style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:14px;padding:14px 16px;">
+
+        <!-- Collection progress card -->
+        <div style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:16px;padding:14px 16px;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${th.accent}40,transparent);"></div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div style="font-size:11px;font-weight:700;color:${th.text};">🃏 Collection</div>
-            <div style="font-size:12px;font-weight:800;color:${th.accent};">${cardsDisplay} <span style="font-size:9px;color:${th.textMuted};font-weight:600;">(${pct}%)</span></div>
+            <div style="display:flex;align-items:center;gap:7px;">
+              <span style="font-size:14px;">🃏</span>
+              <span style="font-size:12px;font-weight:700;color:${th.text};">Collection</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:4px;">
+              <span style="font-size:14px;font-weight:900;color:${th.accent};">${ownedCards}<span style="font-size:10px;color:${th.textMuted};font-weight:600;">/${totalCards}</span></span>
+              <span style="font-size:9px;color:${th.textMuted};background:${th.accent}12;border:1px solid ${th.accent}25;border-radius:99px;padding:1px 7px;">${pct}%</span>
+            </div>
           </div>
-          <div style="height:4px;border-radius:99px;background:${th.bg};overflow:hidden;">
-            <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,${th.accent},${th.accentAlt});box-shadow:0 0 8px ${th.accentGlow};transition:width .6s ease;"></div>
+          <div style="height:5px;border-radius:99px;background:${th.bg};overflow:hidden;">
+            <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,${th.accent},${th.accentAlt});box-shadow:0 0 10px ${th.accentGlow};transition:width .8s cubic-bezier(.4,0,.2,1);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px;">
+            <span style="font-size:9px;color:${th.textMuted};">${ownedCards} obtenues</span>
+            <span style="font-size:9px;color:${th.textMuted};">${totalCards - ownedCards} restantes</span>
           </div>
         </div>
       </div>
     </div>
   </div>`;
 }
+
 
 // ─── DECK BUILDER ────────────────────────────────────────────────
 function renderDeckBuilder(th){
@@ -571,50 +644,66 @@ function renderDeckList(th){
   const decks = state.decks || [];
   return `
   <div id="deckbuilder-bg" style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
-    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px 12px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
-      <button id="db-close" style="width:32px;height:32px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;">✕</button>
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="db-close" style="width:32px;height:32px;border-radius:9px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
       <div style="flex:1;">
-        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};letter-spacing:1px;">Deck Builder</div>
-        <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${decks.length} deck${decks.length>1?'s':''} créé${decks.length>1?'s':''}</div>
+        <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};letter-spacing:1px;">Deck Builder</div>
+        <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${decks.length} deck${decks.length>1?'s':''} · max 30 cartes</div>
       </div>
-      <button id="db-new" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;">＋ NOUVEAU</button>
+      <button id="db-new" style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:12px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 16px ${th.accentGlow};">＋ NOUVEAU</button>
     </div>
+    <!-- List -->
     <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">
       ${decks.length===0?`
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:${th.textMuted};padding:40px 20px;text-align:center;">
-          <div style="font-size:48px;opacity:.3;">🗂️</div>
-          <div style="font-size:14px;font-weight:700;color:${th.text};">Aucun deck</div>
-          <div style="font-size:11px;line-height:1.6;">Crée ton premier deck pour commencer à jouer !</div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;text-align:center;padding:40px 20px;">
+          <div style="width:72px;height:72px;border-radius:20px;background:${th.bgTertiary};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;font-size:32px;opacity:.4;">🗂️</div>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:${th.text};margin-bottom:6px;">Aucun deck</div>
+            <div style="font-size:11px;color:${th.textMuted};line-height:1.6;">Crée ton premier deck pour<br>commencer à jouer !</div>
+          </div>
         </div>
       `:decks.map(deck=>{
         const total = deck.cards ? deck.cards.reduce((s,c)=>s+c.quantity,0) : 0;
         const isPlayable = total===30;
         const isDefault = deck.is_default;
         const pct = Math.min(100,Math.round(total/30*100));
+        const statusColor = isPlayable ? th.green : th.textMuted;
         return `
-        <div class="deck-item" data-deckid="${deck.id}" style="background:${th.bgSecondary};border:1px solid ${isDefault?th.borderStrong:isPlayable?th.green+'30':th.border};border-radius:16px;padding:14px 16px;cursor:pointer;position:relative;overflow:hidden;transition:all .18s;">
-          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${isDefault?th.accent:isPlayable?th.green:'transparent'}50,transparent);"></div>
-          ${isDefault?`<div style="position:absolute;top:10px;right:12px;font-size:9px;font-weight:800;color:${th.accent};background:${th.accent}18;padding:3px 10px;border-radius:99px;letter-spacing:.5px;border:1px solid ${th.accent}35;">⭐ DÉFAUT</div>`:''}
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <div style="width:42px;height:42px;border-radius:12px;background:${isPlayable?th.green+'15':th.bgTertiary};border:1px solid ${isPlayable?th.green+'40':th.border};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🗂️</div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:14px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:${isDefault?'70px':'0'};">${deck.name}</div>
-              <div style="font-size:10px;color:${isPlayable?th.green:th.textMuted};margin-top:2px;font-weight:600;">${isPlayable?'✓ Prêt à jouer':`${total}/30 cartes`}</div>
+        <div class="deck-item btn-hover" data-deckid="${deck.id}" style="background:${th.bgSecondary};border:1px solid ${isDefault?th.borderStrong:isPlayable?th.green+'28':th.border};border-radius:18px;padding:0;cursor:pointer;position:relative;overflow:hidden;transition:all .2s;">
+          <!-- top line accent -->
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${isDefault?`linear-gradient(90deg,${th.accent},${th.accentAlt})`:(isPlayable?`linear-gradient(90deg,${th.green},${th.accent})`:'transparent')};"></div>
+          <!-- main content -->
+          <div style="padding:14px 16px 12px;">
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
+              <!-- Deck icon -->
+              <div style="width:44px;height:44px;border-radius:12px;background:${isPlayable?th.green+'14':th.bgTertiary};border:1px solid ${isPlayable?th.green+'30':th.border};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🗂️</div>
+              <div style="flex:1;min-width:0;padding-top:2px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <div style="font-size:14px;font-weight:800;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${deck.name}</div>
+                  ${isDefault?`<span style="font-size:7px;font-weight:900;color:${th.accent};background:${th.accent}14;border:1px solid ${th.accent}30;border-radius:99px;padding:2px 8px;letter-spacing:.5px;flex-shrink:0;">⭐ DÉFAUT</span>`:''}
+                  ${isPlayable&&!isDefault?`<span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}12;border:1px solid ${th.green}28;border-radius:99px;padding:2px 8px;letter-spacing:.5px;flex-shrink:0;">✓ PRÊT</span>`:''}
+                </div>
+                <div style="font-size:10px;color:${statusColor};margin-top:3px;font-weight:600;">${isPlayable?'Deck complet · Prêt à jouer':`${total}/30 cartes`}</div>
+              </div>
             </div>
-          </div>
-          <div style="height:3px;border-radius:99px;background:${th.bgTertiary};overflow:hidden;margin-bottom:12px;">
-            <div style="height:100%;width:${pct}%;border-radius:99px;background:${isPlayable?`linear-gradient(90deg,${th.green},${th.accent})`:`linear-gradient(90deg,${th.accent},${th.accentAlt})`};transition:width .4s ease;"></div>
-          </div>
-          <div style="display:flex;gap:6px;">
-            ${!isDefault?`<button class="db-set-default btn-hover" data-deckid="${deck.id}" style="padding:6px 12px;border-radius:99px;font-size:9px;font-weight:800;background:${th.accent}12;color:${th.accent};border:1px solid ${th.accent}30;cursor:pointer;letter-spacing:.3px;">⭐ DÉFAUT</button>`:''}
-            <button class="db-rename btn-hover" data-deckid="${deck.id}" data-deckname="${deck.name}" style="padding:6px 12px;border-radius:99px;font-size:9px;font-weight:800;background:${th.bgTertiary};color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;letter-spacing:.3px;">✏️ RENOMMER</button>
-            <button class="db-delete btn-hover" data-deckid="${deck.id}" style="margin-left:auto;padding:6px 12px;border-radius:99px;font-size:9px;font-weight:800;background:transparent;color:${th.red};border:1px solid ${th.red}30;cursor:pointer;letter-spacing:.3px;">🗑</button>
+            <!-- Progress bar -->
+            <div style="height:4px;border-radius:99px;background:${th.bgTertiary};overflow:hidden;margin-bottom:12px;">
+              <div style="height:100%;width:${pct}%;border-radius:99px;background:${isPlayable?`linear-gradient(90deg,${th.green},${th.accent})`:pct>50?`linear-gradient(90deg,${th.accent},${th.accentAlt})`:`linear-gradient(90deg,${th.accentAlt},${th.accent})`};transition:width .5s ease;"></div>
+            </div>
+            <!-- Action row -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              ${!isDefault?`<button class="db-set-default btn-hover" data-deckid="${deck.id}" style="padding:5px 12px;border-radius:99px;font-size:8px;font-weight:900;background:${th.accent}10;color:${th.accent};border:1px solid ${th.accent}28;cursor:pointer;letter-spacing:.5px;">⭐ PAR DÉFAUT</button>`:''}
+              <button class="db-rename btn-hover" data-deckid="${deck.id}" data-deckname="${deck.name}" style="padding:5px 12px;border-radius:99px;font-size:8px;font-weight:900;background:${th.bgTertiary};color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;letter-spacing:.5px;">✏️ RENOMMER</button>
+              <button class="db-delete btn-hover" data-deckid="${deck.id}" style="margin-left:auto;padding:5px 12px;border-radius:99px;font-size:8px;font-weight:900;background:transparent;color:${th.red};border:1px solid ${th.red}25;cursor:pointer;letter-spacing:.5px;">🗑</button>
+            </div>
           </div>
         </div>`;
       }).join('')}
     </div>
   </div>`;
 }
+
 
 function renderDeckEdit(th){
   const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
@@ -851,43 +940,80 @@ function renderTradeModal(th){
 // ─── TAB PLAY ─────────────────────────────────────────────────────
 function renderTabPlay(th){
   const modes=[
-    {id:"pvp",label:"PvP",sub:"Joueur contre Joueur",desc:"Affronte d'autres joueurs en temps réel sur Discord",icon:"⚔️",color:th.accent,available:true},
-    {id:"ia",label:"vs IA",sub:"Entraînement solo",desc:"Perfectionne ta stratégie contre notre IA adaptative",icon:"🤖",color:th.green,available:true},
-    {id:"secret",label:"???",sub:"Mode secret",desc:"Ce mode sera débloqué prochainement…",icon:"🔒",color:th.textFaint,available:false},
+    {id:"pvp",label:"PvP",sub:"Joueur contre Joueur",desc:"Affronte d'autres joueurs en temps réel sur Discord",icon:"⚔️",color:th.accent,available:true,badge:"RANKED"},
+    {id:"ia",label:"vs IA",sub:"Entraînement solo",desc:"Perfectionne ta stratégie contre l'IA adaptative",icon:"🤖",color:th.green,available:true,badge:"SOLO"},
+    {id:"secret",label:"???",sub:"Mode secret",desc:"Ce mode sera débloqué prochainement…",icon:"🔒",color:th.textFaint,available:false,badge:"BIENTÔT"},
   ];
+  const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
+    ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
+
   return `
-  <div style="display:flex;flex-direction:column;height:100%;padding:16px;gap:12px;overflow:hidden;background:${th.bg};">
-    <div style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:5px;color:${th.textMuted};text-transform:uppercase;">Mode de jeu</div>
-    <div style="display:flex;flex-direction:column;gap:10px;flex:1;">
-      ${modes.map((m,mi)=>`
-        <button class="mode-btn btn-hover" data-mode="${m.id}" style="flex:1;background:${m.available?`linear-gradient(135deg,${m.color}10,${m.color}04)`:'transparent'};border:1px solid ${m.available?m.color+'28':th.border};border-radius:18px;display:flex;align-items:center;gap:16px;padding:16px 18px;cursor:${m.available?'pointer':'not-allowed'};opacity:${m.available?1:.35};width:100%;text-align:left;position:relative;overflow:hidden;">
-          ${m.available?`<div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${m.color}40,transparent);"></div>`:''}
-          <div style="width:56px;height:56px;border-radius:16px;flex-shrink:0;background:${m.available?m.color+'14':'rgba(255,255,255,.03)'};border:1px solid ${m.color}25;display:flex;align-items:center;justify-content:center;font-size:28px;">${m.icon}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:${m.available?m.color:th.textFaint};letter-spacing:1px;">${m.label}</div>
-            <div style="font-size:12px;font-weight:700;color:${th.text};margin-top:2px;opacity:.8;">${m.sub}</div>
-            <div style="font-size:10px;color:${th.textMuted};margin-top:4px;line-height:1.5;">${m.desc}</div>
+  <div style="display:flex;flex-direction:column;height:100%;overflow-y:auto;background:${th.bg};">
+
+    <!-- Hero stats banner -->
+    <div style="position:relative;margin:12px 14px 0;border-radius:18px;overflow:hidden;flex-shrink:0;">
+      <div style="background:linear-gradient(135deg,${th.bgSecondary} 0%,${th.bgTertiary} 100%);border:1px solid ${th.borderStrong};padding:16px 18px;">
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;background-image:linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);background-size:24px 24px;pointer-events:none;"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${th.accent}60,transparent);pointer-events:none;"></div>
+        <div style="position:relative;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:9px;color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Tes performances</div>
+            <div style="display:flex;align-items:baseline;gap:8px;">
+              <span style="font-family:'Cinzel',serif;font-size:28px;font-weight:900;color:${th.text};line-height:1;">${state.wins !== null ? state.wins : '—'}</span>
+              <span style="font-size:11px;color:${th.textMuted};font-weight:600;">victoires</span>
+            </div>
           </div>
-          ${m.available
-            ?`<div style="padding:8px 16px;border-radius:99px;flex-shrink:0;background:${m.color}18;border:1px solid ${m.color}50;color:${m.color};font-size:10px;font-weight:800;white-space:nowrap;letter-spacing:1px;">JOUER</div>`
-            :`<div style="padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.04);color:${th.textFaint};font-size:9px;font-weight:700;flex-shrink:0;letter-spacing:.5px;">BIENTÔT</div>`}
-        </button>`).join('')}
+          <div style="display:flex;gap:12px;align-items:center;">
+            <div style="text-align:center;">
+              <div style="font-size:18px;font-weight:900;color:${th.red};">${state.losses !== null ? state.losses : '—'}</div>
+              <div style="font-size:8px;color:${th.textMuted};letter-spacing:.5px;">DÉFAITES</div>
+            </div>
+            <div style="width:1px;height:32px;background:${th.border};"></div>
+            <div style="text-align:center;">
+              <div style="font-size:18px;font-weight:900;color:${th.yellow};">${winRate !== null ? winRate+'%' : '—'}</div>
+              <div style="font-size:8px;color:${th.textMuted};letter-spacing:.5px;">WIN RATE</div>
+            </div>
+            <div style="width:1px;height:32px;background:${th.border};"></div>
+            <div style="text-align:center;">
+              <div style="font-size:18px;font-weight:900;color:${th.accentAlt};">—</div>
+              <div style="font-size:8px;color:${th.textMuted};letter-spacing:.5px;">RANG</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <!-- Stats row -->
-    <div style="display:flex;gap:8px;">
-      ${[
-        {l:"Victoires",v:state.wins!==null?state.wins:'—',c:th.green,i:"🏆"},
-        {l:"Défaites",v:state.losses!==null?state.losses:'—',c:th.red,i:"💀"},
-        {l:"Rang",v:"—",c:th.yellow,i:"⭐"}
-      ].map(s=>`
-        <div style="flex:1;background:${th.bgSecondary};border-radius:14px;padding:12px 6px;text-align:center;border:1px solid ${th.border};">
-          <div style="font-size:18px;margin-bottom:4px;">${s.i}</div>
-          <div style="font-size:20px;font-weight:900;color:${s.c};line-height:1;">${s.v}</div>
-          <div style="font-size:8px;color:${th.textMuted};margin-top:4px;letter-spacing:.5px;text-transform:uppercase;">${s.l}</div>
-        </div>`).join('')}
+
+    <!-- Section label -->
+    <div style="padding:16px 18px 8px;flex-shrink:0;">
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Choisir un mode</div>
+    </div>
+
+    <!-- Mode cards -->
+    <div style="display:flex;flex-direction:column;gap:10px;padding:0 14px 14px;flex:1;">
+      ${modes.map((m,mi)=>`
+        <button class="mode-btn btn-hover" data-mode="${m.id}" style="flex:1;min-height:0;background:${m.available?`linear-gradient(135deg,${m.color}09,transparent)`:'transparent'};border:1px solid ${m.available?m.color+'22':th.border};border-radius:18px;display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:${m.available?'pointer':'not-allowed'};opacity:${m.available?1:.35};width:100%;text-align:left;position:relative;overflow:hidden;transition:all .2s;">
+          <!-- Top accent line -->
+          ${m.available?`<div style="position:absolute;top:0;left:16px;right:16px;height:1px;background:linear-gradient(90deg,transparent,${m.color}50,transparent);"></div>`:''}
+          <!-- Icon box -->
+          <div style="width:52px;height:52px;border-radius:14px;flex-shrink:0;background:${m.available?m.color+'12':'rgba(255,255,255,.03)'};border:1px solid ${m.color}20;display:flex;align-items:center;justify-content:center;font-size:26px;">${m.icon}</div>
+          <!-- Text -->
+          <div style="flex:1;min-width:0;text-align:left;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+              <span style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${m.available?m.color:th.textFaint};letter-spacing:.5px;">${m.label}</span>
+              <span style="font-size:7px;font-weight:900;color:${m.available?m.color:th.textFaint};background:${m.color}14;border:1px solid ${m.color}30;border-radius:4px;padding:2px 6px;letter-spacing:.8px;">${m.badge}</span>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:${th.text};opacity:.8;">${m.sub}</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:3px;line-height:1.45;">${m.desc}</div>
+          </div>
+          <!-- CTA arrow -->
+          ${m.available?`<div style="width:32px;height:32px;border-radius:10px;background:${m.color}16;border:1px solid ${m.color}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${m.color};">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>`:''}
+        </button>`).join('')}
     </div>
   </div>`;
 }
+
 
 // ─── TAB COLLECTION ───────────────────────────────────────────────
 function renderTabCollection(th){
@@ -964,22 +1090,33 @@ function renderTabCollection(th){
 
 function renderCollCard(card,th){
   if(!card.owned){
-    return `<div class="coll-card" data-cardid="${card.id}" style="background:${th.bgSecondary};border:1px solid ${th.border};border-radius:12px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;opacity:.28;filter:grayscale(1);cursor:pointer;transition:all .2s;">
-      <div style="font-size:20px;">🂠</div>
-      <div style="font-size:8px;font-weight:700;color:${th.textMuted};">#${card.id}</div>
+    return `<div class="coll-card" data-cardid="${card.id}" style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:12px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.22;filter:grayscale(1);cursor:pointer;transition:all .2s;">
+      <div style="font-size:22px;">🂠</div>
+      <div style="font-size:7px;font-weight:700;color:${th.textMuted};">#${card.id}</div>
     </div>`;
   }
-  return `<div class="coll-card" data-cardid="${card.id}" style="background:linear-gradient(160deg,${card.color}14,${th.bgSecondary});border:1px solid ${card.color}25;border-radius:12px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;overflow:hidden;padding:7px 5px 5px;gap:3px;position:relative;">
-    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${card.color}50,transparent);"></div>
-    ${card.count>1?`<div style="position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:6px;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">×${card.count}</div>`:''}
-    <div style="flex:1;width:100%;border-radius:7px;background:linear-gradient(135deg,${card.color}22,${card.color}08);display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>
-    <div style="font-size:8px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;padding:0 2px;">${card.name}</div>
-    <div style="display:flex;justify-content:space-between;width:100%;align-items:center;padding:0 2px;">
-      <span style="font-size:7px;color:${th.textMuted};">#${card.id}</span>
-      <span style="font-size:8px;color:${card.color};">◆</span>
+  const rarCol = card.color;
+  return `<div class="coll-card" data-cardid="${card.id}" style="background:linear-gradient(160deg,${rarCol}14,${th.bgSecondary} 70%);border:1px solid ${rarCol}22;border-radius:12px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);overflow:hidden;padding:6px 5px 5px;gap:3px;position:relative;">
+    <!-- top shimmer line -->
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${rarCol}60,transparent);"></div>
+    <!-- count badge -->
+    ${card.count>1?`<div style="position:absolute;top:4px;right:4px;min-width:16px;height:16px;border-radius:6px;background:${th.accent};color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 3px;z-index:1;">×${card.count}</div>`:''}
+    <!-- card art area -->
+    <div style="flex:1;width:100%;border-radius:8px;background:linear-gradient(135deg,${rarCol}20,${rarCol}06);display:flex;align-items:center;justify-content:center;font-size:20px;position:relative;overflow:hidden;">
+      🃏
+      <!-- rarity glow -->
+      <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:60%;height:12px;border-radius:50%;background:${rarCol}30;filter:blur(6px);pointer-events:none;"></div>
+    </div>
+    <!-- name -->
+    <div style="font-size:7px;font-weight:800;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;padding:0 2px;line-height:1.2;">${card.name}</div>
+    <!-- footer row -->
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:0 2px;">
+      <span style="font-size:7px;color:${th.textMuted};font-weight:600;">#${card.id}</span>
+      <span style="font-size:8px;color:${rarCol};">◆</span>
     </div>
   </div>`;
 }
+
 
 // ─── CARD DETAIL MODAL ────────────────────────────────────────────
 function renderCardDetailModal(card,th){
@@ -1066,48 +1203,71 @@ function renderTabBoosters(th){
     {top:"2%",right:"1%",rotate:"10deg",scale:0.94,zIndex:2},
   ];
   return `
-  <div style="display:flex;flex-direction:column;height:100%;padding:14px 14px 14px;gap:12px;overflow:hidden;position:relative;background:${th.bg};">
-    <div style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:5px;color:${th.textMuted};text-transform:uppercase;flex-shrink:0;">Boosters & Pioche</div>
-    <div style="flex:1;position:relative;min-height:0;">
+  <div style="display:flex;flex-direction:column;height:100%;background:${th.bg};overflow:hidden;">
+
+    <!-- Section header -->
+    <div style="padding:14px 16px 6px;flex-shrink:0;">
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Boosters & Pioche</div>
+    </div>
+
+    <!-- Booster fan area -->
+    <div style="flex:1;position:relative;margin:0 14px;min-height:0;">
       ${BOOSTERS.map((b,i)=>{
         const pos=bazar[i];
         const isOpen=state.boosterOpening===b.id;
         const styleExtra = pos.right ? `right:${pos.right};` : `left:${pos.left};`;
         return `
-        <div class="booster-card" data-bid="${b.id}" style="position:absolute;top:${pos.top};${styleExtra}width:46%;background:linear-gradient(150deg,${b.color}18,${b.color}06);border:1px solid ${b.color}35;border-radius:20px;padding:16px 12px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .28s cubic-bezier(.4,0,.2,1);transform:rotate(${pos.rotate}) scale(${pos.scale});z-index:${pos.zIndex};overflow:hidden;">
-          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${b.color}60,transparent);"></div>
-          <div style="position:absolute;inset:0;border-radius:20px;background:radial-gradient(ellipse at 50% 0%,${b.color}12,transparent 65%);pointer-events:none;"></div>
-          ${[0,1,2].map(k=>`<div style="position:absolute;bottom:40px;left:50%;width:44px;height:62px;border-radius:8px;background:linear-gradient(135deg,${b.color}28,${b.color}10);border:1px solid ${b.color}35;transform:translateX(-50%) rotate(${(k-1)*9}deg) translateY(${k*2}px);z-index:${k};pointer-events:none;"></div>`).join('')}
-          <div style="font-size:${i===1?44:38}px;filter:drop-shadow(0 0 14px ${b.color}90);animation:${isOpen?'shakePack .4s ease':'floatPack 1.8s ease-in-out infinite'};z-index:1;margin-top:10px;">🃏</div>
-          <div style="text-align:center;z-index:1;width:100%;">
+        <div class="booster-card" data-bid="${b.id}" style="position:absolute;top:${pos.top};${styleExtra}width:46%;background:linear-gradient(155deg,${b.color}18,${b.color}06);border:1px solid ${b.color}30;border-radius:22px;padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .28s cubic-bezier(.4,0,.2,1);transform:rotate(${pos.rotate}) scale(${pos.scale});z-index:${pos.zIndex};overflow:hidden;">
+          <!-- shimmer top -->
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${b.color}70,transparent);"></div>
+          <!-- inner glow -->
+          <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,${b.color}14,transparent 65%);pointer-events:none;"></div>
+          <!-- stacked mini cards behind -->
+          ${[0,1,2].map(k=>`<div style="position:absolute;bottom:44px;left:50%;width:46px;height:64px;border-radius:8px;background:linear-gradient(135deg,${b.color}25,${b.color}08);border:1px solid ${b.color}30;transform:translateX(-50%) rotate(${(k-1)*9}deg) translateY(${k*2}px);z-index:${k};pointer-events:none;"></div>`).join('')}
+          <!-- main card emoji -->
+          <div style="font-size:${i===1?46:38}px;filter:drop-shadow(0 4px 16px ${b.color}80);animation:${isOpen?'shakePack .4s ease':'floatPack 2s ease-in-out infinite'};z-index:4;margin-top:12px;">🃏</div>
+          <!-- info -->
+          <div style="text-align:center;z-index:4;width:100%;">
             <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${th.text};letter-spacing:.5px;">${b.name}</div>
-            <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${b.cards} cartes</div>
-            <div style="font-size:9px;color:${RARITY_COLOR[b.rarity]};font-weight:700;margin-bottom:6px;">◆ ${RARITY_LABEL[b.rarity]}</div>
-            <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:900;color:${b.color};margin-bottom:10px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${b.price}</div>
-            <button class="open-booster" data-bid="${b.id}" style="width:100%;padding:8px 0;border-radius:99px;background:${isOpen?b.color+'60':b.color};color:#fff;border:none;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:${isOpen?`0 0 24px ${b.color}`:'none'};transition:all .2s;">
-              ${isOpen?"⋯ Ouverture…":"OUVRIR"}
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin:3px 0;">
+              <span style="font-size:8px;color:${RARITY_COLOR[b.rarity]};font-weight:700;">◆ ${RARITY_LABEL[b.rarity]}</span>
+              <span style="font-size:7px;color:${th.textMuted};">· ${b.cards} cartes</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:900;color:${b.color};margin-bottom:10px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
+              ${b.price}
+            </div>
+            <button class="open-booster" data-bid="${b.id}" style="width:100%;padding:8px 0;border-radius:12px;background:${isOpen?b.color+'55':b.color};color:#fff;border:none;font-size:10px;font-weight:900;letter-spacing:.8px;box-shadow:${isOpen?`0 0 28px ${b.color}`:'none'};transition:all .22s;">
+              ${isOpen?'⋯ OUVERTURE…':'OUVRIR'}
             </button>
           </div>
         </div>`}).join('')}
-      <!-- Pioche -->
+
+      <!-- Pioche : anchored bottom -->
       <div style="position:absolute;bottom:0;left:0;right:0;">
-        <div id="btn-pioche" style="background:linear-gradient(135deg,${th.green}12,${th.green}04);border:1px solid ${th.green}30;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;cursor:pointer;">
-          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${th.green}50,transparent);"></div>
-          <div style="position:absolute;right:-4px;top:-4px;font-size:48px;opacity:.05;pointer-events:none;">🎴</div>
-          <div style="position:relative;width:52px;height:68px;flex-shrink:0;">
-            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}35,${th.green}12);border:1px solid ${th.green}40;border-radius:7px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:20px;">🂠</div>`).join('')}
+        <div id="btn-pioche" style="background:${th.bgSecondary};border:1px solid ${th.borderStrong};border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;overflow:hidden;position:relative;transition:all .2s;">
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${th.green}60,transparent);"></div>
+          <!-- stacked cards visual -->
+          <div style="position:relative;width:50px;height:66px;flex-shrink:0;">
+            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}30,${th.green}10);border:1px solid ${th.green}40;border-radius:8px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:18px;">🂠</div>`).join('')}
           </div>
-          <div style="flex:1;">
-            <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.5px;">Pioche Classique</div>
-            <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">50 cartes face cachée · Retourne-en une</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">
+              <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};letter-spacing:.5px;">Pioche Classique</span>
+              <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}30;border-radius:4px;padding:2px 6px;letter-spacing:.6px;">FREE</span>
+            </div>
+            <div style="font-size:10px;color:${th.textMuted};">50 cartes face cachée · Retourne-en une</div>
           </div>
-          <div style="padding:7px 14px;border-radius:99px;background:${th.green};color:#fff;font-size:10px;font-weight:800;flex-shrink:0;letter-spacing:.5px;">PIOCHER</div>
+          <div style="padding:8px 14px;border-radius:12px;background:${th.green};color:#fff;font-size:10px;font-weight:900;flex-shrink:0;letter-spacing:.6px;">PIOCHER</div>
         </div>
       </div>
     </div>
+
+    <div style="height:14px;flex-shrink:0;"></div>
     <style>@keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}</style>
   </div>`;
 }
+
 
 // ─── TAB MESSAGES ────────────────────────────────────────────────
 function renderMessagesModal(th){
@@ -1135,7 +1295,7 @@ function renderMessagesModal(th){
         const allItems = [...msgs.map(m=>({...m, _type:'msg', _ts: m.ts})), ...trades]
           .sort((a,b)=>new Date(a._ts)-new Date(b._ts));
 
-        if(allItems.length===0) return `<div style="text-align:center;color:${th.textFaint};font-size:11px;padding:20px 0;">Aucun message pour le moment.<br><span style="font-size:10px;">Envoie le premier !</span></div>`;
+        if(allItems.length===0) return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px;text-align:center;padding:30px 20px;"><div style="font-size:36px;opacity:.2;">✉️</div><div style="font-size:12px;font-weight:700;color:${th.text};">Pas encore de messages</div><div style="font-size:10px;color:${th.textMuted};">Envoie le premier !</div></div>`;
 
         return allItems.map(item=>{
           if(item._type === 'msg') return `
@@ -1219,9 +1379,10 @@ function renderMessagesModal(th){
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">${friends.length} ami${friends.length>1?'s':''}</div>
     </div>
     ${friends.length===0
-      ? `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:${th.textMuted};font-size:12px;text-align:center;">
-           <div style="font-size:28px;">💬</div>
-           Aucun message pour le moment.
+      ? `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:20px 0;">
+           <div style="font-size:40px;opacity:.25;">💬</div>
+           <div style="font-size:13px;font-weight:700;color:${th.text};">Aucun message</div>
+           <div style="font-size:11px;color:${th.textMuted};">Ajoute des amis pour commencer !</div>
          </div>`
       : friends.map(f=>`
       <div class="conv-item btn-hover" data-fid="${f.id}" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:${th.bgTertiary};border:1px solid ${th.border};cursor:pointer;margin-bottom:6px;position:relative;overflow:hidden;transition:all .18s;">
@@ -1238,9 +1399,9 @@ function renderMessagesModal(th){
   `;
 
   return `
-  <div id="messages-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div style="width:100%;max-width:420px;height:92%;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:16px 16px 28px;box-shadow:0 -16px 60px rgba(0,0,0,.6);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
-      <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.1);margin:0 auto 16px;flex-shrink:0;"></div>
+  <div id="messages-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div class="slide-up" style="width:100%;max-width:420px;height:93%;background:${th.bgSecondary};border-radius:24px 24px 0 0;padding:12px 16px 24px;box-shadow:0 -24px 80px rgba(0,0,0,.7);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
+      <div style="width:40px;height:4px;border-radius:99px;background:rgba(255,255,255,.12);margin:0 auto 14px;flex-shrink:0;"></div>
       ${innerContent}
     </div>
   </div>`;
