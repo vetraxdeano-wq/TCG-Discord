@@ -989,33 +989,29 @@ function renderTradeModal(th){
 // ─── TAB PLAY ─────────────────────────────────────────────────────
 function renderTabPlay(th){
   const modes=[
-    {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel sur Discord", icon:"⚔️", color:th.accent,    available:true,  badge:"RANKED"},
-    {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA adaptative",   icon:"🤖", color:th.green,    available:true,  badge:"SOLO"},
-    {id:"secret",label:"???",    sub:"Mode secret",        desc:"Ce mode sera débloqué prochainement…",               icon:"🔒", color:th.textFaint, available:false, badge:"SOON"},
+    {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", color:th.accent,    available:true,  badge:"RANKED"},
+    {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", color:th.green,     available:true,  badge:"SOLO"},
+    {id:"secret",label:"???",    sub:"Mode secret",        desc:"Ce mode sera débloqué prochainement…",     icon:"🔒", color:th.textFaint, available:false, badge:"SOON"},
   ];
   const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
     ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
   const total = (state.wins||0)+(state.losses||0);
 
   return `
-  <div style="display:flex;flex-direction:column;height:100%;overflow-y:auto;background:${th.bg};">
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:${th.bg};">
 
-    <!-- ── HERO CARD : stats condensées ── -->
+    <!-- ── HERO STATS BANNER (inchangé) ── -->
     <div style="margin:14px 14px 0;flex-shrink:0;border-radius:20px;overflow:hidden;border:1px solid ${th.borderStrong};position:relative;">
-      <!-- Bg layers -->
       <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});"></div>
       <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);background-size:28px 28px;"></div>
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${th.accent},${th.accentAlt},${th.accent});"></div>
-      <!-- Content -->
       <div style="position:relative;padding:16px 18px;">
-        <!-- Top row : rank + label -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="font-size:9px;color:${th.textMuted};letter-spacing:3px;text-transform:uppercase;font-weight:700;">Tes performances</div>
           <div style="display:flex;align-items:center;gap:5px;background:${th.accentAlt}14;border:1px solid ${th.accentAlt}30;border-radius:99px;padding:3px 10px;">
             <span style="font-size:9px;font-weight:900;color:${th.accentAlt};letter-spacing:.5px;">⭐ RANG —</span>
           </div>
         </div>
-        <!-- Stats grid 2×2 -->
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
           <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);border-radius:14px;padding:12px 14px;position:relative;overflow:hidden;">
             <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.green};opacity:.4;"></div>
@@ -1040,51 +1036,58 @@ function renderTabPlay(th){
     </div>
 
     <!-- ── SECTION LABEL ── -->
-    <div style="padding:16px 18px 8px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
+    <div style="padding:14px 18px 8px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Choisir un mode</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
     </div>
 
-    <!-- ── MODE CARDS ── -->
-    <div style="display:flex;flex-direction:column;gap:10px;padding:0 14px 16px;">
+    <!-- ── MODE CARDS : 3 colonnes verticales qui remplissent l'espace ── -->
+    <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;min-height:0;">
       ${modes.map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
-          style="width:100%;background:${m.available?`linear-gradient(135deg,${m.color}10,transparent)`:'transparent'};
-            border:1px solid ${m.available?m.color+'25':th.border};
-            border-radius:18px;
-            display:grid;
-            grid-template-columns:56px 1fr auto;
-            align-items:center;
-            gap:14px;
-            padding:14px 16px;
+          style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+            padding:0;
+            background:${m.available?`linear-gradient(160deg,${m.color}12,${m.color}04)`:'transparent'};
+            border:1px solid ${m.available?m.color+'28':th.border};
+            border-radius:20px;
             cursor:${m.available?'pointer':'not-allowed'};
             opacity:${m.available?1:.35};
-            text-align:left;
             position:relative;
             overflow:hidden;
-            transition:all .22s;">
-          <!-- accent top line -->
-          ${m.available?`<div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${m.color}60,transparent);"></div>`:''}
-          <!-- icon -->
-          <div style="width:56px;height:56px;border-radius:16px;background:${m.available?m.color+'12':'rgba(255,255,255,.03)'};border:1px solid ${m.color}20;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">${m.icon}</div>
-          <!-- text -->
-          <div style="min-width:0;">
-            <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">
-              <span style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${m.available?m.color:th.textFaint};letter-spacing:.5px;">${m.label}</span>
-              <span style="font-size:7px;font-weight:900;color:${m.available?m.color:th.textFaint};background:${m.color}14;border:1px solid ${m.color}28;border-radius:5px;padding:2px 7px;letter-spacing:.8px;">${m.badge}</span>
-            </div>
-            <div style="font-size:11px;font-weight:700;color:${th.text};opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.sub}</div>
-            <div style="font-size:10px;color:${th.textMuted};margin-top:2px;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${m.desc}</div>
+            transition:all .22s;
+            width:100%;
+            height:100%;">
+
+          <!-- Top accent line -->
+          ${m.available?`<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${m.color},transparent);"></div>`:''}
+
+          <!-- Image/icône zone (carré, occupe ~55% de la hauteur) -->
+          <div style="width:100%;flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border-radius:20px 20px 0 0;">
+            <!-- Fond atmosphérique -->
+            <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,${m.color}20,transparent 70%);pointer-events:none;"></div>
+            <!-- Grille déco -->
+            <div style="position:absolute;inset:0;background-image:linear-gradient(${m.color}08 1px,transparent 1px),linear-gradient(90deg,${m.color}08 1px,transparent 1px);background-size:16px 16px;pointer-events:none;"></div>
+            <!-- Icône principale (remplacer par <img> quand dispo) -->
+            <div style="font-size:44px;filter:drop-shadow(0 4px 20px ${m.color}60);position:relative;z-index:1;">${m.icon}</div>
           </div>
-          <!-- CTA -->
-          ${m.available?`
-          <div style="width:36px;height:36px;border-radius:12px;background:${m.color}18;border:1px solid ${m.color}35;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${m.color};">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>`:''}
+
+          <!-- Info zone (bas de la carte) -->
+          <div style="width:100%;padding:12px 10px 14px;flex-shrink:0;">
+            <!-- Badge + label -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${m.available?m.color:th.textFaint};">${m.label}</span>
+              <span style="font-size:7px;font-weight:900;color:${m.available?m.color:th.textFaint};background:${m.color}14;border:1px solid ${m.color}25;border-radius:4px;padding:2px 6px;letter-spacing:.7px;">${m.badge}</span>
+            </div>
+            <div style="font-size:10px;font-weight:700;color:${th.text};opacity:.8;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.sub}</div>
+            <div style="font-size:9px;color:${th.textMuted};line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${m.desc}</div>
+            ${m.available?`
+            <div style="margin-top:10px;padding:8px 0;border-radius:10px;background:${m.color}18;border:1px solid ${m.color}30;text-align:center;font-size:10px;font-weight:900;color:${m.color};letter-spacing:.8px;">JOUER</div>`:''}
+          </div>
         </button>`).join('')}
     </div>
   </div>`;
 }
+
 
 
 // ─── TAB COLLECTION ───────────────────────────────────────────────
@@ -1269,55 +1272,105 @@ function renderCardDetailModal(card,th){
 
 // ─── TAB BOOSTERS ─────────────────────────────────────────────────
 function renderTabBoosters(th){
-  // Booster data enriched with gradient and description
   const boosterMeta = [
-    {desc:"Toutes raretés · garanti au moins Commune",gradient:`linear-gradient(135deg,#5865f220,#5865f208)`},
-    {desc:"Garantit au moins 1 Rare par pack",          gradient:`linear-gradient(135deg,#fee75c22,#fee75c08)`},
-    {desc:"Garantit au moins 1 Mythique par pack",      gradient:`linear-gradient(135deg,#eb459e22,#eb459e08)`},
+    {
+      desc:"Toutes raretés · garanti Commune",
+      gradient:`linear-gradient(160deg,#5865f220,#5865f206)`,
+      // src:"boosters/normal.png",   // ← décommenter quand le PNG est prêt
+    },
+    {
+      desc:"Garantit au moins 1 Rare",
+      gradient:`linear-gradient(160deg,#fee75c22,#fee75c06)`,
+      // src:"boosters/prestige.png",
+    },
+    {
+      desc:"Garantit au moins 1 Mythique",
+      gradient:`linear-gradient(160deg,#eb459e22,#eb459e06)`,
+      // src:"boosters/legendaire.png",
+    },
   ];
 
   return `
-  <div style="display:flex;flex-direction:column;height:100%;background:${th.bg};overflow-y:auto;">
+  <div style="display:flex;flex-direction:column;height:100%;background:${th.bg};overflow:hidden;">
 
     <!-- Section label -->
-    <div style="padding:14px 16px 10px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
+    <div style="padding:14px 16px 8px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Boosters</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
     </div>
 
-    <!-- Boosters : liste verticale propre -->
-    <div style="display:flex;flex-direction:column;gap:10px;padding:0 14px;flex-shrink:0;">
+    <!-- 3 boosters en grille carrée qui remplit l'espace -->
+    <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px;min-height:0;">
       ${BOOSTERS.map((b,i)=>{
-        const isOpen=state.boosterOpening===b.id;
-        const meta = boosterMeta[i];
+        const isOpen = state.boosterOpening===b.id;
+        const meta   = boosterMeta[i];
         return `
-        <div class="booster-card" data-bid="${b.id}" style="background:${meta.gradient};border:1px solid ${b.color}30;border-radius:20px;overflow:hidden;position:relative;transition:all .25s;cursor:pointer;">
+        <div class="booster-card" data-bid="${b.id}"
+          style="display:flex;flex-direction:column;
+            background:${meta.gradient};
+            border:1px solid ${b.color}30;
+            border-radius:20px;
+            overflow:hidden;
+            cursor:pointer;
+            position:relative;
+            transition:all .26s cubic-bezier(.4,0,.2,1);
+            width:100%;
+            height:100%;">
+
           <!-- top accent -->
           <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${b.color},transparent);"></div>
-          <div style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-            <!-- stacked mini cards visual -->
-            <div style="position:relative;width:56px;height:72px;flex-shrink:0;">
-              ${[0,1,2].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${b.color}35,${b.color}12);border:1px solid ${b.color}50;border-radius:10px;transform:rotate(${(k-1)*7}deg) translateY(${k*2}px);display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:${k===2?`0 4px 16px ${b.color}40`:'none'};">🃏</div>`).join('')}
-              ${isOpen?`<div style="position:absolute;inset:0;background:${b.color}30;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:${b.color};">⋯</div>`:''}
+
+          <!-- Image / placeholder zone (carré, prend la majorité) -->
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;min-height:0;">
+            <!-- Fond radial -->
+            <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 35%,${b.color}25,transparent 70%);pointer-events:none;"></div>
+            <!-- Grille déco fine -->
+            <div style="position:absolute;inset:0;background-image:linear-gradient(${b.color}07 1px,transparent 1px),linear-gradient(90deg,${b.color}07 1px,transparent 1px);background-size:14px 14px;pointer-events:none;"></div>
+
+            ${meta.src
+              ? `<!-- Image PNG du booster -->
+                 <img src="${meta.src}" alt="${b.name}"
+                   style="width:85%;height:85%;object-fit:contain;position:relative;z-index:1;
+                          filter:drop-shadow(0 6px 24px ${b.color}70);
+                          animation:${isOpen?'shakePack .4s ease':'floatPack 2.2s ease-in-out infinite'};"/>`
+              : `<!-- Placeholder en attendant le PNG : cartes empilées + emoji -->
+                 <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;width:80%;height:80%;">
+                   ${[0,1,2].map(k=>`
+                   <div style="position:absolute;inset:0;
+                     background:linear-gradient(135deg,${b.color}35,${b.color}10);
+                     border:1px solid ${b.color}55;
+                     border-radius:10px;
+                     transform:rotate(${(k-1)*8}deg) scale(${0.82+k*0.07});
+                     display:flex;align-items:center;justify-content:center;
+                     font-size:clamp(24px,5vw,36px);
+                     box-shadow:${k===2?`0 6px 20px ${b.color}40`:'none'};
+                     animation:${isOpen?'shakePack .4s ease':(k===2?'floatPack 2.2s ease-in-out infinite':'none')};
+                   ">🃏</div>`).join('')}
+                 </div>`
+            }
+          </div>
+
+          <!-- Info zone (bas fixe) -->
+          <div style="padding:10px 10px 12px;flex-shrink:0;background:linear-gradient(to top,${b.color}12,transparent);">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px;margin-bottom:4px;">
+              <span style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.3px;line-height:1.2;">${b.name}</span>
+              <span style="font-size:7px;font-weight:900;color:${RARITY_COLOR[b.rarity]};background:${b.color}14;border:1px solid ${b.color}28;border-radius:4px;padding:2px 5px;letter-spacing:.5px;white-space:nowrap;flex-shrink:0;">◆ ${RARITY_LABEL[b.rarity].toUpperCase()}</span>
             </div>
-            <!-- info -->
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                <span style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};letter-spacing:.5px;">${b.name}</span>
-                <span style="font-size:7px;font-weight:900;color:${RARITY_COLOR[b.rarity]};background:${b.color}14;border:1px solid ${b.color}28;border-radius:5px;padding:2px 7px;letter-spacing:.6px;">◆ ${RARITY_LABEL[b.rarity].toUpperCase()}</span>
-              </div>
-              <div style="font-size:10px;color:${th.textMuted};margin-bottom:2px;">${meta.desc}</div>
-              <div style="font-size:10px;color:${th.textMuted};">${b.cards} cartes par booster</div>
-            </div>
-            <!-- price + cta -->
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
-              <div style="display:flex;align-items:center;gap:4px;font-size:16px;font-weight:900;color:${b.color};">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="${th.yellow}"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
+            <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;line-height:1.3;">${meta.desc}</div>
+            <!-- Prix + bouton -->
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="display:flex;align-items:center;gap:3px;font-size:12px;font-weight:900;color:${th.yellow};">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="${th.yellow}"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
                 ${b.price.toLocaleString()}
               </div>
               <button class="open-booster" data-bid="${b.id}"
-                style="padding:8px 16px;border-radius:12px;background:${isOpen?b.color+'50':b.color};color:#fff;border:none;font-size:10px;font-weight:900;letter-spacing:.8px;white-space:nowrap;box-shadow:${isOpen?`0 0 24px ${b.color}60`:`0 4px 14px ${b.color}40`};transition:all .22s;">
-                ${isOpen?'⋯ EN COURS':'OUVRIR'}
+                style="flex:1;padding:7px 0;border-radius:10px;
+                  background:${isOpen?b.color+'50':b.color};
+                  color:#fff;border:none;
+                  font-size:9px;font-weight:900;letter-spacing:.7px;
+                  box-shadow:${isOpen?`0 0 20px ${b.color}60`:`0 3px 12px ${b.color}40`};
+                  transition:all .22s;cursor:pointer;">
+                ${isOpen?'⋯':'OUVRIR'}
               </button>
             </div>
           </div>
@@ -1325,37 +1378,41 @@ function renderTabBoosters(th){
       }).join('')}
     </div>
 
-    <!-- Divider -->
-    <div style="padding:14px 16px 10px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
+    <!-- Séparateur + Pioche -->
+    <div style="padding:10px 16px 6px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Pioche</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
-      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}30;border-radius:5px;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
+      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;border-radius:4px;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
     </div>
 
-    <!-- Pioche card -->
-    <div id="btn-pioche" style="margin:0 14px 16px;background:linear-gradient(135deg,${th.green}10,${th.green}04);border:1px solid ${th.green}28;border-radius:20px;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;flex-shrink:0;">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${th.green},transparent);"></div>
-      <div style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
-        <!-- Fan de cartes dos -->
-        <div style="position:relative;width:56px;height:72px;flex-shrink:0;">
-          ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}28,${th.green}0a);border:1px solid ${th.green}40;border-radius:10px;transform:rotate(${(k-2)*6}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:22px;">🂠</div>`).join('')}
+    <!-- Pioche : carte horizontale compacte -->
+    <div id="btn-pioche"
+      style="margin:0 14px 12px;flex-shrink:0;
+        background:linear-gradient(135deg,${th.green}10,${th.green}03);
+        border:1px solid ${th.green}25;
+        border-radius:16px;overflow:hidden;cursor:pointer;
+        position:relative;transition:all .22s;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${th.green}80,transparent);"></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;">
+        <!-- Fan compact -->
+        <div style="position:relative;width:44px;height:56px;flex-shrink:0;">
+          ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}25,${th.green}08);border:1px solid ${th.green}35;border-radius:8px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:16px;">🂠</div>`).join('')}
         </div>
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <span style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};letter-spacing:.5px;">Pioche Classique</span>
-          </div>
-          <div style="font-size:10px;color:${th.textMuted};margin-bottom:2px;">50 cartes face cachée — retourne-en une</div>
-          <div style="font-size:10px;color:${th.textMuted};">Tirage aléatoire pondéré par rareté</div>
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
+          <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">50 cartes face cachée · retourne-en une</div>
         </div>
-        <div style="flex-shrink:0;">
-          <div style="padding:10px 16px;border-radius:12px;background:${th.green};color:#fff;font-size:10px;font-weight:900;letter-spacing:.8px;box-shadow:0 4px 14px ${th.green}40;text-align:center;">PIOCHER</div>
-        </div>
+        <div style="padding:8px 14px;border-radius:12px;background:${th.green};color:#fff;font-size:10px;font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${th.green}40;flex-shrink:0;">PIOCHER</div>
       </div>
     </div>
 
-    <style>@keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}</style>
+    <style>
+      @keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+      @keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+    </style>
   </div>`;
 }
+
 
 
 
