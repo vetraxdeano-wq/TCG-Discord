@@ -21,25 +21,28 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;}
 button{font-family:inherit;cursor:pointer;}
-::-webkit-scrollbar{width:3px;height:3px;}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:99px;}
+::-webkit-scrollbar{width:2px;height:2px;}
+::-webkit-scrollbar-thumb{background:rgba(56,189,248,.15);border-radius:99px;}
 #app{width:100%;height:100vh;display:flex;flex-direction:column;font-family:'Rajdhani',sans-serif;}
 
-/* Splash animations */
-@keyframes ctaPulse{0%,100%{opacity:.5}50%{opacity:1}}
-@keyframes arrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+@keyframes ctaPulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes arrowBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
-@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 @keyframes spinRing1{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes spinRing2{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
-@keyframes conicSpin{from{--angle:0deg}to{--angle:360deg}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(56,189,248,.15)}50%{box-shadow:0 0 40px rgba(56,189,248,.35)}}
+@keyframes scanline{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
 
-.cta-pulse{animation:ctaPulse 2.2s ease-in-out infinite;}
-.arrow-bounce{animation:arrowBounce 1.6s ease-in-out infinite;}
-.fade-up{animation:fadeUp .5s ease both;}
-.ring1{animation:spinRing1 8s linear infinite;}
-.ring2{animation:spinRing2 5.5s linear infinite;}
+.cta-pulse{animation:ctaPulse 2.4s ease-in-out infinite;}
+.arrow-bounce{animation:arrowBounce 1.8s ease-in-out infinite;}
+.fade-up{animation:fadeUp .4s cubic-bezier(.22,.68,0,1.2) both;}
+.ring1{animation:spinRing1 10s linear infinite;}
+.ring2{animation:spinRing2 7s linear infinite;}
+.btn-hover{transition:all .18s cubic-bezier(.4,0,.2,1);}
+.btn-hover:active{transform:scale(.96);}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -49,18 +52,20 @@ button{font-family:inherit;cursor:pointer;}
 // ─── THEMES ───────────────────────────────────────────────────────
 const themes = {
   dark:{
-    bg:"#1e1f22",bgSecondary:"#2b2d31",bgTertiary:"#313338",
-    surface:"#383a40",accent:"#5865f2",accentGlow:"rgba(88,101,242,0.35)",
-    green:"#57f287",red:"#ed4245",yellow:"#fee75c",
-    text:"#f2f3f5",textMuted:"#96989d",textFaint:"#4e5058",
-    border:"rgba(255,255,255,0.06)",
+    bg:"#080c14",bgSecondary:"#0d1220",bgTertiary:"#111827",
+    surface:"#162032",accent:"#38bdf8",accentGlow:"rgba(56,189,248,0.22)",
+    accentAlt:"#818cf8",
+    green:"#34d399",red:"#f87171",yellow:"#fbbf24",
+    text:"#e8f4ff",textMuted:"#5e7d9a",textFaint:"#1e3045",
+    border:"rgba(56,189,248,0.09)",borderStrong:"rgba(56,189,248,0.2)",
   },
   light:{
-    bg:"#f2f3f5",bgSecondary:"#e3e5e8",bgTertiary:"#ffffff",
-    surface:"#ffffff",accent:"#5865f2",accentGlow:"rgba(88,101,242,0.2)",
-    green:"#2d7d46",red:"#d83c3e",yellow:"#c48a0e",
-    text:"#060607",textMuted:"#4e5058",textFaint:"#96989d",
-    border:"rgba(0,0,0,0.08)",
+    bg:"#f0f4f8",bgSecondary:"#e2e9f3",bgTertiary:"#ffffff",
+    surface:"#ffffff",accent:"#0284c7",accentGlow:"rgba(2,132,199,0.18)",
+    accentAlt:"#6366f1",
+    green:"#059669",red:"#dc2626",yellow:"#d97706",
+    text:"#0a1628",textMuted:"#4a6080",textFaint:"#9ab0c8",
+    border:"rgba(2,132,199,0.09)",borderStrong:"rgba(2,132,199,0.22)",
   },
 };
 
@@ -77,7 +82,7 @@ let ALL_CARDS = [];
 
 const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
 const RARITY_ORDER=["common","uncommon","rare","mythic"];
-const RARITY_COLOR={mythic:"#ef4444",rare:"#a78bfa",uncommon:"#7dd3fc",common:"#9ca3af"};
+const RARITY_COLOR={mythic:"#f43f5e",rare:"#a78bfa",uncommon:"#38bdf8",common:"#64748b"};
 const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune"};
 
 function fmtDate(iso){if(!iso)return"—";return new Date(iso).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});}
@@ -271,7 +276,12 @@ let splashTick = 0;
 let splashTimer = null;
 let touchStartX = null;
 
-function t(){ return state.isDark ? themes.dark : themes.light; }
+function t(){
+  const th = state.isDark ? themes.dark : themes.light;
+  if(!th.accentAlt) th.accentAlt = state.isDark?'#818cf8':'#6366f1';
+  if(!th.borderStrong) th.borderStrong = state.isDark?'rgba(56,189,248,0.2)':'rgba(2,132,199,0.22)';
+  return th;
+}
 
 function setState(updates){
   Object.assign(state, updates);
@@ -314,35 +324,45 @@ function render(){
 // ─── SPLASH ───────────────────────────────────────────────────────
 function renderSplash(th){
   return `
-  <div id="splash" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${th.bg};cursor:pointer;user-select:none;overflow:hidden;transition:opacity .45s;">
-    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 38%,${th.accentGlow} 0%,transparent 62%);"></div>
-    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 55% 60%,rgba(235,69,158,0.12) 0%,transparent 50%);"></div>
+  <div id="splash" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${th.bg};cursor:pointer;user-select:none;overflow:hidden;transition:opacity .5s;">
+    <!-- bg atmosphere -->
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(56,189,248,0.07) 0%,transparent 70%);"></div>
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 50% at 30% 70%,rgba(129,140,248,0.05) 0%,transparent 60%);"></div>
+    <!-- Grid lines subtle -->
+    <div style="position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);background-size:48px 48px;"></div>
     <svg id="splash-particles" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></svg>
-    <div style="position:relative;margin-bottom:40px;">
-      <div class="ring1" style="position:absolute;inset:-30px;border:1px solid rgba(88,101,242,.18);border-radius:50%;">
-        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:#5865f2;box-shadow:0 0 10px #5865f2;"></div>
+    <!-- Logo orbe -->
+    <div style="position:relative;margin-bottom:44px;">
+      <div class="ring1" style="position:absolute;inset:-36px;border:1px solid rgba(56,189,248,.1);border-radius:50%;">
+        <div style="position:absolute;top:-3px;left:50%;transform:translateX(-50%);width:6px;height:6px;border-radius:50%;background:#38bdf8;box-shadow:0 0 12px #38bdf8,0 0 24px rgba(56,189,248,.5);"></div>
       </div>
-      <div class="ring2" style="position:absolute;inset:-18px;border:1px solid rgba(235,69,158,.2);border-radius:50%;">
-        <div style="position:absolute;bottom:-3px;right:15%;width:6px;height:6px;border-radius:50%;background:#eb459e;box-shadow:0 0 8px #eb459e;"></div>
+      <div class="ring2" style="position:absolute;inset:-20px;border:1px solid rgba(129,140,248,.12);border-radius:50%;">
+        <div style="position:absolute;bottom:-3px;right:18%;width:5px;height:5px;border-radius:50%;background:#818cf8;box-shadow:0 0 10px #818cf8;"></div>
       </div>
-      <div id="conic-ring" style="width:112px;height:112px;border-radius:50%;background:conic-gradient(from 0deg,#5865f2,#eb459e,#fee75c,#57f287,#5865f2);display:flex;align-items:center;justify-content:center;box-shadow:0 0 50px rgba(88,101,242,.45);">
-        <div style="width:98px;height:98px;border-radius:50%;background:${th.bg};display:flex;align-items:center;justify-content:center;font-size:46px;">🃏</div>
-      </div>
-    </div>
-    <div style="text-align:center;margin-bottom:56px;">
-      <div style="font-family:'Cinzel',serif;font-size:34px;font-weight:900;letter-spacing:6px;color:${th.text};text-transform:uppercase;text-shadow:0 0 40px ${th.accentGlow};">DISCORD</div>
-      <div style="font-family:'Cinzel',serif;font-size:14px;letter-spacing:10px;color:${th.accent};text-transform:uppercase;margin-top:2px;margin-bottom:14px;">TCG</div>
-      <div style="display:flex;align-items:center;gap:10px;justify-content:center;">
-        <div style="width:44px;height:1px;background:linear-gradient(to right,transparent,${th.accent}80);"></div>
-        <div style="width:5px;height:5px;border-radius:50%;background:${th.accent};box-shadow:0 0 8px ${th.accent};"></div>
-        <div style="width:44px;height:1px;background:linear-gradient(to left,transparent,${th.accent}80);"></div>
+      <div id="conic-ring" style="width:110px;height:110px;border-radius:50%;background:conic-gradient(from 0deg,#38bdf8,#818cf8,#f43f5e,#34d399,#38bdf8);display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(56,189,248,.25),inset 0 0 30px rgba(56,189,248,.05);">
+        <div style="width:96px;height:96px;border-radius:50%;background:${th.bg};display:flex;align-items:center;justify-content:center;font-size:44px;border:1px solid rgba(56,189,248,.08);">🃏</div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
-      <div class="cta-pulse" style="font-size:11px;letter-spacing:3.5px;text-transform:uppercase;color:${th.textMuted};font-family:'Rajdhani',sans-serif;font-weight:600;">✦ &nbsp; Appuyer n'importe où &nbsp; ✦</div>
-      <div class="arrow-bounce" style="width:30px;height:30px;border-radius:50%;border:1px solid ${th.accent}50;display:flex;align-items:center;justify-content:center;color:${th.accent};font-size:13px;">▼</div>
+    <!-- Title -->
+    <div style="text-align:center;margin-bottom:52px;">
+      <div style="font-family:'Cinzel',serif;font-size:38px;font-weight:900;letter-spacing:8px;color:${th.text};text-transform:uppercase;text-shadow:0 0 60px rgba(56,189,248,.2);">DISCORD</div>
+      <div style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:12px;color:${th.accent};text-transform:uppercase;margin-top:0px;margin-bottom:16px;opacity:.85;">TCG</div>
+      <div style="display:flex;align-items:center;gap:12px;justify-content:center;">
+        <div style="width:50px;height:1px;background:linear-gradient(to right,transparent,${th.accent}60);"></div>
+        <div style="width:4px;height:4px;border-radius:50%;background:${th.accent};box-shadow:0 0 10px ${th.accent};"></div>
+        <div style="width:50px;height:1px;background:linear-gradient(to left,transparent,${th.accent}60);"></div>
+      </div>
     </div>
-    <div style="position:absolute;bottom:18px;font-size:9px;color:${th.textFaint};letter-spacing:2px;font-family:'Rajdhani',sans-serif;">v0.1 · BETA</div>
+    <!-- CTA -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+      <div class="cta-pulse" style="font-size:10px;letter-spacing:4px;text-transform:uppercase;color:${th.textMuted};font-family:'Rajdhani',sans-serif;font-weight:600;">✦ &nbsp; Appuyer pour commencer &nbsp; ✦</div>
+      <div class="arrow-bounce" style="width:32px;height:32px;border-radius:50%;border:1px solid ${th.accent}40;display:flex;align-items:center;justify-content:center;color:${th.accent};font-size:12px;background:rgba(56,189,248,.04);">▼</div>
+    </div>
+    <div style="position:absolute;bottom:20px;display:flex;align-items:center;gap:8px;">
+      <div style="width:5px;height:5px;border-radius:50%;background:${th.accent};opacity:.4;"></div>
+      <span style="font-size:9px;color:${th.textFaint};letter-spacing:3px;font-family:'Rajdhani',sans-serif;">v0.1 · BETA</span>
+      <div style="width:5px;height:5px;border-radius:50%;background:${th.accent};opacity:.4;"></div>
+    </div>
   </div>`;
 }
 
@@ -403,6 +423,7 @@ function renderGame(th){
     {label:"Boosters",icon:SVG.package},
   ];
   const NOTIF_COUNT = (state.friendRequestsIn||[]).length;
+  const MSG_COUNT = state.msgNotifCount || 0;
 
   let tabContent = '';
   if(state.tab===0) tabContent = renderTabPlay(th);
@@ -410,46 +431,42 @@ function renderGame(th){
   else tabContent = renderTabBoosters(th);
 
   return `
-  <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;">
+  <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;background:${th.bg};">
     <!-- HEADER -->
-    <div style="display:flex;align-items:center;padding:10px 14px 8px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:10px;">
-      <div style="display:flex;align-items:center;gap:8px;flex:1;">
-        <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,${th.accent},#eb459e);display:flex;align-items:center;justify-content:center;font-size:15px;">🃏</div>
-        <span style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;letter-spacing:2px;color:${th.text};">DCG</span>
-        <span style="font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:${th.textMuted};text-transform:uppercase;">BETA</span>
-      </div>
-      <!-- Coins -->
-      <div style="display:flex;align-items:center;gap:5px;background:${th.surface};border-radius:99px;padding:4px 10px;border:1px solid ${th.border};font-size:12px;font-weight:700;color:${th.yellow};flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</div>
-      <!-- Ligne haute : profil + musique + paramètres -->
-      <div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
-        <div style="display:flex;gap:4px;">
-          <button id="btn-profile" style="width:32px;height:32px;border-radius:50%;overflow:hidden;border:2px solid ${state.showProfile?th.accent:th.border};transition:border .15s;flex-shrink:0;background:${th.surface};display:flex;align-items:center;justify-content:center;">
-            ${state.currentUser?.user_metadata?.avatar_url
-              ? `<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />`
-              : `<span style="font-size:13px;">👤</span>`}
-          </button>
-          <button id="btn-music" style="width:32px;height:32px;border-radius:50%;background:${state.musicOn?th.accent+'30':th.surface};color:${state.musicOn?th.accent:th.textFaint};border:1px solid ${state.musicOn?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;">
-            ${state.musicOn?SVG.musicOn:SVG.musicOff}
-          </button>
-          <button id="btn-settings" style="width:32px;height:32px;border-radius:50%;background:${state.showSettings?th.accent:th.surface};color:${state.showSettings?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.settings}</button>
-        </div>
-        <!-- Ligne basse : amis + messages + notifs -->
-        <div style="display:flex;gap:4px;">
-          <button id="btn-friends" style="width:32px;height:32px;border-radius:50%;background:${state.showFriends?th.accent:th.surface};color:${state.showFriends?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.users}</button>
-          <div style="position:relative;">
-            <button id="btn-messages" style="width:32px;height:32px;border-radius:50%;background:${state.showMessages?th.accent:th.surface};color:${state.showMessages?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.chat}</button>
-            ${(state.msgNotifCount||0)>0&&!state.showMessages?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${state.msgNotifCount}</div>`:''}
-          </div>
-          <div style="position:relative;">
-            <button id="btn-notif" style="width:32px;height:32px;border-radius:50%;background:${state.showNotif?th.accent:th.surface};color:${state.showNotif?'#fff':th.textMuted};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;transition:all .15s;">${SVG.bell}</button>
-            ${NOTIF_COUNT>0&&!state.showNotif?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
-          </div>
+    <div style="display:flex;align-items:center;padding:10px 16px 10px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:12px;backdrop-filter:blur(12px);">
+      <!-- Logo -->
+      <div style="display:flex;align-items:center;gap:10px;flex:1;">
+        <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 16px ${th.accentGlow};">🃏</div>
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:3px;color:${th.text};line-height:1;">DCG</div>
+          <div style="font-size:7px;letter-spacing:2px;color:${th.textMuted};font-weight:600;text-transform:uppercase;">BETA</div>
         </div>
       </div>
-    </div>
-    <!-- TAB LINE -->
-    <div style="display:flex;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
-      ${TABS.map((_,i)=>`<div style="flex:1;height:2px;background:${state.tab===i?th.accent:'transparent'};transition:background .25s;"></div>`).join('')}
+      <!-- Coins pill -->
+      <div style="display:flex;align-items:center;gap:5px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:800;color:${th.yellow};flex-shrink:0;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
+        ${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}
+      </div>
+      <!-- Action icons -->
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button id="btn-messages" style="position:relative;width:34px;height:34px;border-radius:10px;background:${MSG_COUNT>0?th.accent+'18':'transparent'};border:1px solid ${MSG_COUNT>0?th.accent+'40':th.border};color:${MSG_COUNT>0?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
+          ${SVG.chat}
+          ${MSG_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:99px;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid ${th.bgSecondary};">${MSG_COUNT}</div>`:''}
+        </button>
+        <button id="btn-friends" style="width:34px;height:34px;border-radius:10px;background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
+          ${SVG.users}
+        </button>
+        <button id="btn-notif" style="position:relative;width:34px;height:34px;border-radius:10px;background:${NOTIF_COUNT>0?th.red+'15':'transparent'};border:1px solid ${NOTIF_COUNT>0?th.red+'40':th.border};color:${NOTIF_COUNT>0?th.red:th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
+          ${SVG.bell}
+          ${NOTIF_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:${th.red};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
+        </button>
+        <button id="btn-music" style="width:34px;height:34px;border-radius:10px;background:transparent;border:1px solid ${th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;transition:all .2s;">
+          ${state.musicOn?SVG.musicOn:SVG.musicOff}
+        </button>
+        <button id="btn-profile" style="width:34px;height:34px;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:13px;border:1px solid ${th.borderStrong};flex-shrink:0;">
+          ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'👤'}
+        </button>
+      </div>
     </div>
     <!-- CONTENT -->
     <div style="flex:1;overflow:hidden;position:relative;">
@@ -460,12 +477,12 @@ function renderGame(th){
       </div>
     </div>
     <!-- NAV BAS -->
-    <div style="display:flex;background:${th.bgSecondary};border-top:1px solid ${th.border};flex-shrink:0;">
+    <div style="display:flex;background:${th.bgSecondary};border-top:1px solid ${th.border};flex-shrink:0;padding:0 8px;padding-bottom:max(env(safe-area-inset-bottom),6px);">
       ${TABS.map((tb,i)=>`
-        <button data-tab="${i}" style="flex:1;padding:9px 0 11px;display:flex;flex-direction:column;align-items:center;gap:3px;background:transparent;border:none;color:${state.tab===i?th.accent:th.textMuted};transition:color .15s;">
-          <div style="transform:${state.tab===i?'scale(1.12)':'scale(1)'};transition:transform .15s;">${tb.icon}</div>
-          <span style="font-size:9px;font-weight:700;letter-spacing:.5px;">${tb.label}</span>
-          <div style="width:4px;height:4px;border-radius:50%;background:${state.tab===i?th.accent:'transparent'};transition:background .15s;"></div>
+        <button data-tab="${i}" style="flex:1;padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;color:${state.tab===i?th.accent:th.textMuted};transition:color .15s;position:relative;">
+          <div style="transform:${state.tab===i?'scale(1.1)':'scale(1)'};transition:transform .2s;opacity:${state.tab===i?1:.6};">${tb.icon}</div>
+          <span style="font-size:9px;font-weight:700;letter-spacing:.8px;">${tb.label}</span>
+          ${state.tab===i?`<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:24px;height:2px;border-radius:99px;background:${th.accent};box-shadow:0 0 8px ${th.accent};"></div>`:''}
         </button>`).join('')}
     </div>
     <!-- MODALS -->
@@ -490,38 +507,56 @@ function renderProfileModal(th){
   const totalCards = ALL_CARDS.length;
   const ownedCards = ALL_CARDS.filter(c => c.owned).length;
   const cardsDisplay = totalCards > 0 ? `${ownedCards}/${totalCards}` : '—';
+  const pct = totalCards > 0 ? Math.round(ownedCards/totalCards*100) : 0;
   return `
-  <div id="profile-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="profile-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 36px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
-      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
-      <div style="position:relative;margin-bottom:48px;">
-        <div style="height:72px;border-radius:12px;background:linear-gradient(135deg,${th.accent},#eb459e);opacity:.7;"></div>
-        <div style="position:absolute;bottom:-36px;left:16px;width:64px;height:64px;border-radius:50%;border:3px solid ${th.bgSecondary};overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;">
-          ${avatar ? '<img src="' + avatar + '" style="width:100%;height:100%;object-fit:cover;" />' : '<span style="font-size:28px;">👤</span>'}
+  <div id="profile-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="profile-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:0 0 36px;box-shadow:0 -12px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};overflow:hidden;">
+      <!-- Banner -->
+      <div style="height:90px;background:linear-gradient(135deg,${th.bg},${th.accent}25,${th.accentAlt}20);position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.04) 1px,transparent 1px);background-size:24px 24px;"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,${th.bgSecondary},transparent);"></div>
+      </div>
+      <!-- Drag handle -->
+      <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.15);"></div>
+      <!-- Avatar -->
+      <div style="position:relative;padding:0 20px 20px;margin-top:-36px;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;">
+          <div style="width:68px;height:68px;border-radius:16px;border:3px solid ${th.bgSecondary};overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.4);">
+            ${avatar ? '<img src="' + avatar + '" style="width:100%;height:100%;object-fit:cover;" />' : '<span style="font-size:30px;">👤</span>'}
+          </div>
+          <button id="btn-logout" style="padding:7px 16px;border-radius:99px;background:transparent;border:1px solid ${th.red}40;color:${th.red};font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.5px;">DÉCONNEXION</button>
+        </div>
+        <div style="margin-bottom:20px;">
+          <div style="font-family:'Cinzel',serif;font-size:17px;font-weight:700;color:${th.text};margin-bottom:3px;">${name}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:${th.green};box-shadow:0 0 6px ${th.green};"></div>
+            <div style="font-size:10px;color:${th.textMuted};">Connecté via Discord</div>
+          </div>
+        </div>
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px;">
+          ${[
+            {i:'🏆',v:state.wins!==null?state.wins:'—',l:'Victoires',c:th.green},
+            {i:'💀',v:state.losses!==null?state.losses:'—',l:'Défaites',c:th.red},
+            {i:'⭐',v:'—',l:'Rang',c:th.yellow},
+          ].map(s=>`
+          <div style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:14px;padding:14px 8px;text-align:center;">
+            <div style="font-size:18px;margin-bottom:4px;">${s.i}</div>
+            <div style="font-size:20px;font-weight:900;color:${s.c};line-height:1;">${s.v}</div>
+            <div style="font-size:8px;color:${th.textMuted};margin-top:3px;letter-spacing:.5px;text-transform:uppercase;">${s.l}</div>
+          </div>`).join('')}
+        </div>
+        <!-- Collection progress -->
+        <div style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:14px;padding:14px 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:11px;font-weight:700;color:${th.text};">🃏 Collection</div>
+            <div style="font-size:12px;font-weight:800;color:${th.accent};">${cardsDisplay} <span style="font-size:9px;color:${th.textMuted};font-weight:600;">(${pct}%)</span></div>
+          </div>
+          <div style="height:4px;border-radius:99px;background:${th.bg};overflow:hidden;">
+            <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,${th.accent},${th.accentAlt});box-shadow:0 0 8px ${th.accentGlow};transition:width .6s ease;"></div>
+          </div>
         </div>
       </div>
-      <div style="margin-bottom:20px;">
-        <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:${th.text};">${name}</div>
-        <div style="font-size:11px;color:${th.textMuted};margin-top:2px;">Connecté via Discord ✓</div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;">
-        <div style="background:${th.bgTertiary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
-          <div style="font-size:18px;">🏆</div>
-          <div style="font-size:16px;font-weight:800;color:${th.green};margin-top:2px;">${state.wins!==null?state.wins:'—'}</div>
-          <div style="font-size:9px;color:${th.textMuted};">Victoires</div>
-        </div>
-        <div style="background:${th.bgTertiary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
-          <div style="font-size:18px;">💀</div>
-          <div style="font-size:16px;font-weight:800;color:${th.red};margin-top:2px;">${state.losses!==null?state.losses:'—'}</div>
-          <div style="font-size:9px;color:${th.textMuted};">Défaites</div>
-        </div>
-        <div style="background:${th.bgTertiary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
-          <div style="font-size:18px;">🃏</div>
-          <div style="font-size:${totalCards > 0 ? '13px' : '16px'};font-weight:800;color:${th.accent};margin-top:2px;letter-spacing:.5px;">${cardsDisplay}</div>
-          <div style="font-size:9px;color:${th.textMuted};">Cartes</div>
-        </div>
-      </div>
-      <button id="btn-logout" style="width:100%;padding:11px;border-radius:10px;background:transparent;border:1px solid ${th.red}40;color:${th.red};font-size:12px;font-weight:700;cursor:pointer;">Se déconnecter</button>
     </div>
   </div>`;
 }
@@ -536,43 +571,45 @@ function renderDeckList(th){
   const decks = state.decks || [];
   return `
   <div id="deckbuilder-bg" style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;gap:10px;padding:14px 16px 10px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
-      <button id="db-close" style="width:30px;height:30px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;">✕</button>
-      <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};flex:1;">Deck Builder</div>
-      <button id="db-new" style="padding:6px 14px;border-radius:99px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:700;cursor:pointer;">＋ Nouveau</button>
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px 12px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="db-close" style="width:32px;height:32px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;">✕</button>
+      <div style="flex:1;">
+        <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};letter-spacing:1px;">Deck Builder</div>
+        <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${decks.length} deck${decks.length>1?'s':''} créé${decks.length>1?'s':''}</div>
+      </div>
+      <button id="db-new" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;">＋ NOUVEAU</button>
     </div>
-    <!-- Liste decks -->
     <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">
       ${decks.length===0?`
-        <div style="text-align:center;padding:40px 20px;color:${th.textMuted};">
-          <div style="font-size:36px;margin-bottom:10px;">🗂️</div>
-          <div style="font-size:13px;font-weight:600;">Aucun deck créé</div>
-          <div style="font-size:11px;margin-top:4px;">Crée ton premier deck !</div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;color:${th.textMuted};padding:40px 20px;text-align:center;">
+          <div style="font-size:48px;opacity:.3;">🗂️</div>
+          <div style="font-size:14px;font-weight:700;color:${th.text};">Aucun deck</div>
+          <div style="font-size:11px;line-height:1.6;">Crée ton premier deck pour commencer à jouer !</div>
         </div>
       `:decks.map(deck=>{
         const total = deck.cards ? deck.cards.reduce((s,c)=>s+c.quantity,0) : 0;
         const isPlayable = total===30;
         const isDefault = deck.is_default;
+        const pct = Math.min(100,Math.round(total/30*100));
         return `
-        <div class="deck-item" data-deckid="${deck.id}" style="background:${isDefault?th.accent+'18':th.bgSecondary};border:1px solid ${isDefault?th.accent:isPlayable?th.green+'50':th.red+'60'};border-radius:14px;padding:13px 14px;cursor:pointer;position:relative;">
-          ${isDefault?`<div style="position:absolute;top:8px;right:10px;font-size:9px;font-weight:700;color:${th.accent};background:${th.accent}20;padding:2px 8px;border-radius:99px;letter-spacing:.5px;">⭐ PAR DÉFAUT</div>`:''}
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:40px;height:40px;border-radius:10px;background:${isDefault?th.accent+'30':th.surface};border:1px solid ${isDefault?th.accent+'60':th.border};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🗂️</div>
+        <div class="deck-item" data-deckid="${deck.id}" style="background:${th.bgSecondary};border:1px solid ${isDefault?th.borderStrong:isPlayable?th.green+'30':th.border};border-radius:16px;padding:14px 16px;cursor:pointer;position:relative;overflow:hidden;transition:all .18s;">
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${isDefault?th.accent:isPlayable?th.green:'transparent'}50,transparent);"></div>
+          ${isDefault?`<div style="position:absolute;top:10px;right:12px;font-size:9px;font-weight:800;color:${th.accent};background:${th.accent}18;padding:3px 10px;border-radius:99px;letter-spacing:.5px;border:1px solid ${th.accent}35;">⭐ DÉFAUT</div>`:''}
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${isPlayable?th.green+'15':th.bgTertiary};border:1px solid ${isPlayable?th.green+'40':th.border};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🗂️</div>
             <div style="flex:1;min-width:0;">
-              <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">${deck.name}</div>
-              <div style="font-size:10px;margin-top:2px;color:${isPlayable?th.green:th.red};font-weight:600;">
-                ${isPlayable?`✓ Prêt · ${total}/30`:`⚠ Inutilisable · ${total}/30 cartes`}
-              </div>
-            </div>
-            <div style="display:flex;gap:5px;flex-shrink:0;">
-              ${!isDefault?`<button class="db-set-default" data-deckid="${deck.id}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;" title="Mettre par défaut">⭐</button>`:''}
-              <button class="db-rename" data-deckid="${deck.id}" data-deckname="${deck.name}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;" title="Renommer">✏️</button>
-              <button class="db-delete" data-deckid="${deck.id}" style="padding:4px 9px;border-radius:6px;font-size:9px;font-weight:700;background:${th.red}15;color:${th.red};border:1px solid ${th.red}40;cursor:pointer;" title="Supprimer">🗑</button>
+              <div style="font-size:14px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:${isDefault?'70px':'0'};">${deck.name}</div>
+              <div style="font-size:10px;color:${isPlayable?th.green:th.textMuted};margin-top:2px;font-weight:600;">${isPlayable?'✓ Prêt à jouer':`${total}/30 cartes`}</div>
             </div>
           </div>
-          <!-- Mini aperçu des cartes -->
-          ${total>0?`<div style="margin-top:8px;font-size:9px;color:${th.textMuted};">${deck.cards.slice(0,8).map(c=>{const card=ALL_CARDS.find(x=>String(x.id)===String(c.card_id)||parseInt(x.id)===c.card_id);return card?`<span style="margin-right:3px;color:${RARITY_COLOR[card.rarity]};">◆</span>`:''}).join('')}${deck.cards.length>8?`<span>+${deck.cards.length-8}</span>`:''}</div>`:''}
+          <div style="height:3px;border-radius:99px;background:${th.bgTertiary};overflow:hidden;margin-bottom:12px;">
+            <div style="height:100%;width:${pct}%;border-radius:99px;background:${isPlayable?`linear-gradient(90deg,${th.green},${th.accent})`:`linear-gradient(90deg,${th.accent},${th.accentAlt})`};transition:width .4s ease;"></div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            ${!isDefault?`<button class="db-set-default btn-hover" data-deckid="${deck.id}" style="padding:6px 12px;border-radius:99px;font-size:9px;font-weight:800;background:${th.accent}12;color:${th.accent};border:1px solid ${th.accent}30;cursor:pointer;letter-spacing:.3px;">⭐ DÉFAUT</button>`:''}
+            <button class="db-rename btn-hover" data-deckid="${deck.id}" data-deckname="${deck.name}" style="padding:6px 12px;border-radius:99px;font-size:9px;font-weight:800;background:${th.bgTertiary};color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;letter-spacing:.3px;">✏️ RENOMMER</button>
+            <button class="db-delete btn-hover" data-deckid="${deck.id}" style="margin-left:auto;padding:6px 12px;border-radius:99px;font-size:9px;font-weight:800;background:transparent;color:${th.red};border:1px solid ${th.red}30;cursor:pointer;letter-spacing:.3px;">🗑</button>
+          </div>
         </div>`;
       }).join('')}
     </div>
@@ -618,23 +655,21 @@ function renderDeckEdit(th){
 
   return `
   <div id="deckbuilder-bg" style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px 10px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
-      <button id="db-back" style="width:30px;height:30px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;">←</button>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px 12px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="db-back" style="width:32px;height:32px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0;">←</button>
       <div style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:center;gap:5px;">
-          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${deck.name}</div>
-          <button id="db-rename-edit" data-deckid="${deck.id}" data-deckname="${deck.name}" style="width:20px;height:20px;border-radius:4px;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">✏️</button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.5px;">${deck.name}</div>
+          <button id="db-rename-edit" data-deckid="${deck.id}" data-deckname="${deck.name}" style="width:22px;height:22px;border-radius:6px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.textMuted};font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">✏️</button>
         </div>
-        <div style="font-size:9px;color:${isPlayable?th.green:th.red};font-weight:600;">${isPlayable?'✓ Deck prêt':deckTotal+'/30 · Inutilisable'} · ${mythCount}/2 Myth.</div>
+        <div style="font-size:9px;color:${isPlayable?th.green:th.textMuted};font-weight:700;margin-top:1px;">${isPlayable?'✓ Deck prêt':deckTotal+'/30'} · ${mythCount}/2 Myth.</div>
       </div>
-      <button id="db-save" style="padding:6px 14px;border-radius:99px;background:${th.green};color:#000;border:none;font-size:11px;font-weight:700;cursor:pointer;">💾 Sauvegarder</button>
-      <button id="db-autofill" style="padding:6px 10px;border-radius:99px;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}50;font-size:10px;font-weight:700;cursor:pointer;" title="Remplir automatiquement avec les meilleures cartes">✨ Auto</button>
+      <button id="db-autofill" style="padding:6px 12px;border-radius:99px;background:${th.accentAlt}18;color:${th.accentAlt};border:1px solid ${th.accentAlt}40;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.3px;">✨ AUTO</button>
+      <button id="db-save" style="padding:6px 14px;border-radius:99px;background:${th.green};color:#000;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.3px;">💾 SAVE</button>
     </div>
 
-    <!-- Deck actuel (scrollable horizontal) -->
-    <div style="background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;padding:10px 14px;">
-      <div style="font-size:10px;color:${th.textMuted};margin-bottom:6px;font-weight:600;">CARTES DU DECK (${deckTotal}/30)</div>
+    <div style="background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;padding:10px 16px;">
+      <div style="font-size:9px;color:${th.textMuted};margin-bottom:6px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cartes du deck (${deckTotal}/30)</div>
       <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;min-height:60px;align-items:center;">
         ${deckTotal===0?`<div style="color:${th.textFaint};font-size:11px;padding:0 8px;">Aucune carte — ajoute des cartes ci-dessous</div>`
           :deckCards.map(entry=>{
@@ -649,9 +684,8 @@ function renderDeckEdit(th){
       </div>
     </div>
 
-    <!-- Collection filtrée (cartes possédées) -->
-    <div style="flex:1;overflow-y:auto;padding:10px 14px;">
-      <div style="font-size:10px;color:${th.textMuted};margin-bottom:8px;font-weight:600;">MA COLLECTION (${ownedCards.length} cartes)</div>
+    <div style="flex:1;overflow-y:auto;padding:10px 16px;">
+      <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Ma collection (${ownedCards.length} cartes)</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
         ${ownedCards.map(card=>{
           const qty=qtyInDeck(card.id);
@@ -683,9 +717,9 @@ function renderTradeModal(th){
     // Le receveur voit la vraie carte demandée seulement s'il la possède
     const receiverOwnsToCard = toCard && toCard.owned;
     return `
-    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;padding:20px;">
-      <div style="width:100%;max-width:360px;background:${th.bgSecondary};border-radius:18px;padding:20px;box-shadow:0 -8px 40px rgba(0,0,0,.5);">
-        <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};margin-bottom:4px;">Offre d'échange</div>
+    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="width:100%;max-width:360px;background:${th.bgSecondary};border-radius:20px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.7);border:1px solid ${th.borderStrong};">
+        <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};margin-bottom:4px;letter-spacing:.5px;">Offre d'échange</div>
         <div style="font-size:11px;color:${th.textMuted};margin-bottom:16px;">de <b>${incoming.from_name||'Ami'}</b></div>
         <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px;">
           <div style="text-align:center;">
@@ -735,8 +769,8 @@ function renderTradeModal(th){
     const notSame = wantedCard && parseInt(wantedCard.id) !== parseInt(state.tradeMyCard.id);
     const canSend = wantedCard && rarityOk && notSame;
     return `
-    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.8);display:flex;align-items:flex-end;justify-content:center;">
-      <div style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:16px;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,.5);">
+    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;">
+      <div style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:16px;display:flex;flex-direction:column;box-shadow:0 -20px 60px rgba(0,0,0,.7);border-top:1px solid ${th.borderStrong};">
         <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 14px;flex-shrink:0;"></div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0;">
           <button id="trade-step-back" style="width:28px;height:28px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};font-size:14px;cursor:pointer;">←</button>
@@ -787,7 +821,7 @@ function renderTradeModal(th){
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0;">
         <button id="trade-close" style="width:28px;height:28px;border-radius:50%;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};font-size:14px;cursor:pointer;">✕</button>
         <div>
-          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};">Proposer un échange</div>
+          <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};letter-spacing:.5px;">Proposer un échange</div>
           <div style="font-size:10px;color:${th.textMuted};">avec ${friendName} · même rareté · 1 contre 1</div>
         </div>
       </div>
@@ -822,32 +856,34 @@ function renderTabPlay(th){
     {id:"secret",label:"???",sub:"Mode secret",desc:"Ce mode sera débloqué prochainement…",icon:"🔒",color:th.textFaint,available:false},
   ];
   return `
-  <div style="display:flex;flex-direction:column;height:100%;padding:14px;gap:10px;overflow:hidden;">
-    <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:4px;color:${th.textMuted};text-transform:uppercase;">Mode de jeu</div>
-    <div style="display:flex;flex-direction:column;gap:8px;flex:1;">
-      ${modes.map(m=>`
-        <button class="mode-btn" data-mode="${m.id}" style="flex:1;background:${m.available?`linear-gradient(135deg,${m.color}12,transparent)`:th.bgSecondary};border:1px solid ${m.available?m.color+'35':th.border};border-radius:14px;display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:${m.available?'pointer':'not-allowed'};opacity:${m.available?1:.42};transition:all .2s;width:100%;text-align:left;">
-          <div style="width:54px;height:54px;border-radius:14px;flex-shrink:0;background:${m.available?m.color+'20':th.surface};border:1px solid ${m.color}30;display:flex;align-items:center;justify-content:center;font-size:26px;">${m.icon}</div>
+  <div style="display:flex;flex-direction:column;height:100%;padding:16px;gap:12px;overflow:hidden;background:${th.bg};">
+    <div style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:5px;color:${th.textMuted};text-transform:uppercase;">Mode de jeu</div>
+    <div style="display:flex;flex-direction:column;gap:10px;flex:1;">
+      ${modes.map((m,mi)=>`
+        <button class="mode-btn btn-hover" data-mode="${m.id}" style="flex:1;background:${m.available?`linear-gradient(135deg,${m.color}10,${m.color}04)`:'transparent'};border:1px solid ${m.available?m.color+'28':th.border};border-radius:18px;display:flex;align-items:center;gap:16px;padding:16px 18px;cursor:${m.available?'pointer':'not-allowed'};opacity:${m.available?1:.35};width:100%;text-align:left;position:relative;overflow:hidden;">
+          ${m.available?`<div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${m.color}40,transparent);"></div>`:''}
+          <div style="width:56px;height:56px;border-radius:16px;flex-shrink:0;background:${m.available?m.color+'14':'rgba(255,255,255,.03)'};border:1px solid ${m.color}25;display:flex;align-items:center;justify-content:center;font-size:28px;">${m.icon}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${m.available?m.color:th.textFaint};">${m.label}</div>
-            <div style="font-size:12px;font-weight:600;color:${th.text};margin-top:1px;">${m.sub}</div>
-            <div style="font-size:10px;color:${th.textMuted};margin-top:3px;line-height:1.4;">${m.desc}</div>
+            <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:${m.available?m.color:th.textFaint};letter-spacing:1px;">${m.label}</div>
+            <div style="font-size:12px;font-weight:700;color:${th.text};margin-top:2px;opacity:.8;">${m.sub}</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:4px;line-height:1.5;">${m.desc}</div>
           </div>
           ${m.available
-            ?`<div style="padding:7px 14px;border-radius:99px;flex-shrink:0;background:transparent;border:1px solid ${m.color}60;color:${m.color};font-size:10px;font-weight:700;white-space:nowrap;">JOUER</div>`
-            :`<div style="padding:4px 10px;border-radius:99px;background:${th.surface};color:${th.textFaint};font-size:9px;font-weight:600;flex-shrink:0;">Bientôt</div>`}
+            ?`<div style="padding:8px 16px;border-radius:99px;flex-shrink:0;background:${m.color}18;border:1px solid ${m.color}50;color:${m.color};font-size:10px;font-weight:800;white-space:nowrap;letter-spacing:1px;">JOUER</div>`
+            :`<div style="padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.04);color:${th.textFaint};font-size:9px;font-weight:700;flex-shrink:0;letter-spacing:.5px;">BIENTÔT</div>`}
         </button>`).join('')}
     </div>
+    <!-- Stats row -->
     <div style="display:flex;gap:8px;">
       ${[
         {l:"Victoires",v:state.wins!==null?state.wins:'—',c:th.green,i:"🏆"},
         {l:"Défaites",v:state.losses!==null?state.losses:'—',c:th.red,i:"💀"},
         {l:"Rang",v:"—",c:th.yellow,i:"⭐"}
       ].map(s=>`
-        <div style="flex:1;background:${th.bgSecondary};border-radius:10px;padding:10px 6px;text-align:center;border:1px solid ${th.border};">
-          <div style="font-size:16px;">${s.i}</div>
-          <div style="font-size:18px;font-weight:800;color:${s.c};margin-top:2px;">${s.v}</div>
-          <div style="font-size:9px;color:${th.textMuted};">${s.l}</div>
+        <div style="flex:1;background:${th.bgSecondary};border-radius:14px;padding:12px 6px;text-align:center;border:1px solid ${th.border};">
+          <div style="font-size:18px;margin-bottom:4px;">${s.i}</div>
+          <div style="font-size:20px;font-weight:900;color:${s.c};line-height:1;">${s.v}</div>
+          <div style="font-size:8px;color:${th.textMuted};margin-top:4px;letter-spacing:.5px;text-transform:uppercase;">${s.l}</div>
         </div>`).join('')}
     </div>
   </div>`;
@@ -862,76 +898,85 @@ function renderTabCollection(th){
     .filter(c=>state.collShowOwned==="all"||(state.collShowOwned==="owned"&&c.owned)||(state.collShowOwned==="missing"&&!c.owned))
     .filter(c=>state.collFilterType==="all"||c.type===state.collFilterType)
     .sort((a,b)=>state.collSortBy==="id"?a.id.localeCompare(b.id):RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
+  const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
 
   return `
-  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;position:relative;">
-    <div style="flex-shrink:0;padding:12px 14px 0;">
-      <div style="background:linear-gradient(135deg,${th.accent}18,${th.accent}06);border:1px solid ${th.accent}40;border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;">
-        <div style="position:absolute;right:-8px;top:-8px;font-size:52px;opacity:.04;pointer-events:none;">🗂️</div>
-        <div style="width:42px;height:42px;border-radius:10px;flex-shrink:0;background:${th.accent}20;border:1px solid ${th.accent}50;display:flex;align-items:center;justify-content:center;font-size:20px;">🗂️</div>
-        <div style="flex:1;">
-          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">Deck Builder</div>
-          <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${owned} carte${owned>1?'s':''} disponible${owned>1?'s':''}</div>
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;position:relative;background:${th.bg};">
+    <!-- Deck builder banner -->
+    <div style="flex-shrink:0;padding:12px 14px 8px;">
+      <div style="background:linear-gradient(135deg,${th.accent}12,${th.accentAlt}08);border:1px solid ${th.borderStrong};border-radius:16px;padding:12px 16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${th.accent}50,transparent);"></div>
+        <div style="position:absolute;right:-4px;top:-4px;font-size:48px;opacity:.04;pointer-events:none;">🗂️</div>
+        <div style="width:40px;height:40px;border-radius:12px;flex-shrink:0;background:${th.accent}18;border:1px solid ${th.accent}40;display:flex;align-items:center;justify-content:center;font-size:18px;">🗂️</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.5px;">Deck Builder</div>
+          <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">${owned} carte${owned>1?'s':''} disponible${owned>1?'s':''} · ${pct}% de la collection</div>
+          <div style="height:2px;border-radius:99px;background:${th.bg};margin-top:6px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;border-radius:99px;background:linear-gradient(90deg,${th.accent},${th.accentAlt});"></div>
+          </div>
         </div>
-        <button id="btn-open-deckbuilder" style="padding:6px 12px;border-radius:99px;flex-shrink:0;background:${th.accent};color:#fff;border:none;cursor:pointer;font-size:10px;font-weight:700;">Ouvrir</button>
+        <button id="btn-open-deckbuilder" style="padding:7px 14px;border-radius:99px;flex-shrink:0;background:${th.accent};color:#fff;border:none;cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.5px;">OUVRIR</button>
       </div>
     </div>
-    <div style="padding:8px 14px 6px;flex-shrink:0;display:flex;flex-direction:column;gap:5px;">
-      <div style="display:flex;gap:5px;align-items:center;">
-        <span style="font-size:10px;color:${th.textMuted};white-space:nowrap;">Tri :</span>
-        <button class="sort-btn" data-sort="id" style="padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collSortBy==='id'?th.accent:th.surface};color:${state.collSortBy==='id'?'#fff':th.textMuted};border:none;transition:all .15s;">ID</button>
-        <button class="sort-btn" data-sort="rarity" style="padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collSortBy==='rarity'?th.accent:th.surface};color:${state.collSortBy==='rarity'?'#fff':th.textMuted};border:none;transition:all .15s;">Rareté</button>
+    <!-- Filters -->
+    <div style="padding:0 14px 8px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-size:9px;color:${th.textMuted};white-space:nowrap;letter-spacing:.5px;text-transform:uppercase;">Tri</span>
+        <button class="sort-btn" data-sort="id" style="padding:5px 12px;border-radius:99px;font-size:10px;font-weight:700;background:${state.collSortBy==='id'?th.accent+'22':'transparent'};color:${state.collSortBy==='id'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='id'?th.accent+'50':th.border};transition:all .15s;">ID</button>
+        <button class="sort-btn" data-sort="rarity" style="padding:5px 12px;border-radius:99px;font-size:10px;font-weight:700;background:${state.collSortBy==='rarity'?th.accent+'22':'transparent'};color:${state.collSortBy==='rarity'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='rarity'?th.accent+'50':th.border};transition:all .15s;">Rareté</button>
         <div style="margin-left:auto;position:relative;">
-          <div style="display:flex;gap:4px;margin-bottom:2px;">
-          <button class="owned-filter-btn" data-val="all" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;border:none;background:${state.collShowOwned==='all'?th.text:th.surface};color:${state.collShowOwned==='all'?th.bg:th.textMuted};">Toutes</button>
-          <button class="owned-filter-btn" data-val="owned" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid ${th.green}60;background:${state.collShowOwned==='owned'?th.green:th.surface};color:${state.collShowOwned==='owned'?'#000':th.green};">Possédées</button>
-          <button class="owned-filter-btn" data-val="missing" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid ${th.red}60;background:${state.collShowOwned==='missing'?th.red:th.surface};color:${state.collShowOwned==='missing'?'#fff':th.red};">Manquantes</button>
-        </div>
-        <button id="set-filter-btn" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:600;background:${state.collFilterSet!=='all'?th.accent:th.surface};color:${state.collFilterSet!=='all'?'#fff':th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent:th.border};;white-space:nowrap;">
+          <div style="display:flex;gap:4px;margin-bottom:4px;">
+            <button class="owned-filter-btn" data-val="all" style="padding:4px 10px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid ${state.collShowOwned==='all'?th.accent+'50':th.border};background:${state.collShowOwned==='all'?th.accent+'18':'transparent'};color:${state.collShowOwned==='all'?th.accent:th.textMuted};transition:all .15s;">Toutes</button>
+            <button class="owned-filter-btn" data-val="owned" style="padding:4px 10px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid ${state.collShowOwned==='owned'?th.green+'50':th.border};background:${state.collShowOwned==='owned'?th.green+'18':'transparent'};color:${state.collShowOwned==='owned'?th.green:th.textMuted};transition:all .15s;">Possédées</button>
+            <button class="owned-filter-btn" data-val="missing" style="padding:4px 10px;border-radius:99px;font-size:9px;font-weight:700;border:1px solid ${state.collShowOwned==='missing'?th.red+'50':th.border};background:${state.collShowOwned==='missing'?th.red+'18':'transparent'};color:${state.collShowOwned==='missing'?th.red:th.textMuted};transition:all .15s;">Manquantes</button>
+          </div>
+          <button id="set-filter-btn" style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:9px;font-weight:700;background:${state.collFilterSet!=='all'?th.accent+'18':'transparent'};color:${state.collFilterSet!=='all'?th.accent:th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent+'50':th.border};white-space:nowrap;transition:all .15s;">
             ${state.collFilterSet === "all" ? "Tous les Sets" : state.collFilterSet}
             <span style="display:inline-block;transform:${state.collSetOpen?'rotate(180deg)':'none'};transition:transform .2s;">${SVG.chevron}</span>
           </button>
           ${state.collSetOpen?`
-          <div id="set-dropdown" style="position:absolute;right:0;top:calc(100% + 6px);background:${th.bgSecondary};border:1px solid ${th.border};border-radius:10px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:50;min-width:140px;">
-            <button class="set-opt" data-val="all" style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:11px;font-weight:600;background:${state.collFilterSet==='all'?th.accent+'20':'transparent'};color:${state.collFilterSet==='all'?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">Tous les Sets</button>
+          <div id="set-dropdown" style="position:absolute;right:0;top:calc(100% + 6px);background:${th.bgSecondary};border:1px solid ${th.borderStrong};border-radius:12px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:50;min-width:150px;">
+            <button class="set-opt" data-val="all" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:11px;font-weight:700;background:${state.collFilterSet==='all'?th.accent+'18':'transparent'};color:${state.collFilterSet==='all'?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">Tous les Sets</button>
             ${[...new Set(ALL_CARDS.map(c=>c.set))].sort().map(s=>`
-              <button class="set-opt" data-val="${s}" style="display:block;width:100%;text-align:left;padding:9px 14px;font-size:11px;font-weight:600;background:${state.collFilterSet===s?th.accent+'20':'transparent'};color:${state.collFilterSet===s?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">${s}</button>`).join('')}
+              <button class="set-opt" data-val="${s}" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:11px;font-weight:700;background:${state.collFilterSet===s?th.accent+'18':'transparent'};color:${state.collFilterSet===s?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">${s}</button>`).join('')}
           </div>`:''}
         </div>
       </div>
-      <div style="display:flex;gap:5px;overflow-x:auto;">
-        <button class="rar-btn" data-rar="all" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterRarity==='all'?th.text:th.surface};color:${state.collFilterRarity==='all'?th.bg:th.textMuted};border:none;">Tout</button>
-        ${RARITY_ORDER.map(r=>`<button class="rar-btn" data-rar="${r}" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterRarity===r?RARITY_COLOR[r]:th.surface};color:${state.collFilterRarity===r?'#fff':RARITY_COLOR[r]};border:1px solid ${RARITY_COLOR[r]}40;">${RARITY_LABEL[r]}</button>`).join('')}
+      <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;">
+        <button class="rar-btn" data-rar="all" style="padding:4px 12px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterRarity==='all'?th.borderStrong:th.border};background:${state.collFilterRarity==='all'?th.accent+'18':'transparent'};color:${state.collFilterRarity==='all'?th.accent:th.textMuted};transition:all .15s;">Tout</button>
+        ${RARITY_ORDER.map(r=>`<button class="rar-btn" data-rar="${r}" style="padding:4px 12px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterRarity===r?RARITY_COLOR[r]+'80':th.border};background:${state.collFilterRarity===r?RARITY_COLOR[r]+'18':'transparent'};color:${state.collFilterRarity===r?RARITY_COLOR[r]:th.textMuted};transition:all .15s;">${RARITY_LABEL[r]}</button>`).join('')}
       </div>
       <div style="display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;">
-        <button class="type-btn" data-type="all" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='all'?th.text:th.surface};color:${state.collFilterType==='all'?th.bg:th.textMuted};border:none;flex-shrink:0;">Tous</button>
-        <button class="type-btn" data-type="Hero" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='Hero'?'#f59e0b':th.surface};color:${state.collFilterType==='Hero'?'#000':th.yellow};border:1px solid #f59e0b40;flex-shrink:0;">⚔ Héros</button>
-        <button class="type-btn" data-type="Ruse" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='Ruse'?'#10b981':th.surface};color:${state.collFilterType==='Ruse'?'#000':th.green};border:1px solid #10b98140;flex-shrink:0;">🃏 Ruse</button>
-        <button class="type-btn" data-type="Arcane" style="padding:3px 10px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;background:${state.collFilterType==='Arcane'?'#8b5cf6':th.surface};color:${state.collFilterType==='Arcane'?'#fff':'#8b5cf6'};border:1px solid #8b5cf640;flex-shrink:0;">✦ Arcane</button>
+        <button class="type-btn" data-type="all" style="padding:4px 12px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='all'?th.borderStrong:th.border};background:${state.collFilterType==='all'?th.accent+'18':'transparent'};color:${state.collFilterType==='all'?th.accent:th.textMuted};transition:all .15s;flex-shrink:0;">Tous</button>
+        <button class="type-btn" data-type="Hero" style="padding:4px 12px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Hero'?'#f59e0b80':th.border};background:${state.collFilterType==='Hero'?'rgba(245,158,11,.12)':'transparent'};color:${state.collFilterType==='Hero'?'#f59e0b':th.textMuted};transition:all .15s;flex-shrink:0;">⚔ Héros</button>
+        <button class="type-btn" data-type="Ruse" style="padding:4px 12px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Ruse'?'#10b98180':th.border};background:${state.collFilterType==='Ruse'?'rgba(16,185,129,.12)':'transparent'};color:${state.collFilterType==='Ruse'?'#10b981':th.textMuted};transition:all .15s;flex-shrink:0;">🃏 Ruse</button>
+        <button class="type-btn" data-type="Arcane" style="padding:4px 12px;border-radius:99px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Arcane'?'#8b5cf680':th.border};background:${state.collFilterType==='Arcane'?'rgba(139,92,246,.12)':'transparent'};color:${state.collFilterType==='Arcane'?'#8b5cf6':th.textMuted};transition:all .15s;flex-shrink:0;">✦ Arcane</button>
       </div>
-      <div style="font-size:9px;color:${th.textFaint};">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
+      <div style="font-size:9px;color:${th.textFaint};letter-spacing:.3px;">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
     </div>
+    <!-- Grid -->
     <div style="flex:1;overflow-y:auto;padding:0 14px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-content:start;">
       ${cards.map(c=>renderCollCard(c,th)).join('')}
-      ${cards.length===0?`<div style="grid-column:1/-1;text-align:center;color:${th.textMuted};font-size:12px;padding-top:30px;">Aucune carte</div>`:''}
+      ${cards.length===0?`<div style="grid-column:1/-1;text-align:center;color:${th.textMuted};font-size:12px;padding-top:40px;"><div style="font-size:32px;margin-bottom:10px;">🔍</div>Aucune carte</div>`:''}
     </div>
   </div>`;
 }
 
 function renderCollCard(card,th){
   if(!card.owned){
-    return `<div class="coll-card" data-cardid="${card.id}" style="background:${th.bgTertiary};border:1px solid ${th.border};border-radius:10px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.32;filter:grayscale(1);cursor:pointer;transition:all .15s;">
-      <div style="font-size:18px;">🂠</div>
-      <div style="font-size:9px;font-weight:700;color:${th.textMuted};">#${card.id}</div>
+    return `<div class="coll-card" data-cardid="${card.id}" style="background:${th.bgSecondary};border:1px solid ${th.border};border-radius:12px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;opacity:.28;filter:grayscale(1);cursor:pointer;transition:all .2s;">
+      <div style="font-size:20px;">🂠</div>
+      <div style="font-size:8px;font-weight:700;color:${th.textMuted};">#${card.id}</div>
     </div>`;
   }
-  return `<div class="coll-card" data-cardid="${card.id}" style="background:linear-gradient(160deg,${card.color}18,${th.bgSecondary});border:1px solid ${card.color}30;border-radius:10px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;overflow:hidden;padding:8px 6px 6px;gap:4px;position:relative;">
-    ${card.count>1?`<div style="position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:50%;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">×${card.count}</div>`:''}
-    <div style="flex:1;width:100%;border-radius:6px;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>
-    <div style="font-size:8px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;">${card.name}</div>
-    <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
-      <span style="font-size:8px;color:${th.textMuted};">#${card.id}</span>
-      <span style="font-size:9px;color:${RARITY_COLOR[card.rarity]};">◆</span>
+  return `<div class="coll-card" data-cardid="${card.id}" style="background:linear-gradient(160deg,${card.color}14,${th.bgSecondary});border:1px solid ${card.color}25;border-radius:12px;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;overflow:hidden;padding:7px 5px 5px;gap:3px;position:relative;">
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${card.color}50,transparent);"></div>
+    ${card.count>1?`<div style="position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:6px;background:${th.accent};color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;">×${card.count}</div>`:''}
+    <div style="flex:1;width:100%;border-radius:7px;background:linear-gradient(135deg,${card.color}22,${card.color}08);display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>
+    <div style="font-size:8px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;padding:0 2px;">${card.name}</div>
+    <div style="display:flex;justify-content:space-between;width:100%;align-items:center;padding:0 2px;">
+      <span style="font-size:7px;color:${th.textMuted};">#${card.id}</span>
+      <span style="font-size:8px;color:${card.color};">◆</span>
     </div>
   </div>`;
 }
@@ -939,7 +984,7 @@ function renderCollCard(card,th){
 // ─── CARD DETAIL MODAL ────────────────────────────────────────────
 function renderCardDetailModal(card,th){
   return `
-  <div id="card-modal-bg" style="position:absolute;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px 16px;background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);">
+  <div id="card-modal-bg" style="position:absolute;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px 16px;background:rgba(0,0,0,0.88);backdrop-filter:blur(10px);">
     <div style="display:flex;gap:14px;align-items:flex-start;max-width:360px;width:100%;">
       <div style="flex-shrink:0;width:140px;perspective:800px;">
         <div id="card-flip" style="width:140px;aspect-ratio:2/3;position:relative;transform-style:preserve-3d;transform:rotateY(${card.owned?'0deg':'180deg'});transition:transform .65s cubic-bezier(.25,.46,.45,.94);">
@@ -992,7 +1037,7 @@ function renderCardDetailModal(card,th){
               <span style="font-size:10px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
             </div>
           </div>
-          <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:8px;border-radius:10px;background:${th.accent};color:#fff;border:1px solid ${th.accent};font-size:11px;font-weight:700;cursor:pointer;">＋ Ajouter au deck</button>
+          <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:10px;border-radius:12px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;">＋ AJOUTER AU DECK</button>
         `:`
           <div>
             <div style="font-family:'Cinzel',serif;font-size:16px;font-weight:900;color:${th.textMuted};letter-spacing:2px;">???</div>
@@ -1006,7 +1051,7 @@ function renderCardDetailModal(card,th){
             </div>`).join('')}
           </div>
           <div style="font-size:10px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;">Cette carte n'a pas encore été découverte. Ouvre des boosters pour la trouver !</div>
-          <button style="padding:8px;border-radius:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:700;">→ Aller aux boosters</button>
+          <button style="padding:10px;border-radius:12px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;">→ ALLER AUX BOOSTERS</button>
         `}
       </div>
     </div>
@@ -1016,48 +1061,51 @@ function renderCardDetailModal(card,th){
 // ─── TAB BOOSTERS ─────────────────────────────────────────────────
 function renderTabBoosters(th){
   const bazar=[
-    {top:"6%",left:"2%",rotate:"-7deg",scale:1.0,zIndex:1},
-    {top:"18%",left:"34%",rotate:"5deg",scale:1.1,zIndex:3},
-    {top:"3%",right:"2%",rotate:"11deg",scale:0.95,zIndex:2},
+    {top:"4%",left:"1%",rotate:"-8deg",scale:1.0,zIndex:1},
+    {top:"16%",left:"33%",rotate:"4deg",scale:1.12,zIndex:3},
+    {top:"2%",right:"1%",rotate:"10deg",scale:0.94,zIndex:2},
   ];
   return `
-  <div style="display:flex;flex-direction:column;height:100%;padding:12px 14px 14px;gap:10px;overflow:hidden;position:relative;">
-    <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:4px;color:${th.textMuted};text-transform:uppercase;flex-shrink:0;">Boosters & Pioche</div>
+  <div style="display:flex;flex-direction:column;height:100%;padding:14px 14px 14px;gap:12px;overflow:hidden;position:relative;background:${th.bg};">
+    <div style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:5px;color:${th.textMuted};text-transform:uppercase;flex-shrink:0;">Boosters & Pioche</div>
     <div style="flex:1;position:relative;min-height:0;">
       ${BOOSTERS.map((b,i)=>{
         const pos=bazar[i];
         const isOpen=state.boosterOpening===b.id;
         const styleExtra = pos.right ? `right:${pos.right};` : `left:${pos.left};`;
         return `
-        <div class="booster-card" data-bid="${b.id}" style="position:absolute;top:${pos.top};${styleExtra}width:46%;background:linear-gradient(150deg,${b.color}22,${b.color}08);border:1px solid ${b.color}45;border-radius:18px;padding:14px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .25s;transform:rotate(${pos.rotate}) scale(${pos.scale});z-index:${pos.zIndex};">
-          <div style="position:absolute;inset:0;border-radius:18px;background:radial-gradient(ellipse at 50% 20%,${b.color}18,transparent 70%);pointer-events:none;"></div>
-          ${[0,1,2].map(k=>`<div style="position:absolute;bottom:36px;left:50%;width:44px;height:62px;border-radius:6px;background:linear-gradient(135deg,${b.color}30,${b.color}10);border:1px solid ${b.color}40;transform:translateX(-50%) rotate(${(k-1)*8}deg) translateY(${k*2}px);z-index:${k};pointer-events:none;"></div>`).join('')}
-          <div style="font-size:${i===1?42:36}px;filter:drop-shadow(0 0 12px ${b.color}90);animation:${isOpen?'shakePack .4s ease':'floatPack 1.5s ease-in-out infinite'};z-index:1;margin-top:8px;">🃏</div>
+        <div class="booster-card" data-bid="${b.id}" style="position:absolute;top:${pos.top};${styleExtra}width:46%;background:linear-gradient(150deg,${b.color}18,${b.color}06);border:1px solid ${b.color}35;border-radius:20px;padding:16px 12px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .28s cubic-bezier(.4,0,.2,1);transform:rotate(${pos.rotate}) scale(${pos.scale});z-index:${pos.zIndex};overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${b.color}60,transparent);"></div>
+          <div style="position:absolute;inset:0;border-radius:20px;background:radial-gradient(ellipse at 50% 0%,${b.color}12,transparent 65%);pointer-events:none;"></div>
+          ${[0,1,2].map(k=>`<div style="position:absolute;bottom:40px;left:50%;width:44px;height:62px;border-radius:8px;background:linear-gradient(135deg,${b.color}28,${b.color}10);border:1px solid ${b.color}35;transform:translateX(-50%) rotate(${(k-1)*9}deg) translateY(${k*2}px);z-index:${k};pointer-events:none;"></div>`).join('')}
+          <div style="font-size:${i===1?44:38}px;filter:drop-shadow(0 0 14px ${b.color}90);animation:${isOpen?'shakePack .4s ease':'floatPack 1.8s ease-in-out infinite'};z-index:1;margin-top:10px;">🃏</div>
           <div style="text-align:center;z-index:1;width:100%;">
-            <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${th.text};">${b.name}</div>
+            <div style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:${th.text};letter-spacing:.5px;">${b.name}</div>
             <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${b.cards} cartes</div>
             <div style="font-size:9px;color:${RARITY_COLOR[b.rarity]};font-weight:700;margin-bottom:6px;">◆ ${RARITY_LABEL[b.rarity]}</div>
-            <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:13px;font-weight:800;color:${b.color};margin-bottom:8px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".25"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${b.price}</div>
-            <button class="open-booster" data-bid="${b.id}" style="width:100%;padding:7px 0;border-radius:99px;background:${isOpen?b.color+'70':b.color};color:#fff;border:none;font-size:10px;font-weight:700;box-shadow:${isOpen?`0 0 20px ${b.color}`:'none'};transition:all .2s;">
-              ${isOpen?"⋯ Ouverture":"Ouvrir"}
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:900;color:${b.color};margin-bottom:10px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" opacity=".3"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>${b.price}</div>
+            <button class="open-booster" data-bid="${b.id}" style="width:100%;padding:8px 0;border-radius:99px;background:${isOpen?b.color+'60':b.color};color:#fff;border:none;font-size:10px;font-weight:800;letter-spacing:.5px;box-shadow:${isOpen?`0 0 24px ${b.color}`:'none'};transition:all .2s;">
+              ${isOpen?"⋯ Ouverture…":"OUVRIR"}
             </button>
           </div>
         </div>`}).join('')}
+      <!-- Pioche -->
       <div style="position:absolute;bottom:0;left:0;right:0;">
-        <div id="btn-pioche" style="background:linear-gradient(135deg,${th.green}18,${th.green}06);border:1px solid ${th.green}40;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;cursor:pointer;">
-          <div style="position:absolute;right:-8px;top:-8px;font-size:50px;opacity:.06;pointer-events:none;">🎴</div>
-          <div style="position:relative;width:52px;height:66px;flex-shrink:0;">
-            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}40,${th.green}15);border:1px solid ${th.green}50;border-radius:6px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:20px;">🂠</div>`).join('')}
+        <div id="btn-pioche" style="background:linear-gradient(135deg,${th.green}12,${th.green}04);border:1px solid ${th.green}30;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;cursor:pointer;">
+          <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${th.green}50,transparent);"></div>
+          <div style="position:absolute;right:-4px;top:-4px;font-size:48px;opacity:.05;pointer-events:none;">🎴</div>
+          <div style="position:relative;width:52px;height:68px;flex-shrink:0;">
+            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}35,${th.green}12);border:1px solid ${th.green}40;border-radius:7px;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:20px;">🂠</div>`).join('')}
           </div>
           <div style="flex:1;">
-            <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};">Pioche Classique</div>
-            <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">50 cartes face cachée · Retourne-en une</div>
+            <div style="font-family:'Cinzel',serif;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.5px;">Pioche Classique</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">50 cartes face cachée · Retourne-en une</div>
           </div>
-          <div style="padding:6px 12px;border-radius:99px;background:${th.green};color:#fff;font-size:10px;font-weight:700;flex-shrink:0;">Piocher</div>
+          <div style="padding:7px 14px;border-radius:99px;background:${th.green};color:#fff;font-size:10px;font-weight:800;flex-shrink:0;letter-spacing:.5px;">PIOCHER</div>
         </div>
       </div>
     </div>
-    <style>@keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}</style>
+    <style>@keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}@keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}</style>
   </div>`;
 }
 
@@ -1072,11 +1120,14 @@ function renderMessagesModal(th){
     const friend = friends.find(f=>f.id===activeId);
     return `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-      <button id="msg-back" style="background:none;border:none;color:${th.textMuted};font-size:20px;cursor:pointer;padding:0;line-height:1;">←</button>
+      <button id="msg-back" style="width:32px;height:32px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.textMuted};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">←</button>
       <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
         ${friend.avatar_url?`<img src="${friend.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
       </div>
-      <div style="font-size:13px;font-weight:700;color:${th.text};">${friend.discord_username||'Ami'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${friend.discord_username||'Ami'}</div>
+        <div style="font-size:9px;color:${th.textMuted};margin-top:1px;letter-spacing:.3px;">Conversation privée</div>
+      </div>
     </div>
     <div id="msg-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:4px;min-height:0;">
       ${(()=>{
@@ -1157,35 +1208,39 @@ function renderMessagesModal(th){
         }).join('');
       })()}
     </div>
-    <div style="display:flex;gap:8px;padding-top:10px;flex-shrink:0;">
-      <button id="msg-trade-btn" data-fid="${friend.id}" style="width:36px;height:36px;border-radius:50%;background:${th.surface};color:${th.accent};border:1px solid ${th.accent}50;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Proposer un échange">＋</button>
-      <input id="msg-input" placeholder="Message..." style="flex:1;padding:9px 12px;border-radius:99px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:12px;outline:none;"/>
-      <button id="msg-send" style="width:36px;height:36px;border-radius:50%;background:${th.accent};color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">↑</button>
+    <div style="display:flex;gap:8px;padding-top:10px;flex-shrink:0;align-items:center;">
+      <button id="msg-trade-btn" data-fid="${friend.id}" style="width:36px;height:36px;border-radius:10px;background:${th.accent}15;color:${th.accent};border:1px solid ${th.accent}40;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s;" title="Proposer un échange">🔄</button>
+      <input id="msg-input" placeholder="Message..." style="flex:1;padding:10px 14px;border-radius:14px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:12px;outline:none;transition:border-color .18s;" onfocus="this.style.borderColor='rgba(56,189,248,.35)'" onblur="this.style.borderColor=''"/>
+      <button id="msg-send" style="width:36px;height:36px;border-radius:10px;background:${th.accent};color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s;">↑</button>
     </div>`;
   })() : `
-    <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};margin-bottom:14px;">Messages</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};letter-spacing:1px;">Messages</div>
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">${friends.length} ami${friends.length>1?'s':''}</div>
+    </div>
     ${friends.length===0
       ? `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:${th.textMuted};font-size:12px;text-align:center;">
            <div style="font-size:28px;">💬</div>
            Aucun message pour le moment.
          </div>`
       : friends.map(f=>`
-      <div class="conv-item" data-fid="${f.id}" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:${th.bgTertiary};border:1px solid ${th.border};cursor:pointer;margin-bottom:6px;">
-        <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-          ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:16px;">👤</span>'}
+      <div class="conv-item btn-hover" data-fid="${f.id}" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;background:${th.bgTertiary};border:1px solid ${th.border};cursor:pointer;margin-bottom:6px;position:relative;overflow:hidden;transition:all .18s;">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.accent};border-radius:99px;opacity:0;"></div>
+        <div style="width:40px;height:40px;border-radius:12px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid ${th.border};">
+          ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:18px;">👤</span>'}
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Ami'}</div>
-          <div style="font-size:10px;color:${th.textFaint};">Appuyer pour écrire</div>
+          <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">Appuyer pour écrire</div>
         </div>
-        <div style="font-size:18px;color:${th.textFaint};">›</div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${th.textFaint}" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>`).join('')}
   `;
 
   return `
-  <div id="messages-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div style="width:100%;max-width:420px;height:92%;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:16px 16px 28px;box-shadow:0 -8px 40px rgba(0,0,0,.4);display:flex;flex-direction:column;">
-      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 14px;flex-shrink:0;"></div>
+  <div id="messages-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div style="width:100%;max-width:420px;height:92%;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:16px 16px 28px;box-shadow:0 -16px 60px rgba(0,0,0,.6);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
+      <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.1);margin:0 auto 16px;flex-shrink:0;"></div>
       ${innerContent}
     </div>
   </div>`;
@@ -1195,12 +1250,12 @@ function renderMessagesModal(th){
 function renderPiocheMechanic(th){
   const TOTAL=50,COLS=8,GAP=5,CW=Math.floor((Math.min(window.innerWidth,420)-40-GAP*(COLS-1))/COLS),CH=Math.round(CW*1.43);
   return `
-  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(0,0,0,.95);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:12px;padding:20px;overflow-y:auto;">
+  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(4,8,18,.97);backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:14px;padding:22px;overflow-y:auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:420px;">
-      <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:#f2f3f5;">Pioche Classique</div>
-      <button id="pioche-close" style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.1);color:#96989d;display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
+      <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:#e8f4ff;letter-spacing:2px;text-transform:uppercase;">Pioche Classique</div>
+      <button id="pioche-close" style="width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#5e7d9a;display:flex;align-items:center;justify-content:center;cursor:pointer;">${SVG.x}</button>
     </div>
-    <div style="font-size:11px;color:#96989d;text-align:center;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
+    <div style="font-size:10px;color:#5e7d9a;text-align:center;letter-spacing:1px;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
     ${!state.piocheResult?`
     <div style="position:relative;width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*5+GAP*4}px;flex-shrink:0;margin:0 auto;">
       ${Array.from({length:TOTAL},(_,i)=>{
@@ -1229,7 +1284,7 @@ function renderPiocheMechanic(th){
         <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:#f2f3f5;">${state.piocheResult.name}</div>
         <div style="font-size:11px;color:${RARITY_COLOR[state.piocheResult.rarity]};margin-top:3px;">◆ ${RARITY_LABEL[state.piocheResult.rarity]} · ${state.piocheResult.type}</div>
       </div>
-      <button id="pioche-collect" style="padding:8px 24px;border-radius:99px;background:#5865f2;color:#fff;border:none;font-size:11px;font-weight:700;">Ajouter à la collection</button>
+      <button id="pioche-collect" style="padding:10px 28px;border-radius:99px;background:linear-gradient(135deg,#38bdf8,#818cf8);color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 20px rgba(56,189,248,.3);">AJOUTER À LA COLLECTION</button>
     </div>`:''}
   </div>`;
 }
@@ -1238,49 +1293,52 @@ function renderPiocheMechanic(th){
 function renderNotifModal(th){
   const reqs = state.friendRequestsIn || [];
   return `
-  <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
-      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
-      <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};margin-bottom:16px;">Notifications</div>
+  <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:20px 20px 36px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};">
+      <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.1);margin:0 auto 20px;"></div>
+      <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};margin-bottom:16px;letter-spacing:1px;">Notifications</div>
       ${reqs.length===0 ? `
-        <div style="text-align:center;padding:24px 0;color:${th.textMuted};font-size:12px;">
-          <div style="font-size:28px;margin-bottom:8px;">🔔</div>
-          Aucune notification.
+        <div style="text-align:center;padding:32px 0;color:${th.textMuted};">
+          <div style="font-size:32px;margin-bottom:10px;opacity:.5;">🔔</div>
+          <div style="font-size:12px;">Aucune notification.</div>
         </div>` : reqs.map(r=>`
-        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};border-radius:12px;padding:12px;border:1px solid ${th.border};margin-bottom:8px;">
-          <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-            ${r.avatar_url?'<img src="'+r.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:16px;">👤</span>'}
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};border-radius:14px;padding:12px;border:1px solid ${th.border};margin-bottom:8px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.accent};border-radius:99px;"></div>
+          <div style="width:38px;height:38px;border-radius:12px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid ${th.border};">
+            ${r.avatar_url?'<img src="'+r.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:18px;">👤</span>'}
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:600;color:${th.text};">${r.discord_username||'Joueur'} veut être ton ami</div>
+            <div style="font-size:12px;font-weight:700;color:${th.text};">${r.discord_username||'Joueur'}</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">veut être ton ami</div>
           </div>
-          <div style="display:flex;gap:5px;">
-            <button class="notif-accept-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.green};color:#000;border:none;cursor:pointer;">✓</button>
-            <button class="notif-decline-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;cursor:pointer;">✕</button>
+          <div style="display:flex;gap:6px;">
+            <button class="notif-accept-friend" data-rid="${r.request_id}" style="padding:7px 14px;border-radius:99px;font-size:10px;font-weight:800;background:${th.green};color:#000;border:none;cursor:pointer;letter-spacing:.3px;">✓</button>
+            <button class="notif-decline-friend" data-rid="${r.request_id}" style="padding:7px 14px;border-radius:99px;font-size:10px;font-weight:800;background:transparent;color:${th.red};border:1px solid ${th.red}40;cursor:pointer;">✕</button>
           </div>
         </div>`).join('')}
     </div>
   </div>`;
 }
+
 function renderSettingsModal(th){
   return `
-  <div id="settings-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="settings-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);">
-      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 20px;"></div>
-      <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};margin-bottom:20px;">Paramètres</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid ${th.border};">
+  <div id="settings-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="settings-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:20px 20px 40px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};">
+      <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.1);margin:0 auto 20px;"></div>
+      <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};margin-bottom:24px;letter-spacing:1px;">Paramètres</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid ${th.border};">
         <div>
-          <div style="font-size:13px;color:${th.text};font-weight:600;">Thème</div>
-          <div style="font-size:11px;color:${th.textMuted};">${state.isDark?"Mode sombre":"Mode clair"}</div>
+          <div style="font-size:13px;color:${th.text};font-weight:700;">${state.isDark?'🌙 Mode sombre':'☀️ Mode clair'}</div>
+          <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">Apparence de l'interface</div>
         </div>
-        <button id="theme-toggle" style="width:52px;height:28px;border-radius:99px;background:${state.isDark?th.accent:th.surface};border:1px solid ${th.border};display:flex;align-items:center;padding:0 4px;transition:background .2s;">
-          <div style="width:20px;height:20px;border-radius:50%;background:#fff;transform:${state.isDark?'translateX(24px)':'translateX(0)'};transition:transform .2s;display:flex;align-items:center;justify-content:center;font-size:10px;">${state.isDark?"🌙":"☀️"}</div>
+        <button id="theme-toggle" style="width:52px;height:28px;border-radius:99px;background:${state.isDark?th.accent:th.surface};border:1px solid ${state.isDark?th.accent+'60':th.border};display:flex;align-items:center;padding:0 4px;transition:all .25s;cursor:pointer;">
+          <div style="width:20px;height:20px;border-radius:50%;background:#fff;transform:${state.isDark?'translateX(24px)':'translateX(0)'};transition:transform .25s;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 2px 6px rgba(0,0,0,.3);">${state.isDark?'🌙':'☀️'}</div>
         </button>
       </div>
-
     </div>
   </div>`;
 }
+
 
 function renderFriendsModal(th){
   const myId = state.currentUser?.id;
@@ -1288,55 +1346,52 @@ function renderFriendsModal(th){
   const pendingIn = state.friendRequestsIn || [];
   const friendsTab = state.friendsTab || 'list';
   return `
-  <div id="friends-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="friends-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:20px 20px 0 0;padding:20px 20px 32px;box-shadow:0 -8px 40px rgba(0,0,0,.4);max-height:80vh;overflow-y:auto;">
-      <div style="width:36px;height:4px;border-radius:99px;background:${th.border};margin:0 auto 16px;"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <div style="font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:${th.text};">Amis</div>
-        <button id="btn-add-friend" style="padding:6px 14px;border-radius:99px;font-size:11px;font-weight:700;background:${th.accent};color:#fff;border:none;cursor:pointer;">+ Ajouter</button>
+  <div id="friends-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="friends-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};border-radius:22px 22px 0 0;padding:20px 20px 36px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};max-height:82vh;overflow-y:auto;">
+      <div style="width:36px;height:4px;border-radius:99px;background:rgba(255,255,255,.1);margin:0 auto 18px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};letter-spacing:1px;">Amis</div>
+        <button id="btn-add-friend" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:99px;font-size:10px;font-weight:800;background:${th.accent}18;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;letter-spacing:.5px;">+ AJOUTER</button>
       </div>
-      <!-- Tabs -->
-      <div style="display:flex;gap:6px;margin-bottom:14px;">
-        <button class="friends-tab-btn" data-ftab="list" style="flex:1;padding:6px;border-radius:8px;font-size:11px;font-weight:700;border:none;background:${friendsTab==='list'?th.accent:th.surface};color:${friendsTab==='list'?'#fff':th.textMuted};cursor:pointer;">Amis (${friends.length})</button>
-        <button class="friends-tab-btn" data-ftab="requests" style="flex:1;padding:6px;border-radius:8px;font-size:11px;font-weight:700;border:none;background:${friendsTab==='requests'?th.accent:th.surface};color:${friendsTab==='requests'?'#fff':th.textMuted};cursor:pointer;">Demandes ${pendingIn.length>0?'<span style="background:'+th.red+';color:#fff;border-radius:99px;padding:1px 6px;font-size:9px;">'+pendingIn.length+'</span>':''}</button>
+      <div style="display:flex;gap:0;margin-bottom:16px;background:${th.bgTertiary};border-radius:10px;padding:3px;border:1px solid ${th.border};">
+        <button class="friends-tab-btn" data-ftab="list" style="flex:1;padding:6px;border-radius:8px;font-size:10px;font-weight:800;border:none;background:${friendsTab==='list'?th.bgSecondary:'transparent'};color:${friendsTab==='list'?th.text:th.textMuted};cursor:pointer;transition:all .18s;letter-spacing:.3px;">AMIS (${friends.length})</button>
+        <button class="friends-tab-btn" data-ftab="requests" style="flex:1;padding:6px;border-radius:8px;font-size:10px;font-weight:800;border:none;background:${friendsTab==='requests'?th.bgSecondary:'transparent'};color:${friendsTab==='requests'?th.text:th.textMuted};cursor:pointer;transition:all .18s;letter-spacing:.3px;display:flex;align-items:center;justify-content:center;gap:6px;">DEMANDES${pendingIn.length>0?`<span style="background:${th.red};color:#fff;border-radius:99px;padding:1px 7px;font-size:9px;font-weight:900;">${pendingIn.length}</span>`:''}</button>
       </div>
       ${friendsTab==='list' ? `
         ${friends.length===0 ? `
-          <div style="text-align:center;padding:24px 0;color:${th.textMuted};font-size:12px;">
-            <div style="font-size:28px;margin-bottom:8px;">👥</div>
-            Aucun ami pour l'instant.
+          <div style="text-align:center;padding:36px 0;color:${th.textMuted};">
+            <div style="font-size:36px;margin-bottom:12px;opacity:.4;">👥</div>
+            <div style="font-size:12px;">Aucun ami pour l'instant.</div>
           </div>` : friends.map(f=>`
-          <div class="friend-item" data-fid="${f.id}" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};margin-bottom:6px;cursor:pointer;">
-            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-              ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:16px;">👤</span>'}
+          <div class="friend-item btn-hover" data-fid="${f.id}" style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:${th.bgTertiary};border:1px solid ${th.border};margin-bottom:6px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;">
+            <div style="width:40px;height:40px;border-radius:12px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid ${th.border};">
+              ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:18px;">👤</span>'}
             </div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Joueur'}</div>
-              <div style="font-size:10px;color:${th.textMuted};">Ami</div>
+              <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Ami'}</div>
             </div>
             <div style="display:flex;gap:5px;">
-              <button class="friend-trade" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.accent}20;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;">Échange</button>
-              <button class="friend-battle" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.red}20;color:${th.red};border:1px solid ${th.red}40;cursor:not-allowed;opacity:.5;">Combat</button>
-              <button class="friend-dm" data-fid="${f.id}" style="padding:4px 8px;border-radius:6px;font-size:9px;font-weight:700;background:${th.green}20;color:${th.green};border:1px solid ${th.green}40;cursor:pointer;">DM</button>
+              <button class="friend-dm" data-fid="${f.id}" style="padding:6px 12px;border-radius:99px;font-size:10px;font-weight:800;background:${th.accent}15;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;transition:all .18s;letter-spacing:.3px;">💬</button>
+              <button class="friend-trade" data-fid="${f.id}" style="padding:6px 12px;border-radius:99px;font-size:10px;font-weight:800;background:${th.green}12;color:${th.green};border:1px solid ${th.green}35;cursor:pointer;transition:all .18s;letter-spacing:.3px;">🔄</button>
             </div>
           </div>`).join('')}
       ` : `
         ${pendingIn.length===0 ? `
-          <div style="text-align:center;padding:24px 0;color:${th.textMuted};font-size:12px;">
-            <div style="font-size:28px;margin-bottom:8px;">📭</div>
-            Aucune demande en attente.
+          <div style="text-align:center;padding:36px 0;color:${th.textMuted};">
+            <div style="font-size:32px;margin-bottom:12px;opacity:.4;">📭</div>
+            <div style="font-size:12px;">Aucune demande en attente.</div>
           </div>` : pendingIn.map(r=>`
-          <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:${th.bgTertiary};border:1px solid ${th.border};margin-bottom:6px;">
-            <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-              ${r.avatar_url?`<img src="${r.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:16px;">👤</span>'}
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;background:${th.bgTertiary};border:1px solid ${th.border};margin-bottom:6px;">
+            <div style="width:40px;height:40px;border-radius:12px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid ${th.border};">
+              ${r.avatar_url?`<img src="${r.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:18px;">👤</span>'}
             </div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:13px;font-weight:700;color:${th.text};">${r.discord_username||'Joueur'}</div>
-              <div style="font-size:10px;color:${th.textMuted};">veut être ton ami</div>
+              <div style="font-size:12px;font-weight:700;color:${th.text};">${r.discord_username||'Joueur'}</div>
+              <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">veut être ton ami</div>
             </div>
             <div style="display:flex;gap:5px;">
-              <button class="accept-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.green};color:#000;border:none;cursor:pointer;">✓</button>
-              <button class="decline-friend" data-rid="${r.request_id}" style="padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;cursor:pointer;">✕</button>
+              <button class="accept-friend" data-rid="${r.request_id}" style="padding:7px 14px;border-radius:99px;font-size:10px;font-weight:800;background:${th.green};color:#000;border:none;cursor:pointer;">✓</button>
+              <button class="decline-friend" data-rid="${r.request_id}" style="padding:7px 14px;border-radius:99px;font-size:10px;font-weight:800;background:transparent;color:${th.red};border:1px solid ${th.red}40;cursor:pointer;">✕</button>
             </div>
           </div>`).join('')}
       `}
@@ -1344,20 +1399,25 @@ function renderFriendsModal(th){
   </div>`;
 }
 
+
 function renderAddFriendModal(th){
   return `
-  <div id="add-friend-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;z-index:200;">
-    <div style="width:100%;max-width:340px;background:${th.bgSecondary};border-radius:16px;padding:20px;">
-      <div style="font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:${th.text};margin-bottom:14px;">Ajouter un ami</div>
-      <input id="friend-search-input" placeholder="Pseudo Discord exact..." style="width:100%;padding:10px 12px;border-radius:8px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:13px;outline:none;margin-bottom:8px;"/>
-      <div id="friend-search-results" style="margin-bottom:10px;"></div>
+  <div id="add-friend-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:200;">
+    <div style="width:100%;max-width:340px;background:${th.bgSecondary};border-radius:20px;padding:22px;border:1px solid ${th.borderStrong};box-shadow:0 20px 60px rgba(0,0,0,.6);">
+      <div style="font-family:'Cinzel',serif;font-size:13px;font-weight:700;color:${th.text};margin-bottom:4px;letter-spacing:1px;">Ajouter un ami</div>
+      <div style="font-size:10px;color:${th.textMuted};margin-bottom:16px;">Recherche par pseudo Discord</div>
+      <div style="position:relative;margin-bottom:10px;">
+        <input id="friend-search-input" placeholder="Pseudo Discord..." style="width:100%;padding:10px 14px;border-radius:12px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.text};font-size:13px;outline:none;font-family:inherit;transition:border-color .18s;" onfocus="this.style.borderColor='rgba(56,189,248,.4)'" onblur="this.style.borderColor=''"/>
+      </div>
+      <div id="friend-search-results" style="margin-bottom:12px;"></div>
       <div style="display:flex;gap:8px;">
-        <button id="btn-search-friend" style="flex:1;padding:9px;border-radius:8px;background:${th.accent};color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;">Rechercher</button>
-        <button id="btn-cancel-add-friend" style="padding:9px 14px;border-radius:8px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:12px;cursor:pointer;">Annuler</button>
+        <button id="btn-search-friend" style="flex:1;padding:10px;border-radius:12px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;">RECHERCHER</button>
+        <button id="btn-cancel-add-friend" style="padding:10px 16px;border-radius:12px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:700;cursor:pointer;transition:all .18s;">Annuler</button>
       </div>
     </div>
   </div>`;
 }
+
 
 // ─── BIND EVENTS ──────────────────────────────────────────────────
 function bindGame(){
@@ -1848,7 +1908,7 @@ function waitForSupabase(cb) {
 
 function showToast(msg, icon='ℹ') {
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#23252a;color:#fff;padding:10px 18px;border-radius:99px;font-size:12px;font-weight:700;z-index:9999;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:opacity .3s;white-space:nowrap;';
+  el.style.cssText = 'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(13,18,32,0.95);color:#e8f4ff;padding:10px 20px;border-radius:99px;font-size:12px;font-weight:700;z-index:9999;display:flex;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 1px rgba(56,189,248,0.15);transition:opacity .3s;white-space:nowrap;backdrop-filter:blur(8px);';
   el.innerHTML = '<span style="font-size:14px;">'+icon+'</span> '+msg;
   document.body.appendChild(el);
   setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2500);
