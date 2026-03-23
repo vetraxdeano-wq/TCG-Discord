@@ -127,8 +127,8 @@ body.mobile .centre .stat-row{padding:1px 2px;gap:2px;border-radius:3px}
 body.mobile .centre .sr-ico{font-size:9px}
 body.mobile .centre .sr-lbl{font-size:6.5px;letter-spacing:.02em}
 body.mobile .centre .sr-val{font-size:9.5px}
-body.mobile .centre .sr-dmg-hint{display:none}
-body.mobile .centre .sr-dmg-row{display:none}
+body.mobile .centre .sr-dmg-hint{display:block;font-size:5.5px;padding:0 2px 2px 20px;margin-top:-1px}
+body.mobile .centre .sr-dmg-row{display:flex}
 body.mobile .centre .sp-effslbl{font-size:6.5px;margin-top:2px}
 body.mobile .centre .etag{font-size:6.5px;padding:0 3px}
 
@@ -207,8 +207,8 @@ body.mobile .pj-left .mob-stats-inj .stat-row{padding:1px 2px;gap:2px;border-rad
 body.mobile .pj-left .mob-stats-inj .sr-ico{font-size:9px}
 body.mobile .pj-left .mob-stats-inj .sr-lbl{font-size:6.5px;letter-spacing:.02em}
 body.mobile .pj-left .mob-stats-inj .sr-val{font-size:9.5px}
-body.mobile .pj-left .mob-stats-inj .sr-dmg-hint{display:none}
-body.mobile .pj-left .mob-stats-inj .sr-dmg-row{display:none}
+body.mobile .pj-left .mob-stats-inj .sr-dmg-hint{display:block;font-size:5.5px;padding:0 2px 2px 20px;margin-top:-1px}
+body.mobile .pj-left .mob-stats-inj .sr-dmg-row{display:flex}
 body.mobile .pj-left .mob-stats-inj .sp-effslbl{font-size:6.5px;margin-top:2px}
 body.mobile .pj-left .mob-stats-inj .etag{font-size:6.5px;padding:0 3px}
 
@@ -1611,7 +1611,7 @@ function toggleLayout(forceTo){
       const inj=document.createElement('div');
       inj.className='mob-stats-inj';
       inj.setAttribute('data-mob','1');
-      ['h-rar','h-name','h-sr-end','h-sr-atq','h-sr-def','h-sr-prec'].forEach(id=>{
+      ['h-rar','h-name','h-sr-end','h-sr-atq','h-sr-def','h-sr-prec','h-sr-dmg','h-dmg-hint'].forEach(id=>{
         const el=document.getElementById(id);
         if(el) inj.appendChild(el);
       });
@@ -1638,7 +1638,7 @@ function toggleLayout(forceTo){
     /* Remettre stats joueur dans sp-left du centre */
     const spLeft=document.querySelector('#sg .centre .stats-panel.sp-left');
     if(spLeft){
-      ['h-rar','h-name','h-sr-end','h-sr-atq','h-sr-def','h-sr-prec','h-act'].forEach(id=>{
+      ['h-rar','h-name','h-sr-end','h-sr-atq','h-sr-def','h-sr-prec','h-sr-dmg','h-dmg-hint','h-act'].forEach(id=>{
         const el=document.getElementById(id);
         if(el && !spLeft.contains(el)) spLeft.appendChild(el);
       });
