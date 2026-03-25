@@ -1330,17 +1330,6 @@ function renderCardDetailModal(card,th){
       </div>
     </div>
   </div>`;
-        </div>
-      </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding-top:4px;">
-        <div style="display:flex;justify-content:flex-end;">
-          <button id="card-modal-close" style="width:28px;height:28px;clip-path:none;background:${th.surface};border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
-        </div>
-        ${card.owned?`
-          <div>
-            <div style="font-family:'Bangers',cursive;font-size:14px;font-weight:700;color:${th.text};line-height:1.2;">${card.name}</div>
-            <div style="font-size:10px;color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:3px;">◆ ${RARITY_LABEL[card.rarity]}</div>
-          </div>
 // ─── TAB BOOSTERS ─────────────────────────────────────────────────
 function renderTabBoosters(th){
   const boosterMeta = [
