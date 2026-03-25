@@ -2317,7 +2317,7 @@ function bindGame(){
   const tutoNext = document.getElementById('tuto-next');
   if(tutoNext) tutoNext.addEventListener('click',()=>{
     const maxStep = 6;
-    if(state.tutorialStep >= maxStep) { setState({showTutorial:false}); return; }
+    if(state.tutorialStep >= maxStep) { setState({showTutorial:false}); window.location.href = 'TUTO.html'; return; }
     setState({tutorialStep: state.tutorialStep + 1});
   });
   const tutoPrev = document.getElementById('tuto-prev');
