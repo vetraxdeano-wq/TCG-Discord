@@ -592,13 +592,13 @@ function renderGame(th){
     <div style="flex:1;overflow:hidden;position:relative;">
       <div id="tab-slider" style="display:flex;width:300%;height:100%;transform:translateX(${-state.tab*(100/3)}%);transition:transform .32s cubic-bezier(.25,.46,.45,.94);">
         <div style="width:33.333%;height:100%;overflow:hidden;" class="${state.tab===0?(state.prevTab>0?'tab-enter-left':''):''}">
-          ${state.tab===0?renderTabPlay(th):'<div></div>'}
+          ${state.tab<=1?renderTabPlay(th):'<div></div>'}
         </div>
         <div style="width:33.333%;height:100%;overflow:hidden;" class="${state.tab===1?(state.prevTab<1?'tab-enter-right':'tab-enter-left'):''}">
-          ${state.tab===1?renderTabCollection(th):'<div></div>'}
+          ${renderTabCollection(th)}
         </div>
         <div style="width:33.333%;height:100%;overflow:hidden;" class="${state.tab===2?(state.prevTab<2?'tab-enter-right':''):''}">
-          ${state.tab===2?renderTabBoosters(th):'<div></div>'}
+          ${state.tab>=1?renderTabBoosters(th):'<div></div>'}
         </div>
       </div>
     </div>
