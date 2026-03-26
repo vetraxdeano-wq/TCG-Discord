@@ -2557,13 +2557,11 @@ function bindGame(){
   const tradeWantedInput = document.getElementById('trade-wanted-input');
   if(tradeWantedInput){
     tradeWantedInput.addEventListener('input',()=>{
-      state.tradeWantedNum = tradeWantedInput.value ? String(parseInt(tradeWantedInput.value) || '') : '';
+      state.tradeWantedNum = tradeWantedInput.value || '';
+      const pos = tradeWantedInput.selectionStart;
       render();
-      // Remettre le focus sur l'input après re-render
-    });
-    tradeWantedInput.addEventListener('blur', ()=>{
-      // Re-render uniquement quand on quitte le champ (pour afficher le preview final)
-      render();
+      const inp2 = document.getElementById('trade-wanted-input');
+      if(inp2){ inp2.focus(); try{ inp2.setSelectionRange(pos, pos); }catch(e){} }
     });
   }
   const tradeConfirmSend = document.getElementById('trade-confirm-send');
