@@ -1178,8 +1178,8 @@ function renderTabCollection(th){
         <span style="font-size:14px;color:${th.textMuted};">🔍</span>
         <input id="coll-search-input" type="text" placeholder="Rechercher par ID ou nom…" value="${state.collSearch||''}"
           style="flex:1;background:transparent;border:none;outline:none;font-size:11px;color:${th.text};font-family:inherit;"
-          oninput="setState({collSearch:this.value})"/>
-        ${state.collSearch?`<button onclick="setState({collSearch:''})" style="background:none;border:none;color:${th.textMuted};font-size:14px;cursor:pointer;padding:0;">✕</button>`:''}
+          oninput="window._collSearchHandler && window._collSearchHandler(this.value)"/>
+        ${state.collSearch?`<button onclick="state.collSearch='';render();" style="background:none;border:none;color:${th.textMuted};font-size:14px;cursor:pointer;padding:0;">✕</button>`:''}
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
         <span style="font-size:9px;color:${th.textMuted};white-space:nowrap;letter-spacing:.5px;text-transform:uppercase;">Tri</span>
@@ -2160,6 +2160,22 @@ function bindGame(){
   document.querySelectorAll('.sort-btn').forEach(btn=>{
     btn.addEventListener('click',()=>setState({collSortBy:btn.dataset.sort}));
   });
+
+  // Recherche collection : mutater state directement sans re-render pour garder le focus
+  window._collSearchHandler = function(val) {
+    state.collSearch = val;
+    // Re-render uniquement la grille, pas tout le DOM
+    const grid = document.querySelector('#tab-slider .coll-grid-inner');
+    if (grid) {
+      // Filtrer et re-render juste la grille si on peut l'identifier
+    }
+    // Sinon render complet mais restaurer le focus
+    const inp = document.getElementById('coll-search-input');
+    const pos = inp ? inp.selectionStart : null;
+    render();
+    const inp2 = document.getElementById('coll-search-input');
+    if (inp2) { inp2.focus(); try { inp2.setSelectionRange(pos, pos); } catch(e){} }
+  };
   document.querySelectorAll('.rar-btn').forEach(btn=>{
     btn.addEventListener('click',()=>setState({collFilterRarity:btn.dataset.rar}));
   });
@@ -2821,37 +2837,32 @@ async function checkLoginStreak(userId) {
 
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-  // On stocke le streak dans localStorage pour la rapidité
-  // Format: { date: 'YYYY-MM-DD', streak: N, lastRewardDate: 'YYYY-MM-DD' }
-  let streakData = { date: null, streak: 0, lastRewardDate: null };
-  try {
-    const raw = localStorage.getItem('dcg_streak_' + userId);
-    if (raw) streakData = JSON.parse(raw);
-  } catch(e) {}
+  // Lire le streak depuis Supabase (lié au compte, pas au device)
+  const { data: playerRow } = await db
+    .from('players')
+    .select('streak, last_streak_date, first_win_date')
+    .eq('id', userId)
+    .single();
 
-  const lastDate = streakData.date;
-  const lastRewardDate = streakData.lastRewardDate;
+  if (!playerRow) return;
 
-  // Déjà récompensé aujourd'hui → juste mettre à jour l'état
-  if (lastRewardDate === today) {
-    setState({ loginStreak: streakData.streak, lastLoginDate: today });
-    // Charger firstWinToday depuis localStorage aussi
-    const fwt = localStorage.getItem('dcg_firstwin_' + userId + '_' + today);
-    setState({ firstWinTodayDone: fwt === '1' });
+  const lastStreakDate = playerRow.last_streak_date;
+  const firstWinDate = playerRow.first_win_date;
+
+  // Déjà récompensé aujourd'hui → juste afficher
+  if (lastStreakDate === today) {
+    setState({ loginStreak: playerRow.streak || 1, lastLoginDate: today, firstWinTodayDone: firstWinDate === today });
     return;
   }
 
   // Calculer le nouveau streak
   let newStreak = 1;
-  if (lastDate) {
+  if (lastStreakDate) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
-    if (lastDate === yesterdayStr) {
-      // Connexion consécutive
-      newStreak = (streakData.streak % 7) + 1; // cycle de 7
+    if (lastStreakDate === yesterday.toISOString().slice(0, 10)) {
+      newStreak = ((playerRow.streak || 0) % 7) + 1;
     }
-    // Sinon (break) on repart à 1
   }
 
   // Accorder la récompense
@@ -2859,15 +2870,13 @@ async function checkLoginStreak(userId) {
   await grantCoins(userId, coinsEarned, `Connexion Jour ${newStreak}`);
   showRewardToast(`🔥 Streak Jour ${newStreak} !`, coinsEarned, '🔥');
 
-  // Sauvegarder
-  streakData = { date: today, streak: newStreak, lastRewardDate: today };
-  try { localStorage.setItem('dcg_streak_' + userId, JSON.stringify(streakData)); } catch(e) {}
+  // Sauvegarder dans Supabase
+  await db.from('players').update({
+    streak: newStreak,
+    last_streak_date: today,
+  }).eq('id', userId);
 
-  setState({ loginStreak: newStreak, lastLoginDate: today });
-
-  // firstWinToday
-  const fwt = localStorage.getItem('dcg_firstwin_' + userId + '_' + today);
-  setState({ firstWinTodayDone: fwt === '1' });
+  setState({ loginStreak: newStreak, lastLoginDate: today, firstWinTodayDone: firstWinDate === today });
 }
 
 // Appelée par le système de jeu après chaque victoire
@@ -2877,14 +2886,20 @@ window.onPlayerWin = async function() {
   if (!db || !userId) return;
 
   const today = new Date().toISOString().slice(0, 10);
-  const key = 'dcg_firstwin_' + userId + '_' + today;
 
-  if (state.firstWinTodayDone || localStorage.getItem(key) === '1') return;
+  if (state.firstWinTodayDone) return;
+
+  // Vérifier en DB pour éviter le doublon multi-device
+  const { data: p } = await db.from('players').select('first_win_date').eq('id', userId).single();
+  if (p && p.first_win_date === today) {
+    setState({ firstWinTodayDone: true });
+    return;
+  }
 
   // 1ère victoire du jour !
   await grantCoins(userId, 100, '1ère victoire du jour');
   showRewardToast('1ère victoire du jour !', 100, '🏆');
-  localStorage.setItem(key, '1');
+  await db.from('players').update({ first_win_date: today }).eq('id', userId);
   setState({ firstWinTodayDone: true });
 };
 
