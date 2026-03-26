@@ -915,11 +915,10 @@ function renderTradeModal(th){
                   <div style="font-size:7px;color:${RARITY_COLOR[toCard.rarity]};font-weight:700;">${toCard.name.slice(0,10)}</div>
                   <div style="font-size:7px;color:${th.textFaint};">#${incoming.to_card_id}</div>
                 </div>`
-              : `<div style="width:70px;height:98px;background:${th.surface};border:2px solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.6;">
-                  <div style="font-size:22px;">🂠</div>
-                  <div style="font-size:9px;color:${th.textMuted};font-weight:700;">Carte</div>
-                  <div style="font-size:9px;color:${th.accent};font-weight:800;">#${incoming.to_card_id}</div>
-                  <div style="font-size:7px;color:${th.red};">Non possédée</div>
+              : `<div style="width:70px;height:98px;background:${th.surface};border:2px solid #000;overflow:hidden;position:relative;">
+                  <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.45;filter:grayscale(1);" />
+                  <div style="position:absolute;top:4px;left:0;right:0;text-align:center;font-size:7px;color:${th.red};font-weight:700;text-shadow:0 1px 3px #000;">Non possédée</div>
+                  <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:8px;font-weight:700;color:rgba(255,255,255,.8);text-shadow:0 1px 3px #000;">#${incoming.to_card_id}</div>
                 </div>`
             }
           </div>
@@ -968,9 +967,9 @@ function renderTradeModal(th){
               ? rarityOk
                 ? notSame
                   ? `<div style="margin-top:8px;display:flex;align-items:center;gap:10px;background:${th.green}12;border:1px solid ${th.green}40;padding:8px 10px;">
-                      <div style="width:32px;height:44px;border-radius:5px;background:${th.surface};border:2px solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex-shrink:0;opacity:.7;">
-                        <div style="font-size:14px;">🂠</div>
-                        <div style="font-size:7px;font-weight:800;color:${th.textMuted};">#${wantedNum}</div>
+                      <div style="width:32px;height:44px;border:2px solid #000;flex-shrink:0;overflow:hidden;position:relative;opacity:.75;">
+                        <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(.4);" />
+                        <div style="position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${wantedNum}</div>
                       </div>
                       <div style="flex:1;">
                         <div style="font-size:11px;font-weight:700;color:${th.green};">✓ Carte valide</div>
@@ -1225,9 +1224,9 @@ function renderTabCollection(th){
 
 function renderCollCard(card,th){
   if(!card.owned){
-    return `<div class="coll-card" data-cardid="${card.id}" style="background:${th.bgTertiary};border:2px solid #000;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;opacity:.22;filter:grayscale(1);cursor:pointer;transition:all .2s;">
-      <div style="font-size:22px;">🂠</div>
-      <div style="font-size:7px;font-weight:700;color:${th.textMuted};">#${card.id}</div>
+    return `<div class="coll-card" data-cardid="${card.id}" style="border:2px solid #000;aspect-ratio:2/3;cursor:pointer;transition:all .2s;overflow:hidden;position:relative;">
+      <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.45;filter:grayscale(1);" />
+      <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:7px;font-weight:700;color:rgba(255,255,255,.7);text-shadow:0 1px 3px #000;">#${card.id}</div>
     </div>`;
   }
   const rarCol = card.color;
@@ -1274,9 +1273,9 @@ function renderCardDetailModal(card,th){
               <div style="font-size:8px;color:${th.textFaint};margin-top:3px;">#${card.id} · ${SET_LABELS[card.set]||card.set}</div>
             </div>
           </div>
-          <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,${th.accent}25,#eb459e15);border:2px solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
-            <div style="font-size:44px;">🂠</div>
-            ${!card.owned?`<div style="font-size:10px;color:${th.textMuted};letter-spacing:2px;font-family:'Oswald',sans-serif;font-weight:600;">INCONNUE</div>`:''}
+          <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);border:2px solid #000;overflow:hidden;">
+            <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;" />
+            ${!card.owned?`<div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,.8);text-shadow:0 1px 4px #000;letter-spacing:1px;">#${card.id}</div>`:''}
           </div>
         </div>
       </div>
@@ -1456,7 +1455,7 @@ function renderTabBoosters(th){
       <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;">
         <!-- Fan compact -->
         <div style="position:relative;width:44px;height:56px;flex-shrink:0;">
-          ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.green}25,${th.green}08);border:1px solid ${th.green}35;transform:rotate(${(k-2)*5}deg) translateY(${k}px);display:flex;align-items:center;justify-content:center;font-size:16px;">🂠</div>`).join('')}
+          ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;border:1px solid ${th.green}35;transform:rotate(${(k-2)*5}deg) translateY(${k}px);overflow:hidden;"><img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.7;"/></div>`).join('')}
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
@@ -1540,9 +1539,9 @@ function renderMessagesModal(th){
               </div>`;
             return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                <div style="width:44px;height:62px;border-radius:7px;background:${th.surface};border:2px solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;opacity:.65;">
-                  <div style="font-size:18px;">🂠</div>
-                  <div style="font-size:7px;font-weight:700;color:${th.textMuted};">#${isLeft?item.from_card_id:item.to_card_id}</div>
+                <div style="width:44px;height:62px;border:2px solid #000;overflow:hidden;position:relative;opacity:.65;">
+                  <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                  <div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${isLeft?item.from_card_id:item.to_card_id}</div>
                 </div>
                 <div style="font-size:7px;color:${th.textMuted};text-align:center;">Mystère</div>
               </div>`;
@@ -1633,7 +1632,10 @@ function renderPiocheMechanic(th){
         const isFlipped=state.piocheFlipped[i];
         return `<div class="pioche-card" data-idx="${i}" style="position:absolute;left:${col*(CW+GAP)}px;top:${row*(CH+GAP)}px;width:${CW}px;height:${CH}px;cursor:${state.piocheChosen===null?'pointer':'default'};perspective:300px;">
           <div style="width:100%;height:100%;position:relative;transform-style:preserve-3d;transform:${isFlipped?'rotateY(180deg)':`rotate(${rot}deg)`};transition:transform .6s ease;">
-            <div style="position:absolute;inset:0;backface-visibility:hidden;background:${isChosen?'linear-gradient(135deg,#5865f2,#eb459e)':'linear-gradient(135deg,#2b2d31,#1e1f22)'};border:1px solid ${isChosen?'#5865f2':'rgba(255,255,255,.12)'};display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:${isChosen?'0 0 16px #5865f280':'none'};transform:${isChosen?'scale(1.1)':'scale(1)'};transition:all .2s;">🂠</div>
+            <div style="position:absolute;inset:0;backface-visibility:hidden;border:1px solid ${isChosen?'#5865f2':'rgba(255,255,255,.12)'};overflow:hidden;box-shadow:${isChosen?'0 0 16px #5865f280':'none'};transform:${isChosen?'scale(1.1)':'scale(1)'};transition:all .2s;">
+              <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:${isChosen?1:.8};filter:${isChosen?'brightness(1.1)':'none'};" />
+              ${isChosen?'<div style="position:absolute;inset:0;background:rgba(88,101,242,.25);"></div>':''}
+            </div>
             <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,#5865f230,#eb459e20);border:1px solid #5865f260;display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>
           </div>
         </div>`;
