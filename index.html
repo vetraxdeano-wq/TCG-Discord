@@ -684,7 +684,7 @@ function renderProfileModal(th){
             {i:'🏆',v:state.wins!==null?state.wins:'—',l:'Victoires',c:th.green},
             {i:'💀',v:state.losses!==null?state.losses:'—',l:'Défaites',c:th.red},
             {i:'📊',v:winRate!==null?winRate+'%':'—',l:'Win rate',c:th.yellow},
-            {i:'⭐',v:'—',l:'Rang',c:th.accentAlt},
+            {i:'⭐',v:state.playerRank ? '#'+state.playerRank : '—',l:'Rang',c:th.accentAlt},
           ].map(s=>`
           <div style="background:${th.bgTertiary};border:2px solid #000;padding:10px 6px;text-align:center;">
             <div style="font-size:16px;margin-bottom:3px;">${s.i}</div>
@@ -928,8 +928,8 @@ function renderTradeModal(th){
           : ''
         }
         <div style="display:flex;gap:8px;">
-          <button id="trade-accept" ${receiverOwnsToCard?'':'disabled'} style="flex:1;padding:10px;background:${receiverOwnsToCard?th.green:th.surface};color:${receiverOwnsToCard?'#000':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${receiverOwnsToCard?'pointer':'default'};opacity:${receiverOwnsToCard?1:.5};">✓ Accepter</button>
-          <button id="trade-decline" style="flex:1;padding:10px;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;font-size:12px;font-weight:700;cursor:pointer;">✕ Refuser</button>
+          <button id="trade-accept" onclick="window.respondTrade && window.respondTrade('${incoming.id}', true)" ${receiverOwnsToCard?'':'disabled'} style="flex:1;padding:10px;background:${receiverOwnsToCard?th.green:th.surface};color:${receiverOwnsToCard?'#000':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${receiverOwnsToCard?'pointer':'default'};opacity:${receiverOwnsToCard?1:.5};">${receiverOwnsToCard ? '✓ Accepter' : '🚫 Carte manquante'}</button>
+          <button id="trade-decline" onclick="window.respondTrade && window.respondTrade('${incoming.id}', false)" style="flex:1;padding:10px;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;font-size:12px;font-weight:700;cursor:pointer;">✕ Refuser</button>
         </div>
       </div>
     </div>`;
@@ -1271,7 +1271,7 @@ function renderCardDetailModal(card,th){
             <div style="font-family:'Bangers',cursive;font-size:14px;font-weight:700;color:${th.text};line-height:1.2;">${card.name}</div>
             <div style="font-size:10px;color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:3px;">◆ ${RARITY_LABEL[card.rarity]}</div>
           </div>
-          ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]},{l:"ID",v:`#${card.id}`}].map(r=>`
+          ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
           <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid ${th.border};">
             <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
             <span style="font-size:10px;font-weight:600;color:${th.text};">${r.v}</span>
@@ -1298,7 +1298,7 @@ function renderCardDetailModal(card,th){
             <div style="font-size:10px;color:${th.textFaint};margin-top:4px;">Carte mystère</div>
           </div>
           <div style="background:${th.bgSecondary};padding:12px;border:2px solid #000;display:flex;flex-direction:column;gap:6px;">
-            ${[{l:"ID",v:`#${card.id}`},{l:"Set",v:SET_LABELS[card.set]},{l:"Nom",v:"— — — —"},{l:"Rareté",v:"— — —"}].map(r=>`
+            ${[{l:"ID",v:`#${card.id}`},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"Nom",v:"— — — —"},{l:"Rareté",v:"— — —"}].map(r=>`
             <div style="display:flex;justify-content:space-between;">
               <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
               <span style="font-size:10px;color:${r.l==="ID"||r.l==="Set"?th.text:th.textFaint};">${r.v}</span>
@@ -3721,7 +3721,7 @@ async function sendTradeOffer(theirCardId) {
 }
 
 // Accepter ou refuser un trade entrant
-async function respondTrade(tradeId, accept) {
+window.respondTrade = async function respondTrade(tradeId, accept) {
   const db = window.db;
   const myId = state.currentUser?.id;
   if (!db || !myId || !tradeId) return;
@@ -3786,7 +3786,7 @@ async function respondTrade(tradeId, accept) {
   // Rafraîchir les trades dans la conv si elle est ouverte avec cet ami
   const partnerId = incoming?.from_id;
   if (partnerId && state.activeConvId === partnerId) loadConvTrades(partnerId);
-}
+};
 
 // Écouter les trades entrants en realtime
 async function subscribeTradeNotifications() {
