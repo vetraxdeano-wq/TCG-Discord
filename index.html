@@ -939,7 +939,7 @@ function renderTradeModal(th){
   // Vue step 2 : saisir le numéro de la carte voulue en échange
   if (state.tradeStep === 'pick_their_card' && state.tradeMyCard) {
     const maxCardId = ALL_CARDS.length > 0 ? Math.max(...ALL_CARDS.map(c=>parseInt(c.id))) : 999;
-    const wantedNum = state.tradeWantedNum ? String(parseInt(state.tradeWantedNum)) : '';
+    const wantedNum = state.tradeWantedNum ? String(state.tradeWantedNum).replace(/[^0-9]/g,'') : '';
     const wantedCard = wantedNum && parseInt(wantedNum) > 0 ? ALL_CARDS.find(c=>parseInt(c.id)===parseInt(wantedNum)) : null;
     const rarityOk = wantedCard && wantedCard.rarity === state.tradeMyCard.rarity;
     const notSame = wantedCard && parseInt(wantedCard.id) !== parseInt(state.tradeMyCard.id);
@@ -959,7 +959,7 @@ function renderTradeModal(th){
           <div style="font-size:10px;color:${th.textMuted};margin-bottom:8px;">Entrer le numéro de la carte (1 à ${maxCardId}) :</div>
           <div style="display:flex;gap:8px;align-items:center;">
             <span style="font-size:13px;font-weight:700;color:${th.textMuted};">#</span>
-            <input id="trade-wanted-input" type="number" min="1" max="${maxCardId}" value="${wantedNum}"
+            <input id="trade-wanted-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${wantedNum}"
               placeholder="ex: 42"
               style="flex:1;padding:8px 10px;background:${th.surface};color:${th.text};border:2px solid #000;font-size:14px;font-family:inherit;font-weight:700;outline:none;"/>
           </div>
@@ -2557,7 +2557,7 @@ function bindGame(){
   const tradeWantedInput = document.getElementById('trade-wanted-input');
   if(tradeWantedInput){
     tradeWantedInput.addEventListener('input',()=>{
-      state.tradeWantedNum = tradeWantedInput.value || '';
+      state.tradeWantedNum = tradeWantedInput.value.replace(/[^0-9]/g,'') || '';
       const pos = tradeWantedInput.selectionStart;
       render();
       const inp2 = document.getElementById('trade-wanted-input');
