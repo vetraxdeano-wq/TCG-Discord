@@ -268,6 +268,7 @@ let state = {
   collFilterSet: "all",
   collFilterRarity: "all",
   collFilterType: "all",
+  collSearch: '',
   collShowOwned: "all",
   collSetOpen: false,
   collSelectedCard: null,
@@ -1140,6 +1141,16 @@ function renderTabCollection(th){
     .filter(c=>state.collFilterRarity==="all"||c.rarity===state.collFilterRarity)
     .filter(c=>state.collShowOwned==="all"||(state.collShowOwned==="owned"&&c.owned)||(state.collShowOwned==="missing"&&!c.owned))
     .filter(c=>state.collFilterType==="all"||c.type===state.collFilterType)
+    .filter(c=>{
+      if(!state.collSearch) return true;
+      const q=state.collSearch.trim().toLowerCase();
+      if(!q) return true;
+      // Recherche par ID (toujours, même cartes non possédées)
+      if(String(parseInt(c.id))===q || c.id.toLowerCase().includes(q)) return true;
+      // Recherche par nom uniquement si la carte est possédée
+      if(c.owned && c.name.toLowerCase().includes(q)) return true;
+      return false;
+    })
     .sort((a,b)=>state.collSortBy==="id"?a.id.localeCompare(b.id):RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
   const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
 
@@ -1163,6 +1174,13 @@ function renderTabCollection(th){
     </div>
     <!-- Filters -->
     <div style="padding:0 14px 8px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;gap:6px;background:${th.bgSecondary};border:2px solid #000;padding:4px 10px;">
+        <span style="font-size:14px;color:${th.textMuted};">🔍</span>
+        <input id="coll-search-input" type="text" placeholder="Rechercher par ID ou nom…" value="${state.collSearch||''}"
+          style="flex:1;background:transparent;border:none;outline:none;font-size:11px;color:${th.text};font-family:inherit;"
+          oninput="setState({collSearch:this.value})"/>
+        ${state.collSearch?`<button onclick="setState({collSearch:''})" style="background:none;border:none;color:${th.textMuted};font-size:14px;cursor:pointer;padding:0;">✕</button>`:''}
+      </div>
       <div style="display:flex;gap:6px;align-items:center;">
         <span style="font-size:9px;color:${th.textMuted};white-space:nowrap;letter-spacing:.5px;text-transform:uppercase;">Tri</span>
         <button class="sort-btn" data-sort="id" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='id'?th.accent+'22':'transparent'};color:${state.collSortBy==='id'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='id'?th.accent+'50':th.border};transition:all .15s;">ID</button>
@@ -1305,7 +1323,7 @@ function renderCardDetailModal(card,th){
             </div>`).join('')}
           </div>
           <div style="font-size:10px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;">Cette carte n'a pas encore été découverte. Ouvre des boosters pour la trouver !</div>
-          <button style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;">→ ALLER AUX BOOSTERS</button>
+          <button onclick="setState({collSelectedCard:null, tab:2})" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;">→ ALLER AUX BOOSTERS</button>
         `}
       </div>
     </div>
@@ -2526,8 +2544,10 @@ function bindGame(){
       state.tradeWantedNum = tradeWantedInput.value ? String(parseInt(tradeWantedInput.value) || '') : '';
       render();
       // Remettre le focus sur l'input après re-render
-      const inp = document.getElementById('trade-wanted-input');
-      if(inp){ inp.focus(); inp.value = state.tradeWantedNum || ''; }
+    });
+    tradeWantedInput.addEventListener('blur', ()=>{
+      // Re-render uniquement quand on quitte le champ (pour afficher le preview final)
+      render();
     });
   }
   const tradeConfirmSend = document.getElementById('trade-confirm-send');
@@ -3127,40 +3147,48 @@ async function subscribeMessagesGlobal(myId) {
   if (!db || !myId) return;
   if (_msgRealtimeSub) { try { db.removeChannel(_msgRealtimeSub); } catch(e){} _msgRealtimeSub = null; }
 
-  _msgRealtimeSub = db.channel('messages-rt-' + myId)
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages',
-      filter: `to_id=eq.${myId}`,
-    }, payload => {
-      const m = payload.new;
-      if (!m) return;
-      const fromId = m.from_id;
-      // Éviter les doublons
-      const prev = state.messages[fromId] || [];
-      if (prev.some(x => x.ts === m.created_at && x.text === m.text)) return;
-      const updated = [...prev, { from: fromId, text: m.text, ts: m.created_at }];
-      // Toujours stocker dans state pour que la conv soit à jour quand on l'ouvre
-      state.messages = { ...state.messages, [fromId]: updated };
-
-      // Conv active et visible → append direct au DOM (pas de re-render = pas de destruction du canal)
-      if (fromId === _activeConvFriendId && state.activeConvId === fromId && state.showMessages) {
-        const list = document.getElementById('msg-list');
-        if (list) {
-          const div = document.createElement('div');
-          const th = t();
-          div.style.cssText = `display:flex;flex-direction:row;gap:6px;align-items:flex-end;`;
-          div.innerHTML = `<div style="max-width:75%;background:${th.bgTertiary};color:${th.text};padding:8px 12px;border-radius:14px 14px 14px 4px;font-size:12px;line-height:1.4;">${m.text.replace(/</g,'&lt;')}</div>`;
-          list.appendChild(div);
-          list.scrollTop = list.scrollHeight;
-        }
-        markMsgNotifsRead(fromId);
-        return;
+  // Fonction commune pour traiter un message entrant dans l'UI
+  function handleIncomingMsg(m, isOutgoing) {
+    if (!m) return;
+    const convPartnerId = isOutgoing ? m.to_id : m.from_id;
+    const displayFromId = m.from_id;
+    // Éviter les doublons
+    const prev = state.messages[convPartnerId] || [];
+    if (prev.some(x => x.ts === m.created_at && x.text === m.text)) return;
+    const updated = [...prev, { from: displayFromId, text: m.text, ts: m.created_at }];
+    state.messages = { ...state.messages, [convPartnerId]: updated };
+    // Conv active et visible → append direct au DOM
+    if (convPartnerId === _activeConvFriendId && state.activeConvId === convPartnerId && state.showMessages) {
+      const list = document.getElementById('msg-list');
+      if (list) {
+        const div = document.createElement('div');
+        const th = t();
+        const isMine = displayFromId === myId;
+        div.style.cssText = `display:flex;flex-direction:${isMine?'row-reverse':'row'};gap:6px;align-items:flex-end;`;
+        div.innerHTML = `<div style="max-width:75%;background:${isMine?th.accent:th.bgTertiary};color:${isMine?'#fff':th.text};padding:8px 12px;border-radius:${isMine?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${m.text.replace(/</g,'&lt;')}</div>`;
+        list.appendChild(div);
+        list.scrollTop = list.scrollHeight;
       }
-      // Sinon badge de notif
-      setState({ msgNotifCount: (state.msgNotifCount || 0) + 1 });
-    })
+      if (!isOutgoing) markMsgNotifsRead(convPartnerId);
+      return;
+    }
+    if (!isOutgoing) setState({ msgNotifCount: (state.msgNotifCount || 0) + 1 });
+  }
+
+  // Canal 1 : messages reçus (to_id = moi)
+  _msgRealtimeSub = db.channel('messages-rt-in-' + myId)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'messages',
+      filter: `to_id=eq.${myId}`,
+    }, payload => handleIncomingMsg(payload.new, false))
+    .subscribe();
+
+  // Canal 2 : messages envoyés (from_id = moi) — pour les voir en temps réel de son côté
+  const _msgSentSub = db.channel('messages-rt-out-' + myId)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'messages',
+      filter: `from_id=eq.${myId}`,
+    }, payload => handleIncomingMsg(payload.new, true))
     .subscribe();
 }
 window.subscribeMessagesGlobal = subscribeMessagesGlobal;
@@ -3721,6 +3749,22 @@ async function sendTradeOffer(theirCardId) {
 }
 
 // Accepter ou refuser un trade entrant
+function updateTradePreview() {
+  // Met à jour juste le preview de la carte voulue sans re-render complet
+  const wantedNum = state.tradeWantedNum || '';
+  const wantedCard = wantedNum && parseInt(wantedNum) > 0 ? ALL_CARDS.find(c=>parseInt(c.id)===parseInt(wantedNum)) : null;
+  const canSend = wantedCard && state.tradeMyCard && wantedCard.rarity === state.tradeMyCard.rarity && parseInt(wantedCard.id) !== parseInt(state.tradeMyCard.id);
+  // Mettre à jour le bouton Confirmer
+  const btn = document.getElementById('trade-confirm-send');
+  if (btn) {
+    const th = t();
+    btn.disabled = !canSend;
+    btn.style.background = canSend ? th.accent : th.surface;
+    btn.style.color = canSend ? '#fff' : th.textMuted;
+    btn.style.opacity = canSend ? '1' : '0.5';
+  }
+}
+
 window.respondTrade = async function respondTrade(tradeId, accept) {
   const db = window.db;
   const myId = state.currentUser?.id;
