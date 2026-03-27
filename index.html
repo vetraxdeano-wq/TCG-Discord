@@ -261,6 +261,7 @@ let state = {
   losses: null,
   friends: [],
   friendRequestsIn: [],
+  combatRequestsIn: [],
   friendsTab: 'list',
   showAddFriend: false,
   // Collection
@@ -538,7 +539,7 @@ function renderGame(th){
     {label:"Collection",icon:SVG.cards,id:1},
     {label:"Boosters",icon:SVG.package,id:2},
   ];
-  const NOTIF_COUNT = (state.friendRequestsIn||[]).length;
+  const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length;
   const MSG_COUNT = state.msgNotifCount || 0;
 
   return `
@@ -1224,9 +1225,11 @@ function renderTabCollection(th){
 
 function renderCollCard(card,th){
   if(!card.owned){
-    return `<div class="coll-card" data-cardid="${card.id}" style="border:2px solid #000;aspect-ratio:2/3;cursor:pointer;transition:all .2s;overflow:hidden;position:relative;">
-      <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.45;filter:grayscale(1);" />
-      <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:7px;font-weight:700;color:rgba(255,255,255,.7);text-shadow:0 1px 3px #000;">#${card.id}</div>
+    return `<div class="coll-card" data-cardid="${card.id}" style="border:2px solid #000;aspect-ratio:2/3;cursor:pointer;transition:all .2s;overflow:hidden;display:flex;flex-direction:column;background:#000;">
+      <div style="flex:1;overflow:hidden;min-height:0;">
+        <img src="https://i.goopics.net/modygo.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.45;filter:grayscale(1);" />
+      </div>
+      <div style="flex-shrink:0;padding:2px 0;background:rgba(0,0,0,.7);text-align:center;font-size:7px;font-weight:700;color:rgba(255,255,255,.6);">#${card.id}</div>
     </div>`;
   }
   const rarCol = card.color;
@@ -1670,16 +1673,34 @@ function renderPiocheMechanic(th){
 // ─── MODALS ───────────────────────────────────────────────────────
 function renderNotifModal(th){
   const reqs = state.friendRequestsIn || [];
+  const combatReqs = state.combatRequestsIn || [];
+  const allEmpty = reqs.length === 0 && combatReqs.length === 0;
   return `
   <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};padding:20px 20px 36px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};">
+    <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};padding:20px 20px 36px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};max-height:80vh;overflow-y:auto;">
       <div style="width:36px;height:4px;background:rgba(255,255,255,.1);margin:0 auto 20px;"></div>
       <div style="font-family:'Bangers',cursive;font-size:14px;font-weight:700;color:${th.text};margin-bottom:16px;letter-spacing:1px;">Notifications</div>
-      ${reqs.length===0 ? `
+      ${allEmpty ? `
         <div style="text-align:center;padding:32px 0;color:${th.textMuted};">
           <div style="font-size:32px;margin-bottom:10px;opacity:.5;">🔔</div>
           <div style="font-size:12px;">Aucune notification.</div>
-        </div>` : reqs.map(r=>`
+        </div>` : ''}
+      ${combatReqs.map(r=>`
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.red};"></div>
+          <div style="width:38px;height:38px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid #000;">
+            ${r.avatar_url?'<img src="'+r.avatar_url+'" style="width:100%;height:100%;object-fit:cover;">':'<span style="font-size:18px;">👤</span>'}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:${th.text};">${r.discord_username||'Joueur'}</div>
+            <div style="font-size:10px;color:${th.red};margin-top:1px;font-weight:700;">⚔️ Défi en combat !</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="notif-accept-combat" data-rid="${r.request_id}" data-fid="${r.from_id}" style="padding:7px 14px;font-size:10px;font-weight:800;background:${th.red};color:#fff;border:none;cursor:pointer;letter-spacing:.3px;">⚔️ OK</button>
+            <button class="notif-decline-combat" data-rid="${r.request_id}" style="padding:7px 14px;font-size:10px;font-weight:800;background:transparent;color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;">✕</button>
+          </div>
+        </div>`).join('')}
+      ${reqs.map(r=>`
         <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
           <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.accent};"></div>
           <div style="width:38px;height:38px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid #000;">
@@ -2050,8 +2071,9 @@ function renderFriendsModal(th){
               <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Ami'}</div>
             </div>
             <div style="display:flex;gap:5px;">
-              <button class="friend-dm" data-fid="${f.id}" style="padding:6px 12px;font-size:10px;font-weight:800;background:${th.accent}15;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;transition:all .18s;letter-spacing:.3px;">💬</button>
-              <button class="friend-trade" data-fid="${f.id}" style="padding:6px 12px;font-size:10px;font-weight:800;background:${th.green}12;color:${th.green};border:1px solid ${th.green}35;cursor:pointer;transition:all .18s;letter-spacing:.3px;">🔄</button>
+              <button class="friend-dm" data-fid="${f.id}" style="padding:6px 10px;font-size:10px;font-weight:800;background:${th.accent}15;color:${th.accent};border:1px solid ${th.accent}40;cursor:pointer;transition:all .18s;">💬</button>
+              <button class="friend-trade" data-fid="${f.id}" style="padding:6px 10px;font-size:10px;font-weight:800;background:${th.green}12;color:${th.green};border:1px solid ${th.green}35;cursor:pointer;transition:all .18s;">🔄</button>
+              <button class="friend-combat" data-fid="${f.id}" data-fname="${f.discord_username||'Ami'}" style="padding:6px 10px;font-size:10px;font-weight:800;background:${th.red}12;color:${th.red};border:1px solid ${th.red}35;cursor:pointer;transition:all .18s;">⚔️</button>
             </div>
           </div>`).join('')}
       ` : `
@@ -2516,6 +2538,22 @@ function bindGame(){
   });
 
   // Échange depuis liste amis
+  // Combat request
+  document.querySelectorAll('.friend-combat').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      sendCombatRequest(btn.dataset.fid, btn.dataset.fname);
+    });
+  });
+
+  // Accepter/refuser combat dans les notifs
+  document.querySelectorAll('.notif-accept-combat').forEach(btn=>{
+    btn.addEventListener('click',()=>respondCombatRequest(btn.dataset.rid, btn.dataset.fid, true));
+  });
+  document.querySelectorAll('.notif-decline-combat').forEach(btn=>{
+    btn.addEventListener('click',()=>respondCombatRequest(btn.dataset.rid, null, false));
+  });
+
   document.querySelectorAll('.friend-trade').forEach(btn=>{
     btn.addEventListener('click',(e)=>{
       e.stopPropagation();
@@ -3263,6 +3301,25 @@ async function subscribeNotifications() {
   const myId = state.currentUser?.id;
   if (!myId) return;
 
+  // Charger les combat requests en attente
+  const { data: combatNotifs } = await db.from('notifications')
+    .select('id, from_id, read')
+    .eq('user_id', myId).eq('type', 'combat_request').eq('read', false);
+
+  if (combatNotifs && combatNotifs.length > 0) {
+    const fromIds = [...new Set(combatNotifs.map(n => n.from_id))];
+    const { data: senders } = await db.from('players').select('id, discord_username, avatar_url').in('id', fromIds);
+    const senderMap = {};
+    (senders||[]).forEach(s => { senderMap[s.id] = s; });
+    const combatReqs = combatNotifs.map(n => ({
+      request_id: n.id,
+      from_id: n.from_id,
+      discord_username: senderMap[n.from_id]?.discord_username || 'Joueur',
+      avatar_url: senderMap[n.from_id]?.avatar_url || null,
+    }));
+    setState({ combatRequestsIn: combatReqs });
+  }
+
   // Charger les notifications non lues (type message)
   const { data: notifs } = await db.from('notifications')
     .select('id, type, from_id, text, created_at, read')
@@ -3306,6 +3363,21 @@ async function subscribeNotifications() {
         markMsgNotifsRead(n.from_id);
         return;
       }
+      if (n.type === 'combat_request') {
+        // Charger l'avatar/nom de l'expéditeur
+        db.from('players').select('discord_username, avatar_url').eq('id', n.from_id).single()
+          .then(({ data: sender }) => {
+            const req = {
+              request_id: n.id,
+              from_id: n.from_id,
+              discord_username: sender?.discord_username || 'Joueur',
+              avatar_url: sender?.avatar_url || null,
+            };
+            setState({ combatRequestsIn: [...(state.combatRequestsIn||[]), req] });
+            showToast(n.text || 'Défi en combat reçu !', '⚔️');
+          });
+        return;
+      }
       const prev = state.pendingMsgNotifs || [];
       setState({
         msgNotifCount: (state.msgNotifCount || 0) + 1,
@@ -3317,6 +3389,74 @@ async function subscribeNotifications() {
 }
 
 window.subscribeNotifications = subscribeNotifications;
+
+// ─── COMBAT REQUESTS ──────────────────────────────────────────────
+async function sendCombatRequest(toId, toName) {
+  const db = window.db;
+  if (!db) return;
+  const myId = state.currentUser?.id;
+  const myName = state.currentUser?.user_metadata?.full_name || state.currentUser?.user_metadata?.name || 'Un joueur';
+  if (!myId || !toId) return;
+
+  try {
+    await db.from('notifications').insert({
+      user_id: toId,
+      type: 'combat_request',
+      from_id: myId,
+      text: `${myName} te défie en combat !`,
+      read: false,
+    });
+    showToast(`Défi envoyé à ${toName} !`, '⚔️');
+    setState({ showFriends: false });
+  } catch(e) {
+    showToast('Erreur lors de l'envoi du défi', '✗');
+  }
+}
+
+async function respondCombatRequest(notifId, fromId, accept) {
+  const db = window.db;
+  if (!db) return;
+  const myId = state.currentUser?.id;
+  if (!myId) return;
+
+  // Marquer la notif comme lue
+  await db.from('notifications').update({ read: true }).eq('id', notifId);
+
+  // Retirer de la liste locale
+  const updated = (state.combatRequestsIn || []).filter(r => r.request_id !== notifId);
+  setState({ combatRequestsIn: updated });
+
+  if (!accept) {
+    showToast('Défi refusé', '✗');
+    return;
+  }
+
+  // Vérifier qu'on a un deck par défaut
+  const { data: deck } = await db.from('decks')
+    .select('id').eq('player_id', myId).eq('is_default', true).single();
+
+  if (!deck) {
+    showToast('Configure un deck par défaut avant de combattre !', '🗂️');
+    return;
+  }
+
+  // Notifier l'expéditeur que c'est accepté
+  if (fromId) {
+    await db.from('notifications').insert({
+      user_id: fromId,
+      type: 'combat_accepted',
+      from_id: myId,
+      text: 'Ton défi a été accepté ! Prépare-toi au combat.',
+      read: false,
+    }).then(()=>{}).catch(()=>{});
+  }
+
+  showToast('Défi accepté ! Lancement du combat…', '⚔️');
+  setTimeout(() => { window.location.href = 'GAMEPLAY.html'; }, 1200);
+}
+
+window.sendCombatRequest = sendCombatRequest;
+window.respondCombatRequest = respondCombatRequest;
 
 async function sendMessage(toId, text) {
   const db = window.db;
