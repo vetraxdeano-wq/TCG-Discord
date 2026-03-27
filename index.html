@@ -71,7 +71,8 @@ button{font-family:inherit;cursor:pointer;}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div id="app"></div>
+<div id="bg-overlay" style="position:fixed;inset:0;pointer-events:none;z-index:0;background-image:url(https://i.goopics.net/7spmtw.png);background-size:cover;background-position:center;background-repeat:no-repeat;opacity:.06;"></div>
+<div id="app" style="position:relative;z-index:1;"></div>
 <script>
 // ─── THEMES ───────────────────────────────────────────────────────
 const themes = {
@@ -1027,9 +1028,9 @@ function renderTradeModal(th){
 // ─── TAB PLAY ─────────────────────────────────────────────────────
 function renderTabPlay(th){
   const modes=[
-    {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", color:th.accent,    available:true,  badge:"RANKED"},
-    {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", color:th.green,     available:true,  badge:"SOLO"},
-    {id:"secret",label:"???",    sub:"Mode secret",        desc:"Ce mode sera débloqué prochainement…",     icon:"🔒", color:th.textFaint, available:false, badge:"SOON"},
+    {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", img:"https://i.goopics.net/fxkzfv.png", color:th.accent,    available:true,  badge:"RANKED"},
+    {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", img:"https://i.goopics.net/weqlkg.png", color:th.green,     available:true,  badge:"SOLO"},
+    {id:"secret",label:"???",    sub:"Mode secret",        desc:"Ce mode sera débloqué prochainement…",     icon:"🔒", img:null,                               color:th.textFaint, available:false, badge:"SOON"},
   ];
   const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
     ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
@@ -1110,8 +1111,11 @@ function renderTabPlay(th){
             <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,${m.color}20,transparent 70%);pointer-events:none;"></div>
             <!-- Grille déco -->
             <div style="position:absolute;inset:0;background-image:linear-gradient(${m.color}08 1px,transparent 1px),linear-gradient(90deg,${m.color}08 1px,transparent 1px);background-size:16px 16px;pointer-events:none;"></div>
-            <!-- Icône principale (remplacer par <img> quand dispo) -->
-            <div style="font-size:44px;filter:drop-shadow(0 4px 20px ${m.color}60);position:relative;z-index:1;">${m.icon}</div>
+            <!-- Image ou icône du mode -->
+            ${m.img
+              ? `<img src="${m.img}" style="width:80%;height:80%;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 4px 20px ${m.color}60);" />`
+              : `<div style="font-size:44px;filter:drop-shadow(0 4px 20px ${m.color}60);position:relative;z-index:1;">${m.icon}</div>`
+            }
           </div>
 
           <!-- Info zone (bas de la carte) -->
@@ -1242,9 +1246,9 @@ function renderCollCard(card,th,x,y,CW,CH){
   if(!card.owned){
     return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;border:2px solid #000;">
       ${card.image_url
-        ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(1);opacity:.4;" />`
-        : `<img src="https://i.goopics.net/iic46c.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:.5;filter:grayscale(.85);" />`}
-      <div style="position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.7);text-shadow:0 1px 3px #000;">#${card.id}</div>
+        ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:.55;" />`
+        : `<img src="https://i.goopics.net/iic46c.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:.75;" />`}
+      <div style="position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.9);text-shadow:0 1px 4px #000,0 0 8px #000;">#${card.id}</div>
     </div>`;
   }
   const rarCol = card.color;
@@ -1349,17 +1353,17 @@ function renderTabBoosters(th){
     {
       desc:"Toutes raretés · garanti Commune",
       gradient:`linear-gradient(160deg,#5865f220,#5865f206)`,
-      // src:"boosters/normal.png",   // ← décommenter quand le PNG est prêt
+      src:"https://i.goopics.net/ueiki4.png",
     },
     {
       desc:"Garantit au moins 1 Rare",
       gradient:`linear-gradient(160deg,#fee75c22,#fee75c06)`,
-      // src:"boosters/prestige.png",
+      src:"https://i.goopics.net/61e1o1.png",
     },
     {
       desc:"Garantit au moins 1 Mythique",
       gradient:`linear-gradient(160deg,#eb459e22,#eb459e06)`,
-      // src:"boosters/legendaire.png",
+      src:"https://i.goopics.net/cussu4.png",
     },
   ];
 
