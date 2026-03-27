@@ -1216,36 +1216,43 @@ function renderTabCollection(th){
       <div style="font-size:9px;color:${th.textFaint};letter-spacing:.3px;">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
     </div>
     <!-- Grid -->
-    <div style="flex:1;overflow-y:auto;padding:0 10px 10px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-content:start;">
-      ${cards.map(c=>renderCollCard(c,th)).join('')}
-      ${cards.length===0?`<div style="grid-column:1/-1;text-align:center;color:${th.textMuted};font-size:12px;padding-top:40px;"><div style="font-size:32px;margin-bottom:10px;">🔍</div>Aucune carte</div>`:''}
-    </div>
+    ${(()=>{
+      const COLS=4, GAP=6, PAD=10;
+      const availW = Math.min(window.innerWidth, 420) - PAD*2;
+      const CW = Math.floor((availW - GAP*(COLS-1)) / COLS);
+      const CH = Math.round(CW * 1.5);
+      const ROWS = Math.ceil(cards.length / COLS);
+      const gridH = ROWS * CH + (ROWS-1) * GAP;
+      if(cards.length===0) return `<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:${th.textMuted};font-size:12px;"><div style="font-size:32px;">🔍</div>Aucune carte</div>`;
+      return `<div style="flex:1;overflow-y:auto;padding:${PAD}px;">
+        <div style="position:relative;width:${availW}px;height:${gridH}px;">
+          ${cards.map((c,i)=>{
+            const col=i%COLS, row=Math.floor(i/COLS);
+            const x=col*(CW+GAP), y=row*(CH+GAP);
+            return renderCollCard(c,th,x,y,CW,CH);
+          }).join('')}
+        </div>
+      </div>`;
+    })()}
   </div>`;
 }
 
-function renderCollCard(card,th){
+function renderCollCard(card,th,x,y,CW,CH){
   if(!card.owned){
-    return `<div class="coll-card" data-cardid="${card.id}" style="position:relative;aspect-ratio:2/3;cursor:pointer;transition:all .2s;overflow:hidden;border:2px solid #000;">
-      <img src="https://i.goopics.net/iic46c.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:.55;filter:grayscale(.8);" />
-      <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.75);text-shadow:0 1px 3px #000;">#${card.id}</div>
+    return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;border:2px solid #000;">
+      <img src="https://i.goopics.net/iic46c.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:.5;filter:grayscale(.85);" />
+      <div style="position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.7);text-shadow:0 1px 3px #000;">#${card.id}</div>
     </div>`;
   }
   const rarCol = card.color;
-  return `<div class="coll-card" data-cardid="${card.id}" style="position:relative;aspect-ratio:2/3;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);overflow:hidden;border:2px solid #000;background:linear-gradient(160deg,${rarCol}14,${th.bgSecondary} 70%);">
-    <!-- top shimmer line -->
-    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${rarCol}60,transparent);z-index:1;"></div>
-    <!-- count badge -->
-    ${card.count>1?`<div style="position:absolute;top:3px;right:3px;min-width:14px;height:14px;background:${th.accent};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:2;">×${card.count}</div>`:''}
-    <!-- card art area -->
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;">
-      <div style="font-size:22px;flex:1;display:flex;align-items:center;justify-content:center;width:100%;background:linear-gradient(135deg,${rarCol}20,${rarCol}06);">🃏</div>
-      <div style="width:100%;padding:3px 3px 2px;background:${th.bgSecondary}cc;">
-        <div style="font-size:6px;font-weight:800;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;">${card.name}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1px;">
-          <span style="font-size:6px;color:${th.textMuted};font-weight:600;">#${card.id}</span>
-          <span style="font-size:7px;color:${rarCol};">◆</span>
-        </div>
-      </div>
+  const artH = CH - 20;
+  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;border:2px solid #000;background:linear-gradient(160deg,${rarCol}18,${th.bgSecondary} 70%);">
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${rarCol}60,transparent);"></div>
+    ${card.count>1?`<div style="position:absolute;top:2px;right:2px;min-width:13px;height:13px;background:${th.accent};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:1;">×${card.count}</div>`:''}
+    <div style="position:absolute;top:0;left:0;right:0;height:${artH}px;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.4)}px;">🃏</div>
+    <div style="position:absolute;bottom:0;left:0;right:0;height:20px;background:${th.bgSecondary};display:flex;align-items:center;justify-content:space-between;padding:0 3px;">
+      <span style="font-size:6px;font-weight:800;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;">${card.name}</span>
+      <span style="font-size:7px;color:${rarCol};flex-shrink:0;">◆</span>
     </div>
   </div>`;
 }
