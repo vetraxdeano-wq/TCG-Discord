@@ -1217,8 +1217,9 @@ function renderTabCollection(th){
     </div>
     <!-- Grid -->
     ${(()=>{
-      const COLS=3, GAP=6, PAD=10;
-      const availW = Math.min(window.innerWidth, 420) - PAD*2;
+      const GAP=6, PAD=10;
+      const availW = window.innerWidth - PAD*2;
+      const COLS = Math.min(8, Math.max(3, Math.floor(availW / 130)));
       const CW = Math.floor((availW - GAP*(COLS-1)) / COLS);
       const CH = Math.round(CW * 1.5);
       const ROWS = Math.ceil(cards.length / COLS);
