@@ -1225,29 +1225,27 @@ function renderTabCollection(th){
 
 function renderCollCard(card,th){
   if(!card.owned){
-    return `<div class="coll-card" data-cardid="${card.id}" style="border:2px solid #000;aspect-ratio:2/3;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;display:block;">
-      <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.55;filter:grayscale(.8);" />
+    return `<div class="coll-card" data-cardid="${card.id}" style="position:relative;aspect-ratio:2/3;cursor:pointer;transition:all .2s;overflow:hidden;border:2px solid #000;">
+      <img src="https://i.goopics.net/iic46c.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:.55;filter:grayscale(.8);" />
       <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.75);text-shadow:0 1px 3px #000;">#${card.id}</div>
     </div>`;
   }
   const rarCol = card.color;
-  return `<div class="coll-card" data-cardid="${card.id}" style="background:linear-gradient(160deg,${rarCol}14,${th.bgSecondary} 70%);border:2px solid #000;aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);overflow:hidden;padding:4px 3px 3px;gap:2px;position:relative;">
+  return `<div class="coll-card" data-cardid="${card.id}" style="position:relative;aspect-ratio:2/3;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);overflow:hidden;border:2px solid #000;background:linear-gradient(160deg,${rarCol}14,${th.bgSecondary} 70%);">
     <!-- top shimmer line -->
-    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${rarCol}60,transparent);"></div>
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${rarCol}60,transparent);z-index:1;"></div>
     <!-- count badge -->
-    ${card.count>1?`<div style="position:absolute;top:3px;right:3px;min-width:14px;height:14px;background:${th.accent};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:1;">×${card.count}</div>`:''}
+    ${card.count>1?`<div style="position:absolute;top:3px;right:3px;min-width:14px;height:14px;background:${th.accent};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:2;">×${card.count}</div>`:''}
     <!-- card art area -->
-    <div style="flex:1;width:100%;background:linear-gradient(135deg,${rarCol}20,${rarCol}06);display:flex;align-items:center;justify-content:center;font-size:16px;position:relative;overflow:hidden;">
-      🃏
-      <!-- rarity glow -->
-      <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:60%;height:10px;background:${rarCol}30;filter:blur(5px);pointer-events:none;"></div>
-    </div>
-    <!-- name -->
-    <div style="font-size:6px;font-weight:800;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;padding:0 1px;line-height:1.2;">${card.name}</div>
-    <!-- footer row -->
-    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:0 1px;">
-      <span style="font-size:6px;color:${th.textMuted};font-weight:600;">#${card.id}</span>
-      <span style="font-size:7px;color:${rarCol};">◆</span>
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;">
+      <div style="font-size:22px;flex:1;display:flex;align-items:center;justify-content:center;width:100%;background:linear-gradient(135deg,${rarCol}20,${rarCol}06);">🃏</div>
+      <div style="width:100%;padding:3px 3px 2px;background:${th.bgSecondary}cc;">
+        <div style="font-size:6px;font-weight:800;color:${th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;">${card.name}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1px;">
+          <span style="font-size:6px;color:${th.textMuted};font-weight:600;">#${card.id}</span>
+          <span style="font-size:7px;color:${rarCol};">◆</span>
+        </div>
+      </div>
     </div>
   </div>`;
 }
