@@ -1097,16 +1097,15 @@ function renderTabPlay(th){
             opacity:${m.available?1:.35};
             position:relative;
             overflow:hidden;
-            clip-path:inset(0 round 10px 10px 0 0);
             transition:all .22s;
             width:100%;
             height:100%;">
 
-          <!-- Image principale avec bords arrondis via clip-path sur le parent -->
+          <!-- Image PNG avec coins arrondis via clip-path (bypass border-radius:0 !important) -->
           <div style="flex:1;min-height:0;overflow:hidden;">
             ${m.img
-              ? `<img src="${m.img}" style="width:100%;height:100%;object-fit:cover;display:block;filter:drop-shadow(0 4px 24px ${m.color}50);transition:transform .22s;" />`
-              : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
+              ? `<img src="${m.img}" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s;clip-path:inset(0 0 0 0 round 8px 8px 0 0);" />`
+              : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);clip-path:inset(0 0 0 0 round 8px 8px 0 0);">${m.icon}</div>`
             }
           </div>
 
