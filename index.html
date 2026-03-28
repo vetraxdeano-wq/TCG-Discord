@@ -1500,7 +1500,9 @@ function renderMessagesModal(th){
           const isMine = item.from_id === myId;
           const fromCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.from_card_id));
           const toCard   = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.to_card_id));
-          // Le propriétaire voit ses propres cartes, l'autre voit en mystère si non possédée
+          // Spoil : on ne révèle une carte que si l'utilisateur actuel la possède OU s'il en est l'auteur
+          // fromCard = carte que l'expéditeur propose → visible si isMine OU si le receveur la possède
+          // toCard = carte que l'expéditeur veut → visible si !isMine (receveur) OU si l'expéditeur la possède
           const showFromCard = isMine || (fromCard && fromCard.owned);
           const showToCard   = !isMine || (toCard && toCard.owned);
 
@@ -1517,7 +1519,7 @@ function renderMessagesModal(th){
             const col = card ? RARITY_COLOR[card.rarity] : '#96989d';
             if(show && card) return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                <div style="width:44px;height:62px;border-radius:7px;background:linear-gradient(135deg,${col}30,${col}10);border:1px solid ${col}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+                <div style="width:44px;height:62px;background:linear-gradient(135deg,${col}30,${col}10);border:1px solid ${col}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
                   <div style="font-size:18px;">🃏</div>
                   <div style="font-size:6px;color:${col};font-weight:800;">◆</div>
                 </div>
@@ -1534,9 +1536,13 @@ function renderMessagesModal(th){
               </div>`;
           };
 
+          // Boutons accepter/refuser : seulement si pending ET c'est moi le receveur
+          const isPendingForMe = item.status === 'pending' && item.to_id === myId;
+          const receiverOwnsCard = toCard && toCard.owned;
+
           return `
             <div style="display:flex;flex-direction:${isMine?'row-reverse':'row'};gap:6px;align-items:flex-end;">
-              <div style="max-width:88%;background:${st.bg};border:1px solid ${st.border};border-radius:${isMine?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:10px 12px;min-width:200px;">
+              <div style="max-width:88%;background:${st.bg};border:1px solid ${st.border};padding:10px 12px;min-width:200px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
                   <div style="font-size:9px;font-weight:700;color:${th.textMuted};text-transform:uppercase;letter-spacing:1px;">🔄 ${tradeLabel}</div>
                   <div style="display:flex;align-items:center;gap:4px;background:${st.bg};border:1px solid ${st.border};padding:2px 7px;">
@@ -1556,6 +1562,12 @@ function renderMessagesModal(th){
                   </div>
                 </div>
                 <div style="margin-top:6px;font-size:8px;color:${th.textFaint};text-align:center;">${new Date(item.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                ${isPendingForMe ? `
+                <div style="margin-top:10px;display:flex;gap:6px;">
+                  ${!receiverOwnsCard ? `<div style="width:100%;padding:6px;background:rgba(237,66,69,.1);border:1px solid rgba(237,66,69,.3);font-size:9px;color:#ed4245;text-align:center;font-weight:700;">Tu ne possèdes pas la carte #${item.to_card_id}</div>` : `
+                  <button class="dm-trade-accept" data-tradeid="${item.id}" style="flex:1;padding:8px 6px;background:#57f287;color:#000;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✓ Accepter</button>`}
+                  <button class="dm-trade-decline" data-tradeid="${item.id}" style="flex:${receiverOwnsCard?1:0};padding:8px ${receiverOwnsCard?'6':'14'}px;background:transparent;color:#ed4245;border:1px solid rgba(237,66,69,.4);font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✕ Refuser</button>
+                </div>` : ''}
               </div>
             </div>`;
         }).join('');
@@ -2227,6 +2239,37 @@ function bindGame(){
     msgSend.addEventListener('click', sendMsg);
     msgInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') sendMsg(); });
   }
+
+  // Boutons accepter/refuser trade dans les DMs
+  document.querySelectorAll('.dm-trade-accept').forEach(btn=>{
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const tradeId = btn.dataset.tradeid;
+      // Charger le trade complet depuis la conv pour nourrir tradeIncoming
+      const convId = state.activeConvId;
+      const trades = state.convTrades[convId] || [];
+      const trade = trades.find(t => t.id === tradeId);
+      if (!trade) { showToast('Trade introuvable', '✗'); return; }
+      const db = window.db;
+      const { data: sender } = await db.from('players').select('discord_username').eq('id', trade.from_id).single();
+      setState({ tradeIncoming: { ...trade, from_name: sender?.discord_username || 'Ami' } });
+      await window.respondTrade(tradeId, true);
+    });
+  });
+  document.querySelectorAll('.dm-trade-decline').forEach(btn=>{
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const tradeId = btn.dataset.tradeid;
+      const convId = state.activeConvId;
+      const trades = state.convTrades[convId] || [];
+      const trade = trades.find(t => t.id === tradeId);
+      if (!trade) { showToast('Trade introuvable', '✗'); return; }
+      const db = window.db;
+      const { data: sender } = await db.from('players').select('discord_username').eq('id', trade.from_id).single();
+      setState({ tradeIncoming: { ...trade, from_name: sender?.discord_username || 'Ami' } });
+      await window.respondTrade(tradeId, false);
+    });
+  });
 
   // Fermer autres modals quand messages s'ouvre
   const messagesBg2 = document.getElementById('messages-bg');
@@ -3368,7 +3411,7 @@ async function subscribeNotifications() {
       if (n.type === 'combat_accepted') {
         showToast('Ton défi a été accepté ! Lancement…', '⚔️');
         try { sessionStorage.setItem('pvp_opponent_id', n.from_id || ''); } catch(e) {}
-        setTimeout(() => showPvpMatchmaking('Défi accepté !', 'Connexion au serveur de jeu…'), 400);
+        setTimeout(() => { window.location.href = 'GAMEPLAY.html'; }, 1200);
         return;
       }
       const prev = state.pendingMsgNotifs || [];
@@ -3506,8 +3549,7 @@ async function respondCombatRequest(notifId, fromId, accept) {
     sessionStorage.setItem('pvp_opponent_id', fromId || '');
     sessionStorage.setItem('pvp_my_id', myId);
   } catch(e) {}
-  // Afficher un écran de matchmaking inline plutôt que rediriger vers une page inexistante
-  showPvpMatchmaking('Adversaire accepté', 'Connexion au serveur de jeu…');
+  setTimeout(() => { window.location.href = 'GAMEPLAY.html'; }, 1200);
 }
 
 window.sendCombatRequest = sendCombatRequest;
