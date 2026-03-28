@@ -71,7 +71,7 @@ button{font-family:inherit;cursor:pointer;}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-<div id="bg-overlay" style="position:fixed;inset:0;pointer-events:none;z-index:0;background-image:url(https://i.goopics.net/7spmtw.png);background-size:cover;background-position:center;background-repeat:no-repeat;opacity:.18;"></div>
+<div id="bg-overlay" style="position:fixed;inset:0;pointer-events:none;z-index:0;background-image:url(https://i.goopics.net/7spmtw.png);background-size:cover;background-position:center;background-repeat:no-repeat;opacity:.38;"></div>
 <div id="app" style="position:relative;z-index:1;"></div>
 <script>
 // ─── THEMES ───────────────────────────────────────────────────────
@@ -1089,10 +1089,10 @@ function renderTabPlay(th){
     <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;min-height:0;">
       ${modes.map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
-          style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+          style="display:flex;flex-direction:column;align-items:stretch;
             padding:0;
-            background:transparent;
-            border:none;
+            background:${m.available?th.bgSecondary:th.bgTertiary};
+            border:2px solid #000;
             cursor:${m.available?'pointer':'not-allowed'};
             opacity:${m.available?1:.35};
             position:relative;
@@ -1101,21 +1101,21 @@ function renderTabPlay(th){
             width:100%;
             height:100%;">
 
-          <!-- Image principale — occupe tout l'espace -->
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+          <!-- Image principale avec bords arrondis via clip-path -->
+          <div style="flex:1;min-height:0;overflow:hidden;clip-path:inset(0 0 0 0 round 10px 10px 0 0);">
             ${m.img
-              ? `<img src="${m.img}" style="width:100%;height:100%;object-fit:cover;filter:drop-shadow(0 4px 24px ${m.color}50);" />`
-              : `<div style="font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
+              ? `<img src="${m.img}" style="width:100%;height:100%;object-fit:cover;display:block;filter:drop-shadow(0 4px 24px ${m.color}50);transition:transform .22s;" />`
+              : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
             }
           </div>
 
-          <!-- Overlay dégradé bas pour la lisibilité du texte -->
-          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.1) 50%,transparent 100%);pointer-events:none;"></div>
-
-          <!-- Info zone — texte en bas en overlay -->
-          <div style="position:relative;z-index:2;width:100%;padding:8px 8px 10px;text-align:center;">
-            <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:#fff;letter-spacing:.5px;line-height:1.1;">${m.label}</div>
-            ${m.available?`<div style="margin-top:5px;padding:4px 0;background:${m.color};font-size:8px;font-weight:900;color:#fff;letter-spacing:.8px;">JOUER</div>`:`<div style="margin-top:5px;font-size:8px;color:rgba(255,255,255,.4);letter-spacing:.5px;">${m.badge}</div>`}
+          <!-- Info zone — sous l'image, pas en overlay -->
+          <div style="flex-shrink:0;padding:7px 6px 8px;text-align:center;background:${th.bgSecondary};border-top:1px solid rgba(0,0,0,.6);">
+            <div style="font-family:'Bangers',cursive;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.5px;line-height:1.1;margin-bottom:4px;">${m.label}</div>
+            ${m.available
+              ? `<div style="padding:3px 0;background:${m.color};font-size:8px;font-weight:900;color:#fff;letter-spacing:.8px;">JOUER</div>`
+              : `<div style="font-size:8px;color:${th.textMuted};letter-spacing:.5px;">${m.badge}</div>`
+            }
           </div>
         </button>`).join('')}
     </div>
@@ -1370,22 +1370,23 @@ function renderTabBoosters(th){
         const meta   = boosterMeta[i];
         return `
         <div class="booster-card" data-bid="${b.id}"
-          style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-            background:transparent;
-            border:none;
+          style="display:flex;flex-direction:column;align-items:stretch;
+            background:${th.bgSecondary};
+            border:2px solid #000;
             overflow:hidden;
             cursor:pointer;
             position:relative;
-            transition:all .26s cubic-bezier(.4,0,.2,1);
+            transition:all .22s cubic-bezier(.4,0,.2,1);
             width:100%;
             height:100%;">
 
-          <!-- Image PNG — couvre tout -->
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+          <!-- Image PNG — contain pour voir tout le booster -->
+          <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 6px 4px;background:${meta.gradient};">
             ${meta.src
-              ? `<img src="${meta.src}" alt="${b.name}"
-                   style="width:100%;height:100%;object-fit:cover;
-                          filter:drop-shadow(0 6px 24px ${b.color}60);
+              ? `<img src="${meta.src}" class="booster-img" alt="${b.name}"
+                   style="width:100%;height:100%;object-fit:contain;display:block;
+                          filter:drop-shadow(0 6px 20px ${b.color}70);
+                          transition:transform .22s,filter .22s;
                           animation:${isOpen?'shakePack .4s ease':'floatPack 2.2s ease-in-out infinite'};"/>`
               : `<div style="display:flex;align-items:center;justify-content:center;width:80%;height:80%;">
                    ${[0,1,2].map(k=>`
@@ -1401,12 +1402,9 @@ function renderTabBoosters(th){
             }
           </div>
 
-          <!-- Overlay dégradé bas -->
-          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.8) 0%,rgba(0,0,0,.1) 45%,transparent 100%);pointer-events:none;"></div>
-
-          <!-- Info + bouton OUVRIR en bas en overlay -->
-          <div style="position:relative;z-index:2;width:100%;padding:8px 8px 10px;text-align:center;">
-            <div style="font-family:'Bangers',cursive;font-size:12px;font-weight:700;color:#fff;letter-spacing:.3px;margin-bottom:3px;">${b.name}</div>
+          <!-- Info + bouton OUVRIR en bas, hors de l'image -->
+          <div style="flex-shrink:0;padding:6px 8px 8px;text-align:center;border-top:1px solid rgba(0,0,0,.5);background:${th.bgSecondary};">
+            <div style="font-family:'Bangers',cursive;font-size:11px;font-weight:700;color:${th.text};letter-spacing:.3px;margin-bottom:2px;">${b.name}</div>
             <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:5px;">
               <svg width="9" height="9" viewBox="0 0 24 24" fill="${b.color}"><circle cx="12" cy="12" r="10" opacity=".5"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
               <span style="font-size:10px;font-weight:900;color:${b.color};">${b.price.toLocaleString()}</span>
@@ -1603,16 +1601,19 @@ function renderMessagesModal(th){
 
 // ─── PIOCHE MECHANIC ──────────────────────────────────────────────
 function renderPiocheMechanic(th){
-  const TOTAL=50,COLS=5,GAP=6,CW=Math.floor((Math.min(window.innerWidth,460)-32-GAP*(COLS-1))/COLS),CH=Math.round(CW*1.43);
+  const TOTAL=50,COLS=10,GAP=4,PAD=16;
+  const availW=Math.min(window.innerWidth,680)-PAD*2-GAP*(COLS-1);
+  const CW=Math.floor(availW/COLS);
+  const CH=Math.round(CW*1.43);
   return `
-  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(4,8,18,.97);backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;padding:16px 16px 10px;overflow-y:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:460px;flex-shrink:0;">
+  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(4,8,18,.97);backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;padding:${PAD}px ${PAD}px 10px;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:680px;flex-shrink:0;">
       <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:#e8f4ff;letter-spacing:2px;text-transform:uppercase;">Pioche Classique</div>
       <button id="pioche-close" style="width:32px;height:32px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#5e7d9a;display:flex;align-items:center;justify-content:center;cursor:pointer;">${SVG.x}</button>
     </div>
     <div style="font-size:10px;color:#5e7d9a;text-align:center;letter-spacing:1px;flex-shrink:0;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
     ${!state.piocheResult?`
-    <div style="position:relative;width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*10+GAP*9}px;flex-shrink:0;margin:0 auto;">
+    <div style="position:relative;width:${CW*COLS+GAP*(COLS-1)}px;height:${CH*5+GAP*4}px;flex-shrink:0;margin:0 auto;">
       ${Array.from({length:TOTAL},(_,i)=>{
         const col=i%COLS,row=Math.floor(i/COLS);
         const rot=(((i*37+13)%20)-10)*0.5;
@@ -2412,19 +2413,16 @@ function bindGame(){
     const b=BOOSTERS.find(b=>b.id===bid);
     if(!b)return;
     el.addEventListener('mouseenter',()=>{
-      el.style.transform=`scale(${parseFloat(el.style.transform.match(/scale\(([^)]+)\)/)?.[1]||1)+0.04}) rotate(0deg)`;
-      el.style.boxShadow=`0 16px 40px ${b.color}50`;
+      el.style.boxShadow=`0 0 24px ${b.color}70,0 0 48px ${b.color}30`;
       el.style.zIndex=10;
-      el.style.border=`1px solid ${b.color}90`;
+      const img=el.querySelector('.booster-img');
+      if(img){img.style.transform='scale(1.06)';img.style.filter=`drop-shadow(0 8px 28px ${b.color}90) brightness(1.08)`;}
     });
     el.addEventListener('mouseleave',()=>{
-      const idx=BOOSTERS.indexOf(b);
-      const bazar=[{rotate:"-7deg",scale:1.0},{rotate:"5deg",scale:1.1},{rotate:"11deg",scale:0.95}];
-      const pos=bazar[idx];
-      el.style.transform=`rotate(${pos.rotate}) scale(${pos.scale})`;
-      el.style.boxShadow='0 4px 16px rgba(0,0,0,.3)';
-      el.style.zIndex=pos.zIndex||1;
-      el.style.border=`1px solid ${b.color}45`;
+      el.style.boxShadow='';
+      el.style.zIndex='';
+      const img=el.querySelector('.booster-img');
+      if(img){img.style.transform='';img.style.filter=`drop-shadow(0 6px 20px ${b.color}70)`;}
     });
   });
 
