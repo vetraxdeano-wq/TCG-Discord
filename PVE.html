@@ -2435,33 +2435,35 @@ initGame = function() {
   }
 };
 
-// Patcher endGame pour sauvegarder résultat + coins
+// Patcher endGame pour sauvegarder résultat + coins + XP
 const _origEndGame = endGame;
 endGame = function(w) {
   _origEndGame(w);
   const isWin = w === 'human';
   const coins = isWin ? 100 : 50;
+  const xp    = isWin ? 25  : 10;
   // Afficher la récompense
   const rewardEl = document.getElementById('ov-reward');
-  if (rewardEl) rewardEl.textContent = `+${coins} coins ${isWin ? '🏆' : '🤝'}`;
+  if (rewardEl) rewardEl.innerHTML = `+${coins} coins ${isWin ? '🏆' : '🤝'} &nbsp;·&nbsp; <span style="color:#a78bfa;font-weight:900;">✨ +${xp} XP</span>`;
   // Sauvegarder en DB
-  saveGameResult(isWin, coins);
+  saveGameResult(isWin, coins, xp);
 };
 
-async function saveGameResult(isWin, coinsGained) {
+async function saveGameResult(isWin, coinsGained, xpGained) {
   if (!_db || !_currentUser) return;
   const myId = _currentUser.id;
   try {
     // 1. Mettre à jour victoires/défaites sur le joueur
     const col = isWin ? 'wins' : 'losses';
-    const { data: p } = await _db.from('players').select('wins, losses, coins').eq('id', myId).single();
+    const { data: p } = await _db.from('players').select('wins, losses, coins, xp').eq('id', myId).single();
     if (p) {
       await _db.from('players').update({
         [col]: (p[col] || 0) + 1,
         coins: (p.coins || 0) + coinsGained,
+        xp:    (p.xp    || 0) + xpGained,
       }).eq('id', myId);
     }
-    console.log(`[PVE] Résultat sauvegardé : ${isWin?'victoire':'défaite'} +${coinsGained} coins`);
+    console.log(`[PVE] Résultat sauvegardé : ${isWin?'victoire':'défaite'} +${coinsGained} coins +${xpGained} XP`);
   } catch(e) {
     console.error('[PVE] Erreur saveGameResult:', e);
   }
