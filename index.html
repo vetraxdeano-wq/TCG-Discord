@@ -1876,15 +1876,15 @@ function renderLeaderboardModal(th){
 // ─── TUTORIAL MODAL ──────────────────────────────────────────────
 function renderHowToModal(th){
   const sections = [
-    { icon:'🃏', color:th.accent, title:'La Collection', text:'Tu peux voir toutes les cartes du jeu dans l'onglet Collection. Les cartes sombres sont celles que tu ne possèdes pas encore. Chaque carte a une rareté : Commune, Peu Commune, Rare ou Mythique.' },
-    { icon:'📖', color:'#818cf8', title:'Commence par le Tutoriel', text:'Lance le tutoriel (bouton TUTO) pour découvrir le jeu et recevoir tes premières cartes gratuitement. C'est le meilleur point de départ !' },
-    { icon:'📦', color:'#fee75c', title:'Ouvre des Boosters', text:'Achète des boosters dans l'onglet Boosters avec tes coins. Starter Pack (100 coins), Premium Pack (250 coins), Legendary Pack (500 coins). Plus le pack est cher, plus les cartes sont rares.' },
-    { icon:'🎴', color:th.green, title:'La Pioche Gratuite', text:'Chaque jour, pioche gratuitement une carte parmi 50 dans l'onglet Boosters. Retourne une carte face cachée et découvre ce que tu obtiens !' },
+    { icon:'🃏', color:th.accent, title:'La Collection', text:'Tu peux voir toutes les cartes du jeu dans l\'onglet Collection. Les cartes sombres sont celles que tu ne possèdes pas encore. Chaque carte a une rareté : Commune, Peu Commune, Rare ou Mythique.' },
+    { icon:'📖', color:'#818cf8', title:'Commence par le Tutoriel', text:'Lance le tutoriel (bouton TUTO) pour découvrir le jeu et recevoir tes premières cartes gratuitement. C\'est le meilleur point de départ !' },
+    { icon:'📦', color:'#fee75c', title:'Ouvre des Boosters', text:'Achète des boosters dans l\'onglet Boosters avec tes coins. Starter Pack (100 coins), Premium Pack (250 coins), Legendary Pack (500 coins). Plus le pack est cher, plus les cartes sont rares.' },
+    { icon:'🎴', color:th.green, title:'La Pioche Gratuite', text:'Chaque jour, pioche gratuitement une carte parmi 50 dans l\'onglet Boosters. Retourne une carte face cachée et découvre ce que tu obtiens !' },
     { icon:'💰', color:'#f59e0b', title:'Gagner des Coins', text:'Joue en mode 10v10 (vs IA) pour accumuler des coins facilement. Victoire = +150 coins, Défaite = +75 coins. Objectif : 500 coins pour le Legendary Pack !' },
     { icon:'🗂️', color:'#a78bfa', title:'Construis ton Deck', text:'Va dans Collection → Deck Builder. Crée un deck de 30 cartes minimum avec tes cartes possédées. Un deck par défaut est nécessaire pour jouer en PvE et PvP.' },
-    { icon:'🤖', color:th.green, title:'Mode vs IA (PvE)', text:'Entraîne-toi contre l'IA dans l'onglet Jouer. Parfait pour apprendre les mécaniques et gagner des coins sans pression !' },
-    { icon:'⚔️', color:th.red, title:'Mode PvP', text:'Affronte tes amis ! Ouvre la liste d'amis, clique ⚔️ pour envoyer un défi. Ton ami reçoit une notification et peut accepter si il a un deck configuré.' },
-    { icon:'🔄', color:'#38bdf8', title:'Les Échanges', text:'Trade des cartes avec tes amis via le bouton 🔄 dans la liste d'amis. Même rareté obligatoire. Si ton ami n'a pas la carte demandée, il peut seulement refuser.' },
+    { icon:'🤖', color:th.green, title:'Mode vs IA (PvE)', text:'Entraîne-toi contre l\'IA dans l\'onglet Jouer. Parfait pour apprendre les mécaniques et gagner des coins sans pression !' },
+    { icon:'⚔️', color:th.red, title:'Mode PvP', text:'Affronte tes amis ! Ouvre la liste d\'amis, clique ⚔️ pour envoyer un défi. Ton ami reçoit une notification et peut accepter si il a un deck configuré.' },
+    { icon:'🔄', color:'#38bdf8', title:'Les Échanges', text:'Trade des cartes avec tes amis via le bouton 🔄 dans la liste d\'amis. Même rareté obligatoire. Si ton ami n\'a pas la carte demandée, il peut seulement refuser.' },
   ];
   return \`
   <div id="howto-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.9);backdrop-filter:blur(14px);display:flex;align-items:flex-end;justify-content:center;z-index:250;">
