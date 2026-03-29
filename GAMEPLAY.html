@@ -2417,34 +2417,36 @@ initGame = function() {
   }
 };
 
-// ── Patch endGame : save + coins PvP ─────────────────────────────────
+// ── Patch endGame : save + coins + XP ────────────────────────────────
 const _origEndGame = endGame;
 endGame = function(w) {
   _origEndGame(w);
   const isWin = w === 'human';
   const coins = isWin ? 150 : 75;
+  const xp    = isWin ? 35  : 20;
   const rewardEl = document.getElementById('ov-reward');
-  if (rewardEl) rewardEl.textContent = `+${coins} coins ${isWin ? '🏆' : '🤝'}`;
-  savePvpResult(isWin, coins);
+  if (rewardEl) rewardEl.innerHTML = `+${coins} coins ${isWin ? '🏆' : '🤝'} &nbsp;·&nbsp; <span style="color:#a78bfa;font-weight:900;">✨ +${xp} XP</span>`;
+  savePvpResult(isWin, coins, xp);
   // Notifier l'adversaire que la partie est terminée
   if (_pvpChannel) {
     _pvpChannel.send({ type:'broadcast', event:'game_end', payload:{ winner: isWin ? _currentUser.id : _opponentId } });
   }
 };
 
-async function savePvpResult(isWin, coinsGained) {
+async function savePvpResult(isWin, coinsGained, xpGained) {
   if (!_db || !_currentUser) return;
   const myId = _currentUser.id;
   try {
     const col = isWin ? 'wins' : 'losses';
-    const { data: p } = await _db.from('players').select('wins, losses, coins').eq('id', myId).single();
+    const { data: p } = await _db.from('players').select('wins, losses, coins, xp').eq('id', myId).single();
     if (p) {
       await _db.from('players').update({
         [col]: (p[col]||0)+1,
         coins: (p.coins||0)+coinsGained,
+        xp:    (p.xp||0)+xpGained,
       }).eq('id', myId);
     }
-    console.log(`[PvP] ${isWin?'Victoire':'Défaite'} +${coinsGained} coins sauvegardé`);
+    console.log(`[PvP] ${isWin?'Victoire':'Défaite'} +${coinsGained} coins +${xpGained} XP sauvegardé`);
   } catch(e) { console.error('[PvP] savePvpResult:', e); }
 }
 
