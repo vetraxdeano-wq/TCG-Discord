@@ -15,11 +15,9 @@
 <meta name="apple-mobile-web-app-title" content="Discord TCG">
 <link rel="apple-touch-icon" href="https://i.goopics.net/iic46c.png">
 <script>
-  // Désinscrire les anciens service workers
+  // Enregistrer le service worker pour PWA installable
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      regs.forEach(r => r.unregister());
-    });
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
   // PWA Install prompt (Android/Chrome)
   let _pwaInstallPrompt = null;
@@ -612,7 +610,7 @@ function renderGame(th){
   const MSG_COUNT = state.msgNotifCount || 0;
 
   return `
-  <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;background:${th.bg};">
+  <div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;background:transparent;">
 
     <!-- ═══ HEADER ═══ -->
     <div style="display:flex;align-items:center;padding:8px 14px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:10px;position:relative;z-index:10;">
@@ -1106,7 +1104,7 @@ function renderTabPlay(th){
   const total = (state.wins||0)+(state.losses||0);
 
   return `
-  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:${th.bg};">
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:transparent;">
 
     <!-- ── HERO STATS BANNER (inchangé) ── -->
     <div style="margin:14px 14px 0;flex-shrink:0;overflow:hidden;border:2px solid #000;position:relative;">
@@ -1218,7 +1216,7 @@ function renderTabCollection(th){
   const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
 
   return `
-  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;position:relative;background:${th.bg};">
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;position:relative;background:transparent;">
     <!-- Deck builder banner -->
     <div style="flex-shrink:0;padding:12px 14px 8px;">
       <div style="background:linear-gradient(135deg,${th.accent}12,${th.accentAlt}08);border:2px solid #000;padding:12px 16px;display:flex;align-items:center;gap:14px;position:relative;overflow:hidden;">
@@ -1445,15 +1443,15 @@ function renderTabBoosters(th){
           style="display:flex;flex-direction:column;align-items:stretch;
             background:${th.bgSecondary};
             border:2px solid #000;
-            overflow:visible;
+            overflow:hidden;
             cursor:pointer;
             position:relative;
-            transition:box-shadow .22s cubic-bezier(.4,0,.2,1);
+            transition:all .22s cubic-bezier(.4,0,.2,1);
             width:100%;
             height:100%;">
 
           <!-- Image PNG — contain pour voir tout le booster -->
-          <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 6px 4px;background:${meta.gradient};overflow:visible;position:relative;z-index:1;">
+          <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 6px 4px;background:${meta.gradient};overflow:hidden;">
             ${meta.src
               ? `<img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
                    style="width:100%;height:100%;object-fit:contain;display:block;
