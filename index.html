@@ -2208,20 +2208,22 @@ function renderQuestsModal(th){
                   <div style="height:100%;width:${todayDone?'100%':'0%'};background:${th.green};transition:width .5s;"></div>
                 </div>
               </div>
-              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;">
                 <div style="display:flex;align-items:center;gap:3px;font-size:13px;font-weight:900;color:${th.yellow};">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="${th.yellow}"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
                   +100
                 </div>
                 <div style="font-size:7px;color:${th.textMuted};letter-spacing:.5px;">COINS</div>
+                <div style="display:flex;align-items:center;gap:2px;font-size:11px;font-weight:900;color:#a78bfa;">✨ +20</div>
+                <div style="font-size:7px;color:#a78bfa;opacity:.7;letter-spacing:.5px;">XP</div>
               </div>
             </div>
 
             <!-- Quêtes futures (locked) -->
             ${[
-              {icon:'📦', label:'Ouvrir 1 booster', reward:'+50'},
-              {icon:'🃏', label:'Piocher 1 carte', reward:'+25'},
-              {icon:'🔄', label:'Proposer un échange', reward:'+30'},
+              {icon:'📦', label:'Ouvrir 1 booster',    coins:'+50', xp:'+30'},
+              {icon:'🃏', label:'Piocher 1 carte',      coins:'+25', xp:'+40'},
+              {icon:'🔄', label:'Proposer un échange',  coins:'+30', xp:'+60'},
             ].map(q=>`
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:transparent;border:1px dashed ${th.textFaint};opacity:.5;margin-bottom:6px;">
               <div style="width:36px;height:36px;background:${th.bgSecondary};border:1px solid ${th.border};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${q.icon}</div>
@@ -2229,7 +2231,10 @@ function renderQuestsModal(th){
                 <div style="font-size:11px;font-weight:700;color:${th.textMuted};">${q.label}</div>
                 <div style="font-size:9px;color:${th.textFaint};margin-top:2px;">Bientôt disponible</div>
               </div>
-              <div style="font-size:11px;font-weight:900;color:${th.textFaint};">${q.reward}</div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+                <div style="font-size:11px;font-weight:900;color:${th.textFaint};">${q.coins} <span style="font-size:8px;font-weight:600;">coins</span></div>
+                <div style="font-size:10px;font-weight:900;color:#a78bfa;opacity:.7;">✨ ${q.xp} XP</div>
+              </div>
             </div>`).join('')}
           </div>
         </div>
@@ -3256,6 +3261,10 @@ window.onPlayerWin = async function() {
   // 1ère victoire du jour !
   await grantCoins(userId, 100, '1ère victoire du jour');
   showRewardToast('1ère victoire du jour !', 100, '🏆');
+  if (window.grantXp) {
+    await grantXp(userId, 20, '1ère victoire du jour');
+    showXpToast(20, '1ère victoire du jour');
+  }
   await db.from('players').update({ first_win_date: today }).eq('id', userId);
   setState({ firstWinTodayDone: true });
 };
