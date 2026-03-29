@@ -2,13 +2,13 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover"/>
 <title>Discord TCG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet"/>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#7c3aed">
+<meta name="theme-color" content="#1a1825">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -677,19 +677,23 @@ function renderGame(th){
     </div>
 
     <!-- ═══ BOTTOM NAV ═══ -->
-    <div id="bottom-nav" style="background:${th.bgSecondary};border-top:3px solid #000;flex-shrink:0;display:flex;gap:0;align-items:stretch;padding-bottom:env(safe-area-inset-bottom,0px);position:relative;z-index:20;">
-      ${TABS.map((tb,i)=>`
-        <button data-tab="${i}" style="flex:1;min-height:56px;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
-          background:${state.tab===i?`linear-gradient(180deg,${th.accent}18,transparent)`:'transparent'};
-          border:none;
-          color:${state.tab===i?th.accent:th.textMuted};
-          transition:background .15s,color .15s;cursor:pointer;position:relative;
-          -webkit-tap-highlight-color:transparent;
-          touch-action:manipulation;">
-          ${state.tab===i?`<div style="position:absolute;top:0;left:15%;right:15%;height:3px;background:${th.accent};"></div>`:''}
-          <div style="transform:${state.tab===i?'scale(1.18) translateY(-1px)':'scale(1)'};transition:transform .2s;filter:${state.tab===i?`drop-shadow(0 0 8px ${th.accent}90)`:'none'};">${tb.icon}</div>
-          <span style="font-size:9px;font-weight:${state.tab===i?'900':'600'};letter-spacing:.8px;text-transform:uppercase;line-height:1;">${tb.label}</span>
-        </button>`).join('')}
+    <div id="bottom-nav" style="background:${th.bgSecondary};border-top:3px solid #000;flex-shrink:0;display:flex;flex-direction:column;position:relative;z-index:20;">
+      <div style="display:flex;gap:0;align-items:stretch;">
+        ${TABS.map((tb,i)=>`
+          <button data-tab="${i}" style="flex:1;min-height:56px;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+            background:${state.tab===i?`linear-gradient(180deg,${th.accent}18,transparent)`:'transparent'};
+            border:none;
+            color:${state.tab===i?th.accent:th.textMuted};
+            transition:background .15s,color .15s;cursor:pointer;position:relative;
+            -webkit-tap-highlight-color:transparent;
+            touch-action:manipulation;">
+            ${state.tab===i?`<div style="position:absolute;top:0;left:15%;right:15%;height:3px;background:${th.accent};"></div>`:''}
+            <div style="transform:${state.tab===i?'scale(1.18) translateY(-1px)':'scale(1)'};transition:transform .2s;filter:${state.tab===i?`drop-shadow(0 0 8px ${th.accent}90)`:'none'};">${tb.icon}</div>
+            <span style="font-size:9px;font-weight:${state.tab===i?'900':'600'};letter-spacing:.8px;text-transform:uppercase;line-height:1;">${tb.label}</span>
+          </button>`).join('')}
+      </div>
+      <!-- Safe area fill — même couleur que la nav pour masquer la barre système Android/iOS -->
+      <div style="height:env(safe-area-inset-bottom,0px);background:${th.bgSecondary};"></div>
     </div>
 
     <!-- ═══ MODALS ═══ -->
@@ -2940,9 +2944,9 @@ render();
 
 // ─── SWIPE NAVIGATION (onglet par onglet, zone contenu uniquement) ─
 (function initSwipe(){
-  // On attache sur le document mais on vérifie que le target est dans la zone contenu
   let _t0x = null, _t0y = null;
   let _locked = null; // 'h' | 'v' | null
+  let _startEl = null;
 
   function anyModalOpen(){
     return state.showSettings||state.showFriends||state.showNotif||state.showMessages||
@@ -2951,64 +2955,51 @@ render();
            state.showQuests||state.showHowTo;
   }
 
-  function isInContentArea(el){
-    // Vérifier que le touch est dans la zone de contenu des tabs (pas dans le header ni la nav)
+  function isInNav(el){
     const nav = document.getElementById('bottom-nav');
-    const header = document.querySelector('[style*="border-bottom:1px solid"]');
-    if(nav && nav.contains(el)) return false;
-    if(header && header.contains(el)) return false;
-    // Vérifier qu'on n'est pas dans un élément scrollable verticalement (éviter conflit)
-    let node = el;
-    while(node && node !== document.body){
-      if(node.scrollHeight > node.clientHeight + 4 && node !== document.documentElement){
-        const style = window.getComputedStyle(node);
-        if(style.overflowY === 'auto' || style.overflowY === 'scroll') return false;
-      }
-      node = node.parentElement;
-    }
-    return true;
+    const header = document.querySelector('#app > div > div:first-child');
+    if(nav && nav.contains(el)) return true;
+    if(header && header.contains(el)) return true;
+    return false;
   }
 
   document.addEventListener('touchstart', e => {
     if(anyModalOpen()) return;
+    if(isInNav(e.target)) return;
     const touch = e.touches[0];
     _t0x = touch.clientX;
     _t0y = touch.clientY;
     _locked = null;
+    _startEl = e.target;
   }, {passive: true});
 
   document.addEventListener('touchmove', e => {
     if(_t0x === null || anyModalOpen()) return;
     const dx = e.touches[0].clientX - _t0x;
     const dy = e.touches[0].clientY - _t0y;
-    if(_locked === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
-      // Lock direction dès 6px — ratio strict pour éviter les faux déclenchements
-      _locked = Math.abs(dx) > Math.abs(dy) * 1.5 ? 'h' : 'v';
+    if(_locked === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)){
+      // Ratio plus strict : 2:1 horizontal/vertical pour éviter les faux positifs lors du scroll
+      _locked = Math.abs(dx) > Math.abs(dy) * 2 ? 'h' : 'v';
     }
   }, {passive: true});
 
   document.addEventListener('touchend', e => {
     if(_t0x === null) return;
     const dx = e.changedTouches[0].clientX - _t0x;
-    const dy = e.changedTouches[0].clientY - _t0y;
     const wasH = _locked === 'h';
-    const startEl = e.target;
-    _t0x = null; _t0y = null; _locked = null;
+    _t0x = null; _t0y = null; _locked = null; _startEl = null;
 
     if(!wasH) return;
     if(anyModalOpen()) return;
-    if(!isInContentArea(startEl)) return;
 
-    // Seuil : 60px ou 18% de la largeur écran — volontaire uniquement
-    const threshold = Math.max(60, window.innerWidth * 0.18);
+    // Seuil : 55px ou 16% de la largeur — volontaire
+    const threshold = Math.max(55, window.innerWidth * 0.16);
     if(Math.abs(dx) < threshold) return;
 
     if(dx < 0 && state.tab < 2){
-      // Swipe gauche → onglet suivant
       setState({tab: state.tab + 1});
       if(state.tab === 2 && state.currentUser?.id) refreshCoins(state.currentUser.id);
     } else if(dx > 0 && state.tab > 0){
-      // Swipe droite → onglet précédent
       setState({tab: state.tab - 1});
     }
   }, {passive: true});
