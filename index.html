@@ -1175,11 +1175,11 @@ function renderTabPlay(th){
             width:100%;
             height:100%;">
 
-          <!-- Image PNG avec coins arrondis via clip-path (bypass border-radius:0 !important) -->
-          <div style="flex:1;min-height:0;overflow:hidden;">
+          <!-- Image PNG qui remplit tout le cadre -->
+          <div style="flex:1;min-height:0;overflow:hidden;position:relative;">
             ${m.img
-              ? `<img src="${m.img}" style="width:85%;height:85%;object-fit:cover;display:block;transition:transform .22s;border-radius:50%;margin:auto;" />`
-              : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);clip-path:inset(0 0 0 0 round 8px 8px 0 0);">${m.icon}</div>`
+              ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s;" />`
+              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
             }
           </div>
 
@@ -2834,8 +2834,8 @@ function initSwipe(){
     if(_startX===null||!_slider) return;
     const dx = e.touches[0].clientX - _startX;
     const dy = e.touches[0].clientY - _startY;
-    if(_isHorizontal === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)){
-      _isHorizontal = Math.abs(dx) > Math.abs(dy) * 0.6;
+    if(_isHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)){
+      _isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.8;
     }
     if(!_isHorizontal) return;
     // Pas de limite à 1 tab — laisser glisser librement
@@ -2854,8 +2854,8 @@ function initSwipe(){
     const wasHorizontal = _isHorizontal;
     _startX = null; _startY = null; _slider = null; _isHorizontal = null;
     if(!wasHorizontal) return;
-    // Seuil réduit : 12% du viewport ou 40px min
-    const threshold = Math.min(window.innerWidth * 0.12, 40);
+    // Seuil : 30% du viewport minimum ou 80px — volontaire uniquement
+    const threshold = Math.max(window.innerWidth * 0.30, 80);
     if(Math.abs(dx) > threshold){
       if(dx < 0 && state.tab < 2) setState({tab: state.tab + 1});
       else if(dx > 0 && state.tab > 0) setState({tab: state.tab - 1});
@@ -3553,9 +3553,20 @@ async function subscribeNotifications() {
         return;
       }
       if (n.type === 'combat_accepted') {
-        showToast('Ton défi a été accepté ! Lancement…', '⚔️');
-        try { sessionStorage.setItem('pvp_opponent_id', n.from_id || ''); } catch(e) {}
-        setTimeout(() => { window.location.href = 'GAMEPLAY.html'; }, 1200);
+        // Récupérer le match_id depuis le meta
+        let matchId = state.pendingMatchId || null;
+        try { if (n.meta) matchId = JSON.parse(n.meta)?.match_id || matchId; } catch(e) {}
+        try {
+          sessionStorage.setItem('pvp_match_id', matchId || '');
+          sessionStorage.setItem('pvp_opponent_id', n.from_id || '');
+          sessionStorage.setItem('pvp_my_id', state.currentUser?.id || '');
+          sessionStorage.setItem('pvp_role', 'challenger');
+        } catch(e) {}
+        showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
+        return;
+      }
+      if (n.type === 'combat_declined') {
+        showToast('Ton défi a été refusé.', '✗');
         return;
       }
       const prev = state.pendingMsgNotifs || [];
@@ -3576,6 +3587,26 @@ async function pollNotificationsAndTrades() {
   const db = window.db;
   const myId = state.currentUser?.id;
   if (!db || !myId) return;
+
+  // Vérifier si un combat_accepted est arrivé pour moi (challenger)
+  const { data: acceptedNotifs } = await db.from('notifications')
+    .select('id, from_id, meta')
+    .eq('user_id', myId).eq('type', 'combat_accepted').eq('read', false);
+  if (acceptedNotifs && acceptedNotifs.length > 0) {
+    const n = acceptedNotifs[0];
+    // Marquer comme lu immédiatement pour éviter double déclenchement
+    await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
+    let matchId = state.pendingMatchId || null;
+    try { if (n.meta) matchId = JSON.parse(n.meta)?.match_id || matchId; } catch(e) {}
+    try {
+      sessionStorage.setItem('pvp_match_id', matchId || '');
+      sessionStorage.setItem('pvp_opponent_id', n.from_id || '');
+      sessionStorage.setItem('pvp_my_id', myId);
+      sessionStorage.setItem('pvp_role', 'challenger');
+    } catch(e) {}
+    showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
+    return;
+  }
 
   // Re-charger les combat requests non lus
   const { data: combatNotifs } = await db.from('notifications')
@@ -3634,6 +3665,17 @@ async function sendCombatRequest(toId, toName) {
   const myName = state.currentUser?.user_metadata?.full_name || state.currentUser?.user_metadata?.name || 'Un joueur';
   if (!myId || !toId) return;
 
+  // Vérifier deck par défaut avant d'envoyer
+  const { data: deck } = await db.from('decks')
+    .select('id').eq('player_id', myId).eq('is_default', true).single();
+  if (!deck) {
+    showToast('Configure un deck par défaut avant de défier !', '🗂️');
+    return;
+  }
+
+  // Créer un ID de match unique partagé entre les deux joueurs
+  const matchId = `${myId}_${toId}_${Date.now()}`;
+
   try {
     await db.from('notifications').insert({
       user_id: toId,
@@ -3641,9 +3683,10 @@ async function sendCombatRequest(toId, toName) {
       from_id: myId,
       text: `${myName} te défie en combat !`,
       read: false,
+      meta: JSON.stringify({ match_id: matchId }),
     });
     showToast(`Défi envoyé à ${toName} !`, '⚔️');
-    setState({ showFriends: false });
+    setState({ showFriends: false, pendingMatchId: matchId });
   } catch(e) {
     showToast('Erreur lors de l\'envoi du défi', '✗');
   }
@@ -3655,49 +3698,112 @@ async function respondCombatRequest(notifId, fromId, accept) {
   const myId = state.currentUser?.id;
   if (!myId) return;
 
+  // Récupérer le meta (match_id) de la notif
+  let matchId = null;
+  try {
+    const { data: notifData } = await db.from('notifications').select('meta').eq('id', notifId).single();
+    if (notifData?.meta) matchId = JSON.parse(notifData.meta)?.match_id;
+  } catch(e) {}
+
   // Marquer la notif comme lue
   await db.from('notifications').update({ read: true }).eq('id', notifId);
 
   // Retirer de la liste locale
   const updated = (state.combatRequestsIn || []).filter(r => r.request_id !== notifId);
-  setState({ combatRequestsIn: updated });
+  setState({ combatRequestsIn: updated, showNotif: false });
 
   if (!accept) {
     showToast('Défi refusé', '✗');
+    // Prévenir l'expéditeur du refus
+    if (fromId) {
+      await db.from('notifications').insert({
+        user_id: fromId,
+        type: 'combat_declined',
+        from_id: myId,
+        text: 'Ton défi a été refusé.',
+        read: false,
+      }).catch(()=>{});
+    }
     return;
   }
 
-  // Vérifier qu'on a un deck par défaut
+  // Vérifier deck par défaut
   const { data: deck } = await db.from('decks')
     .select('id').eq('player_id', myId).eq('is_default', true).single();
-
   if (!deck) {
     showToast('Configure un deck par défaut avant de combattre !', '🗂️');
     return;
   }
 
-  // Notifier l'expéditeur que c'est accepté
+  // Envoyer combat_accepted à l'expéditeur avec le même match_id
   if (fromId) {
     await db.from('notifications').insert({
       user_id: fromId,
       type: 'combat_accepted',
       from_id: myId,
-      text: 'Ton défi a été accepté ! Prépare-toi au combat.',
+      text: 'Ton défi a été accepté ! Combat dans 5 secondes…',
       read: false,
-    }).then(()=>{}).catch(()=>{});
+      meta: JSON.stringify({ match_id: matchId }),
+    }).catch(()=>{});
   }
 
-  showToast('Défi accepté ! Lancement du combat…', '⚔️');
-  // Stocker les IDs pour le matchmaking
+  // Lancer le countdown sur l'accepteur (moi)
   try {
+    sessionStorage.setItem('pvp_match_id', matchId || '');
     sessionStorage.setItem('pvp_opponent_id', fromId || '');
     sessionStorage.setItem('pvp_my_id', myId);
+    sessionStorage.setItem('pvp_role', 'defender');
   } catch(e) {}
-  setTimeout(() => { window.location.href = 'GAMEPLAY.html'; }, 1200);
+  showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
+}
+
+function showPvpCountdown(seconds, onDone) {
+  // Supprimer un éventuel countdown existant
+  const existing = document.getElementById('pvp-countdown-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pvp-countdown-overlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:9999;
+    background:rgba(0,0,0,0.92);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+    font-family:'Oswald',sans-serif;
+  `;
+  overlay.innerHTML = `
+    <div style="font-size:18px;color:#fbbf24;font-weight:900;letter-spacing:3px;text-transform:uppercase;">⚔️ COMBAT PvP</div>
+    <div style="font-size:14px;color:#9d8ea0;text-align:center;padding:0 30px;">Redirection vers le champ de bataille…</div>
+    <div id="pvp-count-num" style="font-family:'Bangers',cursive;font-size:96px;font-weight:900;color:#f43f5e;line-height:1;text-shadow:0 0 40px rgba(244,63,94,0.6);">${seconds}</div>
+    <div style="width:200px;height:4px;background:#1a1825;overflow:hidden;">
+      <div id="pvp-count-bar" style="height:100%;background:linear-gradient(90deg,#f43f5e,#fbbf24);width:100%;transition:width ${seconds}s linear;"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Déclencher l'animation de la barre
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const bar = document.getElementById('pvp-count-bar');
+      if (bar) bar.style.width = '0%';
+    });
+  });
+
+  let n = seconds;
+  const numEl = () => document.getElementById('pvp-count-num');
+  const iv = setInterval(() => {
+    n--;
+    const el = numEl();
+    if (el) el.textContent = n > 0 ? n : '⚔️';
+    if (n <= 0) {
+      clearInterval(iv);
+      onDone();
+    }
+  }, 1000);
 }
 
 window.sendCombatRequest = sendCombatRequest;
 window.respondCombatRequest = respondCombatRequest;
+window.showPvpCountdown = showPvpCountdown;
 
 // ─── MATCHMAKING OVERLAY ──────────────────────────────────────────
 function showPvpMatchmaking(title, subtitle) {
