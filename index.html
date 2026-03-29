@@ -61,7 +61,7 @@
 </div>
 
 <!-- Bannière iOS Safari (Add to Home Screen) -->
-<div id="pwa-ios-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1825;border-top:3px solid #5865f2;padding:12px 16px 20px;flex-direction:column;align-items:center;gap:8px;box-shadow:0 -8px 32px rgba(0,0,0,.7);">
+<div id="pwa-ios-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9998;background:#1a1825;border-top:3px solid #5865f2;padding:12px 16px 20px;flex-direction:column;align-items:center;gap:8px;box-shadow:0 -8px 32px rgba(0,0,0,.7);transform:translateY(100%);transition:transform .3s ease;">
   <button onclick="document.getElementById('pwa-ios-banner').style.display='none'" style="position:absolute;top:8px;right:12px;background:transparent;border:none;color:#9d8ea0;font-size:18px;cursor:pointer;line-height:1;">✕</button>
   <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#fffbeb;letter-spacing:.5px;">📲 INSTALLER L'APPLICATION</div>
   <div style="font-size:11px;color:#9d8ea0;text-align:center;line-height:1.5;">
@@ -677,19 +677,18 @@ function renderGame(th){
     </div>
 
     <!-- ═══ BOTTOM NAV ═══ -->
-    <div style="background:${th.bgSecondary};border-top:3px solid #000;flex-shrink:0;display:flex;gap:0;align-items:stretch;padding-bottom:max(env(safe-area-inset-bottom,0px),0px);">
+    <div id="bottom-nav" style="background:${th.bgSecondary};border-top:3px solid #000;flex-shrink:0;display:flex;gap:0;align-items:stretch;padding-bottom:env(safe-area-inset-bottom,0px);position:relative;z-index:20;">
       ${TABS.map((tb,i)=>`
         <button data-tab="${i}" style="flex:1;min-height:56px;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
-          background:${state.tab===i?`linear-gradient(180deg,${th.accent}20,${th.accent}08)`:'transparent'};
+          background:${state.tab===i?`linear-gradient(180deg,${th.accent}18,transparent)`:'transparent'};
           border:none;
-          border-top:3px solid ${state.tab===i?th.accent:'transparent'};
           color:${state.tab===i?th.accent:th.textMuted};
-          transition:all .15s;cursor:pointer;position:relative;
+          transition:background .15s,color .15s;cursor:pointer;position:relative;
           -webkit-tap-highlight-color:transparent;
           touch-action:manipulation;">
+          ${state.tab===i?`<div style="position:absolute;top:0;left:15%;right:15%;height:3px;background:${th.accent};"></div>`:''}
           <div style="transform:${state.tab===i?'scale(1.18) translateY(-1px)':'scale(1)'};transition:transform .2s;filter:${state.tab===i?`drop-shadow(0 0 8px ${th.accent}90)`:'none'};">${tb.icon}</div>
           <span style="font-size:9px;font-weight:${state.tab===i?'900':'600'};letter-spacing:.8px;text-transform:uppercase;line-height:1;">${tb.label}</span>
-          ${state.tab===i?`<div style="position:absolute;bottom:0;left:20%;right:20%;height:2px;background:${th.accent};"></div>`:''}
         </button>`).join('')}
     </div>
 
@@ -2938,6 +2937,82 @@ async function loadLeaderboard(period){
 
 // ─── INIT ─────────────────────────────────────────────────────────
 render();
+
+// ─── SWIPE NAVIGATION (onglet par onglet, zone contenu uniquement) ─
+(function initSwipe(){
+  // On attache sur le document mais on vérifie que le target est dans la zone contenu
+  let _t0x = null, _t0y = null;
+  let _locked = null; // 'h' | 'v' | null
+
+  function anyModalOpen(){
+    return state.showSettings||state.showFriends||state.showNotif||state.showMessages||
+           state.showPioche||state.showLeaderboard||state.showTutorial||state.showDeckBuilder||
+           state.collSelectedCard||state.showTrade||state.showProfile||state.showAddFriend||
+           state.showQuests||state.showHowTo;
+  }
+
+  function isInContentArea(el){
+    // Vérifier que le touch est dans la zone de contenu des tabs (pas dans le header ni la nav)
+    const nav = document.getElementById('bottom-nav');
+    const header = document.querySelector('[style*="border-bottom:1px solid"]');
+    if(nav && nav.contains(el)) return false;
+    if(header && header.contains(el)) return false;
+    // Vérifier qu'on n'est pas dans un élément scrollable verticalement (éviter conflit)
+    let node = el;
+    while(node && node !== document.body){
+      if(node.scrollHeight > node.clientHeight + 4 && node !== document.documentElement){
+        const style = window.getComputedStyle(node);
+        if(style.overflowY === 'auto' || style.overflowY === 'scroll') return false;
+      }
+      node = node.parentElement;
+    }
+    return true;
+  }
+
+  document.addEventListener('touchstart', e => {
+    if(anyModalOpen()) return;
+    const touch = e.touches[0];
+    _t0x = touch.clientX;
+    _t0y = touch.clientY;
+    _locked = null;
+  }, {passive: true});
+
+  document.addEventListener('touchmove', e => {
+    if(_t0x === null || anyModalOpen()) return;
+    const dx = e.touches[0].clientX - _t0x;
+    const dy = e.touches[0].clientY - _t0y;
+    if(_locked === null && (Math.abs(dx) > 6 || Math.abs(dy) > 6)){
+      // Lock direction dès 6px — ratio strict pour éviter les faux déclenchements
+      _locked = Math.abs(dx) > Math.abs(dy) * 1.5 ? 'h' : 'v';
+    }
+  }, {passive: true});
+
+  document.addEventListener('touchend', e => {
+    if(_t0x === null) return;
+    const dx = e.changedTouches[0].clientX - _t0x;
+    const dy = e.changedTouches[0].clientY - _t0y;
+    const wasH = _locked === 'h';
+    const startEl = e.target;
+    _t0x = null; _t0y = null; _locked = null;
+
+    if(!wasH) return;
+    if(anyModalOpen()) return;
+    if(!isInContentArea(startEl)) return;
+
+    // Seuil : 60px ou 18% de la largeur écran — volontaire uniquement
+    const threshold = Math.max(60, window.innerWidth * 0.18);
+    if(Math.abs(dx) < threshold) return;
+
+    if(dx < 0 && state.tab < 2){
+      // Swipe gauche → onglet suivant
+      setState({tab: state.tab + 1});
+      if(state.tab === 2 && state.currentUser?.id) refreshCoins(state.currentUser.id);
+    } else if(dx > 0 && state.tab > 0){
+      // Swipe droite → onglet précédent
+      setState({tab: state.tab - 1});
+    }
+  }, {passive: true});
+})();
 </script>
 
 <script>
