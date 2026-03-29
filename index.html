@@ -663,29 +663,33 @@ function renderGame(th){
       </div>
     </div>
 
-    <!-- ═══ CONTENT (slider) ═══ -->
-    <div style="flex:1;overflow:hidden;position:relative;">
-      <div id="tab-slider" style="display:flex;width:300%;height:100%;transform:translateX(${-state.tab*(100/3)}%);transition:transform .32s cubic-bezier(.25,.46,.45,.94);">
-        <div style="width:33.333%;height:100%;overflow:hidden;">
-          ${renderTabPlay(th)}
-        </div>
-        <div style="width:33.333%;height:100%;overflow:hidden;">
-          ${renderTabCollection(th)}
-        </div>
-        <div style="width:33.333%;height:100%;overflow:hidden;">
-          ${renderTabBoosters(th)}
-        </div>
+    <!-- ═══ CONTENT (tab display) ═══ -->
+    <div style="flex:1;overflow:hidden;position:relative;min-height:0;">
+      <div id="tab-play" style="position:absolute;inset:0;${state.tab===0?'display:flex;':'display:none;'}flex-direction:column;">
+        ${renderTabPlay(th)}
+      </div>
+      <div id="tab-collection" style="position:absolute;inset:0;${state.tab===1?'display:flex;':'display:none;'}flex-direction:column;">
+        ${renderTabCollection(th)}
+      </div>
+      <div id="tab-boosters" style="position:absolute;inset:0;${state.tab===2?'display:flex;':'display:none;'}flex-direction:column;">
+        ${renderTabBoosters(th)}
       </div>
     </div>
 
     <!-- ═══ BOTTOM NAV ═══ -->
-    <div style="background:${th.bgSecondary};border-top:3px solid #000;box-shadow:0 -2px 0 #000;flex-shrink:0;padding:8px 12px;padding-bottom:max(env(safe-area-inset-bottom,0px),8px);display:flex;gap:6px;align-items:center;">
+    <div style="background:${th.bgSecondary};border-top:3px solid #000;flex-shrink:0;display:flex;gap:0;align-items:stretch;padding-bottom:max(env(safe-area-inset-bottom,0px),0px);">
       ${TABS.map((tb,i)=>`
-        <button data-tab="${i}" style="flex:1;padding:8px 6px 7px;display:flex;flex-direction:column;align-items:center;gap:4px;background:${state.tab===i?`linear-gradient(135deg,${th.accent}18,${th.accentAlt}10)`:'transparent'};border:1px solid ${state.tab===i?th.accent+'30':'transparent'};color:${state.tab===i?th.accent:th.textMuted};transition:all .15s;cursor:pointer;position:relative;border:2.5px solid ${state.tab===i?'#000':'transparent'};box-shadow:${state.tab===i?'3px 3px 0 #000':'none'};background:${state.tab===i?th.accent+'25':'transparent'};">
-          <!-- Active glow ring -->
-          ${state.tab===i?`<div style="position:absolute;inset:-1px;border:1px solid ${th.accent}20;pointer-events:none;"></div>`:''}
-          <div style="transform:${state.tab===i?'scale(1.15) translateY(-1px)':'scale(1)'};transition:transform .22s;filter:${state.tab===i?`drop-shadow(0 0 6px ${th.accent}80)`:'none'};">${tb.icon}</div>
-          <span style="font-size:8px;font-weight:${state.tab===i?'900':'600'};letter-spacing:.8px;text-transform:uppercase;">${tb.label}</span>
+        <button data-tab="${i}" style="flex:1;min-height:56px;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+          background:${state.tab===i?`linear-gradient(180deg,${th.accent}20,${th.accent}08)`:'transparent'};
+          border:none;
+          border-top:3px solid ${state.tab===i?th.accent:'transparent'};
+          color:${state.tab===i?th.accent:th.textMuted};
+          transition:all .15s;cursor:pointer;position:relative;
+          -webkit-tap-highlight-color:transparent;
+          touch-action:manipulation;">
+          <div style="transform:${state.tab===i?'scale(1.18) translateY(-1px)':'scale(1)'};transition:transform .2s;filter:${state.tab===i?`drop-shadow(0 0 8px ${th.accent}90)`:'none'};">${tb.icon}</div>
+          <span style="font-size:9px;font-weight:${state.tab===i?'900':'600'};letter-spacing:.8px;text-transform:uppercase;line-height:1;">${tb.label}</span>
+          ${state.tab===i?`<div style="position:absolute;bottom:0;left:20%;right:20%;height:2px;background:${th.accent};"></div>`:''}
         </button>`).join('')}
     </div>
 
@@ -1142,9 +1146,9 @@ function renderTabPlay(th){
   const total = (state.wins||0)+(state.losses||0);
 
   return `
-  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:transparent;">
+  <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:transparent;width:100%;">
 
-    <!-- ── HERO STATS BANNER (inchangé) ── -->
+    <!-- ── HERO STATS BANNER ── -->
     <div style="margin:14px 14px 0;flex-shrink:0;overflow:hidden;border:2px solid #000;position:relative;">
       <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});"></div>
       <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);background-size:28px 28px;"></div>
@@ -2329,10 +2333,12 @@ function renderAddFriendModal(th){
 function bindGame(){
   const th = t();
 
-  // Tab nav
+  // Tab nav — touch-friendly, pas de swipe, juste clic/tap direct
   document.querySelectorAll('[data-tab]').forEach(btn=>{
-    btn.addEventListener('click',()=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
       const tab = parseInt(btn.dataset.tab);
+      if (tab === state.tab) return; // pas de re-render si même tab
       setState({tab});
       // Rafraîchir les coins à l'ouverture de l'onglet Boosters
       if (tab === 2 && state.currentUser?.id) refreshCoins(state.currentUser.id);
@@ -2876,58 +2882,6 @@ function bindGame(){
 
 }
 
-// ─── SWIPE (initialisé une seule fois, hors bindGame) ─────────────
-function initSwipe(){
-  const appEl = document.getElementById('app');
-  let _startX = null;
-  let _startY = null;
-  let _isHorizontal = null;
-  let _slider = null;
-  let _baseTranslatePx = 0;
-
-  appEl.addEventListener('touchstart',(e)=>{
-    if(state.showSettings||state.showFriends||state.showNotif||state.showMessages||state.showPioche||state.showLeaderboard||state.showTutorial||state.showDeckBuilder||state.collSelectedCard||state.showTrade||state.showProfile||state.showAddFriend||state.showQuests) return;
-    _startX = e.touches[0].clientX;
-    _startY = e.touches[0].clientY;
-    _isHorizontal = null;
-    _slider = document.getElementById('tab-slider');
-    // Position de base en px (chaque tab = 1 viewport width)
-    _baseTranslatePx = -state.tab * window.innerWidth;
-  },{passive:true});
-
-  appEl.addEventListener('touchmove',(e)=>{
-    if(_startX===null||!_slider) return;
-    const dx = e.touches[0].clientX - _startX;
-    const dy = e.touches[0].clientY - _startY;
-    if(_isHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)){
-      _isHorizontal = Math.abs(dx) > Math.abs(dy) * 1.8;
-    }
-    if(!_isHorizontal) return;
-    // Pas de limite à 1 tab — laisser glisser librement
-    let finalDx = dx;
-    if(state.tab === 0 && dx > 0) finalDx = dx * 0.15;
-    if(state.tab === 2 && dx < 0) finalDx = dx * 0.15;
-    const translatePx = _baseTranslatePx + finalDx;
-    _slider.style.transition = 'none';
-    _slider.style.transform = `translateX(${translatePx}px)`;
-  },{passive:true});
-
-  appEl.addEventListener('touchend',(e)=>{
-    if(_startX===null) return;
-    const dx = e.changedTouches[0].clientX - _startX;
-    if(_slider){ _slider.style.transition = ''; _slider.style.transform = ''; }
-    const wasHorizontal = _isHorizontal;
-    _startX = null; _startY = null; _slider = null; _isHorizontal = null;
-    if(!wasHorizontal) return;
-    // Seuil : 30% du viewport minimum ou 80px — volontaire uniquement
-    const threshold = Math.max(window.innerWidth * 0.30, 80);
-    if(Math.abs(dx) > threshold){
-      if(dx < 0 && state.tab < 2) setState({tab: state.tab + 1});
-      else if(dx > 0 && state.tab > 0) setState({tab: state.tab - 1});
-    }
-  },{passive:true});
-}
-
 // ─── LOAD PLAYER RANK (silencieux, au démarrage) ──────────────────
 async function loadPlayerRankOnly(userId) {
   const db = window.db;
@@ -2984,7 +2938,6 @@ async function loadLeaderboard(period){
 
 // ─── INIT ─────────────────────────────────────────────────────────
 render();
-initSwipe();
 </script>
 
 <script>
