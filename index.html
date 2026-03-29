@@ -383,6 +383,8 @@ let state = {
   showQuests: false,
   // Rang joueur (position dans leaderboard)
   playerRank: null,
+  playerXp: 0,
+  playerLevel: 1,
   // Récompenses / streak
   loginStreak: 0,
   lastLoginDate: null,
@@ -767,6 +769,38 @@ function renderProfileModal(th){
           </div>`).join('')}
         </div>
 
+        <!-- XP Bar -->
+        ${(()=>{
+          const xp = state.playerXp || 0;
+          const lvl = state.playerLevel || 1;
+          const info = computeLevel(xp);
+          const pct = Math.round(info.xpInLevel / info.xpNeeded * 100);
+          const lvlColor = '#a78bfa';
+          return `<div style="background:${th.bgTertiary};border:2px solid #000;padding:14px 16px;margin-bottom:10px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${lvlColor},#818cf8);"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="background:linear-gradient(135deg,${lvlColor},#818cf8);padding:4px 14px;font-family:'Bangers',cursive;font-size:18px;font-weight:900;color:#fff;letter-spacing:1.5px;box-shadow:3px 3px 0 #000;">LVL ${lvl}</div>
+                <div>
+                  <div style="font-size:11px;font-weight:700;color:${th.text};">Expérience</div>
+                  <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${xp} XP total</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px;font-weight:900;color:${lvlColor};">${info.xpInLevel}<span style="font-size:9px;color:${th.textFaint};font-weight:600;"> / ${info.xpNeeded}</span></div>
+                <div style="font-size:8px;color:${th.textFaint};margin-top:1px;">${pct}%</div>
+              </div>
+            </div>
+            <div style="height:8px;background:${th.bg};overflow:hidden;position:relative;">
+              <div style="position:absolute;inset:0;background:linear-gradient(90deg,${lvlColor},#818cf8);width:${pct}%;transition:width .8s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px ${lvlColor}60;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;">
+              <span style="font-size:8px;color:${th.textFaint};">Niveau ${lvl}</span>
+              <span style="font-size:8px;color:${lvlColor};font-weight:700;">→ Niveau ${lvl+1} dans ${info.xpNeeded - info.xpInLevel} XP</span>
+            </div>
+          </div>`;
+        })()}
+
         <!-- Collection progress card -->
         <div style="background:${th.bgTertiary};border:2px solid #000;padding:14px 16px;position:relative;overflow:hidden;">
           <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,${th.accent}40,transparent);"></div>
@@ -1146,6 +1180,32 @@ function renderTabPlay(th){
         </div>
       </div>
     </div>
+
+    <!-- ── XP BAR ── -->
+    ${(()=>{
+      const xp = state.playerXp || 0;
+      const lvl = state.playerLevel || 1;
+      const info = computeLevel(xp);
+      const pct = Math.round(info.xpInLevel / info.xpNeeded * 100);
+      const lvlColor = '#a78bfa';
+      return `<div style="margin:8px 14px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:10px 14px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${lvlColor},#818cf8);"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="background:linear-gradient(135deg,${lvlColor},#818cf8);padding:2px 10px;font-family:'Bangers',cursive;font-size:13px;font-weight:900;color:#fff;letter-spacing:1px;">LVL ${lvl}</div>
+            <span style="font-size:9px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;font-weight:700;">Expérience</span>
+          </div>
+          <span style="font-size:9px;color:${lvlColor};font-weight:900;">${info.xpInLevel} <span style="color:${th.textFaint};font-weight:600;">/ ${info.xpNeeded} XP</span></span>
+        </div>
+        <div style="height:6px;background:${th.bg};overflow:hidden;position:relative;">
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,${lvlColor},#818cf8);width:${pct}%;transition:width .8s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px ${lvlColor}80;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px;">
+          <span style="font-size:8px;color:${th.textFaint};">Niveau ${lvl}</span>
+          <span style="font-size:8px;color:${th.textFaint};">Niveau ${lvl+1}</span>
+        </div>
+      </div>`;
+    })()}
 
     <!-- ── SECTION LABEL ── -->
     <div style="padding:14px 18px 8px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
@@ -2982,6 +3042,8 @@ function enterGame(user, coins) {
     checkLoginStreak(user.id);
     // Pré-charger le rang (all time, silencieux)
     loadPlayerRankOnly(user.id);
+    // Charger XP/niveau
+    loadPlayerXp(user.id);
   }, 450);
 }
 
@@ -3011,6 +3073,86 @@ async function loadPlayerStats(userId) {
 
 // ─── RÉCOMPENSES & STREAK ─────────────────────────────────────────
 const STREAK_REWARDS = [25, 50, 75, 100, 125, 150, 200]; // J1→J7
+
+// ─── SYSTÈME XP & NIVEAUX ─────────────────────────────────────────
+// Coût en XP pour passer du niveau N au niveau N+1
+function xpToNextLevel(level) {
+  if (level <= 0) return 250;
+  // Dizaine de transition (X9 → X0 suivant) : coût élevé
+  // Sauf si c'est une centaine (99→100, 199→200, etc.)
+  const isCentury   = (level % 100) === 99; // 99,199,299…
+  const isDecade    = (level % 10)  === 9;  // 9,19,29… (inclut 99 donc on check d'abord century)
+  if (isCentury) return 3000;
+  if (isDecade)  return 1500; // 9→10, 19→20, 29→30…
+  if (level < 9) return 250;  // niveaux 1–8 → 9 (palette initiale)
+  return 500;                 // tout le reste (10–98, 100–198, etc.)
+}
+
+// Calcule le niveau et l'XP restante à partir d'un total d'XP brut
+function computeLevel(totalXp) {
+  let lvl = 1;
+  let remaining = totalXp;
+  while (true) {
+    const cost = xpToNextLevel(lvl);
+    if (remaining < cost) break;
+    remaining -= cost;
+    lvl++;
+  }
+  return { level: lvl, xpInLevel: remaining, xpNeeded: xpToNextLevel(lvl) };
+}
+
+// XP total cumulé pour atteindre le début du niveau N (sans compter le dernier palier)
+function totalXpForLevel(level) {
+  let total = 0;
+  for (let l = 1; l < level; l++) total += xpToNextLevel(l);
+  return total;
+}
+
+async function grantXp(userId, amount, reason) {
+  const db = window.db;
+  if (!db || !userId || !amount) return;
+  const { data } = await db.from('players').select('xp').eq('id', userId).single();
+  const currentXp = data?.xp ?? 0;
+  const newXp = currentXp + amount;
+  await db.from('players').update({ xp: newXp }).eq('id', userId);
+  const before = computeLevel(currentXp);
+  const after  = computeLevel(newXp);
+  setState({ playerXp: newXp, playerLevel: after.level });
+  if (after.level > before.level) {
+    showXpLevelUpToast(after.level);
+  }
+}
+
+function showXpToast(amount, reason) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:70px;right:14px;background:linear-gradient(135deg,rgba(15,14,23,.97),rgba(26,24,37,.97));color:#fffbeb;padding:8px 14px;font-size:11px;font-weight:700;z-index:9999;display:flex;align-items:center;gap:8px;box-shadow:0 0 0 2px #000,3px 3px 0 #000;transition:opacity .4s,transform .4s;opacity:0;transform:translateY(-8px);border:1px solid rgba(139,92,246,.4);';
+  el.innerHTML = `<span style="font-size:16px;">✨</span><div><div style="font-size:10px;color:#a78bfa;font-weight:900;letter-spacing:.5px;">${reason}</div><div style="font-size:12px;font-weight:900;color:#c4b5fd;">+${amount} XP</div></div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; el.style.transform='translateY(0)'; });
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(-12px)'; setTimeout(()=>el.remove(),400); }, 2800);
+}
+
+function showXpLevelUpToast(newLevel) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);background:linear-gradient(135deg,#1a1825,#221f2e);color:#fffbeb;padding:28px 36px;font-size:14px;font-weight:900;z-index:10000;text-align:center;box-shadow:0 0 0 3px #000,6px 6px 0 #000,0 0 60px rgba(167,139,250,.3);transition:opacity .5s,transform .5s;opacity:0;border:2px solid rgba(167,139,250,.5);';
+  el.innerHTML = `<div style="font-size:40px;margin-bottom:10px;">🎉</div><div style="font-size:11px;color:#a78bfa;letter-spacing:3px;margin-bottom:6px;">NIVEAU ATTEINT</div><div style="font-family:'Bangers',cursive;font-size:52px;color:#c4b5fd;line-height:1;">LVL ${newLevel}</div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; el.style.transform='translate(-50%,-50%) scale(1)'; });
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translate(-50%,-50%) scale(1.06)'; setTimeout(()=>el.remove(),500); }, 3000);
+}
+
+async function loadPlayerXp(userId) {
+  const db = window.db;
+  if (!db || !userId) return;
+  const { data } = await db.from('players').select('xp').eq('id', userId).single();
+  const xp = data?.xp ?? 0;
+  const { level } = computeLevel(xp);
+  setState({ playerXp: xp, playerLevel: level });
+}
+window.grantXp = grantXp;
+window.loadPlayerXp = loadPlayerXp;
+window.computeLevel = computeLevel;
+window.xpToNextLevel = xpToNextLevel;
 
 function showRewardToast(msg, coins, icon='🎁') {
   // Toast spécial récompense — plus grand et coloré
@@ -3076,10 +3218,14 @@ async function checkLoginStreak(userId) {
     }
   }
 
-  // Accorder la récompense
+  // Accorder la récompense coins
   const coinsEarned = STREAK_REWARDS[newStreak - 1];
   await grantCoins(userId, coinsEarned, `Connexion Jour ${newStreak}`);
   showRewardToast(`🔥 Streak Jour ${newStreak} !`, coinsEarned, '🔥');
+
+  // +10 XP connexion quotidienne
+  await grantXp(userId, 10, 'Connexion quotidienne');
+  showXpToast(10, 'Connexion du jour');
 
   // Sauvegarder dans Supabase
   await db.from('players').update({
