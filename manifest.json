@@ -1,12 +1,24 @@
 {
   "name": "Discord TCG",
   "short_name": "DCG",
-  "start_url": "/index.html",
+  "description": "Le jeu de cartes Discord TCG",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f1a",
+  "orientation": "portrait",
+  "background_color": "#0f0e17",
   "theme_color": "#7c3aed",
   "icons": [
-    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "https://i.goopics.net/iic46c.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.goopics.net/iic46c.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
