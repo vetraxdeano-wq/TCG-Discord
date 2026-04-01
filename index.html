@@ -21,55 +21,98 @@
   }
   // PWA Install prompt (Android/Chrome)
   let _pwaInstallPrompt = null;
-  function _showPwaBtn(){ const b=document.getElementById('pwa-install-btn'); if(b){b.style.display='flex';return true;} return false; }
+  let _isInstalled = window.matchMedia('(display-mode: standalone)').matches
+                  || ('standalone' in navigator && navigator.standalone);
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     _pwaInstallPrompt = e;
-    if(!_showPwaBtn()){ const iv=setInterval(()=>{if(_showPwaBtn())clearInterval(iv);},300); setTimeout(()=>clearInterval(iv),15000); }
-  });
-  window.triggerPwaInstall = function() {
-    if (!_pwaInstallPrompt) return;
-    _pwaInstallPrompt.prompt();
-    _pwaInstallPrompt.userChoice.then(() => {
-      _pwaInstallPrompt = null;
-      const btn = document.getElementById('pwa-install-btn');
-      if (btn) btn.style.display = 'none';
-    });
-  };
-  window.addEventListener('appinstalled', () => {
+    // Mettre à jour le bouton pour montrer qu'on peut installer nativement
     const btn = document.getElementById('pwa-install-btn');
-    if (btn) btn.style.display = 'none';
-    const iosBanner = document.getElementById('pwa-ios-banner');
-    if (iosBanner) iosBanner.style.display = 'none';
+    if(btn) btn.style.opacity = '1';
   });
 
-  // iOS Safari : pas de beforeinstallprompt → bannière manuelle
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isInStandalone = ('standalone' in navigator && navigator.standalone);
-  const iosShown = sessionStorage.getItem('ios_pwa_banner_shown');
-  if (isIos && !isInStandalone && !iosShown) {
-    setTimeout(() => {
-      const b = document.getElementById('pwa-ios-banner');
-      if (b) b.style.display = 'flex';
-      sessionStorage.setItem('ios_pwa_banner_shown', '1');
-    }, 3500);
+  window.addEventListener('appinstalled', () => {
+    _pwaInstallPrompt = null;
+    _isInstalled = true;
+    const btn = document.getElementById('pwa-install-btn');
+    if(btn) btn.style.display = 'none';
+    const overlay = document.getElementById('pwa-install-overlay');
+    if(overlay) overlay.style.display = 'none';
+  });
+
+  window.triggerPwaInstall = function() {
+    if (_pwaInstallPrompt) {
+      // Chrome a le prompt natif — on l'utilise
+      _pwaInstallPrompt.prompt();
+      _pwaInstallPrompt.userChoice.then(() => {
+        _pwaInstallPrompt = null;
+        const btn = document.getElementById('pwa-install-btn');
+        if(btn) btn.style.display = 'none';
+      });
+    } else {
+      // Pas de prompt natif — afficher le guide
+      const overlay = document.getElementById('pwa-install-overlay');
+      if(overlay) overlay.style.display = 'flex';
+    }
+  };
+
+  window.closePwaOverlay = function() {
+    const overlay = document.getElementById('pwa-install-overlay');
+    if(overlay) overlay.style.display = 'none';
+  };
+
+  // Cacher le bouton si déjà installé en standalone
+  if(_isInstalled) {
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('pwa-install-btn');
+      if(btn) btn.style.display = 'none';
+    });
   }
 </script>
-<!-- Bouton installation PWA Android/Chrome (visible uniquement si prompt disponible) -->
-<div id="pwa-install-btn" onclick="window.triggerPwaInstall()" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9999;align-items:center;gap:8px;padding:10px 18px;background:#5865f2;color:#fff;border:2px solid #000;box-shadow:3px 3px 0 #000;font-family:inherit;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.5px;white-space:nowrap;">
-  📲 INSTALLER L'APPLICATION
-</div>
+<!-- Bouton installation PWA — toujours visible (sauf si déjà installé) -->
+<button id="pwa-install-btn" onclick="window.triggerPwaInstall()" style="display:flex;position:fixed;bottom:80px;right:16px;z-index:9999;align-items:center;gap:8px;padding:10px 16px;background:#5865f2;color:#fff;border:2px solid #000;box-shadow:3px 3px 0 #000;font-family:inherit;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.5px;white-space:nowrap;">
+  📲 INSTALLER
+</button>
 
-<!-- Bannière iOS Safari (Add to Home Screen) -->
-<div id="pwa-ios-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9998;background:#1a1825;border-top:3px solid #5865f2;padding:12px 16px 20px;flex-direction:column;align-items:center;gap:8px;box-shadow:0 -8px 32px rgba(0,0,0,.7);transform:translateY(100%);transition:transform .3s ease;">
-  <button onclick="document.getElementById('pwa-ios-banner').style.display='none'" style="position:absolute;top:8px;right:12px;background:transparent;border:none;color:#9d8ea0;font-size:18px;cursor:pointer;line-height:1;">✕</button>
-  <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#fffbeb;letter-spacing:.5px;">📲 INSTALLER L'APPLICATION</div>
-  <div style="font-size:11px;color:#9d8ea0;text-align:center;line-height:1.5;">
-    Appuie sur <span style="color:#5865f2;font-weight:700;">⬆ Partager</span> puis
-    <span style="color:#5865f2;font-weight:700;">« Sur l'écran d'accueil »</span>
+<!-- Overlay guide installation -->
+<div id="pwa-install-overlay" onclick="if(event.target===this)window.closePwaOverlay()" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+  <div style="width:100%;max-width:380px;background:#1a1825;border:3px solid #000;box-shadow:6px 6px 0 #000;overflow:hidden;">
+    <div style="height:4px;background:linear-gradient(90deg,#5865f2,#eb459e,#fee75c);"></div>
+    <div style="padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:900;color:#fff;letter-spacing:1px;">📲 INSTALLER DISCORD TCG</div>
+        <button onclick="window.closePwaOverlay()" style="background:transparent;border:none;color:#9d8ea0;font-size:20px;cursor:pointer;line-height:1;">✕</button>
+      </div>
+
+      <!-- Chrome / Edge PC -->
+      <div style="background:#0f0e17;border:2px solid #5865f230;padding:14px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:900;color:#5865f2;letter-spacing:.8px;margin-bottom:8px;">🖥 CHROME / EDGE (PC)</div>
+        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">
+          Dans la barre d'adresse, clique sur l'icône <span style="color:#fff;font-weight:700;">⊕</span> ou <span style="color:#fff;font-weight:700;">⬇</span> à droite<br>
+          → <span style="color:#fff;font-weight:700;">« Installer Discord TCG »</span>
+        </div>
+      </div>
+
+      <!-- Android Chrome -->
+      <div style="background:#0f0e17;border:2px solid #57f28730;padding:14px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:900;color:#57f287;letter-spacing:.8px;margin-bottom:8px;">📱 ANDROID (Chrome)</div>
+        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">
+          Menu <span style="color:#fff;font-weight:700;">⋮</span> en haut à droite<br>
+          → <span style="color:#fff;font-weight:700;">« Ajouter à l'écran d'accueil »</span>
+        </div>
+      </div>
+
+      <!-- iOS Safari -->
+      <div style="background:#0f0e17;border:2px solid #eb459e30;padding:14px;">
+        <div style="font-size:11px;font-weight:900;color:#eb459e;letter-spacing:.8px;margin-bottom:8px;">🍎 iOS SAFARI</div>
+        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">
+          Bouton <span style="color:#fff;font-weight:700;">⬆ Partager</span> en bas<br>
+          → <span style="color:#fff;font-weight:700;">« Sur l'écran d'accueil »</span>
+        </div>
+      </div>
+    </div>
   </div>
-  <!-- Flèche vers le bas pointant sur la barre Safari -->
-  <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:10px solid #5865f2;margin-top:2px;"></div>
 </div>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -246,11 +289,6 @@ function audioStop(){
   if(_ytPlayer){ try{ _ytPlayer.pauseVideo(); } catch(e){} }
 }
 function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
-function audioSetVolume(vol){
-  vol = Math.max(0, Math.min(100, vol));
-  state.musicVolume = vol;
-  if(_ytPlayer){ try{ _ytPlayer.setVolume(vol); } catch(e){} }
-}
 
 // ─── STATE ────────────────────────────────────────────────────────
 let state = {
@@ -262,7 +300,6 @@ let state = {
   showNotif: false,
   showProfile: false,
   musicOn: false,
-  musicVolume: 25,
   currentUser: null,
   coins: 0,
   wins: null,
@@ -596,24 +633,8 @@ function renderGame(th){
           ${SVG.bell}
           ${NOTIF_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;width:15px;height:15px;background:${th.red};color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
         </button>
-        <!-- Music + Volume -->
-        <div style="position:relative;">
-          <button id="btn-music" style="width:32px;height:32px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>
-          <!-- Volume popup -->
-          <div id="volume-popup" style="display:none;position:absolute;top:38px;right:0;z-index:500;background:${th.bgSecondary};border:2px solid #000;box-shadow:3px 3px 0 #000;padding:10px 12px;width:160px;">
-            <div style="font-size:9px;font-weight:900;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Volume</div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${th.textMuted}" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
-              <input id="volume-slider" type="range" min="0" max="100" value="${state.musicVolume}"
-                style="flex:1;height:4px;accent-color:${th.accent};cursor:pointer;"/>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${th.textMuted}" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid ${th.border};">
-              <span id="volume-label" style="font-size:10px;font-weight:700;color:${th.text};">${state.musicVolume}%</span>
-              <button id="btn-mute-toggle" style="font-size:9px;font-weight:800;padding:3px 8px;background:${state.musicOn?th.accent+'18':'transparent'};color:${state.musicOn?th.accent:th.textMuted};border:1px solid ${state.musicOn?th.accent+'40':th.border};cursor:pointer;letter-spacing:.3px;">${state.musicOn?'ON':'MUTE'}</button>
-            </div>
-          </div>
-        </div>
+        <!-- Music -->
+        <button id="btn-music" style="width:32px;height:32px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>
         <!-- Avatar -->
         <button id="btn-profile" style="width:32px;height:32px;overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
           ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
@@ -2360,48 +2381,10 @@ function bindGame(){
   });
 
   // Header buttons
-  // Music button — ouvre/ferme le popup volume
   const btnMusic = document.getElementById('btn-music');
-  const volumePopup = document.getElementById('volume-popup');
-  const volumeSlider = document.getElementById('volume-slider');
-  const volumeLabel = document.getElementById('volume-label');
-  const btnMuteToggle = document.getElementById('btn-mute-toggle');
-
-  if(btnMusic && volumePopup){
-    btnMusic.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const open = volumePopup.style.display === 'block';
-      volumePopup.style.display = open ? 'none' : 'block';
-    });
-  }
-  if(volumeSlider){
-    volumeSlider.addEventListener('input', () => {
-      const vol = parseInt(volumeSlider.value);
-      audioSetVolume(vol);
-      if(volumeLabel) volumeLabel.textContent = vol + '%';
-      // Auto-play si volume > 0 et pas déjà en lecture
-      if(vol > 0 && !audioPlaying){
-        audioPlay();
-        setState({musicOn: true});
-      }
-      if(vol === 0 && audioPlaying){
-        audioStop();
-        setState({musicOn: false});
-      }
-    });
-  }
-  if(btnMuteToggle){
-    btnMuteToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      audioToggle();
-      setState({musicOn: !state.musicOn});
-    });
-  }
-  // Fermer le popup en cliquant ailleurs
-  document.addEventListener('click', (e) => {
-    if(volumePopup && !volumePopup.contains(e.target) && e.target !== btnMusic){
-      volumePopup.style.display = 'none';
-    }
+  if(btnMusic) btnMusic.addEventListener('click',()=>{
+    audioToggle();
+    setState({musicOn:!state.musicOn});
   });
 
   const btnSettings = document.getElementById('btn-settings');
