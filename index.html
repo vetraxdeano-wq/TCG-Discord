@@ -136,6 +136,9 @@ button{font-family:inherit;cursor:pointer;}
 @keyframes legendTremble{0%,100%{transform:translate(0,0) rotate(0deg)}20%{transform:translate(-1px,1px) rotate(-.3deg)}40%{transform:translate(1px,-1px) rotate(.3deg)}60%{transform:translate(-1px,-1px) rotate(-.25deg)}80%{transform:translate(1px,1px) rotate(.25deg)}}
 @keyframes legendGlow{0%,100%{opacity:.5}50%{opacity:1}}
 @keyframes boltFlash{0%,89%,100%{opacity:0}90%,92%{opacity:1}91%{opacity:.3}95%,97%{opacity:.7}96%{opacity:0}}
+@keyframes normalSparkle{0%,100%{opacity:.3;transform:scale(.95)}50%{opacity:.7;transform:scale(1.05)}}
+@keyframes prestigeShine{0%,100%{opacity:.25;transform:scale(.9) rotate(-3deg)}50%{opacity:.65;transform:scale(1.08) rotate(3deg)}}
+@keyframes sparkFloat{0%,100%{opacity:0;transform:translateY(0) scale(.8)}40%{opacity:.8;transform:translateY(-12px) scale(1)}80%{opacity:0;transform:translateY(-22px) scale(.7)}}
 @keyframes sparkFloat{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-32px) scale(0);opacity:0}}
 @keyframes arcSpin{from{stroke-dashoffset:120}to{stroke-dashoffset:0}}
 </style>
@@ -143,8 +146,6 @@ button{font-family:inherit;cursor:pointer;}
 </head>
 <body>
 <div id="app" style="position:relative;z-index:1;"></div>
-<!-- Lecteur YouTube caché — audio uniquement -->
-<div id="yt-audio-player" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
 <script>
 // ─── THEMES ───────────────────────────────────────────────────────
 const themes = {
@@ -188,72 +189,135 @@ function fmtDate(iso){if(!iso)return"—";return new Date(iso).toLocaleDateStrin
 function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});}
 
 // ─── AMBIENT MUSIC ────────────────────────────────────────────────
-// ─── YOUTUBE AUDIO PLAYER ─────────────────────────────────────────
-// Musique : https://www.youtube.com/watch?v=niReTZnphks
-const YT_VIDEO_ID = 'niReTZnphks';
-let _ytPlayer = null;
-let _ytReady = false;
-let _ytPendingPlay = false;
-let audioPlaying = false;
-
-// Charger l'API YouTube IFrame une seule fois
-(function loadYTApi(){
-  if(window.YT && window.YT.Player){ _ytReady=true; return; }
-  const tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(tag);
-})();
-
-// Callback appelé automatiquement par l'API YT quand elle est prête
-window.onYouTubeIframeAPIReady = function(){
-  _ytReady = true;
-  // Créer le player dans le conteneur caché
-  const container = document.getElementById('yt-audio-player');
-  if(!container) return;
-  _ytPlayer = new YT.Player('yt-audio-player', {
-    videoId: YT_VIDEO_ID,
-    playerVars:{
-      autoplay: 0,
-      controls: 0,
-      loop: 1,
-      playlist: YT_VIDEO_ID, // nécessaire pour loop
-      modestbranding: 1,
-      rel: 0,
-      playsinline: 1,
-    },
-    events:{
-      onReady: function(e){
-        e.target.setVolume(60);
-        if(_ytPendingPlay){ _ytPendingPlay=false; e.target.playVideo(); }
-      },
-      onStateChange: function(e){
-        // Relancer si la vidéo s'arrête (fin ou erreur réseau)
-        if(e.data === YT.PlayerState.ENDED && audioPlaying){
-          e.target.playVideo();
-        }
-      },
-      onError: function(){ /* silencieux */ }
-    }
-  });
-};
+let audioCtx=null, audioNodes=[], audioPlaying=false;
 
 function audioPlay(){
-  if(audioPlaying) return;
-  audioPlaying = true;
-  if(!_ytReady || !_ytPlayer){
-    _ytPendingPlay = true;
-    return;
+  if(audioPlaying)return;
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==="suspended")audioCtx.resume();
+  audioPlaying=true;
+  const ctx=audioCtx;
+
+  // ── Master + compresseur doux ──
+  const master=ctx.createGain();
+  master.gain.setValueAtTime(0,ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.22,ctx.currentTime+4);
+  master.connect(ctx.destination);
+  const comp=ctx.createDynamicsCompressor();
+  comp.threshold.value=-18;comp.knee.value=12;comp.ratio.value=3;
+  comp.attack.value=0.1;comp.release.value=0.4;
+  comp.connect(master);
+
+  // ── Filtre passe-bas global (coupe tous les aigus stridents) ──
+  const lpf=ctx.createBiquadFilter();
+  lpf.type='lowpass';lpf.frequency.value=700;lpf.Q.value=0.4;
+  lpf.connect(comp);
+
+  // ── Grande reverb douce ──
+  const irLen=ctx.sampleRate*4;
+  const ir=ctx.createBuffer(2,irLen,ctx.sampleRate);
+  for(let ch=0;ch<2;ch++){
+    const d=ir.getChannelData(ch);
+    for(let i=0;i<irLen;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/irLen,1.6);
   }
-  try{ _ytPlayer.playVideo(); } catch(e){}
-}
+  const reverb=ctx.createConvolver();reverb.buffer=ir;
+  const rvGain=ctx.createGain();rvGain.gain.value=0.5;
+  reverb.connect(rvGain);rvGain.connect(master);
+  lpf.connect(reverb);
 
+  // ── Pads continus Am9 (A2 C3 E3 G3 B3) — sine pur, très doux ──
+  const padFreqs=[110,130.81,164.81,196.00,246.94];
+  padFreqs.forEach((freq,i)=>{
+    const osc=ctx.createOscillator();
+    const env=ctx.createGain();
+    osc.type='sine';
+    osc.frequency.value=freq;
+    osc.detune.value=(i%2===0?-5:6);
+    // Respiration ultra-lente
+    const lfo=ctx.createOscillator();
+    const lfoG=ctx.createGain();
+    lfo.type='sine';lfo.frequency.value=0.025+i*0.006;
+    lfoG.gain.value=0.006;
+    lfo.connect(lfoG);lfoG.connect(env.gain);
+    lfo.start();audioNodes.push(lfo);
+    const vol=0.048-i*0.007;
+    env.gain.setValueAtTime(0,ctx.currentTime);
+    env.gain.linearRampToValueAtTime(vol,ctx.currentTime+5+i*1.8);
+    osc.connect(env);env.connect(lpf);
+    osc.start();audioNodes.push(osc);
+  });
+
+  // ── Basse profonde A1 (55 Hz) ──
+  const bassOsc=ctx.createOscillator();
+  const bassEnv=ctx.createGain();
+  bassOsc.type='sine';bassOsc.frequency.value=55;
+  bassEnv.gain.setValueAtTime(0,ctx.currentTime);
+  bassEnv.gain.linearRampToValueAtTime(0.09,ctx.currentTime+6);
+  const bLfo=ctx.createOscillator();const bLfoG=ctx.createGain();
+  bLfo.type='sine';bLfo.frequency.value=0.02;bLfoG.gain.value=0.01;
+  bLfo.connect(bLfoG);bLfoG.connect(bassEnv.gain);bLfo.start();audioNodes.push(bLfo);
+  bassOsc.connect(bassEnv);bassEnv.connect(comp);
+  bassOsc.start();audioNodes.push(bassOsc);
+
+  // ── Mélodie lo-fi espacée (Am pentatonique, sine pur, notes longues) ──
+  const scale=[220,261.63,293.66,329.63,392.00,440.00,392.00,329.63,261.63,220];
+  const noteDur=3.8;
+  const noteGap=3.0;
+  const loopLen=scale.length*(noteDur+noteGap)+8;
+  let mt=ctx.currentTime+10;
+  const scheduleMelody=()=>{
+    if(!audioPlaying) return;
+    scale.forEach((freq,i)=>{
+      const t=mt+i*(noteDur+noteGap);
+      const o=ctx.createOscillator();const e=ctx.createGain();
+      o.type='sine';o.frequency.value=freq;o.detune.value=3;
+      e.gain.setValueAtTime(0,t);
+      e.gain.linearRampToValueAtTime(0.022,t+noteDur*0.3);
+      e.gain.setValueAtTime(0.022,t+noteDur*0.65);
+      e.gain.linearRampToValueAtTime(0,t+noteDur);
+      o.connect(e);e.connect(lpf);
+      o.start(t);o.stop(t+noteDur+0.1);audioNodes.push(o);
+    });
+    mt+=loopLen;
+    if(audioPlaying) setTimeout(scheduleMelody,(loopLen-1)*1000);
+  };
+  scheduleMelody();
+
+  // ── Accords qui évoluent toutes les 16s ──
+  const chords=[
+    [110,164.81,220,261.63],   // Am
+    [87.31,130.81,174.61,220], // Fm
+    [65.41,130.81,164.81,196], // C
+    [82.41,123.47,164.81,196], // Em
+  ];
+  let ci=0;
+  const chordOscs=[];
+  const scheduleChord=()=>{
+    if(!audioPlaying) return;
+    // Fade out anciens
+    chordOscs.forEach(({o,g})=>{
+      g.gain.linearRampToValueAtTime(0,ctx.currentTime+2.5);
+      setTimeout(()=>{try{o.stop();}catch(e){}},2700);
+    });
+    chordOscs.length=0;
+    chords[ci%chords.length].forEach((freq,i)=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.type='sine';o.frequency.value=freq;o.detune.value=i%2===0?-4:5;
+      g.gain.setValueAtTime(0,ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.018-i*0.003,ctx.currentTime+3);
+      o.connect(g);g.connect(lpf);o.start();
+      audioNodes.push(o);chordOscs.push({o,g});
+    });
+    ci++;
+    if(audioPlaying) setTimeout(scheduleChord,16000);
+  };
+  setTimeout(scheduleChord,3000);
+}
 function audioStop(){
-  audioPlaying = false;
-  _ytPendingPlay = false;
-  if(_ytPlayer){ try{ _ytPlayer.pauseVideo(); } catch(e){} }
+  audioNodes.forEach(n=>{try{n.stop();}catch(e){}});
+  audioNodes=[];audioPlaying=false;
 }
-
-function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
+function audioToggle(){if(audioPlaying)audioStop();else audioPlay();}
 
 // ─── STATE ────────────────────────────────────────────────────────
 let state = {
@@ -326,6 +390,7 @@ let state = {
   playerRank: null,
   playerXp: 0,
   playerLevel: 1,
+  pendingLevelRewards: [], // [{level, type:'coins'|'booster_prestige'|'booster_legendaire', amount}]
   // Récompenses / streak
   loginStreak: 0,
   lastLoginDate: null,
@@ -555,7 +620,7 @@ function renderGame(th){
     {label:"Collection",icon:SVG.cards,id:1},
     {label:"Boosters",icon:SVG.package,id:2},
   ];
-  const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length;
+  const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length + (state.pendingLevelRewards||[]).length;
   const MSG_COUNT = state.msgNotifCount || 0;
 
   return `
@@ -1138,7 +1203,15 @@ function renderTabPlay(th){
       const info = computeLevel(xp);
       const pct = Math.round(info.xpInLevel / info.xpNeeded * 100);
       const lvlColor = '#a78bfa';
-      return `<div style="margin:8px 14px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:10px 14px;position:relative;overflow:hidden;">
+      const nextLvl = lvl + 1;
+      const nextReward = getLevelReward(nextLvl);
+      const rewardHtml = nextReward.type === 'coins'
+        ? `🪙 ${nextReward.amount} coins`
+        : nextReward.type === 'booster_prestige'
+          ? `📦 Booster Prestige`
+          : `⚡ Booster Légendaire`;
+      const rewardColor = nextReward.type === 'coins' ? '#fbbf24' : nextReward.type === 'booster_prestige' ? '#fee75c' : '#eb459e';
+      return `<div id="xp-bar-wrap" style="margin:8px 14px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:10px 14px;position:relative;overflow:hidden;cursor:pointer;" title="Cliquez pour voir la récompense du prochain niveau">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${lvlColor},#818cf8);"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
           <div style="display:flex;align-items:center;gap:8px;">
@@ -1152,7 +1225,7 @@ function renderTabPlay(th){
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:5px;">
           <span style="font-size:8px;color:${th.textFaint};">Niveau ${lvl}</span>
-          <span style="font-size:8px;color:${th.textFaint};">Niveau ${lvl+1}</span>
+          <span style="font-size:8px;color:${rewardColor};font-weight:700;">→ Niv.${nextLvl} : ${rewardHtml}</span>
         </div>
       </div>`;
     })()}
@@ -1467,14 +1540,57 @@ function renderTabBoosters(th){
           <!-- Image PNG — contain pour voir tout le booster -->
           <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 6px 4px;background:${meta.gradient};overflow:hidden;">
             ${meta.src
-              ? (b.id===3 ? `
+              ? (b.id===1 ? `
+                <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                  <!-- Aura bleue subtile -->
+                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(88,101,242,.15) 0%,transparent 65%);animation:normalSparkle 2s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
+                  <!-- Étoiles flottantes SVG -->
+                  <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;overflow:visible;" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <circle cx="18" cy="22" r="1.5" fill="#818cf8" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .2s infinite;"/>
+                    <circle cx="82" cy="30" r="1.2" fill="#5865f2" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .9s infinite;"/>
+                    <circle cx="50" cy="12" r="1" fill="#c4b5fd" opacity="0" style="animation:sparkFloat 2.8s ease-in-out 1.5s infinite;"/>
+                    <circle cx="28" cy="70" r="1.3" fill="#818cf8" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .5s infinite;"/>
+                    <circle cx="74" cy="65" r="1" fill="#5865f2" opacity="0" style="animation:sparkFloat 2.8s ease-in-out 1.8s infinite;"/>
+                  </svg>
+                  <!-- Masque fade gauche + droite pour cacher les bords coupés -->
+                  <div style="position:absolute;inset:0;background:linear-gradient(to right,${meta.gradient.includes('#5865f2')?'#1a182580':'transparent'} 0%,transparent 18%,transparent 82%,${meta.gradient.includes('#5865f2')?'#1a182580':'transparent'} 100%);pointer-events:none;z-index:3;"></div>
+                  <img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
+                    style="width:88%;height:88%;object-fit:contain;display:block;position:relative;z-index:1;
+                           filter:drop-shadow(0 0 8px #5865f260) brightness(1.05);
+                           transition:transform .3s cubic-bezier(.34,1.56,.64,1),filter .22s;
+                           animation:${isOpen?'shakePack .4s ease':'floatPack 2.2s ease-in-out infinite'};
+                           cursor:pointer;"/>
+                </div>`
+              : b.id===2 ? `
+                <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                  <!-- Aura dorée -->
+                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(254,231,92,.2) 0%,transparent 65%);animation:normalSparkle 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
+                  <!-- Éclats dorés -->
+                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:prestigeShine 2.6s ease-in-out infinite;filter:drop-shadow(0 0 5px #fee75c) drop-shadow(0 0 10px #fee75c60) sepia(1) saturate(2) hue-rotate(-10deg);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
+                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:prestigeShine 2.6s ease-in-out .8s infinite;filter:drop-shadow(0 0 5px #fbbf24) drop-shadow(0 0 10px #fbbf2460) sepia(1) saturate(2) hue-rotate(-10deg);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
+                  <!-- Étoiles dorées flottantes -->
+                  <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;overflow:visible;" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <polygon points="15,20 16.2,23.6 20,23.6 17,25.9 18.2,29.5 15,27.2 11.8,29.5 13,25.9 10,23.6 13.8,23.6" fill="#fee75c" opacity="0" style="animation:sparkFloat 2.4s ease-in-out .3s infinite;transform-origin:15px 24px;"/>
+                    <polygon points="83,35 84,38 87,38 84.6,39.8 85.5,42.8 83,41 80.5,42.8 81.4,39.8 79,38 82,38" fill="#fbbf24" opacity="0" style="animation:sparkFloat 2.4s ease-in-out 1.1s infinite;transform-origin:83px 38px;"/>
+                    <polygon points="50,8 51,11 54,11 51.5,12.8 52.5,15.8 50,14 47.5,15.8 48.5,12.8 46,11 49,11" fill="#fee75c" opacity="0" style="animation:sparkFloat 2.4s ease-in-out 1.7s infinite;transform-origin:50px 11px;"/>
+                  </svg>
+                  <!-- Masque fade bords -->
+                  <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(26,24,37,.7) 0%,transparent 15%,transparent 85%,rgba(26,24,37,.7) 100%);pointer-events:none;z-index:3;"></div>
+                  <img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
+                    style="width:88%;height:88%;object-fit:contain;display:block;position:relative;z-index:1;
+                           filter:drop-shadow(0 0 10px #fee75c80) drop-shadow(0 0 20px #fbbf2440) brightness(1.08);
+                           transition:transform .3s cubic-bezier(.34,1.56,.64,1),filter .22s;
+                           animation:${isOpen?'shakePack .4s ease':'legendTremble 2.4s ease-in-out infinite, floatPack 2.2s ease-in-out infinite'};
+                           cursor:pointer;"/>
+                </div>`
+              : `
                 <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
                   <!-- Aura pulsante -->
                   <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(235,69,158,.18) 0%,transparent 70%);animation:legendGlow 1.6s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
-                  <!-- Éclairs PNG -->
-                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out infinite;filter:drop-shadow(0 0 6px #38bdf8) drop-shadow(0 0 12px #38bdf840);" />
-                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:boltFlash 2.2s ease-in-out .7s infinite;filter:drop-shadow(0 0 6px #a78bfa) drop-shadow(0 0 12px #a78bfa40);" />
-                  <img src="https://i.goopics.net/2rouaf.png" style="position:absolute;left:50%;top:-5%;transform:translateX(-50%);width:60%;height:60%;object-fit:contain;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out 1.2s infinite;filter:drop-shadow(0 0 6px #eb459e) drop-shadow(0 0 12px #eb459e40);" />
+                  <!-- Éclairs avec masque fade pour cacher les coupures -->
+                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out infinite;filter:drop-shadow(0 0 6px #38bdf8) drop-shadow(0 0 12px #38bdf840);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
+                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:boltFlash 2.2s ease-in-out .7s infinite;filter:drop-shadow(0 0 6px #a78bfa) drop-shadow(0 0 12px #a78bfa40);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
+                  <img src="https://i.goopics.net/2rouaf.png" style="position:absolute;left:50%;top:-5%;transform:translateX(-50%);width:60%;height:60%;object-fit:contain;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out 1.2s infinite;filter:drop-shadow(0 0 6px #eb459e) drop-shadow(0 0 12px #eb459e40);mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.95) 40%,transparent 80%);-webkit-mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.95) 40%,transparent 80%);" />
                   <!-- PNG avec tremblement -->
                   <img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
                     style="width:88%;height:88%;object-fit:contain;display:block;position:relative;z-index:1;
@@ -1482,13 +1598,7 @@ function renderTabBoosters(th){
                            transition:transform .3s cubic-bezier(.34,1.56,.64,1),filter .22s;
                            animation:${isOpen?'shakePack .4s ease':'legendTremble 2.4s ease-in-out infinite, floatPack 2.2s ease-in-out infinite'};
                            cursor:pointer;"/>
-                </div>`
-              : `<img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
-                   style="width:100%;height:100%;object-fit:contain;display:block;
-                          filter:drop-shadow(0 6px 20px ${b.color}70);
-                          transition:transform .3s cubic-bezier(.34,1.56,.64,1),filter .22s;
-                          animation:${isOpen?'shakePack .4s ease':'floatPack 2.2s ease-in-out infinite'};
-                          cursor:pointer;"/>`)
+                </div>`)
               : `<div style="display:flex;align-items:center;justify-content:center;width:80%;height:80%;">
                    ${[0,1,2].map(k=>`
                    <div style="position:absolute;inset:0;
@@ -1777,7 +1887,8 @@ function renderPiocheMechanic(th){
 function renderNotifModal(th){
   const reqs = state.friendRequestsIn || [];
   const combatReqs = state.combatRequestsIn || [];
-  const allEmpty = reqs.length === 0 && combatReqs.length === 0;
+  const levelRewards = state.pendingLevelRewards || [];
+  const allEmpty = reqs.length === 0 && combatReqs.length === 0 && levelRewards.length === 0;
   return `
   <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
     <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};padding:20px 20px 36px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};max-height:80vh;overflow-y:auto;">
@@ -1788,6 +1899,21 @@ function renderNotifModal(th){
           <div style="font-size:32px;margin-bottom:10px;opacity:.5;">🔔</div>
           <div style="font-size:12px;">Aucune notification.</div>
         </div>` : ''}
+      ${levelRewards.map(r => {
+        const isLegend = r.type === 'booster_legendaire';
+        const accentCol = isLegend ? '#eb459e' : '#fee75c';
+        const icon = isLegend ? '⚡' : '📦';
+        const label = isLegend ? 'Booster Légendaire' : 'Booster Prestige';
+        return `
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${accentCol};"></div>
+          <div style="width:38px;height:38px;background:linear-gradient(135deg,${accentCol}30,${accentCol}10);border:2px solid ${accentCol}60;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">${icon}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:900;color:${accentCol};letter-spacing:.5px;">RÉCOMPENSE NIVEAU ${r.level||'?'}</div>
+            <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">${label} débloqué !</div>
+          </div>
+          <button class="notif-claim-booster" data-notifid="${r.notifId||''}" data-rewardtype="${r.type}" style="padding:7px 12px;font-size:10px;font-weight:900;background:${accentCol};color:#000;border:none;cursor:pointer;letter-spacing:.3px;flex-shrink:0;">RÉCLAMER</button>
+        </div>`; }).join('')}
       ${combatReqs.map(r=>`
         <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
           <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.red};"></div>
@@ -1820,7 +1946,6 @@ function renderNotifModal(th){
         </div>`).join('')}
     </div>
   </div>`;
-}
 
 function renderSettingsModal(th){
   return `
@@ -2421,6 +2546,56 @@ function bindGame(){
   // Fermer autres modals quand messages s'ouvre
   const messagesBg2 = document.getElementById('messages-bg');
   if(messagesBg2) messagesBg2.addEventListener('click',(e)=>{if(e.target===messagesBg2){ _activeConvFriendId=null; setState({showMessages:false,activeConvId:null});}});
+
+  // XP bar — clic pour afficher un popup de la prochaine récompense
+  const xpBarWrap = document.getElementById('xp-bar-wrap');
+  if(xpBarWrap) xpBarWrap.addEventListener('click', () => {
+    const lvl = state.playerLevel || 1;
+    const nextLvl = lvl + 1;
+    const reward = getLevelReward(nextLvl);
+    const icon = reward.type === 'coins' ? '🪙' : reward.type === 'booster_prestige' ? '📦' : '⚡';
+    const label = reward.type === 'coins' ? `+${reward.amount} coins` : reward.type === 'booster_prestige' ? 'Booster Prestige' : 'Booster Légendaire';
+    const col = reward.type === 'coins' ? '#fbbf24' : reward.type === 'booster_prestige' ? '#fee75c' : '#eb459e';
+    // Mini popup flottant
+    const old = document.getElementById('xp-reward-popup');
+    if(old) { old.remove(); return; }
+    const pop = document.createElement('div');
+    pop.id = 'xp-reward-popup';
+    pop.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);z-index:10001;background:#1a1825;border:2px solid ${col};box-shadow:0 0 0 2px #000,4px 4px 0 #000,0 0 32px ${col}50;padding:22px 28px;text-align:center;opacity:0;transition:opacity .2s,transform .2s;`;
+    pop.innerHTML = `
+      <div style="font-size:36px;margin-bottom:8px;">${icon}</div>
+      <div style="font-family:'Bangers',cursive;font-size:11px;color:#a78bfa;letter-spacing:3px;margin-bottom:4px;">RÉCOMPENSE NIVEAU ${nextLvl}</div>
+      <div style="font-size:18px;font-weight:900;color:${col};">${label}</div>
+      <div style="font-size:10px;color:#9d8ea0;margin-top:8px;cursor:pointer;" onclick="document.getElementById('xp-reward-popup').remove()">✕ Fermer</div>`;
+    document.body.appendChild(pop);
+    requestAnimationFrame(()=>{ pop.style.opacity='1'; pop.style.transform='translate(-50%,-50%) scale(1)'; });
+    setTimeout(()=>{ if(pop.parentNode){ pop.style.opacity='0'; setTimeout(()=>pop.remove(),200); } }, 4000);
+  });
+
+  // Réclamer booster récompense niveau (notif)
+  document.querySelectorAll('.notif-claim-booster').forEach(btn=>{
+    btn.addEventListener('click', async () => {
+      const notifId = btn.dataset.notifid;
+      const rewardType = btn.dataset.rewardtype;
+      const db = window.db;
+      const myId = state.currentUser?.id;
+      // Marquer la notif comme lue
+      if(notifId && db) {
+        await db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
+      }
+      // Retirer du pending state
+      const remaining = (state.pendingLevelRewards||[]).filter(r=>r.notifId!==notifId);
+      setState({ showNotif: false, pendingLevelRewards: remaining });
+      // Stocker le flag bypass dans sessionStorage puis rediriger
+      try {
+        sessionStorage.setItem('booster_free', '1');
+      } catch(e) {}
+      setTimeout(()=>{
+        if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
+        else window.location.href = 'booster2.html';
+      }, 200);
+    });
+  });
   const setBtn = document.getElementById('set-filter-btn');
   if(setBtn) setBtn.addEventListener('click',(e)=>{e.stopPropagation();setState({collSetOpen:!state.collSetOpen});});
   document.querySelectorAll('.set-opt').forEach(btn=>{
@@ -3064,6 +3239,43 @@ function totalXpForLevel(level) {
   return total;
 }
 
+// ─── RÉCOMPENSES DE NIVEAU ────────────────────────────────────────
+function getLevelReward(level) {
+  if (level % 10 === 0) return { type: 'booster_legendaire', label: 'Booster Légendaire ⚡' };
+  if (level % 5  === 0) return { type: 'booster_prestige',   label: 'Booster Prestige 📦' };
+  return { type: 'coins', amount: 300, label: '300 coins 🪙' };
+}
+
+async function grantLevelReward(userId, level) {
+  const db = window.db;
+  if (!db || !userId) return;
+  const reward = getLevelReward(level);
+
+  if (reward.type === 'coins') {
+    await grantCoins(userId, reward.amount, `Récompense Niveau ${level}`);
+    // Notif in-game
+    await db.from('notifications').insert({
+      user_id: userId, type: 'level_reward', from_id: userId,
+      text: `Niveau ${level} atteint ! Récompense : +${reward.amount} coins`,
+      read: false,
+    }).then(()=>{}).catch(()=>{});
+    // Ajouter en pending pour la cloche
+    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { level, ...reward }] });
+  } else {
+    // Booster prestige ou légendaire — notif avec bouton Réclamer
+    try {
+      await db.from('notifications').insert({
+        user_id: userId, type: 'level_reward_booster', from_id: userId,
+        text: `Niveau ${level} atteint ! Récompense : ${reward.label}`,
+        read: false,
+        meta: JSON.stringify({ rewardType: reward.type, level }),
+      }).then(()=>{}).catch(()=>{});
+    } catch(e) {}
+    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { level, ...reward }] });
+    showRewardToast(`Niveau ${level} atteint !`, 0, reward.type === 'booster_legendaire' ? '⚡' : '📦');
+  }
+}
+
 async function grantXp(userId, amount, reason) {
   const db = window.db;
   if (!db || !userId || !amount) return;
@@ -3076,6 +3288,10 @@ async function grantXp(userId, amount, reason) {
   setState({ playerXp: newXp, playerLevel: after.level });
   if (after.level > before.level) {
     showXpLevelUpToast(after.level);
+    // Accorder la récompense pour chaque niveau passé
+    for (let l = before.level + 1; l <= after.level; l++) {
+      await grantLevelReward(userId, l);
+    }
   }
 }
 
@@ -3109,6 +3325,19 @@ window.grantXp = grantXp;
 window.loadPlayerXp = loadPlayerXp;
 window.computeLevel = computeLevel;
 window.xpToNextLevel = xpToNextLevel;
+window.getLevelReward = getLevelReward;
+
+// Helper pour les pages booster externes — bypass la vérification de coins si récompense gratuite
+window.isBoosterFree = function() {
+  try {
+    const free = sessionStorage.getItem('booster_free');
+    if(free === '1') {
+      sessionStorage.removeItem('booster_free'); // consommé une seule fois
+      return true;
+    }
+  } catch(e) {}
+  return false;
+};
 
 function showRewardToast(msg, coins, icon='🎁') {
   // Toast spécial récompense — plus grand et coloré
@@ -3626,6 +3855,19 @@ async function subscribeNotifications() {
 
   const msgNotifs = allMsgNotifs.filter(n => !activeConv || n.from_id !== activeConv);
   setState({ msgNotifCount: msgNotifs.length, pendingMsgNotifs: msgNotifs });
+
+  // Charger les récompenses de niveau booster non réclamées
+  const { data: lvlBoosterNotifs } = await db.from('notifications')
+    .select('id, text, meta, created_at')
+    .eq('user_id', myId).eq('type', 'level_reward_booster').eq('read', false);
+  if (lvlBoosterNotifs && lvlBoosterNotifs.length > 0) {
+    const pendingRewards = lvlBoosterNotifs.map(n => {
+      let meta = {};
+      try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+      return { notifId: n.id, level: meta.level, type: meta.rewardType || 'booster_prestige', label: n.text };
+    });
+    setState({ pendingLevelRewards: pendingRewards });
+  }
 
   // Realtime : écouter les nouvelles notifications
   if (_notifRealtimeSub) { try { db.removeChannel(_notifRealtimeSub); } catch(e){} }
