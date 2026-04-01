@@ -246,6 +246,11 @@ function audioStop(){
   if(_ytPlayer){ try{ _ytPlayer.pauseVideo(); } catch(e){} }
 }
 function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
+function audioSetVolume(vol){
+  vol = Math.max(0, Math.min(100, vol));
+  state.musicVolume = vol;
+  if(_ytPlayer){ try{ _ytPlayer.setVolume(vol); } catch(e){} }
+}
 
 // ─── STATE ────────────────────────────────────────────────────────
 let state = {
@@ -257,6 +262,7 @@ let state = {
   showNotif: false,
   showProfile: false,
   musicOn: false,
+  musicVolume: 25,
   currentUser: null,
   coins: 0,
   wins: null,
@@ -590,8 +596,24 @@ function renderGame(th){
           ${SVG.bell}
           ${NOTIF_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;width:15px;height:15px;background:${th.red};color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
         </button>
-        <!-- Music -->
-        <button id="btn-music" style="width:32px;height:32px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>
+        <!-- Music + Volume -->
+        <div style="position:relative;">
+          <button id="btn-music" style="width:32px;height:32px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>
+          <!-- Volume popup -->
+          <div id="volume-popup" style="display:none;position:absolute;top:38px;right:0;z-index:500;background:${th.bgSecondary};border:2px solid #000;box-shadow:3px 3px 0 #000;padding:10px 12px;width:160px;">
+            <div style="font-size:9px;font-weight:900;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Volume</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${th.textMuted}" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+              <input id="volume-slider" type="range" min="0" max="100" value="${state.musicVolume}"
+                style="flex:1;height:4px;accent-color:${th.accent};cursor:pointer;"/>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${th.textMuted}" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid ${th.border};">
+              <span id="volume-label" style="font-size:10px;font-weight:700;color:${th.text};">${state.musicVolume}%</span>
+              <button id="btn-mute-toggle" style="font-size:9px;font-weight:800;padding:3px 8px;background:${state.musicOn?th.accent+'18':'transparent'};color:${state.musicOn?th.accent:th.textMuted};border:1px solid ${state.musicOn?th.accent+'40':th.border};cursor:pointer;letter-spacing:.3px;">${state.musicOn?'ON':'MUTE'}</button>
+            </div>
+          </div>
+        </div>
         <!-- Avatar -->
         <button id="btn-profile" style="width:32px;height:32px;overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
           ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
@@ -2338,10 +2360,48 @@ function bindGame(){
   });
 
   // Header buttons
+  // Music button — ouvre/ferme le popup volume
   const btnMusic = document.getElementById('btn-music');
-  if(btnMusic) btnMusic.addEventListener('click',()=>{
-    audioToggle();
-    setState({musicOn:!state.musicOn});
+  const volumePopup = document.getElementById('volume-popup');
+  const volumeSlider = document.getElementById('volume-slider');
+  const volumeLabel = document.getElementById('volume-label');
+  const btnMuteToggle = document.getElementById('btn-mute-toggle');
+
+  if(btnMusic && volumePopup){
+    btnMusic.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = volumePopup.style.display === 'block';
+      volumePopup.style.display = open ? 'none' : 'block';
+    });
+  }
+  if(volumeSlider){
+    volumeSlider.addEventListener('input', () => {
+      const vol = parseInt(volumeSlider.value);
+      audioSetVolume(vol);
+      if(volumeLabel) volumeLabel.textContent = vol + '%';
+      // Auto-play si volume > 0 et pas déjà en lecture
+      if(vol > 0 && !audioPlaying){
+        audioPlay();
+        setState({musicOn: true});
+      }
+      if(vol === 0 && audioPlaying){
+        audioStop();
+        setState({musicOn: false});
+      }
+    });
+  }
+  if(btnMuteToggle){
+    btnMuteToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      audioToggle();
+      setState({musicOn: !state.musicOn});
+    });
+  }
+  // Fermer le popup en cliquant ailleurs
+  document.addEventListener('click', (e) => {
+    if(volumePopup && !volumePopup.contains(e.target) && e.target !== btnMusic){
+      volumePopup.style.display = 'none';
+    }
   });
 
   const btnSettings = document.getElementById('btn-settings');
