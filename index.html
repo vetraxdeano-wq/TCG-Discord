@@ -93,126 +93,65 @@
     let sections = [];
 
     if (_isIos) {
-      // iOS Safari
       sections.push({
-        icon:'🍎', label:'Safari sur iPhone / iPad', color:'#eb459e',
-        steps:[
-          'Ouvre cette page dans <strong>Safari</strong> (pas Chrome, pas Firefox)',
-          'Appuie sur le bouton <strong>⬆ Partager</strong> en bas de l\'écran',
-          'Fais défiler et appuie sur <strong>« Sur l\'écran d\'accueil »</strong>',
-          'Appuie sur <strong>« Ajouter »</strong> en haut à droite — c\'est installé !',
-        ]
+        icon:'🍎', label:'iOS SAFARI', color:'#eb459e',
+        html:`Appuie sur <strong>⬆ Partager</strong> en bas de Safari, puis <strong>« Sur l'écran d'accueil »</strong>.`
       });
-
     } else if (_isSamsung) {
-      // Samsung Internet
       sections.push({
-        icon:'📱', label:'Samsung Internet', color:'#1e88e5',
-        steps:[
-          'Appuie sur l\'icône <strong>☰</strong> (menu burger) en bas à droite',
-          'Appuie sur <strong>« Ajouter page à »</strong>',
-          'Sélectionne <strong>« Écran d\'accueil »</strong>',
-          'Confirme avec <strong>« Ajouter »</strong>',
-        ]
+        icon:'📱', label:'SAMSUNG INTERNET', color:'#1e88e5',
+        html:`Menu <strong>⋮</strong> → <strong>« Ajouter page à »</strong> → <strong>« Écran d'accueil »</strong>.`
       });
-
     } else if (_isFirefox && _isAndroid) {
-      // Firefox Android
       sections.push({
-        icon:'🦊', label:'Firefox sur Android', color:'#ff7139',
-        steps:[
-          'Appuie sur les <strong>⋮ 3 points</strong> en haut à droite',
-          'Appuie sur <strong>« Installer »</strong> ou <strong>« Ajouter à l\'écran d\'accueil »</strong>',
-          'Confirme l\'installation dans la popup',
-        ]
+        icon:'🦊', label:'FIREFOX ANDROID', color:'#ff7139',
+        html:`Menu <strong>⋮</strong> → <strong>« Installer »</strong> ou <strong>« Ajouter à l'écran d'accueil »</strong>.`
       });
-      sections.push({
-        icon:'💡', label:'Conseil', color:'#fbbf24',
-        steps:['Pour un meilleur résultat, utilise <strong>Chrome sur Android</strong> — l\'installation est automatique.']
-      });
-
     } else if (_isFirefox) {
-      // Firefox PC
       sections.push({
-        icon:'🦊', label:'Firefox (PC)', color:'#ff7139',
-        steps:[
-          'Firefox ne prend pas en charge l\'installation PWA sur PC.',
-          'Ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> pour installer l\'application.',
-        ]
+        icon:'🦊', label:'FIREFOX (PC)', color:'#ff7139',
+        html:`Firefox ne supporte pas l'installation PWA. Utilise <strong>Chrome</strong> ou <strong>Edge</strong> pour installer l'app.`
       });
-
     } else if (_isOpera && _isMobile) {
-      // Opera Mobile
       sections.push({
-        icon:'🎭', label:'Opera sur Android', color:'#cc0f16',
-        steps:[
-          'Appuie sur le logo <strong>O</strong> en bas au centre',
-          'Appuie sur <strong>« Accueil »</strong> (icône maison)',
-          'Puis <strong>« Ajouter à l\'écran d\'accueil »</strong>',
-          'Confirme avec <strong>« Ajouter »</strong>',
-        ]
+        icon:'🎭', label:'OPERA MOBILE', color:'#cc0f16',
+        html:`Menu <strong>⋮</strong> → <strong>« Page d'accueil »</strong> → <strong>« Ajouter à l'écran d'accueil »</strong>.`
       });
-      sections.push({
-        icon:'💡', label:'Plus simple', color:'#fbbf24',
-        steps:['Essaie avec <strong>Chrome sur Android</strong> — le bouton d\'installation apparaît automatiquement en haut.']
-      });
-
     } else if (_isOpera) {
-      // Opera PC
       sections.push({
-        icon:'🎭', label:'Opera sur PC', color:'#cc0f16',
-        steps:[
-          'Regarde dans la barre d\'adresse tout à droite — il y a une icône <strong>écran avec flèche ⊕</strong>',
-          'Si elle n\'apparaît pas : clique sur le menu <strong>≡</strong> (en haut à gauche)',
-          'Cherche <strong>« Installer Discord TCG »</strong> dans le menu',
-          'Si absent, ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> à la place',
-        ]
+        icon:'🎭', label:'OPERA (PC)', color:'#cc0f16',
+        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou le menu <strong>≡</strong> → <strong>« Installer Discord TCG »</strong>.`
       });
-
     } else if (_isEdge) {
-      // Microsoft Edge PC ou Android
       sections.push({
-        icon:'🌐', label:'Microsoft Edge', color:'#0078d4',
-        steps:[
-          _isMobile
-            ? 'Appuie sur les <strong>⋯ 3 points</strong> en bas'
-            : 'Regarde la barre d\'adresse — clique sur l\'icône <strong>⊕</strong> tout à droite',
-          'Appuie sur <strong>« Ajouter à l\'écran d\'accueil »</strong> (mobile) ou <strong>« Installer Discord TCG »</strong> (PC)',
-          'Confirme l\'installation',
-        ]
+        icon:'🌐', label:'MICROSOFT EDGE', color:'#0078d4',
+        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
       });
-
     } else if (_isAndroid) {
-      // Chrome Android
       sections.push({
-        icon:'📱', label:'Chrome sur Android', color:'#57f287',
-        steps:[
-          'Appuie sur les <strong>⋮ 3 points</strong> en haut à droite de Chrome',
-          'Appuie sur <strong>« Ajouter à l\'écran d\'accueil »</strong>',
-          'Confirme avec <strong>« Ajouter »</strong> dans la popup',
-          'L\'icône Discord TCG apparaît sur ton écran d\'accueil !',
-        ]
+        icon:'📱', label:'ANDROID (Chrome)', color:'#57f287',
+        html:`Menu <strong>⋮</strong> en haut à droite → <strong>« Ajouter à l'écran d'accueil »</strong>.`
       });
-
     } else {
-      // Chrome / Edge PC (défaut)
+      // Défaut : Chrome / PC
       sections.push({
-        icon:'🖥', label:'Chrome ou Edge sur PC', color:'#5865f2',
-        steps:[
-          'Regarde la barre d\'adresse tout à droite — tu vois une icône <strong>⊕</strong> ou <strong>écran avec flèche</strong>',
-          'Clique dessus et sélectionne <strong>« Installer Discord TCG »</strong>',
-          'Si l\'icône n\'apparaît pas : attends 30 secondes sur la page, puis réessaie',
-          'Une fois installé, l\'appli s\'ouvre comme une vraie application !',
-        ]
+        icon:'🖥', label:'CHROME / EDGE (PC)', color:'#5865f2',
+        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou <strong>⬇</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
+      });
+    }
+
+    // Toujours ajouter Chrome PC en bas sauf si c'est le principal
+    if (!_isChrome || _isMobile) {
+      sections.push({
+        icon:'💡', label:'RECOMMANDÉ : Chrome ou Edge', color:'#fbbf24',
+        html:`Pour une expérience optimale, ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> — le bouton d'installation apparaît automatiquement.`
       });
     }
 
     body.innerHTML = sections.map(s => `
-      <div style="background:#0f0e17;border:2px solid ${s.color}30;padding:14px 14px 10px;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:900;color:${s.color};letter-spacing:.8px;margin-bottom:10px;">${s.icon} ${s.label}</div>
-        <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
-          ${s.steps.map(step => `<li style="font-size:11px;color:#c4c9d4;line-height:1.6;">${step}</li>`).join('')}
-        </ol>
+      <div style="background:#0f0e17;border:2px solid ${s.color}30;padding:14px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:900;color:${s.color};letter-spacing:.8px;margin-bottom:8px;">${s.icon} ${s.label}</div>
+        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">${s.html}</div>
       </div>`).join('');
   }
 
@@ -647,9 +586,15 @@ function renderSplash(th){
 
     <!-- Logo -->
     <div style="position:relative;margin-bottom:40px;">
+      <div class="ring1" style="position:absolute;inset:-40px;border:1px solid rgba(251,191,36,.1);">
+        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:#fbbf24;box-shadow:0 0 16px #fbbf24,0 0 32px rgba(251,191,36,.4);"></div>
+      </div>
+      <div class="ring2" style="position:absolute;inset:-24px;border:1px solid rgba(244,63,94,.12);">
+        <div style="position:absolute;bottom:-4px;right:20%;width:6px;height:6px;background:#f43f5e;box-shadow:0 0 12px #f43f5e;"></div>
+      </div>
       <!-- Outer glow -->
       <div style="position:absolute;inset:-16px;background:radial-gradient(circle,rgba(251,191,36,.08) 0%,transparent 70%);pointer-events:none;"></div>
-      <div id="conic-ring" style="width:140px;height:140px;background:${th.bgSecondary};border:3px solid ${th.accent};box-shadow:0 0 40px rgba(251,191,36,.25),inset 0 0 20px rgba(251,191,36,.05);display:flex;align-items:center;justify-content:center;">
+      <div id="conic-ring" style="width:140px;height:140px;background:conic-gradient(from 0deg,#fbbf24,#f43f5e,#a78bfa,#fbbf24);display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(251,191,36,.2);">
         <div style="width:122px;height:122px;background:${th.bg};display:flex;align-items:center;justify-content:center;overflow:hidden;">
           <img src="https://i.goopics.net/ok3cbg.png" style="width:110px;height:110px;object-fit:contain;display:block;" />
         </div>
@@ -722,9 +667,9 @@ function startSplashAnim(){
       });
       svg.innerHTML = circles;
     }
-    // Update conic ring — désactivé (plus de dégradé arc-en-ciel)
-    // const ring = document.getElementById('conic-ring');
-    // if(ring) ring.style.background = ...;
+    // Update conic ring
+    const ring = document.getElementById('conic-ring');
+    if(ring) ring.style.background = `conic-gradient(from ${angle}deg,#5865f2,#eb459e,#fee75c,#57f287,#5865f2)`;
   }, 50);
 }
 
@@ -734,6 +679,7 @@ function stopSplashAnim(){
 
 // ─── GAME ─────────────────────────────────────────────────────────
 function renderGame(th){
+  const isMobile = window.innerWidth < 600;
   const TABS = [
     {label:"Jouer",icon:SVG.swords,id:0},
     {label:"Collection",icon:SVG.cards,id:1},
@@ -746,48 +692,47 @@ function renderGame(th){
   <div style="display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background:transparent;">
 
     <!-- ═══ HEADER ═══ -->
-    <div style="display:flex;align-items:center;padding:8px 14px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:10px;position:relative;z-index:10;">
+    <div style="display:flex;align-items:center;padding:${isMobile?'5px 8px':'8px 14px'};background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:${isMobile?'4px':'10px'};position:relative;z-index:10;overflow:hidden;">
 
       <!-- Logo -->
-      <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;">
-        <div style="width:30px;height:30px;overflow:hidden;background:${th.bg};border:1px solid ${th.accent}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <img src="https://i.goopics.net/ok3cbg.png" style="width:26px;height:26px;object-fit:contain;display:block;" />
+      <div style="display:flex;align-items:center;gap:${isMobile?'5px':'9px'};flex-shrink:0;">
+        <div style="width:${isMobile?'24px':'30px'};height:${isMobile?'24px':'30px'};overflow:hidden;background:${th.bg};border:1px solid ${th.accent}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <img src="https://i.goopics.net/ok3cbg.png" style="width:${isMobile?'20px':'26px'};height:${isMobile?'20px':'26px'};object-fit:contain;display:block;" />
           </div>
-        <div style="display:flex;align-items:baseline;gap:5px;">
-          <span style="font-family:'Bangers',cursive;font-size:13px;font-weight:900;letter-spacing:3px;color:${th.text};">DCG</span>
-          <span style="font-size:7px;letter-spacing:2px;color:${th.textMuted};font-weight:700;text-transform:uppercase;background:rgba(56,189,248,.08);border:2px solid #000;border-radius:4px;padding:1px 5px;">BETA</span>
-        </div>
+        <span style="font-family:'Bangers',cursive;font-size:${isMobile?'12px':'13px'};font-weight:900;letter-spacing:3px;color:${th.text};">DCG</span>
+        ${isMobile?'':`<span style="font-size:7px;letter-spacing:2px;color:${th.textMuted};font-weight:700;text-transform:uppercase;background:rgba(56,189,248,.08);border:2px solid #000;border-radius:4px;padding:1px 5px;">BETA</span>`}
       </div>
+      <div style="flex:1;"></div>
 
       <!-- Coins (pill compacte) -->
-      <div style="display:flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);flex-shrink:0;">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="${th.yellow}"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
-        <span style="font-size:12px;font-weight:900;color:${th.yellow};letter-spacing:.3px;">${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</span>
+      <div style="display:flex;align-items:center;gap:2px;padding:${isMobile?'3px 5px':'4px 10px'};background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);flex-shrink:0;max-width:${isMobile?'72px':'none'};">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="${th.yellow}" style="flex-shrink:0;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
+        <span style="font-size:${isMobile?'10px':'12px'};font-weight:900;color:${th.yellow};letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</span>
       </div>
 
       <!-- Icon cluster -->
-      <div style="display:flex;gap:4px;align-items:center;">
+      <div style="display:flex;gap:${isMobile?'2px':'4px'};align-items:center;flex-shrink:0;">
         <!-- Messages -->
-        <button id="btn-messages" style="position:relative;width:32px;height:32px;background:${MSG_COUNT>0?th.accent+'14':'transparent'};border:1px solid ${MSG_COUNT>0?th.accent+'35':th.border};color:${MSG_COUNT>0?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
+        <button id="btn-messages" style="position:relative;width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:${MSG_COUNT>0?th.accent+'14':'transparent'};border:1px solid ${MSG_COUNT>0?th.accent+'35':th.border};color:${MSG_COUNT>0?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
           ${SVG.chat}
-          ${MSG_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;background:${th.accent};color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;border:2px solid ${th.bgSecondary};">${MSG_COUNT}</div>`:''}
+          ${MSG_COUNT>0?`<div style="position:absolute;top:-3px;right:-3px;min-width:13px;height:13px;background:${th.accent};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;border:1px solid ${th.bgSecondary};">${MSG_COUNT}</div>`:''}
         </button>
         <!-- Friends -->
-        <button id="btn-friends" style="width:32px;height:32px;background:transparent;border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${SVG.users}</button>
+        <button id="btn-friends" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:transparent;border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${SVG.users}</button>
         <!-- Quêtes -->
-        <button id="btn-quests" style="position:relative;width:32px;height:32px;background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;" title="Quêtes & Récompenses">
+        <button id="btn-quests" style="position:relative;width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;" title="Quêtes & Récompenses">
           ${SVG.quest}
         </button>
         <!-- Notifs -->
-        <button id="btn-notif" style="position:relative;width:32px;height:32px;background:${NOTIF_COUNT>0?th.red+'12':'transparent'};border:1px solid ${NOTIF_COUNT>0?th.red+'35':th.border};color:${NOTIF_COUNT>0?th.red:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
+        <button id="btn-notif" style="position:relative;width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:${NOTIF_COUNT>0?th.red+'12':'transparent'};border:1px solid ${NOTIF_COUNT>0?th.red+'35':th.border};color:${NOTIF_COUNT>0?th.red:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
           ${SVG.bell}
-          ${NOTIF_COUNT>0?`<div style="position:absolute;top:-4px;right:-4px;width:15px;height:15px;background:${th.red};color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;border:2px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
+          ${NOTIF_COUNT>0?`<div style="position:absolute;top:-3px;right:-3px;width:13px;height:13px;background:${th.red};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
         </button>
-        <!-- Music -->
-        <button id="btn-music" style="width:32px;height:32px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>
+        <!-- Music — masqué sur mobile pour libérer de la place -->
+        ${isMobile?'':`<button id="btn-music" style="width:32px;height:32px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>`}
         <!-- Avatar -->
-        <button id="btn-profile" style="width:32px;height:32px;overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
-          ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
+        <button id="btn-profile" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
+          ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:12px;">👤</span>'}
         </button>
       </div>
     </div>
@@ -1268,6 +1213,7 @@ function renderTradeModal(th){
 
 // ─── TAB PLAY ─────────────────────────────────────────────────────
 function renderTabPlay(th){
+  const isMobile = window.innerWidth < 600;
   const modes=[
     {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", img:"https://i.goopics.net/fxkzfv.png", color:th.accent,    available:true,  badge:"RANKED"},
     {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", img:"https://i.goopics.net/weqlkg.png", color:th.green,     available:true,  badge:"SOLO"},
@@ -1281,10 +1227,38 @@ function renderTabPlay(th){
   <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:transparent;width:100%;">
 
     <!-- ── HERO STATS BANNER ── -->
+    ${isMobile ? `
+    <!-- Mobile : bande ultra-compacte sur une ligne -->
+    <div style="margin:5px 10px 0;flex-shrink:0;border:1px solid ${th.border};background:${th.bgSecondary};position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.accent};"></div>
+      <div style="display:flex;align-items:center;padding:4px 8px;">
+        <!-- Victoires -->
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-right:1px solid ${th.border};padding:0 2px;">
+          <span style="font-size:7px;color:${th.green};font-weight:800;">V</span>
+          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.green};line-height:1;">${state.wins !== null ? state.wins : '—'}</span>
+        </div>
+        <!-- Défaites -->
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-right:1px solid ${th.border};padding:0 2px;">
+          <span style="font-size:7px;color:${th.red};font-weight:800;">D</span>
+          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.red};line-height:1;">${state.losses !== null ? state.losses : '—'}</span>
+        </div>
+        <!-- Win rate -->
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-right:1px solid ${th.border};padding:0 2px;">
+          <span style="font-size:7px;color:${th.yellow};font-weight:800;">WR</span>
+          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.yellow};line-height:1;">${winRate !== null ? winRate+'%' : '—'}</span>
+        </div>
+        <!-- Rang -->
+        <button id="btn-leaderboard" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:0 2px;">
+          <span style="font-size:7px;color:${th.accentAlt};font-weight:800;">RANG</span>
+          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.accentAlt};line-height:1;">${state.playerRank ? '#'+state.playerRank : '—'}</span>
+        </button>
+      </div>
+    </div>` : `
+    <!-- Desktop : panneau performances complet -->
     <div style="margin:14px 14px 0;flex-shrink:0;overflow:hidden;border:2px solid #000;position:relative;">
       <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});"></div>
       <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);background-size:28px 28px;"></div>
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.accent};height:4px;"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:4px;background:${th.accent};"></div>
       <div style="position:relative;padding:16px 18px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="font-size:9px;color:${th.textMuted};letter-spacing:3px;text-transform:uppercase;font-weight:700;">Tes performances</div>
@@ -1315,7 +1289,7 @@ function renderTabPlay(th){
           </div>
         </div>
       </div>
-    </div>
+    </div>`}
 
     <!-- ── XP BAR ── -->
     ${(()=>{
@@ -1332,6 +1306,18 @@ function renderTabPlay(th){
           ? `📦 Booster Prestige`
           : `⚡ Booster Légendaire`;
       const rewardColor = nextReward.type === 'coins' ? '#fbbf24' : nextReward.type === 'booster_prestige' ? '#fee75c' : '#eb459e';
+      if(isMobile){
+        return `<div id="xp-bar-wrap" style="margin:4px 10px 0;flex-shrink:0;background:${th.bgSecondary};border:1px solid ${th.border};padding:4px 10px;position:relative;overflow:hidden;cursor:pointer;">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${lvlColor},#818cf8);"></div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="background:linear-gradient(135deg,${lvlColor},#818cf8);padding:1px 8px;font-family:'Bangers',cursive;font-size:11px;font-weight:900;color:#fff;letter-spacing:1px;flex-shrink:0;">LVL ${lvl}</div>
+            <div style="flex:1;height:5px;background:${th.bg};overflow:hidden;position:relative;">
+              <div style="position:absolute;inset:0;background:linear-gradient(90deg,${lvlColor},#818cf8);width:${pct}%;box-shadow:0 0 6px ${lvlColor}80;"></div>
+            </div>
+            <span style="font-size:8px;color:${rewardColor};font-weight:700;white-space:nowrap;flex-shrink:0;">${rewardHtml}</span>
+          </div>
+        </div>`;
+      }
       return `<div id="xp-bar-wrap" style="margin:8px 14px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:10px 14px;position:relative;overflow:hidden;cursor:pointer;" title="Cliquez pour voir la récompense du prochain niveau">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${lvlColor},#818cf8);"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
@@ -1352,19 +1338,19 @@ function renderTabPlay(th){
     })()}
 
     <!-- ── SECTION LABEL ── -->
-    <div style="padding:14px 18px 8px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
-      <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Choisir un mode</div>
+    <div style="padding:${isMobile?'4px 10px 3px':'14px 18px 8px'};flex-shrink:0;display:flex;align-items:center;gap:6px;">
+      <div style="font-size:${isMobile?'8px':'9px'};color:${th.textMuted};letter-spacing:${isMobile?'2px':'4px'};text-transform:uppercase;font-weight:700;white-space:nowrap;">Modes</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
-      <button id="btn-howtoplay" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(251,191,36,.12);border:2px solid #000;box-shadow:2px 2px 0 #000;color:#fbbf24;font-size:9px;font-weight:900;letter-spacing:.5px;cursor:pointer;transition:all .15s;flex-shrink:0;margin-right:4px;">
-        <span>❓</span><span>COMMENT JOUER</span>
+      <button id="btn-howtoplay" style="display:flex;align-items:center;gap:4px;padding:${isMobile?'3px 7px':'4px 10px'};background:rgba(251,191,36,.12);border:${isMobile?'1px':'2px'} solid #000;${isMobile?'':'box-shadow:2px 2px 0 #000;'}color:#fbbf24;font-size:${isMobile?'10px':'9px'};font-weight:900;cursor:pointer;transition:all .15s;flex-shrink:0;">
+        <span>❓</span>${isMobile?'':'<span>COMMENT JOUER</span>'}
       </button>
-      <button id="btn-tutorial" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(129,140,248,.12);border:2px solid #000;box-shadow:2px 2px 0 #000;color:#818cf8;font-size:9px;font-weight:900;letter-spacing:.5px;cursor:pointer;transition:all .15s;flex-shrink:0;">
-        <span style="font-size:11px;">📖</span> TUTORIEL
+      <button id="btn-tutorial" style="display:flex;align-items:center;gap:4px;padding:${isMobile?'3px 7px':'4px 10px'};background:rgba(129,140,248,.12);border:${isMobile?'1px':'2px'} solid #000;${isMobile?'':'box-shadow:2px 2px 0 #000;'}color:#818cf8;font-size:${isMobile?'10px':'9px'};font-weight:900;cursor:pointer;transition:all .15s;flex-shrink:0;">
+        <span>📖</span>${isMobile?'':'<span>TUTORIEL</span>'}
       </button>
     </div>
 
     <!-- ── MODE CARDS : 3 colonnes verticales qui remplissent l'espace ── -->
-    <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;min-height:0;">
+    <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:${isMobile?'5px':'10px'};padding:0 ${isMobile?'10px':'14px'} ${isMobile?'6px':'14px'};min-height:0;">
       ${modes.map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
           style="display:flex;flex-direction:column;align-items:stretch;
@@ -1614,6 +1600,7 @@ function renderCardDetailModal(card,th){
 
 // ─── TAB BOOSTERS ─────────────────────────────────────────────────
 function renderTabBoosters(th){
+  const isMobile = window.innerWidth < 600;
   const boosterMeta = [
     {
       desc:"Toutes raretés · garanti Commune",
@@ -1759,7 +1746,7 @@ function renderTabBoosters(th){
     </div>
 
     <!-- Séparateur + Pioche -->
-    <div style="padding:10px 16px 6px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
+    <div style="padding:${isMobile?'4px 12px 2px':'10px 16px 6px'};flex-shrink:0;display:flex;align-items:center;gap:8px;">
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Pioche</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
       <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;border-radius:4px;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
@@ -1767,22 +1754,22 @@ function renderTabBoosters(th){
 
     <!-- Pioche : carte horizontale compacte -->
     <div id="btn-pioche"
-      style="margin:0 14px 12px;flex-shrink:0;
+      style="margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'12px'};flex-shrink:0;
         background:linear-gradient(135deg,${th.green}10,${th.green}03);
         border:1px solid ${th.green}25;
         overflow:hidden;cursor:pointer;
         position:relative;transition:all .22s;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${th.green}80,transparent);"></div>
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;">
+      <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'12px 16px'};">
         <!-- Fan compact -->
-        <div style="position:relative;width:44px;height:56px;flex-shrink:0;">
+        <div style="position:relative;width:${isMobile?'24px':'44px'};height:${isMobile?'32px':'56px'};flex-shrink:0;">
           ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;border:1px solid ${th.green}35;transform:rotate(${(k-2)*5}deg) translateY(${k}px);overflow:hidden;"><img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.7;"/></div>`).join('')}
         </div>
         <div style="flex:1;min-width:0;">
-          <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
-          <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">50 cartes face cachée · retourne-en une</div>
+          <div style="font-family:'Bangers',cursive;font-size:${isMobile?'11px':'13px'};font-weight:700;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
+          ${isMobile?'':'<div style="font-size:10px;color:'+th.textMuted+';margin-top:2px;">50 cartes face cachée · retourne-en une</div>'}
         </div>
-        <div style="padding:8px 14px;background:${th.green};color:#fff;font-size:10px;font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${th.green}40;flex-shrink:0;">PIOCHER</div>
+        <div style="padding:${isMobile?'5px 9px':'8px 14px'};background:${th.green};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${th.green}40;flex-shrink:0;">PIOCHER</div>
       </div>
     </div>
 
