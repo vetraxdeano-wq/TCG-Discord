@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Discord TCG">
-<link rel="apple-touch-icon" href="https://i.goopics.net/iic46c.png">
+<link rel="apple-touch-icon" href="https://i.goopics.net/ok3cbg.png">
 <script>
   // ─── PWA INSTALL SYSTEM ──────────────────────────────────────────
   if ('serviceWorker' in navigator) {
@@ -155,9 +155,16 @@
       </div>`).join('');
   }
 
-  // Auto-hide 15s après l'entrée dans le jeu
+  // Auto-hide : montrer le bouton si pas encore installé, puis cacher après 15s
   window._startPwaAutoHide = function() {
-    if (_pwaHideTimer) return;
+    if (_isInstalled) return; // déjà installé, rien à faire
+    if (_pwaHideTimer) return; // déjà lancé
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) {
+      btn.style.display = 'flex';
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+    }
     _pwaHideTimer = setTimeout(() => {
       _hidePwaBtn();
     }, 15000);
@@ -562,33 +569,35 @@ function render(){
 // ─── SPLASH ───────────────────────────────────────────────────────
 function renderSplash(th){
   return `
-  <div id="splash" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${th.bg};cursor:pointer;user-select:none;overflow:hidden;transition:opacity .5s;"><div style="position:absolute;inset:0;background-image:radial-gradient(circle,rgba(251,191,36,0.07) 1px,transparent 1px);background-size:8px 8px;pointer-events:none;z-index:0;"></div>
+  <div id="splash" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${th.bg};cursor:pointer;user-select:none;overflow:hidden;transition:opacity .5s;"><div style="position:absolute;inset:0;background-image:radial-gradient(circle,rgba(251,191,36,0.05) 1px,transparent 1px);background-size:8px 8px;pointer-events:none;z-index:0;"></div>
 
     <!-- Layered atmosphere -->
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 90% 70% at 50% 35%,rgba(56,189,248,0.06) 0%,transparent 70%);pointer-events:none;"></div>
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 20% 80%,rgba(129,140,248,0.04) 0%,transparent 60%);pointer-events:none;"></div>
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 50% 40% at 80% 20%,rgba(244,63,94,0.03) 0%,transparent 55%);pointer-events:none;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 90% 70% at 50% 35%,rgba(251,191,36,0.07) 0%,transparent 70%);pointer-events:none;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 20% 80%,rgba(244,63,94,0.04) 0%,transparent 60%);pointer-events:none;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse 50% 40% at 80% 20%,rgba(251,191,36,0.03) 0%,transparent 55%);pointer-events:none;"></div>
 
     <!-- Grid -->
-    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.025) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;"></div>
+    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(251,191,36,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(251,191,36,.018) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;"></div>
 
     <!-- Horizon line -->
-    <div style="position:absolute;top:62%;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 5%,rgba(56,189,248,.08) 30%,rgba(56,189,248,.15) 50%,rgba(56,189,248,.08) 70%,transparent 95%);pointer-events:none;"></div>
+    <div style="position:absolute;top:62%;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent 5%,rgba(251,191,36,.06) 30%,rgba(251,191,36,.12) 50%,rgba(251,191,36,.06) 70%,transparent 95%);pointer-events:none;"></div>
 
     <svg id="splash-particles" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></svg>
 
-    <!-- Orbe logo -->
-    <div style="position:relative;margin-bottom:48px;">
-      <div class="ring1" style="position:absolute;inset:-40px;border:1px solid rgba(56,189,248,.08);">
-        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:#38bdf8;box-shadow:0 0 16px #38bdf8,0 0 32px rgba(56,189,248,.4);"></div>
+    <!-- Logo -->
+    <div style="position:relative;margin-bottom:40px;">
+      <div class="ring1" style="position:absolute;inset:-40px;border:1px solid rgba(251,191,36,.1);">
+        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:#fbbf24;box-shadow:0 0 16px #fbbf24,0 0 32px rgba(251,191,36,.4);"></div>
       </div>
-      <div class="ring2" style="position:absolute;inset:-24px;border:1px solid rgba(129,140,248,.1);">
-        <div style="position:absolute;bottom:-4px;right:20%;width:6px;height:6px;background:#818cf8;box-shadow:0 0 12px #818cf8;"></div>
+      <div class="ring2" style="position:absolute;inset:-24px;border:1px solid rgba(244,63,94,.12);">
+        <div style="position:absolute;bottom:-4px;right:20%;width:6px;height:6px;background:#f43f5e;box-shadow:0 0 12px #f43f5e;"></div>
       </div>
       <!-- Outer glow -->
-      <div style="position:absolute;inset:-16px;background:radial-gradient(circle,rgba(56,189,248,.06) 0%,transparent 70%);pointer-events:none;"></div>
-      <div id="conic-ring" style="width:116px;height:116px;background:conic-gradient(from 0deg,#fbbf24,#f43f5e,#22c55e,#3b82f6,#fbbf24);display:flex;align-items:center;justify-content:center;box-shadow:0 0 80px rgba(56,189,248,.18);">
-        <div style="width:100px;height:100px;background:${th.bg};display:flex;align-items:center;justify-content:center;font-size:48px;">🃏</div>
+      <div style="position:absolute;inset:-16px;background:radial-gradient(circle,rgba(251,191,36,.08) 0%,transparent 70%);pointer-events:none;"></div>
+      <div id="conic-ring" style="width:140px;height:140px;background:conic-gradient(from 0deg,#fbbf24,#f43f5e,#a78bfa,#fbbf24);display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(251,191,36,.2);">
+        <div style="width:122px;height:122px;background:${th.bg};display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <img src="https://i.goopics.net/ok3cbg.png" style="width:110px;height:110px;object-fit:contain;display:block;" />
+        </div>
       </div>
     </div>
 
@@ -606,13 +615,13 @@ function renderSplash(th){
     <!-- CTA -->
     <div class="cta-pulse" style="display:flex;flex-direction:column;align-items:center;gap:14px;">
       <div style="font-size:9px;letter-spacing:5px;text-transform:uppercase;color:${th.textMuted};font-weight:700;">Appuyer pour commencer</div>
-      <div class="arrow-bounce" style="width:36px;height:36px;border:1px solid ${th.accent}30;display:flex;align-items:center;justify-content:center;color:${th.accent};font-size:13px;background:rgba(56,189,248,.03);">
+      <div class="arrow-bounce" style="width:36px;height:36px;border:1px solid ${th.accent}30;display:flex;align-items:center;justify-content:center;color:${th.accent};font-size:13px;background:rgba(251,191,36,.03);">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
     </div>
 
     <!-- Version badge -->
-    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.1);padding:4px 14px;">
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.1);padding:4px 14px;">
       <div style="width:5px;height:5px;background:${th.green};box-shadow:0 0 6px ${th.green};" class="pulse-dot"></div>
       <span style="font-size:9px;color:${th.textMuted};letter-spacing:2px;font-weight:700;">v0.1 · BETA</span>
     </div>
@@ -686,7 +695,9 @@ function renderGame(th){
 
       <!-- Logo -->
       <div style="display:flex;align-items:center;gap:9px;flex:1;min-width:0;">
-        <div style="width:30px;height:30px;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">🃏</div>
+        <div style="width:30px;height:30px;overflow:hidden;background:${th.bg};border:1px solid ${th.accent}30;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <img src="https://i.goopics.net/ok3cbg.png" style="width:26px;height:26px;object-fit:contain;display:block;" />
+          </div>
         <div style="display:flex;align-items:baseline;gap:5px;">
           <span style="font-family:'Bangers',cursive;font-size:13px;font-weight:900;letter-spacing:3px;color:${th.text};">DCG</span>
           <span style="font-size:7px;letter-spacing:2px;color:${th.textMuted};font-weight:700;text-transform:uppercase;background:rgba(56,189,248,.08);border:2px solid #000;border-radius:4px;padding:1px 5px;">BETA</span>
