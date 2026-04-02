@@ -331,6 +331,7 @@ const YT_START_SEC = 425;
 let _ytPlayer = null;
 let _ytReady = false;
 let _ytPendingPlay = false;
+let _ytPlayRetryTimer = null;
 let audioPlaying = false;
 
 (function loadYTApi(){
@@ -355,31 +356,75 @@ window.onYouTubeIframeAPIReady = function(){
       modestbranding: 1,
       rel: 0,
       playsinline: 1,
+      mute: 0,
     },
     events:{
       onReady: function(e){
-        e.target.setVolume(25); // faible volume
-        if(_ytPendingPlay){ _ytPendingPlay = false; e.target.playVideo(); }
+        e.target.setVolume(25);
+        if(_ytPendingPlay){ _ytPendingPlay = false; _doPlay(); }
       },
       onStateChange: function(e){
-        if(e.data === YT.PlayerState.ENDED && audioPlaying) e.target.playVideo();
+        // Relancer si stoppé/mis en pause alors qu'on veut jouer
+        if(audioPlaying && (e.data === YT.PlayerState.ENDED || e.data === YT.PlayerState.PAUSED)){
+          setTimeout(()=>{ try{ _ytPlayer.playVideo(); }catch(ex){} }, 200);
+        }
+      },
+      onError: function(){
+        // Retry après erreur réseau
+        if(audioPlaying) setTimeout(_doPlay, 2000);
       },
     }
   });
 };
 
+function _doPlay(){
+  if(!_ytPlayer) return;
+  try{
+    const s = _ytPlayer.getPlayerState ? _ytPlayer.getPlayerState() : -1;
+    // -1=unstarted, 1=playing, 2=paused, 3=buffering, 5=video cued
+    if(s === 1) return; // déjà en train de jouer
+    _ytPlayer.playVideo();
+  }catch(e){}
+}
+
+function _ensurePlay(){
+  // Polling léger : reessaie toutes les 800ms si pas encore en lecture
+  if(_ytPlayRetryTimer) return;
+  _ytPlayRetryTimer = setInterval(()=>{
+    if(!audioPlaying){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; return; }
+    const s = _ytPlayer ? (_ytPlayer.getPlayerState ? _ytPlayer.getPlayerState() : -1) : -1;
+    if(s === 1){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; return; } // joue, ok
+    _doPlay();
+  }, 800);
+  // Arrêter le polling après 15s max (éviter boucle infinie)
+  setTimeout(()=>{ if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; } }, 15000);
+}
+
 function audioPlay(){
   if(audioPlaying) return;
   audioPlaying = true;
   if(!_ytReady || !_ytPlayer){ _ytPendingPlay = true; return; }
-  try{ _ytPlayer.playVideo(); } catch(e){}
+  _doPlay();
+  _ensurePlay();
 }
 function audioStop(){
   audioPlaying = false;
   _ytPendingPlay = false;
+  if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; }
   if(_ytPlayer){ try{ _ytPlayer.pauseVideo(); } catch(e){} }
 }
 function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
+
+// Unlock audio dès la première interaction utilisateur (contourne la politique autoplay)
+(function(){
+  const unlock = ()=>{
+    if(audioPlaying && _ytPlayer){
+      try{ const s=_ytPlayer.getPlayerState(); if(s!==1) _doPlay(); }catch(e){}
+    }
+  };
+  document.addEventListener('touchstart', unlock, {once:true, passive:true});
+  document.addEventListener('click', unlock, {once:true});
+})();
 
 // ─── STATE ────────────────────────────────────────────────────────
 let state = {
@@ -585,20 +630,16 @@ function renderSplash(th){
     <svg id="splash-particles" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></svg>
 
     <!-- Logo -->
-    <div style="position:relative;margin-bottom:40px;">
-      <div class="ring1" style="position:absolute;inset:-40px;border:1px solid rgba(251,191,36,.1);">
-        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:#fbbf24;box-shadow:0 0 16px #fbbf24,0 0 32px rgba(251,191,36,.4);"></div>
+    <div style="position:relative;margin-bottom:40px;display:flex;align-items:center;justify-content:center;">
+      <div class="ring1" style="position:absolute;inset:-40px;border:1px solid rgba(251,191,36,.08);">
+        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:6px;height:6px;background:#fbbf24;box-shadow:0 0 12px #fbbf24,0 0 24px rgba(251,191,36,.4);"></div>
       </div>
-      <div class="ring2" style="position:absolute;inset:-24px;border:1px solid rgba(244,63,94,.12);">
-        <div style="position:absolute;bottom:-4px;right:20%;width:6px;height:6px;background:#f43f5e;box-shadow:0 0 12px #f43f5e;"></div>
+      <div class="ring2" style="position:absolute;inset:-22px;border:1px solid rgba(244,63,94,.1);">
+        <div style="position:absolute;bottom:-3px;right:22%;width:5px;height:5px;background:#f43f5e;box-shadow:0 0 10px #f43f5e;"></div>
       </div>
-      <!-- Outer glow -->
-      <div style="position:absolute;inset:-16px;background:radial-gradient(circle,rgba(251,191,36,.08) 0%,transparent 70%);pointer-events:none;"></div>
-      <div id="conic-ring" style="width:140px;height:140px;background:conic-gradient(from 0deg,#fbbf24,#f43f5e,#a78bfa,#fbbf24);display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(251,191,36,.2);">
-        <div style="width:122px;height:122px;background:${th.bg};display:flex;align-items:center;justify-content:center;overflow:hidden;">
-          <img src="https://i.goopics.net/ok3cbg.png" style="width:110px;height:110px;object-fit:contain;display:block;" />
-        </div>
-      </div>
+      <!-- Outer glow only, no box -->
+      <div style="position:absolute;inset:-20px;background:radial-gradient(circle,rgba(251,191,36,.1) 0%,transparent 65%);pointer-events:none;"></div>
+      <img id="splash-logo" src="https://i.goopics.net/ok3cbg.png" style="width:140px;height:140px;object-fit:contain;display:block;position:relative;z-index:1;filter:drop-shadow(0 0 18px rgba(251,191,36,.35)) drop-shadow(0 0 6px rgba(251,191,36,.2));" />
     </div>
 
     <!-- Title block -->
@@ -667,9 +708,12 @@ function startSplashAnim(){
       });
       svg.innerHTML = circles;
     }
-    // Update conic ring
-    const ring = document.getElementById('conic-ring');
-    if(ring) ring.style.background = `conic-gradient(from ${angle}deg,#5865f2,#eb459e,#fee75c,#57f287,#5865f2)`;
+    // Animate logo glow pulse
+    const logo = document.getElementById('splash-logo');
+    if(logo){
+      const glow = 0.25 + Math.sin(splashTick * 0.04) * 0.1;
+      logo.style.filter = `drop-shadow(0 0 ${18+Math.sin(splashTick*.04)*6}px rgba(251,191,36,${glow})) drop-shadow(0 0 6px rgba(251,191,36,.15))`;
+    }
   }, 50);
 }
 
@@ -1349,8 +1393,51 @@ function renderTabPlay(th){
       </button>
     </div>
 
-    <!-- ── MODE CARDS : 3 colonnes verticales qui remplissent l'espace ── -->
-    <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:${isMobile?'5px':'10px'};padding:0 ${isMobile?'10px':'14px'} ${isMobile?'6px':'14px'};min-height:0;">
+    <!-- ── MODE CARDS ── -->
+    ${isMobile ? `
+    <!-- Mobile : grille 2×2 carrée -->
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;padding:0 10px 8px;min-height:0;overflow:hidden;">
+      <!-- Ligne 1 : PvP + vs IA -->
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;min-height:0;">
+        ${modes.filter(m=>m.id!=='secret').map((m)=>`
+        <button class="mode-btn btn-hover" data-mode="${m.id}"
+          style="display:flex;flex-direction:column;align-items:stretch;padding:0;
+            background:${m.available?th.bgSecondary:th.bgTertiary};
+            border:2px solid #000;
+            cursor:${m.available?'pointer':'not-allowed'};
+            opacity:${m.available?1:.45};
+            position:relative;overflow:hidden;transition:all .22s;width:100%;height:100%;">
+          <div style="flex:1;min-height:0;overflow:hidden;position:relative;">
+            ${m.img
+              ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s;" />`
+              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:48px;">${m.icon}</div>`}
+          </div>
+          <div style="flex-shrink:0;padding:7px 8px 8px;text-align:center;background:${th.bgSecondary};border-top:1px solid rgba(0,0,0,.6);">
+            <div style="font-family:'Bangers',cursive;font-size:14px;font-weight:700;color:${th.text};letter-spacing:.5px;margin-bottom:3px;">${m.label}</div>
+            <div style="font-size:9px;color:${th.textMuted};margin-bottom:4px;">${m.sub}</div>
+            <div style="padding:4px 0;background:${m.color};font-size:9px;font-weight:900;color:#fff;letter-spacing:.8px;">JOUER</div>
+          </div>
+        </button>`).join('')}
+      </div>
+      <!-- Ligne 2 : Secret centré -->
+      <div style="flex-shrink:0;display:flex;justify-content:center;">
+        ${modes.filter(m=>m.id==='secret').map((m)=>`
+        <button class="mode-btn btn-hover" data-mode="${m.id}"
+          style="display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px 18px;
+            width:100%;
+            background:${th.bgTertiary};border:2px solid #000;
+            cursor:not-allowed;opacity:.4;position:relative;overflow:hidden;transition:all .22s;">
+          <div style="font-size:28px;flex-shrink:0;">${m.icon}</div>
+          <div style="text-align:left;">
+            <div style="font-family:'Bangers',cursive;font-size:14px;color:${th.textMuted};letter-spacing:.5px;">${m.label}</div>
+            <div style="font-size:9px;color:${th.textFaint};">${m.sub}</div>
+          </div>
+          <div style="margin-left:auto;padding:3px 10px;background:${th.surface};border:1px solid ${th.border};font-size:8px;font-weight:900;color:${th.textMuted};letter-spacing:.5px;">${m.badge}</div>
+        </button>`).join('')}
+      </div>
+    </div>` : `
+    <!-- Desktop : 3 colonnes verticales -->
+    <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 14px 14px;min-height:0;">
       ${modes.map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
           style="display:flex;flex-direction:column;align-items:stretch;
@@ -1364,16 +1451,12 @@ function renderTabPlay(th){
             transition:all .22s;
             width:100%;
             height:100%;">
-
-          <!-- Image PNG qui remplit tout le cadre -->
           <div style="flex:1;min-height:0;overflow:hidden;position:relative;">
             ${m.img
               ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s;" />`
               : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
             }
           </div>
-
-          <!-- Info zone — sous l'image, pas en overlay -->
           <div style="flex-shrink:0;padding:7px 6px 8px;text-align:center;background:${th.bgSecondary};border-top:1px solid rgba(0,0,0,.6);">
             <div style="font-family:'Bangers',cursive;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.5px;line-height:1.1;margin-bottom:4px;">${m.label}</div>
             ${m.available
@@ -1382,7 +1465,7 @@ function renderTabPlay(th){
             }
           </div>
         </button>`).join('')}
-    </div>
+    </div>`}
   </div>`;
 }
 
@@ -1620,7 +1703,7 @@ function renderTabBoosters(th){
   ];
 
   return `
-  <div style="display:flex;flex-direction:column;height:100%;background:${th.bg};overflow:hidden;">
+  <div style="display:flex;flex-direction:column;height:100%;background:transparent;overflow:hidden;">
 
     <!-- Section label -->
     <div style="padding:14px 16px 8px;flex-shrink:0;display:flex;align-items:center;gap:10px;">
