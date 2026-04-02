@@ -94,57 +94,55 @@
 
     if (_isIos) {
       sections.push({
-        icon:'🍎', label:'iOS SAFARI', color:'#eb459e',
-        html:`Appuie sur <strong>⬆ Partager</strong> en bas de Safari, puis <strong>« Sur l'écran d'accueil »</strong>.`
+        icon:'🍎', label:'iPhone / iPad — Safari', color:'#eb459e',
+        html:`1. Appuie sur l'icône <strong>⬆ Partager</strong> (en bas sur iPhone, en haut sur iPad).<br>2. Fais défiler et appuie sur <strong>« Sur l'écran d'accueil »</strong>.<br>3. Confirme avec <strong>« Ajouter »</strong> en haut à droite.<br><em style="font-size:10px;opacity:.7;">⚠ Fonctionne uniquement dans Safari, pas Chrome iOS.</em>`
       });
     } else if (_isSamsung) {
       sections.push({
-        icon:'📱', label:'SAMSUNG INTERNET', color:'#1e88e5',
-        html:`Menu <strong>⋮</strong> → <strong>« Ajouter page à »</strong> → <strong>« Écran d'accueil »</strong>.`
+        icon:'📱', label:'Samsung Internet (Android)', color:'#1e88e5',
+        html:`1. Appuie sur l'icône <strong>☰</strong> en bas à droite.<br>2. Appuie sur <strong>« Ajouter page à »</strong>.<br>3. Choisis <strong>« Écran d'accueil »</strong> puis confirme.`
       });
     } else if (_isFirefox && _isAndroid) {
       sections.push({
-        icon:'🦊', label:'FIREFOX ANDROID', color:'#ff7139',
-        html:`Menu <strong>⋮</strong> → <strong>« Installer »</strong> ou <strong>« Ajouter à l'écran d'accueil »</strong>.`
+        icon:'🦊', label:'Firefox Android', color:'#ff7139',
+        html:`1. Appuie sur les <strong>⋮</strong> en haut à droite.<br>2. Appuie sur <strong>« Installer »</strong> ou <strong>« Ajouter à l'écran d'accueil »</strong>.<br><em style="font-size:10px;opacity:.7;">Si absent, utilise Chrome pour Android à la place.</em>`
       });
     } else if (_isFirefox) {
       sections.push({
-        icon:'🦊', label:'FIREFOX (PC)', color:'#ff7139',
-        html:`Firefox ne supporte pas l'installation PWA. Utilise <strong>Chrome</strong> ou <strong>Edge</strong> pour installer l'app.`
+        icon:'🦊', label:'Firefox (PC) — Non supporté', color:'#ff7139',
+        html:`Firefox sur PC ne supporte pas l'installation d'applications web.<br>👉 Ouvre ce site dans <strong>Chrome</strong> ou <strong>Edge</strong> pour pouvoir l'installer.`
       });
     } else if (_isOpera && _isMobile) {
       sections.push({
-        icon:'🎭', label:'OPERA MOBILE', color:'#cc0f16',
-        html:`Menu <strong>⋮</strong> → <strong>« Page d'accueil »</strong> → <strong>« Ajouter à l'écran d'accueil »</strong>.`
+        icon:'🎭', label:'Opera Mobile (Android)', color:'#cc0f16',
+        html:`1. Appuie sur l'icône <strong>O</strong> ou les <strong>⋮</strong> en bas.<br>2. Appuie sur <strong>« Ajouter à l'écran d'accueil »</strong>.<br><em style="font-size:10px;opacity:.7;">Si l'option n'apparaît pas, utilise Chrome Android.</em>`
       });
     } else if (_isOpera) {
       sections.push({
-        icon:'🎭', label:'OPERA (PC)', color:'#cc0f16',
-        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou le menu <strong>≡</strong> → <strong>« Installer Discord TCG »</strong>.`
+        icon:'🎭', label:'Opera (PC)', color:'#cc0f16',
+        html:`1. Regarde dans la barre d'adresse à droite — une icône <strong>📲</strong> ou <strong>⊕</strong> devrait apparaître.<br>2. Clique dessus puis sur <strong>« Installer »</strong>.<br>3. Si absent : menu Opera <strong>O</strong> en haut à gauche → <strong>« Enregistrer comme application »</strong>.<br><em style="font-size:10px;opacity:.7;">Si rien n'apparaît, utilise Chrome ou Edge qui supportent mieux l'installation.</em>`
       });
     } else if (_isEdge) {
       sections.push({
-        icon:'🌐', label:'MICROSOFT EDGE', color:'#0078d4',
-        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
+        icon:'🌐', label:'Microsoft Edge', color:'#0078d4',
+        html:`1. Regarde l'icône <strong>⊕</strong> ou <strong>📲</strong> à droite de la barre d'adresse.<br>2. Clique dessus → <strong>« Installer Discord TCG »</strong>.<br>3. Ou : menu <strong>⋯</strong> en haut à droite → <strong>« Applications »</strong> → <strong>« Installer ce site en tant qu'application »</strong>.`
       });
     } else if (_isAndroid) {
       sections.push({
-        icon:'📱', label:'ANDROID (Chrome)', color:'#57f287',
-        html:`Menu <strong>⋮</strong> en haut à droite → <strong>« Ajouter à l'écran d'accueil »</strong>.`
+        icon:'📱', label:'Android — Chrome', color:'#57f287',
+        html:`1. Appuie sur les <strong>⋮</strong> en haut à droite de Chrome.<br>2. Appuie sur <strong>« Ajouter à l'écran d'accueil »</strong> ou <strong>« Installer l'application »</strong>.<br>3. Confirme avec <strong>« Installer »</strong>.`
       });
     } else {
-      // Défaut : Chrome / PC
       sections.push({
-        icon:'🖥', label:'CHROME / EDGE (PC)', color:'#5865f2',
-        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou <strong>⬇</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
+        icon:'🖥', label:'Chrome / Edge (PC)', color:'#5865f2',
+        html:`1. Regarde l'icône <strong>⊕</strong> ou <strong>📲</strong> à droite de la barre d'adresse.<br>2. Clique dessus → <strong>« Installer Discord TCG »</strong>.<br>3. Ou : menu <strong>⋮</strong> → <strong>« Enregistrer et partager »</strong> → <strong>« Installer la page en tant qu'application »</strong>.`
       });
     }
 
-    // Toujours ajouter Chrome PC en bas sauf si c'est le principal
     if (!_isChrome || _isMobile) {
       sections.push({
-        icon:'💡', label:'RECOMMANDÉ : Chrome ou Edge', color:'#fbbf24',
-        html:`Pour une expérience optimale, ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> — le bouton d'installation apparaît automatiquement.`
+        icon:'💡', label:'Conseil : Chrome ou Edge recommandé', color:'#fbbf24',
+        html:`Pour une installation facile, ouvre ce site dans <strong>Chrome</strong> ou <strong>Edge</strong> — le bouton d'installation s'affiche automatiquement dans la barre d'adresse.`
       });
     }
 
@@ -305,9 +303,9 @@ const themes = {
 };
 
 const BOOSTERS = [
-  {id:1,name:"Normal",price:150,color:"#5865f2",rarity:"common",cards:5},
-  {id:2,name:"Prestige",price:1000,color:"#fee75c",rarity:"rare",cards:5},
-  {id:3,name:"Légendaire",price:2000,color:"#eb459e",rarity:"mythic",cards:5},
+  {id:1,name:"Normal",price:150,color:"#9ca3af",rarity:"common",cards:5},
+  {id:2,name:"Prestige",price:1000,color:"#cd7f32",rarity:"rare",cards:5},
+  {id:3,name:"Légendaire",price:2000,color:"#f0c060",rarity:"mythic",cards:5},
 ];
 
 // ALL_CARDS sera chargé depuis Supabase
@@ -415,6 +413,22 @@ function audioStop(){
 }
 function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
 
+window._setMusicVolume = function(val) {
+  const v = parseInt(val);
+  state.musicVolume = v;
+  if (_ytPlayer && _ytPlayer.setVolume) {
+    try { _ytPlayer.setVolume(v); } catch(e) {}
+  }
+  // Mettre à jour l'affichage du % sans re-render complet
+  const span = document.querySelector('#music-volume-slider + span, span:has(+ #music-volume-slider)');
+  // Mettre à jour le label à côté du slider
+  const slider = document.getElementById('music-volume-slider');
+  if (slider) {
+    const label = slider.previousElementSibling;
+    if (label) label.textContent = v + '%';
+  }
+};
+
 // Unlock audio dès la première interaction utilisateur (contourne la politique autoplay)
 (function(){
   const unlock = ()=>{
@@ -436,6 +450,7 @@ let state = {
   showNotif: false,
   showProfile: false,
   musicOn: false,
+  musicVolume: 25,
   currentUser: null,
   coins: 0,
   wins: null,
@@ -443,6 +458,7 @@ let state = {
   friends: [],
   friendRequestsIn: [],
   combatRequestsIn: [],
+  tradeResultNotifs: [],
   friendsTab: 'list',
   showAddFriend: false,
   // Collection
@@ -1687,17 +1703,17 @@ function renderTabBoosters(th){
   const boosterMeta = [
     {
       desc:"Toutes raretés · garanti Commune",
-      gradient:`linear-gradient(160deg,#5865f220,#5865f206)`,
+      gradient:`linear-gradient(160deg,#9ca3af20,#9ca3af06)`,
       src:"https://i.goopics.net/ueiki4.png",
     },
     {
       desc:"Garantit au moins 1 Rare",
-      gradient:`linear-gradient(160deg,#fee75c22,#fee75c06)`,
+      gradient:`linear-gradient(160deg,#cd7f3222,#cd7f3206)`,
       src:"https://i.goopics.net/61e1o1.png",
     },
     {
       desc:"Garantit au moins 1 Mythique",
-      gradient:`linear-gradient(160deg,#eb459e22,#eb459e06)`,
+      gradient:`linear-gradient(160deg,#f0c06022,#f0c06006)`,
       src:"https://i.goopics.net/cussu4.png",
     },
   ];
@@ -1780,7 +1796,7 @@ function renderTabBoosters(th){
               : `
                 <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
                   <!-- Aura pulsante -->
-                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(235,69,158,.18) 0%,transparent 70%);animation:legendGlow 1.6s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
+                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(240,192,96,.18) 0%,transparent 70%);animation:legendGlow 1.6s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
                   <!-- Éclairs avec masque fade pour cacher les coupures -->
                   <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out infinite;filter:drop-shadow(0 0 6px #38bdf8) drop-shadow(0 0 12px #38bdf840);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
                   <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:boltFlash 2.2s ease-in-out .7s infinite;filter:drop-shadow(0 0 6px #a78bfa) drop-shadow(0 0 12px #a78bfa40);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
@@ -2082,7 +2098,8 @@ function renderNotifModal(th){
   const reqs = state.friendRequestsIn || [];
   const combatReqs = state.combatRequestsIn || [];
   const levelRewards = state.pendingLevelRewards || [];
-  const allEmpty = reqs.length === 0 && combatReqs.length === 0 && levelRewards.length === 0;
+  const tradeResults = state.tradeResultNotifs || [];
+  const allEmpty = reqs.length === 0 && combatReqs.length === 0 && levelRewards.length === 0 && tradeResults.length === 0;
   return `
   <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
     <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};padding:20px 20px 36px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};max-height:80vh;overflow-y:auto;">
@@ -2108,6 +2125,16 @@ function renderNotifModal(th){
           </div>
           <button class="notif-claim-booster" data-notifid="${r.notifId||''}" data-rewardtype="${r.type}" style="padding:7px 12px;font-size:10px;font-weight:900;background:${accentCol};color:#000;border:none;cursor:pointer;letter-spacing:.3px;flex-shrink:0;">RÉCLAMER</button>
         </div>`; }).join('')}
+      ${tradeResults.map((r,idx)=>`
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${r.accepted?th.green:th.red};"></div>
+          <div style="width:38px;height:38px;background:${r.accepted?th.green+'18':th.red+'18'};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">${r.accepted?'🔄':'✗'}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:900;color:${r.accepted?th.green:th.red};letter-spacing:.3px;">${r.accepted?'ÉCHANGE ACCEPTÉ':'ÉCHANGE REFUSÉ'}</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">${r.text||''}</div>
+          </div>
+          <button onclick="(function(){const n=[...(state.tradeResultNotifs||[])];n.splice(${idx},1);setState({tradeResultNotifs:n});window.db&&window.db.from('notifications').update({read:true}).eq('id','${r.id}').then(()=>{}).catch(()=>{});})()" style="padding:5px 10px;font-size:9px;font-weight:900;background:${th.bgSecondary};color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;">OK</button>
+        </div>`).join('')}
       ${combatReqs.map(r=>`
         <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
           <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.red};"></div>
@@ -4082,6 +4109,13 @@ async function subscribeNotifications() {
         markMsgNotifsRead(n.from_id);
         return;
       }
+      if (n.type === 'trade_accepted' || n.type === 'trade_declined') {
+        const isAccepted = n.type === 'trade_accepted';
+        const prev = state.tradeResultNotifs || [];
+        setState({ tradeResultNotifs: [...prev, { id: n.id, accepted: isAccepted, from_id: n.from_id, text: n.text }] });
+        showToast(n.text || (isAccepted ? 'Échange accepté !' : 'Échange refusé'), isAccepted ? '🔄' : '✗');
+        return;
+      }
       if (n.type === 'combat_request') {
         // Charger l'avatar/nom de l'expéditeur
         db.from('players').select('discord_username, avatar_url').eq('id', n.from_id).single()
@@ -4893,9 +4927,17 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
 
     // Recharger la collection
     if (window.loadCollection) window.loadCollection();
-    showToast('Échange effectué !', '🔄');
+    const fromCardName = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.from_card_id))?.name || '#'+incoming.from_card_id;
+    showToast('Échange effectué ! Tu as reçu : ' + fromCardName, '🔄');
   } else {
     await db.from('trades').update({ status: 'declined' }).eq('id', tradeId);
+    // Notifier l'expéditeur du refus
+    if (incoming.from_id) {
+      await db.from('notifications').insert({
+        user_id: incoming.from_id, type: 'trade_declined', from_id: myId,
+        text: 'Ton échange a été refusé.', read: false,
+      }).then(()=>{}).catch(()=>{});
+    }
     showToast('Échange refusé', '✗');
   }
 
