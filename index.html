@@ -93,65 +93,126 @@
     let sections = [];
 
     if (_isIos) {
+      // iOS Safari
       sections.push({
-        icon:'🍎', label:'iOS SAFARI', color:'#eb459e',
-        html:`Appuie sur <strong>⬆ Partager</strong> en bas de Safari, puis <strong>« Sur l'écran d'accueil »</strong>.`
+        icon:'🍎', label:'Safari sur iPhone / iPad', color:'#eb459e',
+        steps:[
+          'Ouvre cette page dans <strong>Safari</strong> (pas Chrome, pas Firefox)',
+          'Appuie sur le bouton <strong>⬆ Partager</strong> en bas de l\'écran',
+          'Fais défiler et appuie sur <strong>« Sur l\'écran d\'accueil »</strong>',
+          'Appuie sur <strong>« Ajouter »</strong> en haut à droite — c\'est installé !',
+        ]
       });
-    } else if (_isSamsung) {
-      sections.push({
-        icon:'📱', label:'SAMSUNG INTERNET', color:'#1e88e5',
-        html:`Menu <strong>⋮</strong> → <strong>« Ajouter page à »</strong> → <strong>« Écran d'accueil »</strong>.`
-      });
-    } else if (_isFirefox && _isAndroid) {
-      sections.push({
-        icon:'🦊', label:'FIREFOX ANDROID', color:'#ff7139',
-        html:`Menu <strong>⋮</strong> → <strong>« Installer »</strong> ou <strong>« Ajouter à l'écran d'accueil »</strong>.`
-      });
-    } else if (_isFirefox) {
-      sections.push({
-        icon:'🦊', label:'FIREFOX (PC)', color:'#ff7139',
-        html:`Firefox ne supporte pas l'installation PWA. Utilise <strong>Chrome</strong> ou <strong>Edge</strong> pour installer l'app.`
-      });
-    } else if (_isOpera && _isMobile) {
-      sections.push({
-        icon:'🎭', label:'OPERA MOBILE', color:'#cc0f16',
-        html:`Menu <strong>⋮</strong> → <strong>« Page d'accueil »</strong> → <strong>« Ajouter à l'écran d'accueil »</strong>.`
-      });
-    } else if (_isOpera) {
-      sections.push({
-        icon:'🎭', label:'OPERA (PC)', color:'#cc0f16',
-        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou le menu <strong>≡</strong> → <strong>« Installer Discord TCG »</strong>.`
-      });
-    } else if (_isEdge) {
-      sections.push({
-        icon:'🌐', label:'MICROSOFT EDGE', color:'#0078d4',
-        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
-      });
-    } else if (_isAndroid) {
-      sections.push({
-        icon:'📱', label:'ANDROID (Chrome)', color:'#57f287',
-        html:`Menu <strong>⋮</strong> en haut à droite → <strong>« Ajouter à l'écran d'accueil »</strong>.`
-      });
-    } else {
-      // Défaut : Chrome / PC
-      sections.push({
-        icon:'🖥', label:'CHROME / EDGE (PC)', color:'#5865f2',
-        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou <strong>⬇</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
-      });
-    }
 
-    // Toujours ajouter Chrome PC en bas sauf si c'est le principal
-    if (!_isChrome || _isMobile) {
+    } else if (_isSamsung) {
+      // Samsung Internet
       sections.push({
-        icon:'💡', label:'RECOMMANDÉ : Chrome ou Edge', color:'#fbbf24',
-        html:`Pour une expérience optimale, ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> — le bouton d'installation apparaît automatiquement.`
+        icon:'📱', label:'Samsung Internet', color:'#1e88e5',
+        steps:[
+          'Appuie sur l\'icône <strong>☰</strong> (menu burger) en bas à droite',
+          'Appuie sur <strong>« Ajouter page à »</strong>',
+          'Sélectionne <strong>« Écran d\'accueil »</strong>',
+          'Confirme avec <strong>« Ajouter »</strong>',
+        ]
+      });
+
+    } else if (_isFirefox && _isAndroid) {
+      // Firefox Android
+      sections.push({
+        icon:'🦊', label:'Firefox sur Android', color:'#ff7139',
+        steps:[
+          'Appuie sur les <strong>⋮ 3 points</strong> en haut à droite',
+          'Appuie sur <strong>« Installer »</strong> ou <strong>« Ajouter à l\'écran d\'accueil »</strong>',
+          'Confirme l\'installation dans la popup',
+        ]
+      });
+      sections.push({
+        icon:'💡', label:'Conseil', color:'#fbbf24',
+        steps:['Pour un meilleur résultat, utilise <strong>Chrome sur Android</strong> — l\'installation est automatique.']
+      });
+
+    } else if (_isFirefox) {
+      // Firefox PC
+      sections.push({
+        icon:'🦊', label:'Firefox (PC)', color:'#ff7139',
+        steps:[
+          'Firefox ne prend pas en charge l\'installation PWA sur PC.',
+          'Ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> pour installer l\'application.',
+        ]
+      });
+
+    } else if (_isOpera && _isMobile) {
+      // Opera Mobile
+      sections.push({
+        icon:'🎭', label:'Opera sur Android', color:'#cc0f16',
+        steps:[
+          'Appuie sur le logo <strong>O</strong> en bas au centre',
+          'Appuie sur <strong>« Accueil »</strong> (icône maison)',
+          'Puis <strong>« Ajouter à l\'écran d\'accueil »</strong>',
+          'Confirme avec <strong>« Ajouter »</strong>',
+        ]
+      });
+      sections.push({
+        icon:'💡', label:'Plus simple', color:'#fbbf24',
+        steps:['Essaie avec <strong>Chrome sur Android</strong> — le bouton d\'installation apparaît automatiquement en haut.']
+      });
+
+    } else if (_isOpera) {
+      // Opera PC
+      sections.push({
+        icon:'🎭', label:'Opera sur PC', color:'#cc0f16',
+        steps:[
+          'Regarde dans la barre d\'adresse tout à droite — il y a une icône <strong>écran avec flèche ⊕</strong>',
+          'Si elle n\'apparaît pas : clique sur le menu <strong>≡</strong> (en haut à gauche)',
+          'Cherche <strong>« Installer Discord TCG »</strong> dans le menu',
+          'Si absent, ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> à la place',
+        ]
+      });
+
+    } else if (_isEdge) {
+      // Microsoft Edge PC ou Android
+      sections.push({
+        icon:'🌐', label:'Microsoft Edge', color:'#0078d4',
+        steps:[
+          _isMobile
+            ? 'Appuie sur les <strong>⋯ 3 points</strong> en bas'
+            : 'Regarde la barre d\'adresse — clique sur l\'icône <strong>⊕</strong> tout à droite',
+          'Appuie sur <strong>« Ajouter à l\'écran d\'accueil »</strong> (mobile) ou <strong>« Installer Discord TCG »</strong> (PC)',
+          'Confirme l\'installation',
+        ]
+      });
+
+    } else if (_isAndroid) {
+      // Chrome Android
+      sections.push({
+        icon:'📱', label:'Chrome sur Android', color:'#57f287',
+        steps:[
+          'Appuie sur les <strong>⋮ 3 points</strong> en haut à droite de Chrome',
+          'Appuie sur <strong>« Ajouter à l\'écran d\'accueil »</strong>',
+          'Confirme avec <strong>« Ajouter »</strong> dans la popup',
+          'L\'icône Discord TCG apparaît sur ton écran d\'accueil !',
+        ]
+      });
+
+    } else {
+      // Chrome / Edge PC (défaut)
+      sections.push({
+        icon:'🖥', label:'Chrome ou Edge sur PC', color:'#5865f2',
+        steps:[
+          'Regarde la barre d\'adresse tout à droite — tu vois une icône <strong>⊕</strong> ou <strong>écran avec flèche</strong>',
+          'Clique dessus et sélectionne <strong>« Installer Discord TCG »</strong>',
+          'Si l\'icône n\'apparaît pas : attends 30 secondes sur la page, puis réessaie',
+          'Une fois installé, l\'appli s\'ouvre comme une vraie application !',
+        ]
       });
     }
 
     body.innerHTML = sections.map(s => `
-      <div style="background:#0f0e17;border:2px solid ${s.color}30;padding:14px;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:900;color:${s.color};letter-spacing:.8px;margin-bottom:8px;">${s.icon} ${s.label}</div>
-        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">${s.html}</div>
+      <div style="background:#0f0e17;border:2px solid ${s.color}30;padding:14px 14px 10px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:900;color:${s.color};letter-spacing:.8px;margin-bottom:10px;">${s.icon} ${s.label}</div>
+        <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
+          ${s.steps.map(step => `<li style="font-size:11px;color:#c4c9d4;line-height:1.6;">${step}</li>`).join('')}
+        </ol>
       </div>`).join('');
   }
 
@@ -586,15 +647,9 @@ function renderSplash(th){
 
     <!-- Logo -->
     <div style="position:relative;margin-bottom:40px;">
-      <div class="ring1" style="position:absolute;inset:-40px;border:1px solid rgba(251,191,36,.1);">
-        <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:8px;height:8px;background:#fbbf24;box-shadow:0 0 16px #fbbf24,0 0 32px rgba(251,191,36,.4);"></div>
-      </div>
-      <div class="ring2" style="position:absolute;inset:-24px;border:1px solid rgba(244,63,94,.12);">
-        <div style="position:absolute;bottom:-4px;right:20%;width:6px;height:6px;background:#f43f5e;box-shadow:0 0 12px #f43f5e;"></div>
-      </div>
       <!-- Outer glow -->
       <div style="position:absolute;inset:-16px;background:radial-gradient(circle,rgba(251,191,36,.08) 0%,transparent 70%);pointer-events:none;"></div>
-      <div id="conic-ring" style="width:140px;height:140px;background:conic-gradient(from 0deg,#fbbf24,#f43f5e,#a78bfa,#fbbf24);display:flex;align-items:center;justify-content:center;box-shadow:0 0 60px rgba(251,191,36,.2);">
+      <div id="conic-ring" style="width:140px;height:140px;background:${th.bgSecondary};border:3px solid ${th.accent};box-shadow:0 0 40px rgba(251,191,36,.25),inset 0 0 20px rgba(251,191,36,.05);display:flex;align-items:center;justify-content:center;">
         <div style="width:122px;height:122px;background:${th.bg};display:flex;align-items:center;justify-content:center;overflow:hidden;">
           <img src="https://i.goopics.net/ok3cbg.png" style="width:110px;height:110px;object-fit:contain;display:block;" />
         </div>
@@ -667,9 +722,9 @@ function startSplashAnim(){
       });
       svg.innerHTML = circles;
     }
-    // Update conic ring
-    const ring = document.getElementById('conic-ring');
-    if(ring) ring.style.background = `conic-gradient(from ${angle}deg,#5865f2,#eb459e,#fee75c,#57f287,#5865f2)`;
+    // Update conic ring — désactivé (plus de dégradé arc-en-ciel)
+    // const ring = document.getElementById('conic-ring');
+    // if(ring) ring.style.background = ...;
   }, 50);
 }
 
