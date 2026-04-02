@@ -1728,20 +1728,20 @@ function renderTabBoosters(th){
     </div>
 
     <!-- 3 boosters en grille carrée qui remplit l'espace -->
-    <div style="${isMobile?'flex-shrink:0;':'flex:1;'}display:grid;grid-template-columns:repeat(3,1fr);gap:${isMobile?'6px':'10px'};padding:0 ${isMobile?'10px':'14px'};${isMobile?'':'min-height:0;'}">
+    <div style="${isMobile?'flex-shrink:0;':'flex:1;'}display:grid;grid-template-columns:${isMobile?'1fr 1fr':'repeat(3,1fr)'};gap:${isMobile?'6px':'10px'};padding:0 ${isMobile?'10px':'14px'};${isMobile?'':'min-height:0;'}">
       ${BOOSTERS.map((b,i)=>{
         const isOpen = state.boosterOpening===b.id;
         const meta   = boosterMeta[i];
         return `
         <div class="booster-card" data-bid="${b.id}"
-          style="display:flex;flex-direction:column;align-items:stretch;
+          style="${isMobile&&i===0?'grid-column:1/span 2;justify-self:center;':''}display:flex;flex-direction:column;align-items:stretch;
             background:${th.bgSecondary};
             border:2px solid #000;
             overflow:hidden;
             cursor:pointer;
             position:relative;
             transition:all .22s cubic-bezier(.4,0,.2,1);
-            width:100%;
+            width:${isMobile&&i===0?'calc(50% - 3px)':'100%'};
             ${isMobile?'height:auto;':'height:100%;'}">
 
           <!-- Image PNG — contain pour voir tout le booster -->
