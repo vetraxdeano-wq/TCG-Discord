@@ -1783,62 +1783,70 @@ function renderTabBoosters(th){
             ${meta.src
               ? (b.id===1 ? `
                 <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                  <!-- Aura bleue subtile -->
-                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(88,101,242,.15) 0%,transparent 65%);animation:normalSparkle 2s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
-                  <!-- Éclats bleus côtés -->
-                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:normalSparkle 2.6s ease-in-out infinite;filter:drop-shadow(0 0 5px #5865f2) drop-shadow(0 0 10px #5865f260) sepia(1) saturate(1.5) hue-rotate(200deg);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
-                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:normalSparkle 2.6s ease-in-out .8s infinite;filter:drop-shadow(0 0 5px #818cf8) drop-shadow(0 0 10px #818cf860) sepia(1) saturate(1.5) hue-rotate(220deg);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
-                  <!-- Étoiles flottantes SVG -->
+                  <!-- Aura grise argentée subtile -->
+                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(209,213,219,.12) 0%,transparent 65%);animation:normalSparkle 2s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
+                  <!-- Éclats gris argent côtés -->
+                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:normalSparkle 2.6s ease-in-out infinite;filter:drop-shadow(0 0 5px #9ca3af) drop-shadow(0 0 10px #9ca3af50) grayscale(1) brightness(1.4);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
+                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:normalSparkle 2.6s ease-in-out .8s infinite;filter:drop-shadow(0 0 5px #d1d5db) drop-shadow(0 0 10px #d1d5db50) grayscale(1) brightness(1.5);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
+                  <!-- Bulles/étoiles grises flottantes -->
                   <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;overflow:visible;" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-                    <circle cx="18" cy="22" r="1.5" fill="#818cf8" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .2s infinite;"/>
-                    <circle cx="82" cy="30" r="1.2" fill="#5865f2" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .9s infinite;"/>
-                    <circle cx="50" cy="12" r="1" fill="#c4b5fd" opacity="0" style="animation:sparkFloat 2.8s ease-in-out 1.5s infinite;"/>
-                    <circle cx="28" cy="70" r="1.3" fill="#818cf8" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .5s infinite;"/>
-                    <circle cx="74" cy="65" r="1" fill="#5865f2" opacity="0" style="animation:sparkFloat 2.8s ease-in-out 1.8s infinite;"/>
+                    <circle cx="18" cy="22" r="1.5" fill="#d1d5db" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .2s infinite;"/>
+                    <circle cx="82" cy="30" r="1.2" fill="#9ca3af" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .9s infinite;"/>
+                    <circle cx="50" cy="12" r="1" fill="#e5e7eb" opacity="0" style="animation:sparkFloat 2.8s ease-in-out 1.5s infinite;"/>
+                    <circle cx="28" cy="70" r="1.3" fill="#d1d5db" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .5s infinite;"/>
+                    <circle cx="74" cy="65" r="1" fill="#9ca3af" opacity="0" style="animation:sparkFloat 2.8s ease-in-out 1.8s infinite;"/>
                   </svg>
                   <!-- Masque fade bords -->
                   <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(26,24,37,.7) 0%,transparent 15%,transparent 85%,rgba(26,24,37,.7) 100%);pointer-events:none;z-index:3;"></div>
                   <img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
                     style="width:88%;height:88%;object-fit:contain;display:block;position:relative;z-index:1;
-                           filter:drop-shadow(0 0 8px #5865f260) brightness(1.05);
+                           filter:drop-shadow(0 0 8px #9ca3af50) brightness(1.05);
                            transition:transform .3s cubic-bezier(.34,1.56,.64,1),filter .22s;
                            animation:${isOpen?'shakePack .4s ease':'legendTremble 2.4s ease-in-out infinite, floatPack 2.2s ease-in-out infinite'};
                            cursor:pointer;"/>
                 </div>`
               : b.id===2 ? `
                 <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                  <!-- Aura dorée -->
-                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(254,231,92,.2) 0%,transparent 65%);animation:normalSparkle 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
-                  <!-- Éclats dorés -->
-                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:prestigeShine 2.6s ease-in-out infinite;filter:drop-shadow(0 0 5px #fee75c) drop-shadow(0 0 10px #fee75c60) sepia(1) saturate(2) hue-rotate(-10deg);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
-                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:prestigeShine 2.6s ease-in-out .8s infinite;filter:drop-shadow(0 0 5px #fbbf24) drop-shadow(0 0 10px #fbbf2460) sepia(1) saturate(2) hue-rotate(-10deg);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
-                  <!-- Étoiles dorées flottantes -->
+                  <!-- Aura bronze cuivré -->
+                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(205,127,50,.22) 0%,transparent 65%);animation:normalSparkle 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
+                  <!-- Éclats bronze/cuivre -->
+                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:prestigeShine 2.6s ease-in-out infinite;filter:drop-shadow(0 0 6px #cd7f32) drop-shadow(0 0 12px #cd7f3260) sepia(1) saturate(2.5) hue-rotate(5deg) brightness(0.9);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
+                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-10%;top:5%;width:50%;height:88%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:prestigeShine 2.6s ease-in-out .8s infinite;filter:drop-shadow(0 0 6px #b8860b) drop-shadow(0 0 12px #b8860b60) sepia(1) saturate(3) hue-rotate(10deg) brightness(0.85);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);" />
+                  <!-- Étoiles bronze flottantes -->
                   <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;overflow:visible;" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-                    <polygon points="15,20 16.2,23.6 20,23.6 17,25.9 18.2,29.5 15,27.2 11.8,29.5 13,25.9 10,23.6 13.8,23.6" fill="#fee75c" opacity="0" style="animation:sparkFloat 2.4s ease-in-out .3s infinite;transform-origin:15px 24px;"/>
-                    <polygon points="83,35 84,38 87,38 84.6,39.8 85.5,42.8 83,41 80.5,42.8 81.4,39.8 79,38 82,38" fill="#fbbf24" opacity="0" style="animation:sparkFloat 2.4s ease-in-out 1.1s infinite;transform-origin:83px 38px;"/>
-                    <polygon points="50,8 51,11 54,11 51.5,12.8 52.5,15.8 50,14 47.5,15.8 48.5,12.8 46,11 49,11" fill="#fee75c" opacity="0" style="animation:sparkFloat 2.4s ease-in-out 1.7s infinite;transform-origin:50px 11px;"/>
+                    <polygon points="15,20 16.2,23.6 20,23.6 17,25.9 18.2,29.5 15,27.2 11.8,29.5 13,25.9 10,23.6 13.8,23.6" fill="#cd7f32" opacity="0" style="animation:sparkFloat 2.4s ease-in-out .3s infinite;transform-origin:15px 24px;"/>
+                    <polygon points="83,35 84,38 87,38 84.6,39.8 85.5,42.8 83,41 80.5,42.8 81.4,39.8 79,38 82,38" fill="#b8860b" opacity="0" style="animation:sparkFloat 2.4s ease-in-out 1.1s infinite;transform-origin:83px 38px;"/>
+                    <polygon points="50,8 51,11 54,11 51.5,12.8 52.5,15.8 50,14 47.5,15.8 48.5,12.8 46,11 49,11" fill="#e8a055" opacity="0" style="animation:sparkFloat 2.4s ease-in-out 1.7s infinite;transform-origin:50px 11px;"/>
                   </svg>
                   <!-- Masque fade bords -->
                   <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(26,24,37,.7) 0%,transparent 15%,transparent 85%,rgba(26,24,37,.7) 100%);pointer-events:none;z-index:3;"></div>
                   <img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
                     style="width:88%;height:88%;object-fit:contain;display:block;position:relative;z-index:1;
-                           filter:drop-shadow(0 0 10px #fee75c80) drop-shadow(0 0 20px #fbbf2440) brightness(1.08);
+                           filter:drop-shadow(0 0 10px #cd7f3270) drop-shadow(0 0 20px #b8860b40) brightness(1.08);
                            transition:transform .3s cubic-bezier(.34,1.56,.64,1),filter .22s;
                            animation:${isOpen?'shakePack .4s ease':'legendTremble 2.4s ease-in-out infinite, floatPack 2.2s ease-in-out infinite'};
                            cursor:pointer;"/>
                 </div>`
               : `
                 <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                  <!-- Aura pulsante -->
-                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(240,192,96,.18) 0%,transparent 70%);animation:legendGlow 1.6s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
-                  <!-- Éclairs avec masque fade pour cacher les coupures -->
-                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out infinite;filter:drop-shadow(0 0 6px #38bdf8) drop-shadow(0 0 12px #38bdf840);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
-                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:boltFlash 2.2s ease-in-out .7s infinite;filter:drop-shadow(0 0 6px #a78bfa) drop-shadow(0 0 12px #a78bfa40);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
-                  <img src="https://i.goopics.net/2rouaf.png" style="position:absolute;left:50%;top:-5%;transform:translateX(-50%);width:60%;height:60%;object-fit:contain;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out 1.2s infinite;filter:drop-shadow(0 0 6px #eb459e) drop-shadow(0 0 12px #eb459e40);mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.95) 40%,transparent 80%);-webkit-mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.95) 40%,transparent 80%);" />
+                  <!-- Aura or pulsante -->
+                  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(240,192,96,.25) 0%,transparent 70%);animation:legendGlow 1.6s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
+                  <!-- Éclairs or vif -->
+                  <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:left center;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out infinite;filter:drop-shadow(0 0 8px #f0c060) drop-shadow(0 0 16px #fbbf2470) sepia(1) saturate(4) hue-rotate(-15deg) brightness(1.1);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
+                  <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-8%;top:0;width:55%;height:100%;object-fit:contain;object-position:right center;pointer-events:none;z-index:2;transform:scaleX(-1);animation:boltFlash 2.2s ease-in-out .7s infinite;filter:drop-shadow(0 0 8px #fde68a) drop-shadow(0 0 16px #f0c06070) sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.15);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);" />
+                  <img src="https://i.goopics.net/2rouaf.png" style="position:absolute;left:50%;top:-5%;transform:translateX(-50%);width:60%;height:60%;object-fit:contain;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out 1.2s infinite;filter:drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f0c06060) sepia(1) saturate(5) hue-rotate(-10deg) brightness(1.2);mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.95) 40%,transparent 80%);-webkit-mask-image:radial-gradient(ellipse at center,rgba(0,0,0,.95) 40%,transparent 80%);" />
+                  <!-- Étoiles or flottantes -->
+                  <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;overflow:visible;" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                    <polygon points="15,20 16.2,23.6 20,23.6 17,25.9 18.2,29.5 15,27.2 11.8,29.5 13,25.9 10,23.6 13.8,23.6" fill="#f0c060" opacity="0" style="animation:sparkFloat 2.4s ease-in-out .2s infinite;transform-origin:15px 24px;"/>
+                    <polygon points="83,35 84,38 87,38 84.6,39.8 85.5,42.8 83,41 80.5,42.8 81.4,39.8 79,38 82,38" fill="#fde68a" opacity="0" style="animation:sparkFloat 2.4s ease-in-out .9s infinite;transform-origin:83px 38px;"/>
+                    <polygon points="50,8 51,11 54,11 51.5,12.8 52.5,15.8 50,14 47.5,15.8 48.5,12.8 46,11 49,11" fill="#fbbf24" opacity="0" style="animation:sparkFloat 2.4s ease-in-out 1.5s infinite;transform-origin:50px 11px;"/>
+                    <circle cx="28" cy="68" r="1.2" fill="#f0c060" opacity="0" style="animation:sparkFloat 2.8s ease-in-out .5s infinite;"/>
+                    <circle cx="74" cy="62" r="1" fill="#fde68a" opacity="0" style="animation:sparkFloat 2.8s ease-in-out 1.8s infinite;"/>
+                  </svg>
                   <!-- PNG avec tremblement -->
                   <img src="${meta.src}" class="booster-img open-booster" data-bid="${b.id}" alt="${b.name}"
                     style="width:88%;height:88%;object-fit:contain;display:block;position:relative;z-index:1;
-                           filter:drop-shadow(0 0 10px #eb459e80) drop-shadow(0 0 22px #38bdf840) brightness(1.1);
+                           filter:drop-shadow(0 0 12px #f0c06090) drop-shadow(0 0 24px #fbbf2450) brightness(1.12);
                            transition:transform .3s cubic-bezier(.34,1.56,.64,1),filter .22s;
                            animation:${isOpen?'shakePack .4s ease':'legendTremble 2.4s ease-in-out infinite, floatPack 2.2s ease-in-out infinite'};
                            cursor:pointer;"/>
