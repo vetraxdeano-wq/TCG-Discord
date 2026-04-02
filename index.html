@@ -2077,11 +2077,11 @@ function renderMessagesModal(th){
 // ─── PIOCHE MECHANIC ──────────────────────────────────────────────
 function renderPiocheMechanic(th){
   const TOTAL=50, GAP=4, PAD=12;
-  const ROWS=5;
+  const COLS=7;
+  const ROWS=Math.ceil(TOTAL/COLS);
   const headerH=80;
   const availH=window.innerHeight-headerH-PAD*2-GAP*(ROWS-1);
   const availW=Math.min(window.innerWidth,720)-PAD*2;
-  let COLS=Math.ceil(TOTAL/ROWS);
   let CW=Math.floor((availW-GAP*(COLS-1))/COLS);
   const CH=Math.round(CW*1.43);
   return `
