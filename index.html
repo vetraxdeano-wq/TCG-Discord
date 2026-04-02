@@ -789,7 +789,7 @@ function renderGame(th){
           ${NOTIF_COUNT>0?`<div style="position:absolute;top:-3px;right:-3px;width:13px;height:13px;background:${th.red};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
         </button>
         <!-- Music — masqué sur mobile pour libérer de la place -->
-        ${isMobile?'':`<button id="btn-music" style="width:32px;height:32px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}</button>`}
+        ${isMobile?'':`<button id="btn-music" style="height:32px;padding:0 8px;gap:5px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}<span style="font-size:8px;font-weight:700;opacity:.7;">${state.musicVolume??25}%</span></button>`}
         <!-- Avatar -->
         <button id="btn-profile" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
           ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:12px;">👤</span>'}
@@ -2627,12 +2627,98 @@ function bindGame(){
     });
   });
 
-  // Header buttons
+  // Header buttons — Music : ouvre un popup volume au lieu de muter directement
   const btnMusic = document.getElementById('btn-music');
-  if(btnMusic) btnMusic.addEventListener('click',()=>{
-    audioToggle();
-    setState({musicOn:!state.musicOn});
+  if(btnMusic) btnMusic.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const existing = document.getElementById('music-vol-popup');
+    if(existing){ existing.remove(); return; }
+
+    const rect = btnMusic.getBoundingClientRect();
+    const th = t();
+    const vol = state.musicVolume ?? 25;
+    const on  = state.musicOn;
+
+    const pop = document.createElement('div');
+    pop.id = 'music-vol-popup';
+    pop.style.cssText = `position:fixed;top:${rect.bottom+6}px;right:${window.innerWidth-rect.right}px;z-index:10002;background:#1a1825;border:2px solid #000;box-shadow:3px 3px 0 #000,0 0 20px rgba(0,0,0,.6);padding:0;min-width:200px;opacity:0;transform:translateY(-6px) scale(.97);transition:opacity .18s,transform .18s;`;
+
+    pop.innerHTML = `
+      <div style="height:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
+      <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.6);">
+        <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">🎵 Musique Ambiante</div>
+        <!-- Toggle ON/OFF -->
+        <button id="music-toggle-btn" onclick="window._toggleMusicFromPopup()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:${on?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'};border:1px solid ${on?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'};color:${on?'#fbbf24':'#9d8ea0'};cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.5px;transition:all .15s;">
+          <span>${on ? '▶ EN LECTURE' : '⏸ EN PAUSE'}</span>
+          <span style="font-size:14px;">${on ? '🔊' : '🔇'}</span>
+        </button>
+      </div>
+      <!-- Volume slider -->
+      <div style="padding:12px 12px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Volume</span>
+          <span id="music-vol-label" style="font-size:10px;font-weight:900;color:#fbbf24;min-width:32px;text-align:right;">${vol}%</span>
+        </div>
+        <!-- Icônes + slider -->
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;opacity:.5;">🔈</span>
+          <div style="flex:1;position:relative;height:20px;display:flex;align-items:center;">
+            <input id="music-vol-slider" type="range" min="0" max="100" value="${vol}"
+              oninput="window._previewMusicVolume(this.value)"
+              onchange="window._applyMusicVolume(this.value)"
+              style="width:100%;-webkit-appearance:none;appearance:none;height:4px;background:linear-gradient(90deg,#fbbf24 ${vol}%,rgba(255,255,255,.1) ${vol}%);outline:none;border:none;cursor:pointer;accent-color:#fbbf24;">
+          </div>
+          <span style="font-size:11px;opacity:.8;">🔊</span>
+        </div>
+        <!-- Presets rapides -->
+        <div style="display:flex;gap:4px;margin-top:10px;">
+          ${[0,25,50,75,100].map(v=>`<button onclick="window._applyMusicVolume(${v})" style="flex:1;padding:4px 0;background:${vol===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'};border:1px solid ${vol===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'};color:${vol===v?'#fbbf24':'#9d8ea0'};font-size:9px;font-weight:700;cursor:pointer;">${v}%</button>`).join('')}
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(pop);
+    requestAnimationFrame(()=>{ pop.style.opacity='1'; pop.style.transform='translateY(0) scale(1)'; });
+
+    // Fermer si on clique ailleurs
+    const closeVol = (ev) => { if(!pop.contains(ev.target) && ev.target !== btnMusic){ pop.remove(); document.removeEventListener('click', closeVol); } };
+    setTimeout(()=>document.addEventListener('click', closeVol), 50);
   });
+
+  // Helpers exposés globalement pour les handlers inline du popup volume
+  window._toggleMusicFromPopup = function() {
+    audioToggle();
+    const nowOn = !state.musicOn;
+    setState({ musicOn: nowOn });
+    // Mettre à jour le bouton dans le popup sans le fermer
+    const btn = document.getElementById('music-toggle-btn');
+    if(btn){ btn.innerHTML = `<span>${nowOn ? '▶ EN LECTURE' : '⏸ EN PAUSE'}</span><span style="font-size:14px;">${nowOn ? '🔊' : '🔇'}</span>`; btn.style.background = nowOn?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'; btn.style.borderColor = nowOn?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'; btn.style.color = nowOn?'#fbbf24':'#9d8ea0'; }
+  };
+  window._previewMusicVolume = function(val) {
+    const v = parseInt(val);
+    const label = document.getElementById('music-vol-label');
+    if(label) label.textContent = v + '%';
+    // Mettre à jour la couleur du track
+    const slider = document.getElementById('music-vol-slider');
+    if(slider) slider.style.background = `linear-gradient(90deg,#fbbf24 ${v}%,rgba(255,255,255,.1) ${v}%)`;
+    if(_ytPlayer && _ytPlayer.setVolume){ try{ _ytPlayer.setVolume(v); }catch(e){} }
+  };
+  window._applyMusicVolume = function(val) {
+    const v = parseInt(val);
+    state.musicVolume = v;
+    if(_ytPlayer && _ytPlayer.setVolume){ try{ _ytPlayer.setVolume(v); }catch(e){} }
+    // Mettre à jour le slider + label si popup encore ouverte
+    const slider = document.getElementById('music-vol-slider');
+    const label  = document.getElementById('music-vol-label');
+    if(slider){ slider.value = v; slider.style.background = `linear-gradient(90deg,#fbbf24 ${v}%,rgba(255,255,255,.1) ${v}%)`; }
+    if(label) label.textContent = v + '%';
+    // Mettre à jour les presets
+    const pop = document.getElementById('music-vol-popup');
+    if(pop){ pop.querySelectorAll('[onclick^="window._applyMusicVolume"]').forEach(b=>{ const bv=parseInt(b.getAttribute('onclick').match(/\d+/)[0]); b.style.background=bv===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'; b.style.borderColor=bv===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'; b.style.color=bv===v?'#fbbf24':'#9d8ea0'; }); }
+    // Si volume > 0 et musique en pause → on relance automatiquement
+    if(v > 0 && !state.musicOn){ audioPlay(); setState({ musicOn: true }); const btn=document.getElementById('music-toggle-btn'); if(btn){ btn.innerHTML='<span>▶ EN LECTURE</span><span style="font-size:14px;">🔊</span>'; btn.style.background='rgba(251,191,36,.12)'; btn.style.borderColor='rgba(251,191,36,.3)'; btn.style.color='#fbbf24'; } }
+    if(v === 0 && state.musicOn){ audioStop(); setState({ musicOn: false }); const btn=document.getElementById('music-toggle-btn'); if(btn){ btn.innerHTML='<span>⏸ EN PAUSE</span><span style="font-size:14px;">🔇</span>'; btn.style.background='rgba(255,255,255,.04)'; btn.style.borderColor='rgba(255,255,255,.08)'; btn.style.color='#9d8ea0'; } }
+  };
 
   const btnSettings = document.getElementById('btn-settings');
   if(btnSettings) btnSettings.addEventListener('click',()=>setState({showSettings:true,showFriends:false,showNotif:false}));
@@ -2769,29 +2855,168 @@ function bindGame(){
   const messagesBg2 = document.getElementById('messages-bg');
   if(messagesBg2) messagesBg2.addEventListener('click',(e)=>{if(e.target===messagesBg2){ _activeConvFriendId=null; setState({showMessages:false,activeConvId:null});}});
 
-  // XP bar — clic pour afficher un popup de la prochaine récompense
+  // XP bar — clic pour afficher un panneau de progression détaillé
   const xpBarWrap = document.getElementById('xp-bar-wrap');
   if(xpBarWrap) xpBarWrap.addEventListener('click', () => {
-    const lvl = state.playerLevel || 1;
-    const nextLvl = lvl + 1;
-    const reward = getLevelReward(nextLvl);
-    const icon = reward.type === 'coins' ? '🪙' : reward.type === 'booster_prestige' ? '📦' : '⚡';
-    const label = reward.type === 'coins' ? `+${reward.amount} coins` : reward.type === 'booster_prestige' ? 'Booster Prestige' : 'Booster Légendaire';
-    const col = reward.type === 'coins' ? '#fbbf24' : reward.type === 'booster_prestige' ? '#fee75c' : '#eb459e';
-    // Mini popup flottant
     const old = document.getElementById('xp-reward-popup');
-    if(old) { old.remove(); return; }
+    if(old) { old.style.opacity='0'; old.style.transform='translate(-50%,-50%) scale(.94)'; setTimeout(()=>old.remove(),180); return; }
+
+    const xp    = state.playerXp || 0;
+    const lvl   = state.playerLevel || 1;
+    const info  = computeLevel(xp);
+    const pct   = Math.round(info.xpInLevel / info.xpNeeded * 100);
+    const th    = t();
+    const lvlColor = '#a78bfa';
+
+    // Heures de jeu estimées (1 XP ≈ 1 action, chaque session ~50XP)
+    const estimatedHours = Math.max(1, Math.round(xp / 120));
+    const wins  = state.wins  ?? '—';
+    const losses= state.losses ?? '—';
+
+    // Helper couleur récompense
+    function rwdStyle(r){ return r.type==='coins'?'#fbbf24':r.type==='booster_prestige'?'#fee75c':'#eb459e'; }
+    function rwdIcon(r){ return r.type==='coins'?'🪙':r.type==='booster_prestige'?'📦':'⚡'; }
+    function rwdLabel(r){ return r.type==='coins'?`+${r.amount} coins`:r.type==='booster_prestige'?'Booster Prestige':'Booster Légendaire'; }
+
+    // Niveaux précédents (jusqu'à 4)
+    const prevLevels = [];
+    for(let l = Math.max(1, lvl-4); l < lvl; l++){
+      const r = getLevelReward(l);
+      prevLevels.push({lvl:l, reward:r});
+    }
+    // Prochains niveaux (jusqu'à 5)
+    const nextLevels = [];
+    for(let l = lvl+1; l <= lvl+5; l++){
+      const r = getLevelReward(l);
+      const xpNeeded = xpToNextLevel(l-1);
+      nextLevels.push({lvl:l, reward:r, xpNeeded});
+    }
+
     const pop = document.createElement('div');
     pop.id = 'xp-reward-popup';
-    pop.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);z-index:10001;background:#1a1825;border:2px solid ${col};box-shadow:0 0 0 2px #000,4px 4px 0 #000,0 0 32px ${col}50;padding:22px 28px;text-align:center;opacity:0;transition:opacity .2s,transform .2s;`;
+    pop.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.94);z-index:10001;background:#1a1825;border:2px solid #000;box-shadow:0 0 0 2px #000,5px 5px 0 #000,0 0 40px rgba(167,139,250,.18);width:min(94vw,360px);max-height:85vh;overflow:hidden;display:flex;flex-direction:column;opacity:0;transition:opacity .22s,transform .22s;`;
+
     pop.innerHTML = `
-      <div style="font-size:36px;margin-bottom:8px;">${icon}</div>
-      <div style="font-family:'Bangers',cursive;font-size:11px;color:#a78bfa;letter-spacing:3px;margin-bottom:4px;">RÉCOMPENSE NIVEAU ${nextLvl}</div>
-      <div style="font-size:18px;font-weight:900;color:${col};">${label}</div>
-      <div style="font-size:10px;color:#9d8ea0;margin-top:8px;cursor:pointer;" onclick="document.getElementById('xp-reward-popup').remove()">✕ Fermer</div>`;
+      <!-- Header accent bar -->
+      <div style="height:3px;background:linear-gradient(90deg,#a78bfa,#818cf8,#6366f1);flex-shrink:0;"></div>
+
+      <!-- Header -->
+      <div style="padding:12px 14px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,.6);flex-shrink:0;background:#0f0e17;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="background:linear-gradient(135deg,#a78bfa,#818cf8);padding:3px 12px;font-family:'Bangers',cursive;font-size:16px;color:#fff;letter-spacing:1.5px;">LVL ${lvl}</div>
+          <div>
+            <div style="font-family:'Bangers',cursive;font-size:12px;color:#a78bfa;letter-spacing:2px;">PROGRESSION XP</div>
+            <div style="font-size:9px;color:#9d8ea0;margin-top:1px;">${xp.toLocaleString('fr-FR')} XP total</div>
+          </div>
+        </div>
+        <button onclick="const p=document.getElementById('xp-reward-popup');p.style.opacity='0';p.style.transform='translate(-50%,-50%) scale(.94)';setTimeout(()=>p.remove(),180);" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#9d8ea0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
+      </div>
+
+      <!-- Barre XP principale -->
+      <div style="padding:12px 14px;background:#1a1825;flex-shrink:0;border-bottom:1px solid rgba(0,0,0,.5);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:9px;color:#9d8ea0;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Niveau ${lvl} → ${lvl+1}</span>
+          <span style="font-size:9px;color:#a78bfa;font-weight:900;">${info.xpInLevel} / ${info.xpNeeded} XP</span>
+        </div>
+        <div style="height:10px;background:#0f0e17;overflow:hidden;position:relative;border:1px solid rgba(0,0,0,.8);">
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,#a78bfa,#818cf8);width:${pct}%;transition:width 1s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px #a78bfa80;"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:900;color:${pct>45?'#fff':'#a78bfa'};">${pct}%</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <span style="font-size:8px;color:#3a3348;">Début niv.${lvl}</span>
+          <span style="font-size:8px;color:#9d8ea0;">encore <strong style="color:#a78bfa;">${info.xpNeeded - info.xpInLevel} XP</strong> pour niv.${lvl+1}</span>
+        </div>
+      </div>
+
+      <!-- Stats rapides -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid rgba(0,0,0,.5);flex-shrink:0;">
+        <div style="padding:10px;text-align:center;border-right:1px solid rgba(0,0,0,.4);">
+          <div style="font-size:17px;font-weight:900;color:#fbbf24;">${estimatedHours}h</div>
+          <div style="font-size:7px;color:#9d8ea0;text-transform:uppercase;letter-spacing:.8px;margin-top:2px;">Temps de jeu</div>
+        </div>
+        <div style="padding:10px;text-align:center;border-right:1px solid rgba(0,0,0,.4);">
+          <div style="font-size:17px;font-weight:900;color:#22c55e;">${wins}</div>
+          <div style="font-size:7px;color:#9d8ea0;text-transform:uppercase;letter-spacing:.8px;margin-top:2px;">Victoires</div>
+        </div>
+        <div style="padding:10px;text-align:center;">
+          <div style="font-size:17px;font-weight:900;color:#ef4444;">${losses}</div>
+          <div style="font-size:7px;color:#9d8ea0;text-transform:uppercase;letter-spacing:.8px;margin-top:2px;">Défaites</div>
+        </div>
+      </div>
+
+      <!-- Scrollable content : timeline niveaux -->
+      <div style="overflow-y:auto;flex:1;padding:12px 14px;">
+
+        <!-- Niveaux précédents -->
+        ${prevLevels.length > 0 ? `
+        <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          <span>Niveaux passés</span>
+          <div style="flex:1;height:1px;background:rgba(255,255,255,.06);"></div>
+        </div>
+        ${prevLevels.map(item => {
+          const c = rwdStyle(item.reward);
+          return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;opacity:.65;">
+            <div style="width:2px;self-align:stretch;background:${c};flex-shrink:0;align-self:stretch;opacity:.5;"></div>
+            <div style="background:linear-gradient(135deg,${c}15,${c}08);border:1px solid ${c}25;padding:5px 10px;flex:1;display:flex;align-items:center;justify-content:space-between;">
+              <div style="font-family:'Bangers',cursive;font-size:12px;color:${c};letter-spacing:1px;">LVL ${item.lvl}</div>
+              <div style="font-size:9px;color:#9d8ea0;">${rwdIcon(item.reward)} ${rwdLabel(item.reward)}</div>
+              <div style="font-size:8px;color:#3a3348;">✓ Obtenu</div>
+            </div>
+          </div>`;
+        }).join('')}` : ''}
+
+        <!-- Niveau actuel -->
+        <div style="font-size:8px;color:#a78bfa;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:${prevLevels.length?'10px':0} 0 8px;display:flex;align-items:center;gap:8px;">
+          <span>Niveau actuel</span>
+          <div style="flex:1;height:1px;background:rgba(167,139,250,.2);"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:3px;background:#a78bfa;flex-shrink:0;align-self:stretch;box-shadow:0 0 6px #a78bfa80;"></div>
+          <div style="background:linear-gradient(135deg,rgba(167,139,250,.18),rgba(129,140,248,.08));border:2px solid #a78bfa40;padding:8px 12px;flex:1;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="font-family:'Bangers',cursive;font-size:15px;color:#a78bfa;letter-spacing:1.5px;">LVL ${lvl} — EN COURS</div>
+              <div style="font-size:9px;font-weight:900;color:#a78bfa;">${pct}%</div>
+            </div>
+            <div style="height:4px;background:#0f0e17;overflow:hidden;">
+              <div style="height:100%;background:linear-gradient(90deg,#a78bfa,#818cf8);width:${pct}%;box-shadow:0 0 6px #a78bfa80;"></div>
+            </div>
+            <div style="font-size:8px;color:#9d8ea0;margin-top:5px;">${info.xpInLevel} / ${info.xpNeeded} XP</div>
+          </div>
+        </div>
+
+        <!-- Prochains niveaux -->
+        <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          <span>Prochains niveaux</span>
+          <div style="flex:1;height:1px;background:rgba(255,255,255,.06);"></div>
+        </div>
+        ${nextLevels.map((item, idx) => {
+          const c = rwdStyle(item.reward);
+          const isNext = idx === 0;
+          return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;${isNext?'':'opacity:.55'}">
+            <div style="width:${isNext?'3px':'2px'};self-align:stretch;background:${c};flex-shrink:0;align-self:stretch;box-shadow:${isNext?`0 0 6px ${c}60`:''};"></div>
+            <div style="background:linear-gradient(135deg,${c}${isNext?'12':'08'},${c}05);border:${isNext?'2':'1'}px solid ${c}${isNext?'30':'18'};padding:${isNext?'8':'5'}px ${isNext?'12':'10'}px;flex:1;">
+              <div style="display:flex;align-items:center;justify-content:space-between;${isNext?'margin-bottom:4px;':''}">
+                <div style="font-family:'Bangers',cursive;font-size:${isNext?14:11}px;color:${c};letter-spacing:1px;">LVL ${item.lvl}</div>
+                <div style="font-size:${isNext?10:8}px;font-weight:${isNext?900:700};color:${c};">${rwdIcon(item.reward)} ${rwdLabel(item.reward)}</div>
+              </div>
+              ${isNext?`<div style="font-size:8px;color:#9d8ea0;">encore <strong style="color:${c};">${info.xpNeeded-info.xpInLevel} XP</strong> à gagner</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:8px 14px;border-top:1px solid rgba(0,0,0,.6);background:#0f0e17;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:8px;color:#3a3348;">🔥 Streak : ${state.loginStreak || 0} jour(s)</span>
+        <span style="font-size:8px;color:#3a3348;">Rang #${state.playerRank ?? '—'}</span>
+      </div>
+    `;
+
     document.body.appendChild(pop);
+    // Fermer en cliquant en dehors
+    pop.addEventListener('click', e => { if(e.target === pop){ pop.style.opacity='0'; pop.style.transform='translate(-50%,-50%) scale(.94)'; setTimeout(()=>pop.remove(),180); } });
     requestAnimationFrame(()=>{ pop.style.opacity='1'; pop.style.transform='translate(-50%,-50%) scale(1)'; });
-    setTimeout(()=>{ if(pop.parentNode){ pop.style.opacity='0'; setTimeout(()=>pop.remove(),200); } }, 4000);
   });
 
   // Réclamer booster récompense niveau (notif)
