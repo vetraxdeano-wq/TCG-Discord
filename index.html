@@ -1288,30 +1288,41 @@ function renderTabPlay(th){
 
     <!-- ── HERO STATS BANNER ── -->
     ${isMobile ? `
-    <!-- Mobile : bande ultra-compacte sur une ligne -->
-    <div style="margin:5px 10px 0;flex-shrink:0;border:1px solid ${th.border};background:${th.bgSecondary};position:relative;overflow:hidden;">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.accent};"></div>
-      <div style="display:flex;align-items:center;padding:4px 8px;">
-        <!-- Victoires -->
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-right:1px solid ${th.border};padding:0 2px;">
-          <span style="font-size:7px;color:${th.green};font-weight:800;">V</span>
-          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.green};line-height:1;">${state.wins !== null ? state.wins : '—'}</span>
+    <!-- Mobile : panneau performances condensé -->
+    <div style="margin:5px 10px 0;flex-shrink:0;border:2px solid #000;position:relative;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${th.accent};"></div>
+      <div style="position:relative;padding:8px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+          <div style="font-size:8px;color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;">Performances</div>
+          <button id="btn-leaderboard" style="display:flex;align-items:center;gap:5px;background:${th.accentAlt}14;border:2px solid #000;box-shadow:2px 2px 0 #000;padding:3px 8px;cursor:pointer;" title="Voir le classement">
+            <span style="font-size:8px;font-weight:900;color:${th.accentAlt};letter-spacing:.5px;">⭐ RANG</span>
+            <span style="font-size:12px;font-weight:900;color:${th.text};">${state.playerRank ? '#'+state.playerRank : '—'}</span>
+            <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="${th.accentAlt}" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
         </div>
-        <!-- Défaites -->
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-right:1px solid ${th.border};padding:0 2px;">
-          <span style="font-size:7px;color:${th.red};font-weight:800;">D</span>
-          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.red};line-height:1;">${state.losses !== null ? state.losses : '—'}</span>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+          <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);padding:6px 4px;text-align:center;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.green};opacity:.5;"></div>
+            <div style="font-size:7px;color:${th.green};letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;">Victoires</div>
+            <div style="font-family:'Bangers',cursive;font-size:20px;font-weight:900;color:${th.green};line-height:1;">${state.wins !== null ? state.wins : '—'}</div>
+          </div>
+          <div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);padding:6px 4px;text-align:center;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.red};opacity:.5;"></div>
+            <div style="font-size:7px;color:${th.red};letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;">Défaites</div>
+            <div style="font-family:'Bangers',cursive;font-size:20px;font-weight:900;color:${th.red};line-height:1;">${state.losses !== null ? state.losses : '—'}</div>
+          </div>
+          <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);padding:6px 4px;text-align:center;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.yellow};opacity:.5;"></div>
+            <div style="font-size:7px;color:${th.yellow};letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;">Win rate</div>
+            <div style="font-family:'Bangers',cursive;font-size:20px;font-weight:900;color:${th.yellow};line-height:1;">${winRate !== null ? winRate+'%' : '—'}</div>
+          </div>
+          <div style="background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);padding:6px 4px;text-align:center;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.accent};opacity:.5;"></div>
+            <div style="font-size:7px;color:${th.accent};letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;">Parties</div>
+            <div style="font-family:'Bangers',cursive;font-size:20px;font-weight:900;color:${th.accent};line-height:1;">${total > 0 ? total : '—'}</div>
+          </div>
         </div>
-        <!-- Win rate -->
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-right:1px solid ${th.border};padding:0 2px;">
-          <span style="font-size:7px;color:${th.yellow};font-weight:800;">WR</span>
-          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.yellow};line-height:1;">${winRate !== null ? winRate+'%' : '—'}</span>
-        </div>
-        <!-- Rang -->
-        <button id="btn-leaderboard" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:0 2px;">
-          <span style="font-size:7px;color:${th.accentAlt};font-weight:800;">RANG</span>
-          <span style="font-family:'Bangers',cursive;font-size:16px;color:${th.accentAlt};line-height:1;">${state.playerRank ? '#'+state.playerRank : '—'}</span>
-        </button>
       </div>
     </div>` : `
     <!-- Desktop : panneau performances complet -->
@@ -1423,15 +1434,15 @@ function renderTabPlay(th){
             cursor:${m.available?'pointer':'not-allowed'};
             opacity:${m.available?1:.45};
             position:relative;overflow:hidden;transition:all .22s;width:100%;height:auto;">
-          <div style="height:62px;flex-shrink:0;overflow:hidden;position:relative;">
+          <div style="height:95px;flex-shrink:0;overflow:hidden;position:relative;">
             ${m.img
               ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s;" />`
-              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;">${m.icon}</div>`}
+              : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:44px;">${m.icon}</div>`}
           </div>
-          <div style="flex-shrink:0;padding:4px 8px 5px;text-align:center;background:${th.bgSecondary};border-top:1px solid rgba(0,0,0,.6);">
-            <div style="font-family:'Bangers',cursive;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.5px;margin-bottom:1px;">${m.label}</div>
-            <div style="font-size:8px;color:${th.textMuted};margin-bottom:2px;">${m.sub}</div>
-            <div style="padding:3px 0;background:${m.color};font-size:8px;font-weight:900;color:#fff;letter-spacing:.8px;">JOUER</div>
+          <div style="flex-shrink:0;padding:5px 8px 6px;text-align:center;background:${th.bgSecondary};border-top:1px solid rgba(0,0,0,.6);">
+            <div style="font-family:'Bangers',cursive;font-size:15px;font-weight:700;color:${th.text};letter-spacing:.5px;margin-bottom:2px;">${m.label}</div>
+            <div style="font-size:9px;color:${th.textMuted};margin-bottom:3px;">${m.sub}</div>
+            <div style="padding:4px 0;background:${m.color};font-size:9px;font-weight:900;color:#fff;letter-spacing:.8px;">JOUER</div>
           </div>
         </button>`).join('')}
       </div>
@@ -1745,7 +1756,7 @@ function renderTabBoosters(th){
             ${isMobile?'height:auto;':'height:100%;'}">
 
           <!-- Image PNG — contain pour voir tout le booster -->
-          <div style="${isMobile?'height:150px;flex-shrink:0;':'flex:1;min-height:0;'}display:flex;align-items:center;justify-content:center;padding:${isMobile?'6px 4px 3px':'8px 6px 4px'};background:${meta.gradient};overflow:hidden;">
+          <div style="${isMobile?'height:185px;flex-shrink:0;':'flex:1;min-height:0;'}display:flex;align-items:center;justify-content:center;padding:${isMobile?'6px 4px 3px':'8px 6px 4px'};background:${meta.gradient};overflow:hidden;">
             ${meta.src
               ? (b.id===1 ? `
                 <div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
