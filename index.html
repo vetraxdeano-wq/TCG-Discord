@@ -1889,7 +1889,8 @@ function renderTabBoosters(th){
     <div style="padding:${isMobile?'4px 12px 2px':'10px 16px 6px'};flex-shrink:0;display:flex;align-items:center;gap:8px;">
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Pioche</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
-      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;border-radius:4px;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
+      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
+      <span style="font-size:7px;font-weight:900;color:#a78bfa;background:#a78bfa14;border:1px solid #a78bfa30;padding:2px 8px;letter-spacing:.6px;">1× PAR JOUR</span>
     </div>
 
     <!-- Pioche : carte horizontale compacte -->
@@ -1907,7 +1908,7 @@ function renderTabBoosters(th){
         </div>
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Bangers',cursive;font-size:${isMobile?'11px':'13px'};font-weight:700;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
-          ${isMobile?'':'<div style="font-size:10px;color:'+th.textMuted+';margin-top:2px;">50 cartes face cachée · retourne-en une</div>'}
+          <div style="font-size:${isMobile?'8px':'10px'};color:${th.textMuted};margin-top:2px;">${isMobile?'1 carte gratuite · 1× par jour':'50 cartes face cachée · retourne-en une · 1× par jour'}</div>
         </div>
         <div style="padding:${isMobile?'5px 9px':'8px 14px'};background:${th.green};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${th.green}40;flex-shrink:0;">PIOCHER</div>
       </div>
@@ -2085,8 +2086,13 @@ function renderPiocheMechanic(th){
   const CH=Math.round(CW*1.43);
   return `
   <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(4,8,18,.97);backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:${PAD}px;overflow:hidden;">
+    <!-- Barre accent violette -->
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a78bfa,#818cf8,#6366f1);flex-shrink:0;z-index:1;"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:680px;flex-shrink:0;">
-      <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:#e8f4ff;letter-spacing:2px;text-transform:uppercase;">Pioche Classique</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:#e8f4ff;letter-spacing:2px;text-transform:uppercase;">Pioche Classique</div>
+        <span style="font-size:7px;font-weight:900;color:#a78bfa;background:#a78bfa14;border:1px solid #a78bfa35;padding:2px 7px;letter-spacing:.6px;">1× PAR JOUR</span>
+      </div>
       <button id="pioche-close" style="width:32px;height:32px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#5e7d9a;display:flex;align-items:center;justify-content:center;cursor:pointer;">${SVG.x}</button>
     </div>
     <div style="font-size:10px;color:#5e7d9a;text-align:center;letter-spacing:1px;flex-shrink:0;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
