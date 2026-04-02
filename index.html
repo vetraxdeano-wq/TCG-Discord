@@ -15,102 +15,186 @@
 <meta name="apple-mobile-web-app-title" content="Discord TCG">
 <link rel="apple-touch-icon" href="https://i.goopics.net/iic46c.png">
 <script>
-  // Enregistrer le service worker pour PWA installable
+  // ─── PWA INSTALL SYSTEM ──────────────────────────────────────────
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
-  // PWA Install prompt (Android/Chrome)
+
   let _pwaInstallPrompt = null;
+  let _pwaHideTimer = null;
   let _isInstalled = window.matchMedia('(display-mode: standalone)').matches
                   || ('standalone' in navigator && navigator.standalone);
+
+  // Détection navigateur/plateforme
+  const _ua = navigator.userAgent;
+  const _isIos     = /iphone|ipad|ipod/i.test(_ua);
+  const _isAndroid = /android/i.test(_ua);
+  const _isOpera   = /OPR\/|Opera/i.test(_ua);
+  const _isFirefox = /Firefox/i.test(_ua) && !/Seamonkey/i.test(_ua);
+  const _isSamsung = /SamsungBrowser/i.test(_ua);
+  const _isEdge    = /Edg\//i.test(_ua);
+  const _isChrome  = /Chrome/i.test(_ua) && !_isOpera && !_isEdge && !_isSamsung;
+  const _isSafari  = /Safari/i.test(_ua) && !_isChrome && !_isAndroid;
+  const _isMobile  = _isIos || _isAndroid;
+
+  function _hidePwaBtn() {
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) { btn.style.opacity = '0'; btn.style.pointerEvents = 'none'; setTimeout(()=>{ btn.style.display='none'; }, 400); }
+  }
 
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     _pwaInstallPrompt = e;
-    // Mettre à jour le bouton pour montrer qu'on peut installer nativement
     const btn = document.getElementById('pwa-install-btn');
-    if(btn) btn.style.opacity = '1';
+    if (btn) btn.style.display = 'flex';
   });
 
   window.addEventListener('appinstalled', () => {
     _pwaInstallPrompt = null;
     _isInstalled = true;
-    const btn = document.getElementById('pwa-install-btn');
-    if(btn) btn.style.display = 'none';
+    _hidePwaBtn();
     const overlay = document.getElementById('pwa-install-overlay');
-    if(overlay) overlay.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
   });
 
+  // Déclencher : prompt natif si dispo, sinon overlay contextuel
   window.triggerPwaInstall = function() {
     if (_pwaInstallPrompt) {
-      // Chrome a le prompt natif — on l'utilise
       _pwaInstallPrompt.prompt();
       _pwaInstallPrompt.userChoice.then(() => {
         _pwaInstallPrompt = null;
-        const btn = document.getElementById('pwa-install-btn');
-        if(btn) btn.style.display = 'none';
+        _hidePwaBtn();
       });
-    } else {
-      // Pas de prompt natif — afficher le guide
-      const overlay = document.getElementById('pwa-install-overlay');
-      if(overlay) overlay.style.display = 'flex';
+      return;
+    }
+    // iOS : essayer Web Share API pour déclencher le flow natif
+    if (_isIos && navigator.share) {
+      navigator.share({ title: 'Discord TCG', url: window.location.href })
+        .catch(() => {});
+      // Montrer quand même le guide car share ≠ install
+    }
+    const overlay = document.getElementById('pwa-install-overlay');
+    if (overlay) {
+      _buildPwaOverlay(); // injecter le contenu contextualisé
+      overlay.style.display = 'flex';
     }
   };
 
   window.closePwaOverlay = function() {
     const overlay = document.getElementById('pwa-install-overlay');
-    if(overlay) overlay.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
   };
 
-  // Cacher le bouton si déjà installé en standalone
-  if(_isInstalled) {
+  // Construire l'overlay avec le bon contenu selon le navigateur détecté
+  function _buildPwaOverlay() {
+    const body = document.getElementById('pwa-overlay-body');
+    if (!body) return;
+
+    let sections = [];
+
+    if (_isIos) {
+      sections.push({
+        icon:'🍎', label:'iOS SAFARI', color:'#eb459e',
+        html:`Appuie sur <strong>⬆ Partager</strong> en bas de Safari, puis <strong>« Sur l'écran d'accueil »</strong>.`
+      });
+    } else if (_isSamsung) {
+      sections.push({
+        icon:'📱', label:'SAMSUNG INTERNET', color:'#1e88e5',
+        html:`Menu <strong>⋮</strong> → <strong>« Ajouter page à »</strong> → <strong>« Écran d'accueil »</strong>.`
+      });
+    } else if (_isFirefox && _isAndroid) {
+      sections.push({
+        icon:'🦊', label:'FIREFOX ANDROID', color:'#ff7139',
+        html:`Menu <strong>⋮</strong> → <strong>« Installer »</strong> ou <strong>« Ajouter à l'écran d'accueil »</strong>.`
+      });
+    } else if (_isFirefox) {
+      sections.push({
+        icon:'🦊', label:'FIREFOX (PC)', color:'#ff7139',
+        html:`Firefox ne supporte pas l'installation PWA. Utilise <strong>Chrome</strong> ou <strong>Edge</strong> pour installer l'app.`
+      });
+    } else if (_isOpera && _isMobile) {
+      sections.push({
+        icon:'🎭', label:'OPERA MOBILE', color:'#cc0f16',
+        html:`Menu <strong>⋮</strong> → <strong>« Page d'accueil »</strong> → <strong>« Ajouter à l'écran d'accueil »</strong>.`
+      });
+    } else if (_isOpera) {
+      sections.push({
+        icon:'🎭', label:'OPERA (PC)', color:'#cc0f16',
+        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou le menu <strong>≡</strong> → <strong>« Installer Discord TCG »</strong>.`
+      });
+    } else if (_isEdge) {
+      sections.push({
+        icon:'🌐', label:'MICROSOFT EDGE', color:'#0078d4',
+        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
+      });
+    } else if (_isAndroid) {
+      sections.push({
+        icon:'📱', label:'ANDROID (Chrome)', color:'#57f287',
+        html:`Menu <strong>⋮</strong> en haut à droite → <strong>« Ajouter à l'écran d'accueil »</strong>.`
+      });
+    } else {
+      // Défaut : Chrome / PC
+      sections.push({
+        icon:'🖥', label:'CHROME / EDGE (PC)', color:'#5865f2',
+        html:`Dans la barre d'adresse, clique sur l'icône <strong>⊕</strong> ou <strong>⬇</strong> à droite → <strong>« Installer Discord TCG »</strong>.`
+      });
+    }
+
+    // Toujours ajouter Chrome PC en bas sauf si c'est le principal
+    if (!_isChrome || _isMobile) {
+      sections.push({
+        icon:'💡', label:'RECOMMANDÉ : Chrome ou Edge', color:'#fbbf24',
+        html:`Pour une expérience optimale, ouvre cette page dans <strong>Chrome</strong> ou <strong>Edge</strong> — le bouton d'installation apparaît automatiquement.`
+      });
+    }
+
+    body.innerHTML = sections.map(s => `
+      <div style="background:#0f0e17;border:2px solid ${s.color}30;padding:14px;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:900;color:${s.color};letter-spacing:.8px;margin-bottom:8px;">${s.icon} ${s.label}</div>
+        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">${s.html}</div>
+      </div>`).join('');
+  }
+
+  // Auto-hide 15s après l'entrée dans le jeu
+  window._startPwaAutoHide = function() {
+    if (_pwaHideTimer) return;
+    _pwaHideTimer = setTimeout(() => {
+      _hidePwaBtn();
+    }, 15000);
+  };
+
+  // Cacher si déjà installé au chargement
+  if (_isInstalled) {
+    document.addEventListener('DOMContentLoaded', () => _hidePwaBtn());
+  }
+  // Sur iOS en standalone : masquer immédiatement
+  if (_isInstalled) {
     document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('pwa-install-btn');
-      if(btn) btn.style.display = 'none';
+      if (btn) btn.style.display = 'none';
     });
   }
 </script>
-<!-- Bouton installation PWA — toujours visible (sauf si déjà installé) -->
-<button id="pwa-install-btn" onclick="window.triggerPwaInstall()" style="display:flex;position:fixed;bottom:80px;right:16px;z-index:9999;align-items:center;gap:8px;padding:10px 16px;background:#5865f2;color:#fff;border:2px solid #000;box-shadow:3px 3px 0 #000;font-family:inherit;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.5px;white-space:nowrap;">
-  📲 INSTALLER
-</button>
 
-<!-- Overlay guide installation -->
-<div id="pwa-install-overlay" onclick="if(event.target===this)window.closePwaOverlay()" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px;">
+<!-- ── Bouton installation PWA — en haut à droite ── -->
+<div id="pwa-install-btn" style="display:none;position:fixed;top:12px;right:12px;z-index:9999;align-items:center;gap:0;">
+  <button onclick="window.triggerPwaInstall()" style="display:flex;align-items:center;gap:7px;padding:8px 14px;background:#5865f2;color:#fff;border:2px solid #000;border-right:none;box-shadow:3px 3px 0 #000;font-family:inherit;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.5px;white-space:nowrap;">
+    📲 INSTALLER
+  </button>
+  <button onclick="document.getElementById('pwa-install-btn').style.display='none'" style="display:flex;align-items:center;justify-content:center;width:30px;height:100%;padding:8px 0;background:#3b3f70;color:#c4c9ff;border:2px solid #000;box-shadow:3px 3px 0 #000;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer;line-height:1;">✕</button>
+</div>
+
+<!-- ── Overlay guide installation ── -->
+<div id="pwa-install-overlay" onclick="if(event.target===this)window.closePwaOverlay()" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:20px;">
   <div style="width:100%;max-width:380px;background:#1a1825;border:3px solid #000;box-shadow:6px 6px 0 #000;overflow:hidden;">
     <div style="height:4px;background:linear-gradient(90deg,#5865f2,#eb459e,#fee75c);"></div>
     <div style="padding:20px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:900;color:#fff;letter-spacing:1px;">📲 INSTALLER DISCORD TCG</div>
-        <button onclick="window.closePwaOverlay()" style="background:transparent;border:none;color:#9d8ea0;font-size:20px;cursor:pointer;line-height:1;">✕</button>
+        <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:900;color:#fff;letter-spacing:1px;">📲 INSTALLER DISCORD TCG</div>
+        <button onclick="window.closePwaOverlay()" style="background:transparent;border:none;color:#9d8ea0;font-size:20px;cursor:pointer;line-height:1;padding:0 2px;">✕</button>
       </div>
-
-      <!-- Chrome / Edge PC -->
-      <div style="background:#0f0e17;border:2px solid #5865f230;padding:14px;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:900;color:#5865f2;letter-spacing:.8px;margin-bottom:8px;">🖥 CHROME / EDGE (PC)</div>
-        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">
-          Dans la barre d'adresse, clique sur l'icône <span style="color:#fff;font-weight:700;">⊕</span> ou <span style="color:#fff;font-weight:700;">⬇</span> à droite<br>
-          → <span style="color:#fff;font-weight:700;">« Installer Discord TCG »</span>
-        </div>
-      </div>
-
-      <!-- Android Chrome -->
-      <div style="background:#0f0e17;border:2px solid #57f28730;padding:14px;margin-bottom:10px;">
-        <div style="font-size:11px;font-weight:900;color:#57f287;letter-spacing:.8px;margin-bottom:8px;">📱 ANDROID (Chrome)</div>
-        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">
-          Menu <span style="color:#fff;font-weight:700;">⋮</span> en haut à droite<br>
-          → <span style="color:#fff;font-weight:700;">« Ajouter à l'écran d'accueil »</span>
-        </div>
-      </div>
-
-      <!-- iOS Safari -->
-      <div style="background:#0f0e17;border:2px solid #eb459e30;padding:14px;">
-        <div style="font-size:11px;font-weight:900;color:#eb459e;letter-spacing:.8px;margin-bottom:8px;">🍎 iOS SAFARI</div>
-        <div style="font-size:11px;color:#9d8ea0;line-height:1.7;">
-          Bouton <span style="color:#fff;font-weight:700;">⬆ Partager</span> en bas<br>
-          → <span style="color:#fff;font-weight:700;">« Sur l'écran d'accueil »</span>
-        </div>
-      </div>
+      <!-- Contenu injecté dynamiquement selon le navigateur -->
+      <div id="pwa-overlay-body"></div>
     </div>
   </div>
 </div>
@@ -3150,6 +3234,8 @@ function enterGame(user, coins) {
     loadPlayerRankOnly(user.id);
     // Charger XP/niveau
     loadPlayerXp(user.id);
+    // Bouton install PWA : montrer si pas encore installé, puis cacher après 15s
+    if (window._startPwaAutoHide) window._startPwaAutoHide();
   }, 450);
 }
 
