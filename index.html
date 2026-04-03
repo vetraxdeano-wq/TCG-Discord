@@ -1965,12 +1965,6 @@ function renderTabBoosters(th){
         70% {transform:translateY(6%) scale(.98);opacity:.95;}
         100%{transform:translateY(22%) scale(.96);opacity:0;}
       }
-      @keyframes innerGlow{
-        0%  {opacity:0;transform:scaleY(.1);}
-        40% {opacity:0;}
-        70% {opacity:1;transform:scaleY(1);}
-        100%{opacity:.7;transform:scaleY(1);}
-      }
       @keyframes tearLinePulse{
         0%,100%{opacity:.35;transform:scaleX(.3);}
         50%{opacity:.9;transform:scaleX(1);}
@@ -1983,12 +1977,21 @@ function renderTabBoosters(th){
         80%{transform:rotate(.3deg) scaleX(1.003);}
       }
       @keyframes swipeHintArrow{
-        0%,100%{opacity:.3;transform:translateY(0);}
-        50%{opacity:.9;transform:translateY(-8px);}
+        0%,100%{opacity:.5;transform:translateX(0);}
+        50%{opacity:1;transform:translateX(8px);}
       }
       @keyframes bgBlurIn{
         from{backdrop-filter:blur(0px);background:rgba(0,0,0,0);}
         to{backdrop-filter:blur(16px);background:rgba(4,8,18,.88);}
+      }
+      @keyframes cardFanOut{
+        0%  {opacity:0;transform:var(--cf-start);}
+        30% {opacity:.9;}
+        100%{opacity:1;transform:var(--cf-end);}
+      }
+      @keyframes cardFanFade{
+        0%,65%{opacity:1;}
+        100%{opacity:0;}
       }
     </style>
   </div>`;
@@ -3333,21 +3336,20 @@ function bindGame(){
     if(!centralImg){ window.location.href = href; return; }
     const rect = centralImg.getBoundingClientRect();
     const w = rect.width, h = rect.height;
-    const cx = rect.left + w/2, cy = rect.top + h/2;
     const vw = window.innerWidth, vh = window.innerHeight;
 
-    // Taille cible du booster centré (légèrement plus grand)
-    const targetW = Math.min(vw * .62, 280);
+    // Taille cible agrandie
+    const targetW = Math.min(vw * .78, 340);
     const targetH = targetW * (h / w);
     const targetX = (vw - targetW) / 2;
     const targetY = (vh - targetH) / 2 - vh * .04;
 
-    // ── Overlay principal ──────────────────────────────────────────────
+    // ── Overlay principal ──
     const overlay = document.createElement('div');
     overlay.id = 'booster-focus-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:bgBlurIn .38s ease both;backdrop-filter:blur(16px);background:rgba(4,8,18,.88);';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;animation:bgBlurIn .38s ease both;backdrop-filter:blur(16px);background:rgba(4,8,18,.88);';
 
-    // ── Booster centré (PNG flottant) ──────────────────────────────────
+    // ── Booster centré ──
     const boosterWrap = document.createElement('div');
     boosterWrap.id = 'booster-focus-wrap';
     boosterWrap.style.cssText = `position:absolute;left:${targetX}px;top:${targetY}px;width:${targetW}px;height:${targetH}px;perspective:900px;transform-style:preserve-3d;`;
@@ -3356,21 +3358,24 @@ function bindGame(){
     boosterImg.src = imgSrc;
     boosterImg.style.cssText = `width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 0 28px ${color}90) drop-shadow(0 12px 40px rgba(0,0,0,.7));animation:boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdle 2.2s ease-in-out .45s infinite;`;
 
-    // Ligne de couture en haut du paquet
+    // Ligne de couture en haut du paquet (~13% de hauteur)
     const seamLine = document.createElement('div');
     seamLine.style.cssText = `position:absolute;top:13%;left:8%;right:8%;height:2px;background:linear-gradient(90deg,transparent,${color}80,rgba(255,255,255,.55),${color}80,transparent);animation:tearLinePulse 1.8s ease-in-out infinite;pointer-events:none;`;
 
-    // Flèche / hint swipe vers le haut
+    // Hint : flèche horizontale + label sur la couture
     const hint = document.createElement('div');
-    hint.style.cssText = `position:absolute;top:-44px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;`;
+    hint.style.cssText = `position:absolute;top:calc(13% - 28px);left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;`;
     hint.innerHTML = `
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round" style="animation:swipeHintArrow 1.4s ease-in-out infinite;filter:drop-shadow(0 0 6px ${color});"><polyline points="18 15 12 9 6 15"/></svg>
-      <div style="font-size:9px;font-weight:800;color:${color};letter-spacing:1.5px;text-shadow:0 0 8px ${color};animation:swipeHintArrow 1.4s ease-in-out .2s infinite;">DÉCHIRER</div>`;
+      <div style="display:flex;align-items:center;gap:4px;animation:swipeHintArrow 1.4s ease-in-out infinite;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="filter:drop-shadow(0 0 5px ${color});"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+        <div style="font-size:8px;font-weight:900;color:${color};letter-spacing:2px;text-shadow:0 0 8px ${color};">DÉCHIRER</div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="transform:scaleX(-1);filter:drop-shadow(0 0 5px ${color});"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+      </div>`;
 
-    // Texte "tap ou glisser"
+    // Hint bas : tap ou glisser
     const tapHint = document.createElement('div');
-    tapHint.style.cssText = `position:absolute;bottom:-38px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.35);letter-spacing:1px;white-space:nowrap;`;
-    tapHint.textContent = 'Tap ou glisser vers le haut';
+    tapHint.style.cssText = `position:absolute;bottom:-36px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.32);letter-spacing:1px;white-space:nowrap;text-align:center;`;
+    tapHint.textContent = 'Glisse sur le haut · ou tape';
 
     boosterWrap.appendChild(boosterImg);
     boosterWrap.appendChild(seamLine);
@@ -3379,10 +3384,9 @@ function bindGame(){
     overlay.appendChild(boosterWrap);
     document.body.appendChild(overlay);
 
-    // Haptic si dispo
     if(navigator.vibrate) navigator.vibrate(18);
 
-    // ── Phase 2 : déchirure par le haut ────────────────────────────────
+    // ── Phase 2 : déchirure par le haut ──
     function doTear() {
       if(overlay._tearing) return;
       overlay._tearing = true;
@@ -3390,7 +3394,6 @@ function bindGame(){
       if(navigator.vibrate) navigator.vibrate([12, 40, 30]);
 
       setTimeout(()=>{
-        // Cacher le booster d'origine
         boosterImg.style.opacity = '0';
         seamLine.style.display = 'none';
         hint.style.display = 'none';
@@ -3398,16 +3401,13 @@ function bindGame(){
 
         const bW = targetW, bH = targetH;
         const bX = targetX, bY = targetY;
-        // Hauteur du "flap" haut = ~22% du booster
         const flapH = Math.round(bH * .22);
 
-        // Profil de déchirure irrégulier — points en % de largeur, en haut de chaque portion
-        // Déchirure en forme de zigzag sur la ligne de couture
+        // Profil de déchirure irrégulier
         const tearProfileL = `polygon(0% 0%, 50% 0%, 54% ${flapH*.35}px, 48% ${flapH*.6}px, 52% ${flapH*.85}px, 47% ${flapH}px, 0% ${flapH}px)`;
         const tearProfileR = `polygon(50% 0%, 100% 0%, 100% ${flapH}px, 53% ${flapH}px, 48% ${flapH*.85}px, 52% ${flapH*.6}px, 46% ${flapH*.35}px)`;
         const bodyClip     = `polygon(0% ${flapH}px, 47% ${flapH}px, 52% ${flapH*.85}px, 48% ${flapH*.6}px, 54% ${flapH*.35}px, 50% 0%, 100% 0%, 100% 100%, 0% 100%)`;
 
-        // Flap gauche (haut-gauche du booster)
         function makeFlap(side) {
           const f = document.createElement('div');
           f.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
@@ -3422,7 +3422,6 @@ function bindGame(){
           return f;
         }
 
-        // Corps (partie basse) qui glisse légèrement vers le bas et s'estompe
         const body = document.createElement('div');
         body.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
           +`clip-path:${bodyClip};`
@@ -3434,69 +3433,78 @@ function bindGame(){
         bi.style.cssText = `position:absolute;left:0;top:0;width:${bW}px;height:${bH}px;object-fit:contain;`;
         body.appendChild(bi);
 
-        // Glow intérieur (simule la lumière qui sort du paquet ouvert)
-        const glow = document.createElement('div');
-        glow.style.cssText = `position:absolute;left:${bX + bW*.15}px;top:${bY + flapH*.4}px;`
-          +`width:${bW*.7}px;height:${flapH*1.4}px;`
-          +`background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.9) 0%,${color}cc 35%,${color}44 65%,transparent 90%);`
-          +`animation:innerGlow .72s ease .04s both;pointer-events:none;`;
-
-        // Flash au moment du snap
+        // Flash snap
         const snap = document.createElement('div');
-        snap.style.cssText = `position:absolute;left:${bX+bW*.2}px;top:${bY+flapH*.3}px;`
-          +`width:${bW*.6}px;height:${flapH*.8}px;`
-          +`background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.98) 0%,rgba(255,255,255,.3) 40%,transparent 80%);`
+        snap.style.cssText = `position:absolute;left:${bX+bW*.2}px;top:${bY+flapH*.2}px;`
+          +`width:${bW*.6}px;height:${flapH}px;`
+          +`background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.95) 0%,rgba(255,255,255,.25) 45%,transparent 80%);`
           +`animation:tearFlash .38s ease both;pointer-events:none;`;
+
+        // Dos de cartes éparpillées qui jaillissent du paquet
+        const cardSrc = 'https://i.goopics.net/iic46c.png';
+        const cardW = Math.round(bW * .28);
+        const cardH = Math.round(cardW * 1.4);
+        // 5 cartes, positions et rotations variées autour du bas du paquet ouvert
+        const cards = [
+          { dx: -bW*.48, dy:  bH*.18, rot: -28, delay: .12, scale: .88 },
+          { dx: -bW*.22, dy: -bH*.08, rot: -10, delay: .17, scale: .95 },
+          { dx:  bW*.02, dy:  bH*.22, rot:   4, delay: .14, scale: 1   },
+          { dx:  bW*.24, dy: -bH*.04, rot:  16, delay: .20, scale: .92 },
+          { dx:  bW*.46, dy:  bH*.14, rot:  32, delay: .10, scale: .87 },
+        ];
+        const cxCenter = bX + bW/2;
+        const cyCenter = bY + flapH + cardH * .3;
+
+        cards.forEach((c) => {
+          const cd = document.createElement('div');
+          const startT = `translateX(0px) translateY(${-bH*.12}px) rotate(0deg) scale(.3)`;
+          const endT   = `translateX(${c.dx}px) translateY(${c.dy}px) rotate(${c.rot}deg) scale(${c.scale})`;
+          cd.style.cssText = `position:absolute;`
+            +`left:${cxCenter - cardW/2}px;top:${cyCenter - cardH/2}px;`
+            +`width:${cardW}px;height:${cardH}px;`
+            +`--cf-start:${startT};--cf-end:${endT};`
+            +`animation:cardFanOut .55s cubic-bezier(.22,.68,0,1.25) ${c.delay + .28}s both, cardFanFade .9s ease ${c.delay + .28 + .55}s both;`
+            +`pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);`;
+          const ci = document.createElement('img');
+          ci.src = cardSrc;
+          ci.style.cssText = `width:100%;height:100%;object-fit:cover;display:block;`;
+          cd.appendChild(ci);
+          overlay.appendChild(cd);
+        });
 
         overlay.appendChild(makeFlap('left'));
         overlay.appendChild(makeFlap('right'));
         overlay.appendChild(body);
-        overlay.appendChild(glow);
         overlay.appendChild(snap);
 
         if(navigator.vibrate) navigator.vibrate([0, 60, 25, 30, 15]);
-        setTimeout(()=>{ window.location.href = href; }, 820);
+        setTimeout(()=>{ window.location.href = href; }, 980);
       }, 190);
     }
 
     // Tap ou clic → déchirer
     overlay.addEventListener('click', doTear, {once:true});
 
-    // Swipe vers le haut → déchirer
-    let _swipeY0 = null;
-    overlay.addEventListener('touchstart', e=>{ _swipeY0 = e.touches[0].clientY; }, {passive:true});
+    // Glisser horizontalement sur la zone haute du booster → déchirer
+    let _tearX0 = null, _tearY0 = null, _tearStartedInZone = false;
+    overlay.addEventListener('touchstart', e=>{
+      const t = e.touches[0];
+      _tearX0 = t.clientX;
+      _tearY0 = t.clientY;
+      // Zone haute = les ~25% du haut du booster
+      const seamZoneBottom = targetY + targetH * .28;
+      _tearStartedInZone = t.clientY >= targetY && t.clientY <= seamZoneBottom
+                        && t.clientX >= targetX && t.clientX <= targetX + targetW;
+    }, {passive:true});
     overlay.addEventListener('touchend', e=>{
-      if(_swipeY0 === null) return;
-      const dy = _swipeY0 - e.changedTouches[0].clientY;
-      _swipeY0 = null;
-      if(dy > 28) doTear();
+      if(_tearX0 === null) return;
+      const dx = Math.abs(e.changedTouches[0].clientX - _tearX0);
+      const dy = Math.abs(e.changedTouches[0].clientY - _tearY0);
+      _tearX0 = null; _tearY0 = null;
+      // Geste horizontal (dx > dy) depuis la zone de couture, ou swipe large
+      if((_tearStartedInZone && dx > 22 && dx > dy * 1.2) || dx > 60) doTear();
     }, {passive:true});
   }
-
-  document.querySelectorAll('.open-booster').forEach(btn=>{
-    btn.addEventListener('click',(e)=>{
-      e.stopPropagation();
-      const bid=parseInt(btn.dataset.bid);
-      const selectedBooster = BOOSTERS[state.boosterSelectedIdx ?? 1];
-      // Si le clic vient d'un booster non sélectionné, sélectionner seulement (ne pas ouvrir)
-      if (!selectedBooster || selectedBooster.id !== bid) return;
-      const booster = BOOSTERS.find(b=>b.id===bid);
-      if (!booster) return;
-      // Vérifier le solde sans déduire (la déduction est gérée dans la page booster)
-      const coins = state.coins || 0;
-      if (coins < booster.price) {
-        showToast(`Il vous faut ${booster.price.toLocaleString('fr-FR')} coins pour ouvrir ce booster.`, '🚫');
-        return;
-      }
-      const meta = [
-        {color:'#9ca3af', src:'https://i.goopics.net/ueiki4.png', href:'booster1.html'},
-        {color:'#cd7f32', src:'https://i.goopics.net/61e1o1.png', href:'booster2.html'},
-        {color:'#f0c060', src:'https://i.goopics.net/cussu4.png', href:'booster3.html'},
-      ];
-      const m = meta[bid-1];
-      if(m) triggerBoosterOpen(bid, m.color, m.src, m.href);
-    });
-  });
 
   // ─── CARROUSEL BOOSTERS ───────────────────────────────────────────
   const prevBtn = document.getElementById('booster-prev');
