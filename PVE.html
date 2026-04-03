@@ -1458,7 +1458,7 @@ function buildPioche(){
 let G={};
 let _autoSpeed=1;
 const SPEED_DELAYS={1:{atk:1800,auto:1200,deal:350},2:{atk:900,auto:500,deal:200},3:{atk:300,auto:150,deal:60}};
-function mkP(){return{hp:75,hpMax:75,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false};}
+function mkP(){return{hp:60,hpMax:60,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false};}
 function initGame(){
   G={turn:1,phase:'choose_fighter',human:mkP(),bot:mkP(),ended:false,fp:Math.random()<.5?'human':'bot',
      stats:{dmgByCard:{},totalDmgH:0,totalDmgB:0,turns:0}};
