@@ -1783,7 +1783,7 @@ function renderTabBoosters(th){
     return `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
       ${shimmer}
       <img src="${bMeta.src}" class="booster-img open-booster" data-bid="${bid}"
-        style="width:82%;height:82%;object-fit:contain;display:block;position:relative;z-index:1;
+        style="width:95%;height:95%;object-fit:contain;display:block;position:relative;z-index:1;
                filter:${glow};
                transition:transform .35s cubic-bezier(.34,1.56,.64,1),filter .25s;
                animation:${bIsOpen?'shakePack .4s ease':'legendTremble 2.4s ease-in-out infinite, floatPack 2.2s ease-in-out infinite'};
@@ -1809,7 +1809,9 @@ function renderTabBoosters(th){
       <!-- Track (3 cartes, centré sur la sélectionnée) -->
       <div id="booster-carousel-track"
         style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:0;padding:0;
-               touch-action:pan-y;user-select:none;cursor:grab;">
+               touch-action:pan-y;user-select:none;cursor:grab;
+               transform:translateX(${-(selectedIdx-1)*(isMobile?126:146)}px);
+               transition:transform .42s cubic-bezier(.34,1.28,.64,1);">
 
         ${BOOSTERS.map((bx, ix) => {
           const mx = boosterMeta[ix];
@@ -1829,7 +1831,7 @@ function renderTabBoosters(th){
             ? boosterInner(bx.id, mx, bxIsOpen)
             : `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
                 <img src="${mx.src}" class="booster-img-side"
-                  style="width:82%;height:82%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;pointer-events:none;"/>
+                  style="width:95%;height:95%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;pointer-events:none;"/>
                </div>`;
           return `
           <div class="booster-carousel-item" data-cidx="${ix}"
@@ -1845,10 +1847,10 @@ function renderTabBoosters(th){
                    transition:transform .4s cubic-bezier(.34,1.28,.64,1),opacity .4s,filter .4s;
                    z-index:${zIdx};
                    position:relative;
-                   border:1px solid rgba(255,255,255,.06);
+                   border:none;
                    background:${mx.gradient};
                    overflow:hidden;
-                   box-shadow:${isCen?'0 12px 40px rgba(0,0,0,.6)':'0 4px 16px rgba(0,0,0,.4)'};
+                   box-shadow:none;
                    animation:${isCen && ix !== prevIdx ? (slideDir==='right' ? 'boosterSlideFromRight .45s cubic-bezier(.34,1.28,.64,1) both' : 'boosterSlideFromLeft .45s cubic-bezier(.34,1.28,.64,1) both') : 'none'};
                    cursor:${isCen?'default':'pointer'};">
             ${innerHtml}
@@ -1856,11 +1858,7 @@ function renderTabBoosters(th){
         }).join('')}
       </div>
 
-      <!-- Dots indicateurs -->
-      <div style="display:flex;justify-content:center;gap:6px;margin-top:8px;flex-shrink:0;">
-        ${BOOSTERS.map((_,ix)=>`
-        <div style="width:${ix===selectedIdx?20:6}px;height:6px;background:${ix===selectedIdx?b.color:'rgba(255,255,255,.15)'};transition:all .3s cubic-bezier(.34,1.28,.64,1);"></div>`).join('')}
-      </div>
+
     </div>
 
     <!-- ═══ INFOS BOOSTER SÉLECTIONNÉ ═══ -->
@@ -1877,7 +1875,7 @@ function renderTabBoosters(th){
                  font-size:11px;font-weight:900;letter-spacing:.8px;
                  box-shadow:${isOpen?'none':`0 4px 20px ${b.color}60, 2px 2px 0 rgba(0,0,0,.5)`};
                  transition:all .22s;cursor:pointer;">
-          ${isOpen?'⋯ OUVERTURE…':'OUVRIR LE PACK'}
+          ${isOpen?'⋯ OUVERTURE…':'OUVRIR LE BOOSTER'}
         </button>
       </div>
     </div>
@@ -2339,7 +2337,7 @@ function renderHowToModal(th){
     { icon:'📖', color:'#818cf8', title:'Commence par le Tutoriel', text:"Lance le tutoriel (bouton TUTO) pour découvrir le jeu et recevoir tes premières cartes gratuitement. C'est le meilleur point de départ !" },
     { icon:'📦', color:'#fee75c', title:'Ouvre des Boosters', text:"Achète des boosters dans l'onglet Boosters avec tes coins. Normal (150c), Prestige (1000c), Légendaire (2000c). Plus le pack est cher, plus les cartes sont rares." },
     { icon:'🎴', color:th.green, title:'La Pioche Gratuite', text:"Chaque jour, pioche gratuitement une carte parmi 50 dans l'onglet Boosters. Retourne une carte face cachée et découvre ce que tu obtiens !" },
-    { icon:'💰', color:'#f59e0b', title:'Gagner des Coins', text:"Joue en mode vs IA pour accumuler des coins facilement. Victoire = +150 coins, Défaite = +75 coins. Objectif : 1000 coins pour le Prestige Pack !" },
+    { icon:'💰', color:'#f59e0b', title:'Gagner des Coins', text:"Joue en mode vs IA pour accumuler des coins facilement. Victoire = +150 coins, Défaite = +75 coins. Objectif : 1000 coins pour le Prestige Booster !" },
     { icon:'🗂️', color:'#a78bfa', title:'Construis ton Deck', text:"Va dans Collection → Deck Builder. Crée un deck de 30 cartes minimum avec tes cartes possédées. Un deck par défaut est nécessaire pour jouer en PvE et PvP." },
     { icon:'🤖', color:th.green, title:'Mode vs IA (PvE)', text:"Entraîne-toi contre l'IA dans l'onglet Jouer. Parfait pour apprendre les mécaniques et gagner des coins sans pression !" },
     { icon:'⚔️', color:th.red, title:'Mode PvP', text:"Affronte tes amis ! Ouvre la liste d'amis, clique ⚔ pour envoyer un défi. Ton ami reçoit une notification et peut accepter si il a un deck configuré." },
