@@ -1780,7 +1780,7 @@ function renderTabBoosters(th){
     const glow = bid===1 ? 'drop-shadow(0 0 8px #9ca3af50) brightness(1.05)'
                 : bid===2 ? 'drop-shadow(0 0 10px #cd7f3270) brightness(1.08)'
                 :           'drop-shadow(0 0 14px #f0c06090) drop-shadow(0 0 28px #fbbf2450) brightness(1.12)';
-    return `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+    return `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:visible;">
       ${shimmer}
       <img src="${bMeta.src}" class="booster-img open-booster" data-bid="${bid}"
         style="width:95%;height:95%;object-fit:contain;display:block;position:relative;z-index:1;
@@ -1801,7 +1801,7 @@ function renderTabBoosters(th){
     </div>
 
     <!-- ═══ CARROUSEL ═══ -->
-    <div style="flex:1;min-height:0;position:relative;overflow:hidden;padding:8px 0 4px;display:flex;flex-direction:column;">
+    <div style="flex:1;min-height:0;position:relative;overflow:hidden;padding:4px 0 0;display:flex;flex-direction:column;">
 
       <!-- Fond glow centré -->
       <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 55%,${b.color}18 0%,transparent 65%);pointer-events:none;transition:background .4s;"></div>
@@ -1810,18 +1810,18 @@ function renderTabBoosters(th){
       <div id="booster-carousel-track"
         style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:0;padding:0;
                touch-action:pan-y;user-select:none;cursor:grab;
-               transform:translateX(${-(selectedIdx-1)*(isMobile?126:146)}px);
-               transition:transform .42s cubic-bezier(.34,1.28,.64,1);">
+               transform:translateX(${-(selectedIdx-1)*(isMobile?156:146)}px);
+               transition:transform .5s cubic-bezier(.25,.46,.45,.94);">
 
         ${BOOSTERS.map((bx, ix) => {
           const mx = boosterMeta[ix];
           const isCen = ix === selectedIdx;
           const dist = ix - selectedIdx;
           const scale = isCen ? 1 : 0.68;
-          const rotY  = dist === -1 ? 20 : dist === 1 ? -20 : 0;
+          const rotY  = dist === -1 ? 10 : dist === 1 ? -10 : 0;
           const zIdx  = isCen ? 10 : 1;
-          const cardW = isMobile ? 190 : 230;
-          const cardH = isMobile ? 265 : 330;
+          const cardW = isMobile ? 220 : 230;
+          const cardH = isMobile ? 310 : 330;
           const marginH = isMobile ? -32 : -42;
           const opacity = isCen ? 1 : 0.5;
           const brightness = isCen ? 1 : 0.6;
@@ -1829,7 +1829,7 @@ function renderTabBoosters(th){
           // Effets uniquement sur le booster central
           const innerHtml = isCen
             ? boosterInner(bx.id, mx, bxIsOpen)
-            : `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+            : `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:visible;">
                 <img src="${mx.src}" class="booster-img-side"
                   style="width:95%;height:95%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;pointer-events:none;"/>
                </div>`;
@@ -1844,14 +1844,14 @@ function renderTabBoosters(th){
                    perspective:600px;
                    opacity:${opacity};
                    filter:brightness(${brightness});
-                   transition:transform .4s cubic-bezier(.34,1.28,.64,1),opacity .4s,filter .4s;
+                   transition:transform .5s cubic-bezier(.25,.46,.45,.94),opacity .5s ease-out,filter .5s ease-out;
                    z-index:${zIdx};
                    position:relative;
                    border:none;
-                   background:${mx.gradient};
-                   overflow:hidden;
+                   background:transparent;
+                   overflow:visible;
                    box-shadow:none;
-                   animation:${isCen && ix !== prevIdx ? (slideDir==='right' ? 'boosterSlideFromRight .45s cubic-bezier(.34,1.28,.64,1) both' : 'boosterSlideFromLeft .45s cubic-bezier(.34,1.28,.64,1) both') : 'none'};
+                   animation:${isCen && ix !== prevIdx ? (slideDir==='right' ? 'boosterSlideFromRight .55s cubic-bezier(.25,.46,.45,.94) both' : 'boosterSlideFromLeft .55s cubic-bezier(.25,.46,.45,.94) both') : 'none'};
                    cursor:${isCen?'default':'pointer'};">
             ${innerHtml}
           </div>`;
@@ -1862,7 +1862,7 @@ function renderTabBoosters(th){
     </div>
 
     <!-- ═══ INFOS BOOSTER SÉLECTIONNÉ ═══ -->
-    <div style="flex-shrink:0;padding:6px 16px 6px;text-align:center;">
+    <div style="flex-shrink:0;padding:2px 16px 6px;text-align:center;">
       <div style="font-family:'Bangers',cursive;font-size:${isMobile?'20px':'24px'};letter-spacing:2px;color:${b.color};text-shadow:0 0 20px ${b.color}60;transition:color .4s;">${b.name}</div>
       <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${meta.desc}</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;">
@@ -1917,11 +1917,11 @@ function renderTabBoosters(th){
       @keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
       @keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
       @keyframes boosterSlideFromRight{
-        from{transform:scale(1) translateX(90px);opacity:.5;}
+        from{transform:scale(1) translateX(35px);opacity:.7;}
         to{transform:scale(1) translateX(0);opacity:1;}
       }
       @keyframes boosterSlideFromLeft{
-        from{transform:scale(1) translateX(-90px);opacity:.5;}
+        from{transform:scale(1) translateX(-35px);opacity:.7;}
         to{transform:scale(1) translateX(0);opacity:1;}
       }
     </style>
@@ -3647,10 +3647,17 @@ render();
     if(_t0x === null) return;
     const dx = e.changedTouches[0].clientX - _t0x;
     const wasH = _locked === 'h';
+    const capturedStartEl = _startEl;
     _t0x = null; _t0y = null; _locked = null; _startEl = null;
 
     if(!wasH) return;
     if(anyModalOpen()) return;
+
+    // Priorité au carrousel boosters : si le touch a démarré dans le track, ne pas changer d'onglet
+    if(state.tab === 2) {
+      const track = document.getElementById('booster-carousel-track');
+      if(track && capturedStartEl && track.contains(capturedStartEl)) return;
+    }
 
     // Seuil : 55px ou 16% de la largeur — volontaire
     const threshold = Math.max(55, window.innerWidth * 0.16);
