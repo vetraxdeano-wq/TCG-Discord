@@ -1947,6 +1947,40 @@ function renderTabBoosters(th){
         0%,100%{transform:translateY(0) rotate(-.4deg);}
         50%{transform:translateY(-9px) rotate(.4deg);}
       }
+      @keyframes boosterIdlePrestige{
+        0%,100%{transform:translateY(0) rotate(-.7deg) scale(1);}
+        33%{transform:translateY(-12px) rotate(.5deg) scale(1.01);}
+        66%{transform:translateY(-5px) rotate(-.3deg) scale(.99);}
+      }
+      @keyframes boosterIdleLegend{
+        0%   {transform:translateY(0) rotate(-1.2deg) scale(1);}
+        15%  {transform:translateY(-4px) rotate(1.4deg) scale(1.015);}
+        30%  {transform:translateY(-14px) rotate(-1deg) scale(1.02);}
+        50%  {transform:translateY(-8px) rotate(1.8deg) scale(1.01);}
+        70%  {transform:translateY(-16px) rotate(-1.5deg) scale(1.025);}
+        85%  {transform:translateY(-6px) rotate(.8deg) scale(1.01);}
+        100% {transform:translateY(0) rotate(-1.2deg) scale(1);}
+      }
+      @keyframes legendAura{
+        0%,100%{opacity:.4;transform:scale(1);}
+        50%{opacity:.85;transform:scale(1.06);}
+      }
+      @keyframes tensionShakePrestige{
+        0%,100%{transform:rotate(0);}
+        20%{transform:rotate(-1.2deg) scaleX(.993);}
+        40%{transform:rotate(1.2deg) scaleX(1.007);}
+        60%{transform:rotate(-.9deg);}
+        80%{transform:rotate(.7deg);}
+      }
+      @keyframes tensionShakeLegend{
+        0%,100%{transform:rotate(0) scale(1);}
+        10%{transform:rotate(-2deg) scale(.992);}
+        25%{transform:rotate(2.5deg) scale(1.008);}
+        40%{transform:rotate(-2deg) scale(.994);}
+        55%{transform:rotate(3deg) scale(1.01);}
+        70%{transform:rotate(-1.5deg) scale(.996);}
+        85%{transform:rotate(2deg) scale(1.006);}
+      }
       @keyframes tearTopLeft{
         0%  {transform:rotateX(0deg) translateX(0);opacity:1;}
         20% {transform:rotateX(-18deg) translateX(-4%) scaleY(.97);opacity:1;}
@@ -3328,6 +3362,83 @@ function bindGame(){
   });
 
   // Boosters
+  // ── Synthèse sonore Web Audio (déchirure + ouverture) ──────────────
+  function playTearSound(tier) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Bruit blanc filtré → son de déchirure
+      function tearNoise(startT, dur, vol, hifreq) {
+        const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * dur), ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const filt = ctx.createBiquadFilter();
+        filt.type = 'bandpass';
+        filt.frequency.setValueAtTime(hifreq, ctx.currentTime);
+        filt.Q.value = 0.8;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, ctx.currentTime + startT);
+        gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + startT + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startT + dur);
+        src.connect(filt); filt.connect(gain); gain.connect(ctx.destination);
+        src.start(ctx.currentTime + startT);
+        src.stop(ctx.currentTime + startT + dur + 0.05);
+      }
+      // Thump grave = impact d'ouverture
+      function thump(startT, freq, dur, vol) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * 2.2, ctx.currentTime + startT);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.4, ctx.currentTime + startT + dur * 0.6);
+        gain.gain.setValueAtTime(0, ctx.currentTime + startT);
+        gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + startT + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startT + dur);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + startT);
+        osc.stop(ctx.currentTime + startT + dur + 0.05);
+      }
+      // Shimmer haute fréquence (légendaire)
+      function shimmer(startT, freq, dur, vol) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startT);
+        osc.frequency.linearRampToValueAtTime(freq * 1.5, ctx.currentTime + startT + dur);
+        gain.gain.setValueAtTime(0, ctx.currentTime + startT);
+        gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + startT + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startT + dur);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + startT);
+        osc.stop(ctx.currentTime + startT + dur + 0.05);
+      }
+      if(tier === 1) {
+        // Normal : déchirure courte, thump léger
+        tearNoise(0,    0.18, 0.55, 2200);
+        tearNoise(0.05, 0.14, 0.35, 3800);
+        thump(0.14, 90, 0.22, 0.5);
+      } else if(tier === 2) {
+        // Prestige : déchirure plus longue, thump plus profond
+        tearNoise(0,    0.22, 0.75, 1800);
+        tearNoise(0.04, 0.18, 0.55, 3200);
+        tearNoise(0.12, 0.12, 0.4,  5000);
+        thump(0.18, 70, 0.30, 0.75);
+        shimmer(0.22, 800, 0.35, 0.15);
+      } else {
+        // Légendaire : déchirure lente et puissante, thump grave, shimmer épique
+        tearNoise(0,    0.35, 1.1,  1200);
+        tearNoise(0.06, 0.28, 0.85, 2500);
+        tearNoise(0.15, 0.22, 0.65, 4500);
+        tearNoise(0.28, 0.18, 0.5,  7000);
+        thump(0.28, 55, 0.45, 1.0);
+        thump(0.32, 110, 0.35, 0.5);
+        shimmer(0.35, 600, 0.55, 0.22);
+        shimmer(0.42, 1200, 0.45, 0.18);
+      }
+    } catch(e){}
+  }
+
   // ── Animation d'ouverture booster — Phase 1 : focus + Phase 2 : déchirure par le haut ──
   function triggerBoosterOpen(bid, color, imgSrc, href) {
     if(document.getElementById('booster-focus-overlay')) return;
@@ -3338,8 +3449,23 @@ function bindGame(){
     const w = rect.width, h = rect.height;
     const vw = window.innerWidth, vh = window.innerHeight;
 
-    // Taille cible agrandie
-    const targetW = Math.min(vw * .78, 340);
+    // Tier : 1=Normal, 2=Prestige, 3=Légendaire
+    const tier = bid; // bid 1/2/3 correspond directement
+
+    // Paramètres selon le tier
+    const tierCfg = {
+      1: { sizeRatio:.78, maxW:330, idleAnim:'boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdle 2.4s ease-in-out .45s infinite',
+           tensionAnim:'tensionShake .20s ease both', tensionDur:210, tearDur:820, totalDur:1050,
+           flapSpeed:'.72s', bottomSpeed:'.72s', auraColor:'rgba(156,163,175,.10)' },
+      2: { sizeRatio:.80, maxW:345, idleAnim:'boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdlePrestige 2.0s ease-in-out .45s infinite',
+           tensionAnim:'tensionShakePrestige .28s ease both', tensionDur:240, tearDur:920, totalDur:1180,
+           flapSpeed:'.85s', bottomSpeed:'.85s', auraColor:'rgba(205,127,50,.14)' },
+      3: { sizeRatio:.82, maxW:360, idleAnim:'boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdleLegend 1.6s ease-in-out .45s infinite',
+           tensionAnim:'tensionShakeLegend .38s ease both', tensionDur:300, tearDur:1150, totalDur:1480,
+           flapSpeed:'1.05s', bottomSpeed:'1.05s', auraColor:'rgba(240,192,96,.20)' },
+    }[tier] || {};
+
+    const targetW = Math.min(vw * tierCfg.sizeRatio, tierCfg.maxW);
     const targetH = targetW * (h / w);
     const targetX = (vw - targetW) / 2;
     const targetY = (vh - targetH) / 2 - vh * .04;
@@ -3347,35 +3473,46 @@ function bindGame(){
     // ── Overlay principal ──
     const overlay = document.createElement('div');
     overlay.id = 'booster-focus-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;animation:bgBlurIn .38s ease both;backdrop-filter:blur(16px);background:rgba(4,8,18,.88);';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;animation:bgBlurIn .38s ease both;backdrop-filter:blur(16px);background:rgba(4,8,18,.90);';
 
-    // ── Booster centré ──
+    // Aura de fond spécifique au tier
+    const aura = document.createElement('div');
+    aura.style.cssText = `position:absolute;left:${targetX - targetW*.25}px;top:${targetY - targetH*.1}px;`
+      +`width:${targetW*1.5}px;height:${targetH*1.2}px;`
+      +`background:radial-gradient(ellipse at center,${tierCfg.auraColor} 0%,transparent 70%);`
+      +`animation:legendAura ${tier===3?'1.4':'2.0'}s ease-in-out infinite;pointer-events:none;`;
+    overlay.appendChild(aura);
+
+    // ── Wrapper booster ──
     const boosterWrap = document.createElement('div');
     boosterWrap.id = 'booster-focus-wrap';
     boosterWrap.style.cssText = `position:absolute;left:${targetX}px;top:${targetY}px;width:${targetW}px;height:${targetH}px;perspective:900px;transform-style:preserve-3d;`;
 
     const boosterImg = document.createElement('img');
     boosterImg.src = imgSrc;
-    boosterImg.style.cssText = `width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 0 28px ${color}90) drop-shadow(0 12px 40px rgba(0,0,0,.7));animation:boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdle 2.2s ease-in-out .45s infinite;`;
+    boosterImg.style.cssText = `width:100%;height:100%;object-fit:contain;display:block;`
+      +`filter:drop-shadow(0 0 ${tier===3?'38px':'24px'} ${color}${tier===3?'b0':'80'}) drop-shadow(0 16px 44px rgba(0,0,0,.75));`
+      +`animation:${tierCfg.idleAnim};`;
 
-    // Ligne de couture en haut du paquet (~13% de hauteur)
+    // Ligne de couture
     const seamLine = document.createElement('div');
-    seamLine.style.cssText = `position:absolute;top:13%;left:8%;right:8%;height:2px;background:linear-gradient(90deg,transparent,${color}80,rgba(255,255,255,.55),${color}80,transparent);animation:tearLinePulse 1.8s ease-in-out infinite;pointer-events:none;`;
+    const seamThick = tier===3 ? '3px' : tier===2 ? '2px' : '2px';
+    const seamOpacity = tier===3 ? 'cc' : tier===2 ? 'aa' : '80';
+    seamLine.style.cssText = `position:absolute;top:13%;left:6%;right:6%;height:${seamThick};`
+      +`background:linear-gradient(90deg,transparent,${color}${seamOpacity},rgba(255,255,255,.7),${color}${seamOpacity},transparent);`
+      +`animation:tearLinePulse ${tier===3?'1.1s':'1.8s'} ease-in-out infinite;pointer-events:none;`;
 
-    // Hint : flèche horizontale + label sur la couture
+    // Hint horizontal
     const hint = document.createElement('div');
-    hint.style.cssText = `position:absolute;top:calc(13% - 28px);left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;`;
+    hint.style.cssText = `position:absolute;top:calc(13% - 30px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:5px;pointer-events:none;white-space:nowrap;`;
     hint.innerHTML = `
-      <div style="display:flex;align-items:center;gap:4px;animation:swipeHintArrow 1.4s ease-in-out infinite;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="filter:drop-shadow(0 0 5px ${color});"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
-        <div style="font-size:8px;font-weight:900;color:${color};letter-spacing:2px;text-shadow:0 0 8px ${color};">DÉCHIRER</div>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="transform:scaleX(-1);filter:drop-shadow(0 0 5px ${color});"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
-      </div>`;
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="animation:swipeHintArrow 1.4s ease-in-out infinite;filter:drop-shadow(0 0 5px ${color});transform:scaleX(-1);"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
+      <div style="font-size:${tier===3?'10px':'9px'};font-weight:900;color:${color};letter-spacing:${tier===3?'2.5px':'1.8px'};text-shadow:0 0 10px ${color};">${tier===3?'⚡ DÉCHIRER ⚡':'DÉCHIRER'}</div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="animation:swipeHintArrow 1.4s ease-in-out .15s infinite;filter:drop-shadow(0 0 5px ${color});"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>`;
 
-    // Hint bas : tap ou glisser
     const tapHint = document.createElement('div');
-    tapHint.style.cssText = `position:absolute;bottom:-36px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.32);letter-spacing:1px;white-space:nowrap;text-align:center;`;
-    tapHint.textContent = 'Glisse sur le haut · ou tape';
+    tapHint.style.cssText = `position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.8px;white-space:nowrap;`;
+    tapHint.textContent = 'Glisse sur la couture · ou tape';
 
     boosterWrap.appendChild(boosterImg);
     boosterWrap.appendChild(seamLine);
@@ -3384,26 +3521,31 @@ function bindGame(){
     overlay.appendChild(boosterWrap);
     document.body.appendChild(overlay);
 
-    if(navigator.vibrate) navigator.vibrate(18);
+    if(navigator.vibrate) navigator.vibrate(tier===3 ? [20,30,20] : [18]);
 
-    // ── Phase 2 : déchirure par le haut ──
+    // ── Phase 2 : déchirure ──
     function doTear() {
       if(overlay._tearing) return;
       overlay._tearing = true;
-      boosterImg.style.animation = 'tensionShake .18s ease both';
-      if(navigator.vibrate) navigator.vibrate([12, 40, 30]);
+
+      // Tension
+      boosterImg.style.animation = tierCfg.tensionAnim;
+      if(navigator.vibrate) navigator.vibrate(tier===3 ? [18,60,30,80,40] : tier===2 ? [14,50,28] : [12,40,22]);
 
       setTimeout(()=>{
+        // Son de déchirure
+        playTearSound(tier);
+
         boosterImg.style.opacity = '0';
         seamLine.style.display = 'none';
         hint.style.display = 'none';
         tapHint.style.display = 'none';
+        aura.style.display = 'none';
 
         const bW = targetW, bH = targetH;
         const bX = targetX, bY = targetY;
         const flapH = Math.round(bH * .22);
 
-        // Profil de déchirure irrégulier
         const tearProfileL = `polygon(0% 0%, 50% 0%, 54% ${flapH*.35}px, 48% ${flapH*.6}px, 52% ${flapH*.85}px, 47% ${flapH}px, 0% ${flapH}px)`;
         const tearProfileR = `polygon(50% 0%, 100% 0%, 100% ${flapH}px, 53% ${flapH}px, 48% ${flapH*.85}px, 52% ${flapH*.6}px, 46% ${flapH*.35}px)`;
         const bodyClip     = `polygon(0% ${flapH}px, 47% ${flapH}px, 52% ${flapH*.85}px, 48% ${flapH*.6}px, 54% ${flapH*.35}px, 50% 0%, 100% 0%, 100% 100%, 0% 100%)`;
@@ -3413,7 +3555,7 @@ function bindGame(){
           f.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
             +`clip-path:${side==='left'?tearProfileL:tearProfileR};`
             +`transform-origin:${side==='left'?'left':'right'} top;`
-            +`animation:${side==='left'?'tearTopLeft':'tearTopRight'} .72s cubic-bezier(.4,0,.2,1) .04s both;`
+            +`animation:${side==='left'?'tearTopLeft':'tearTopRight'} ${tierCfg.flapSpeed} cubic-bezier(.4,0,.2,1) .04s both;`
             +`pointer-events:none;`;
           const fi = document.createElement('img');
           fi.src = imgSrc;
@@ -3424,47 +3566,45 @@ function bindGame(){
 
         const body = document.createElement('div');
         body.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
-          +`clip-path:${bodyClip};`
-          +`transform-origin:center bottom;`
-          +`animation:tearBottomSlide .72s cubic-bezier(.4,0,.2,1) .04s both;`
-          +`pointer-events:none;`;
+          +`clip-path:${bodyClip};transform-origin:center bottom;`
+          +`animation:tearBottomSlide ${tierCfg.bottomSpeed} cubic-bezier(.4,0,.2,1) .04s both;pointer-events:none;`;
         const bi = document.createElement('img');
         bi.src = imgSrc;
         bi.style.cssText = `position:absolute;left:0;top:0;width:${bW}px;height:${bH}px;object-fit:contain;`;
         body.appendChild(bi);
 
-        // Flash snap
         const snap = document.createElement('div');
         snap.style.cssText = `position:absolute;left:${bX+bW*.2}px;top:${bY+flapH*.2}px;`
           +`width:${bW*.6}px;height:${flapH}px;`
-          +`background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,.95) 0%,rgba(255,255,255,.25) 45%,transparent 80%);`
-          +`animation:tearFlash .38s ease both;pointer-events:none;`;
+          +`background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,${tier===3?.98:.85}) 0%,${color}55 40%,transparent 80%);`
+          +`animation:tearFlash ${tier===3?'.55s':'.38s'} ease both;pointer-events:none;`;
 
-        // Dos de cartes éparpillées qui jaillissent du paquet
+        // Dos de cartes éparpillées
         const cardSrc = 'https://i.goopics.net/iic46c.png';
-        const cardW = Math.round(bW * .28);
+        const cardCount = tier===3 ? 7 : tier===2 ? 6 : 5;
+        const cardW = Math.round(bW * (tier===3?.30:.28));
         const cardH = Math.round(cardW * 1.4);
-        // 5 cartes, positions et rotations variées autour du bas du paquet ouvert
-        const cards = [
-          { dx: -bW*.48, dy:  bH*.18, rot: -28, delay: .12, scale: .88 },
-          { dx: -bW*.22, dy: -bH*.08, rot: -10, delay: .17, scale: .95 },
-          { dx:  bW*.02, dy:  bH*.22, rot:   4, delay: .14, scale: 1   },
-          { dx:  bW*.24, dy: -bH*.04, rot:  16, delay: .20, scale: .92 },
-          { dx:  bW*.46, dy:  bH*.14, rot:  32, delay: .10, scale: .87 },
-        ];
+        const cardPositions = [
+          { dx:-bW*.50, dy: bH*.20, rot:-30, delay:.10, scale:.85 },
+          { dx:-bW*.25, dy:-bH*.10, rot:-12, delay:.16, scale:.93 },
+          { dx:-bW*.05, dy: bH*.24, rot:  2, delay:.13, scale:1.0 },
+          { dx: bW*.20, dy:-bH*.06, rot: 14, delay:.19, scale:.91 },
+          { dx: bW*.48, dy: bH*.16, rot: 30, delay:.09, scale:.86 },
+          { dx:-bW*.38, dy: bH*.42, rot:-22, delay:.22, scale:.80 },
+          { dx: bW*.36, dy: bH*.40, rot: 24, delay:.21, scale:.82 },
+        ].slice(0, cardCount);
         const cxCenter = bX + bW/2;
         const cyCenter = bY + flapH + cardH * .3;
 
-        cards.forEach((c) => {
+        cardPositions.forEach((c) => {
           const cd = document.createElement('div');
-          const startT = `translateX(0px) translateY(${-bH*.12}px) rotate(0deg) scale(.3)`;
+          const startT = `translateX(0px) translateY(${-bH*.15}px) rotate(0deg) scale(.25)`;
           const endT   = `translateX(${c.dx}px) translateY(${c.dy}px) rotate(${c.rot}deg) scale(${c.scale})`;
-          cd.style.cssText = `position:absolute;`
-            +`left:${cxCenter - cardW/2}px;top:${cyCenter - cardH/2}px;`
+          cd.style.cssText = `position:absolute;left:${cxCenter - cardW/2}px;top:${cyCenter - cardH/2}px;`
             +`width:${cardW}px;height:${cardH}px;`
             +`--cf-start:${startT};--cf-end:${endT};`
-            +`animation:cardFanOut .55s cubic-bezier(.22,.68,0,1.25) ${c.delay + .28}s both, cardFanFade .9s ease ${c.delay + .28 + .55}s both;`
-            +`pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);`;
+            +`animation:cardFanOut .55s cubic-bezier(.22,.68,0,1.25) ${c.delay+.3}s both, cardFanFade .9s ease ${c.delay+.85}s both;`
+            +`pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14);`;
           const ci = document.createElement('img');
           ci.src = cardSrc;
           ci.style.cssText = `width:100%;height:100%;object-fit:cover;display:block;`;
@@ -3477,34 +3617,56 @@ function bindGame(){
         overlay.appendChild(body);
         overlay.appendChild(snap);
 
-        if(navigator.vibrate) navigator.vibrate([0, 60, 25, 30, 15]);
-        setTimeout(()=>{ window.location.href = href; }, 980);
-      }, 190);
+        if(navigator.vibrate) navigator.vibrate(tier===3?[0,80,30,50,20,40,15]:[0,60,25,30,15]);
+        setTimeout(()=>{ window.location.href = href; }, tierCfg.totalDur);
+      }, tierCfg.tensionDur);
     }
 
-    // Tap ou clic → déchirer
+    // Tap / clic → déchirer
     overlay.addEventListener('click', doTear, {once:true});
 
     // Glisser horizontalement sur la zone haute du booster → déchirer
-    let _tearX0 = null, _tearY0 = null, _tearStartedInZone = false;
+    let _tearX0=null, _tearY0=null, _tearInZone=false;
     overlay.addEventListener('touchstart', e=>{
       const t = e.touches[0];
-      _tearX0 = t.clientX;
-      _tearY0 = t.clientY;
-      // Zone haute = les ~25% du haut du booster
-      const seamZoneBottom = targetY + targetH * .28;
-      _tearStartedInZone = t.clientY >= targetY && t.clientY <= seamZoneBottom
-                        && t.clientX >= targetX && t.clientX <= targetX + targetW;
+      _tearX0 = t.clientX; _tearY0 = t.clientY;
+      const seamBottom = targetY + targetH * .30;
+      _tearInZone = t.clientY >= targetY && t.clientY <= seamBottom
+                 && t.clientX >= targetX && t.clientX <= targetX + targetW;
     }, {passive:true});
     overlay.addEventListener('touchend', e=>{
-      if(_tearX0 === null) return;
+      if(_tearX0===null) return;
       const dx = Math.abs(e.changedTouches[0].clientX - _tearX0);
       const dy = Math.abs(e.changedTouches[0].clientY - _tearY0);
-      _tearX0 = null; _tearY0 = null;
-      // Geste horizontal (dx > dy) depuis la zone de couture, ou swipe large
-      if((_tearStartedInZone && dx > 22 && dx > dy * 1.2) || dx > 60) doTear();
+      _tearX0=null; _tearY0=null;
+      if((_tearInZone && dx>20 && dx>dy*1.1) || dx>55) doTear();
     }, {passive:true});
   }
+
+  // ── Handler boutons open-booster ──
+  document.querySelectorAll('.open-booster').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const bid = parseInt(btn.dataset.bid);
+      const selectedBooster = BOOSTERS[state.boosterSelectedIdx ?? 1];
+      if(!selectedBooster || selectedBooster.id !== bid) return;
+      const booster = BOOSTERS.find(b=>b.id===bid);
+      if(!booster) return;
+      const coins = state.coins || 0;
+      if(coins < booster.price){
+        showToast(`Il vous faut ${booster.price.toLocaleString('fr-FR')} coins pour ouvrir ce booster.`,'🚫');
+        return;
+      }
+      const meta = [
+        {color:'#9ca3af', src:'https://i.goopics.net/ueiki4.png', href:'booster1.html'},
+        {color:'#cd7f32', src:'https://i.goopics.net/61e1o1.png', href:'booster2.html'},
+        {color:'#f0c060', src:'https://i.goopics.net/cussu4.png', href:'booster3.html'},
+      ];
+      const m = meta[bid-1];
+      if(m) triggerBoosterOpen(bid, m.color, m.src, m.href);
+    });
+  });
+
 
   // ─── CARROUSEL BOOSTERS ───────────────────────────────────────────
   const prevBtn = document.getElementById('booster-prev');
