@@ -1742,6 +1742,30 @@ function renderTabBoosters(th){
   const selectedIdx = state.boosterSelectedIdx ?? 1; // défaut : booster du milieu
   const prevIdx = state.boosterPrevIdx ?? selectedIdx;
   const slideDir = selectedIdx > prevIdx ? 'right' : 'left'; // new center came from right or left
+
+  // ── Taille des cartes booster calculée dynamiquement selon la fenêtre ──
+  // On réserve de la place pour : header (~50px), label (~32px), infos+bouton (~90px),
+  // flèches nav desktop (~52px), pioche (~60px), marges (~20px)
+  const _vw = window.innerWidth;
+  const _vh = window.innerHeight;
+  const _reservedH = isMobile ? 210 : 254; // px réservés hors carrousel
+  const _availH    = _vh - _reservedH;     // hauteur disponible pour le booster central
+  const _availW    = _vw;
+  // Ratio booster PNG ≈ 0.54 (largeur/hauteur)
+  const _boosterRatio = 0.54;
+  // Taille maximale : ne pas dépasser 85% de la hauteur dispo, ni 42% de la largeur sur desktop
+  const _maxByH  = Math.floor(_availH * 0.85);
+  const _maxByW  = isMobile ? Math.floor(_availW * 0.72) : Math.floor(_availW * 0.36);
+  const _cenH    = Math.min(_maxByH, Math.round(_maxByW / _boosterRatio));
+  const _cenW    = Math.round(_cenH * _boosterRatio);
+  // Éléments latéraux : 74% de la taille centrale
+  const _sideScale = 0.74;
+  const cardW    = _cenW;
+  const cardH    = _cenH;
+  // Décalage du track entre deux boosters (largeur centrale × 0.56 pour overlap naturel)
+  const _trackStep = Math.round(_cenW * (isMobile ? 0.70 : 0.58));
+  // Margin négatif pour overlap des éléments latéraux
+  const marginH  = -Math.round(_cenW * (isMobile ? 0.08 : 0.14));
   const boosterMeta = [
     {
       desc:"",
@@ -1810,19 +1834,17 @@ function renderTabBoosters(th){
       <div id="booster-carousel-track"
         style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:0;padding:0;
                touch-action:pan-y;user-select:none;cursor:grab;
-               transform:translateX(${-(selectedIdx-1)*(isMobile?208:340)}px);
+               transform:translateX(${-(selectedIdx-1)*_trackStep}px);
 ">
 
         ${BOOSTERS.map((bx, ix) => {
           const mx = boosterMeta[ix];
           const isCen = ix === selectedIdx;
           const dist = ix - selectedIdx;
-          const scale = isCen ? 1 : 0.74;
+          const scale = isCen ? 1 : _sideScale;
           const rotY  = 0;
           const zIdx  = isCen ? 10 : 1;
-          const cardW = isMobile ? 248 : 460;
-          const cardH = isMobile ? 348 : 660;
-          const marginH = isMobile ? -20 : -60;
+          // cardW, cardH, marginH computed at function top from window size
           const opacity = isCen ? 1 : 0.62;
           const brightness = isCen ? 1 : 0.7;
           const bxIsOpen = state.boosterOpening === bx.id;
