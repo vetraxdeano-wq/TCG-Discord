@@ -1810,21 +1810,21 @@ function renderTabBoosters(th){
       <div id="booster-carousel-track"
         style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:0;padding:0;
                touch-action:pan-y;user-select:none;cursor:grab;
-               transform:translateX(${-(selectedIdx-1)*(isMobile?156:146)}px);
-               transition:transform .5s cubic-bezier(.25,.46,.45,.94);">
+               transform:translateX(${-(selectedIdx-1)*(isMobile?208:146)}px);
+">
 
         ${BOOSTERS.map((bx, ix) => {
           const mx = boosterMeta[ix];
           const isCen = ix === selectedIdx;
           const dist = ix - selectedIdx;
-          const scale = isCen ? 1 : 0.68;
-          const rotY  = dist === -1 ? 10 : dist === 1 ? -10 : 0;
+          const scale = isCen ? 1 : 0.74;
+          const rotY  = 0;
           const zIdx  = isCen ? 10 : 1;
-          const cardW = isMobile ? 220 : 230;
-          const cardH = isMobile ? 310 : 330;
-          const marginH = isMobile ? -32 : -42;
-          const opacity = isCen ? 1 : 0.5;
-          const brightness = isCen ? 1 : 0.6;
+          const cardW = isMobile ? 248 : 230;
+          const cardH = isMobile ? 348 : 330;
+          const marginH = isMobile ? -20 : -42;
+          const opacity = isCen ? 1 : 0.62;
+          const brightness = isCen ? 1 : 0.7;
           const bxIsOpen = state.boosterOpening === bx.id;
           // Effets uniquement sur le booster central
           const innerHtml = isCen
@@ -1844,14 +1844,14 @@ function renderTabBoosters(th){
                    perspective:600px;
                    opacity:${opacity};
                    filter:brightness(${brightness});
-                   transition:transform .5s cubic-bezier(.25,.46,.45,.94),opacity .5s ease-out,filter .5s ease-out;
+                   transition:opacity .4s ease-out,filter .4s ease-out;
                    z-index:${zIdx};
                    position:relative;
                    border:none;
                    background:transparent;
                    overflow:visible;
                    box-shadow:none;
-                   animation:${isCen && ix !== prevIdx ? (slideDir==='right' ? 'boosterSlideFromRight .55s cubic-bezier(.25,.46,.45,.94) both' : 'boosterSlideFromLeft .55s cubic-bezier(.25,.46,.45,.94) both') : 'none'};
+                   animation:${isCen && ix !== prevIdx ? 'boosterAppear .5s ease-out both' : 'none'};
                    cursor:${isCen?'default':'pointer'};">
             ${innerHtml}
           </div>`;
@@ -1916,13 +1916,9 @@ function renderTabBoosters(th){
     <style>
       @keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
       @keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-      @keyframes boosterSlideFromRight{
-        from{transform:scale(1) translateX(35px);opacity:.7;}
-        to{transform:scale(1) translateX(0);opacity:1;}
-      }
-      @keyframes boosterSlideFromLeft{
-        from{transform:scale(1) translateX(-35px);opacity:.7;}
-        to{transform:scale(1) translateX(0);opacity:1;}
+      @keyframes boosterAppear{
+        from{opacity:.55;transform:scale(.95);}
+        to{opacity:1;transform:scale(1);}
       }
     </style>
   </div>`;
@@ -3653,11 +3649,8 @@ render();
     if(!wasH) return;
     if(anyModalOpen()) return;
 
-    // Priorité au carrousel boosters : si le touch a démarré dans le track, ne pas changer d'onglet
-    if(state.tab === 2) {
-      const track = document.getElementById('booster-carousel-track');
-      if(track && capturedStartEl && track.contains(capturedStartEl)) return;
-    }
+    // Sur l'onglet Boosters : le swipe appartient entièrement au carrousel, jamais aux onglets
+    if(state.tab === 2) return;
 
     // Seuil : 55px ou 16% de la largeur — volontaire
     const threshold = Math.max(55, window.innerWidth * 0.16);
