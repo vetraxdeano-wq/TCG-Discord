@@ -1789,35 +1789,42 @@ function renderTabBoosters(th){
   <div style="display:flex;flex-direction:column;height:100%;background:transparent;overflow:hidden;">
 
     <!-- Label -->
-    <div style="padding:10px 16px 4px;flex-shrink:0;display:flex;align-items:center;gap:8px;">
+    <div style="padding:8px 16px 2px;flex-shrink:0;display:flex;align-items:center;gap:8px;">
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Boosters</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
     </div>
 
     <!-- ═══ CARROUSEL ═══ -->
-    <div style="flex:0 0 auto;position:relative;overflow:hidden;padding:12px 0 8px;">
+    <div style="flex:1;min-height:0;position:relative;overflow:hidden;padding:8px 0 4px;display:flex;flex-direction:column;">
 
       <!-- Fond glow centré -->
-      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,${b.color}18 0%,transparent 65%);pointer-events:none;transition:background .4s;"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 55%,${b.color}18 0%,transparent 65%);pointer-events:none;transition:background .4s;"></div>
 
       <!-- Track (3 cartes, centré sur la sélectionnée) -->
       <div id="booster-carousel-track"
-        style="display:flex;align-items:center;justify-content:center;gap:0;padding:0;
+        style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:0;padding:0;
                touch-action:pan-y;user-select:none;cursor:grab;">
 
         ${BOOSTERS.map((bx, ix) => {
           const mx = boosterMeta[ix];
           const isCen = ix === selectedIdx;
-          const dist = ix - selectedIdx; // -1, 0, +1
-          const scale = isCen ? 1 : 0.72;
-          const rotY  = dist === -1 ? 18 : dist === 1 ? -18 : 0;
+          const dist = ix - selectedIdx;
+          const scale = isCen ? 1 : 0.68;
+          const rotY  = dist === -1 ? 20 : dist === 1 ? -20 : 0;
           const zIdx  = isCen ? 10 : 1;
-          const cardW = isMobile ? 160 : 200;
-          const cardH = isMobile ? 220 : 280;
-          const marginH = isMobile ? -28 : -36; // négatif → chevauchement côtés
-          const opacity = isCen ? 1 : 0.55;
-          const brightness = isCen ? 1 : 0.7;
+          const cardW = isMobile ? 190 : 230;
+          const cardH = isMobile ? 265 : 330;
+          const marginH = isMobile ? -32 : -42;
+          const opacity = isCen ? 1 : 0.5;
+          const brightness = isCen ? 1 : 0.6;
           const bxIsOpen = state.boosterOpening === bx.id;
+          // Effets uniquement sur le booster central
+          const innerHtml = isCen
+            ? boosterInner(bx.id, mx, bxIsOpen)
+            : `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                <img src="${mx.src}" class="booster-img open-booster" data-bid="${bx.id}"
+                  style="width:82%;height:82%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;"/>
+               </div>`;
           return `
           <div class="booster-carousel-item" data-cidx="${ix}"
             style="flex-shrink:0;
@@ -1837,23 +1844,23 @@ function renderTabBoosters(th){
                    overflow:hidden;
                    box-shadow:${isCen?`0 0 40px ${bx.color}40, 0 12px 40px rgba(0,0,0,.6)`:'0 4px 16px rgba(0,0,0,.4)'};
                    cursor:${isCen?'default':'pointer'};">
-            ${boosterInner(bx.id, mx, bxIsOpen)}
+            ${innerHtml}
           </div>`;
         }).join('')}
       </div>
 
       <!-- Dots indicateurs -->
-      <div style="display:flex;justify-content:center;gap:6px;margin-top:10px;">
+      <div style="display:flex;justify-content:center;gap:6px;margin-top:8px;flex-shrink:0;">
         ${BOOSTERS.map((_,ix)=>`
         <div style="width:${ix===selectedIdx?20:6}px;height:6px;background:${ix===selectedIdx?b.color:'rgba(255,255,255,.15)'};transition:all .3s cubic-bezier(.34,1.28,.64,1);"></div>`).join('')}
       </div>
     </div>
 
     <!-- ═══ INFOS BOOSTER SÉLECTIONNÉ ═══ -->
-    <div style="flex-shrink:0;padding:8px 16px 10px;text-align:center;">
+    <div style="flex-shrink:0;padding:6px 16px 6px;text-align:center;">
       <div style="font-family:'Bangers',cursive;font-size:${isMobile?'20px':'24px'};letter-spacing:2px;color:${b.color};text-shadow:0 0 20px ${b.color}60;transition:color .4s;">${b.name}</div>
-      <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">${meta.rates}</div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;">
+      <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${meta.desc}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;">
         <div style="display:flex;align-items:center;gap:4px;padding:6px 14px;background:${b.color}18;border:1px solid ${b.color}40;">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="${b.color}"><circle cx="12" cy="12" r="10" opacity=".5"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
           <span style="font-size:13px;font-weight:900;color:${b.color};">${b.price.toLocaleString()}</span>
@@ -1868,14 +1875,15 @@ function renderTabBoosters(th){
       </div>
     </div>
 
-    <!-- Flèches navigation PC -->
+    <!-- Flèches navigation — masquées sur mobile -->
+    ${isMobile ? '' : `
     <div style="display:flex;justify-content:center;gap:12px;flex-shrink:0;padding-bottom:4px;">
       <button id="booster-prev" style="width:36px;height:36px;background:${selectedIdx===0?'rgba(255,255,255,.04)':'rgba(255,255,255,.08)'};border:1px solid rgba(255,255,255,.1);color:${selectedIdx===0?'rgba(255,255,255,.2)':'#fff'};font-size:18px;cursor:${selectedIdx===0?'default':'pointer'};transition:all .2s;display:flex;align-items:center;justify-content:center;">‹</button>
       <button id="booster-next" style="width:36px;height:36px;background:${selectedIdx===BOOSTERS.length-1?'rgba(255,255,255,.04)':'rgba(255,255,255,.08)'};border:1px solid rgba(255,255,255,.1);color:${selectedIdx===BOOSTERS.length-1?'rgba(255,255,255,.2)':'#fff'};font-size:18px;cursor:${selectedIdx===BOOSTERS.length-1?'default':'pointer'};transition:all .2s;display:flex;align-items:center;justify-content:center;">›</button>
-    </div>
+    </div>`}
 
     <!-- Séparateur + Pioche -->
-    <div style="padding:${isMobile?'2px 12px 2px':'6px 16px 4px'};flex-shrink:0;display:flex;align-items:center;gap:8px;">
+    <div style="padding:${isMobile?'2px 12px 2px':'4px 16px 4px'};flex-shrink:0;display:flex;align-items:center;gap:8px;">
       <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Pioche</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
       <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
