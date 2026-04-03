@@ -1810,7 +1810,7 @@ function renderTabBoosters(th){
       <div id="booster-carousel-track"
         style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:0;padding:0;
                touch-action:pan-y;user-select:none;cursor:grab;
-               transform:translateX(${-(selectedIdx-1)*(isMobile?208:146)}px);
+               transform:translateX(${-(selectedIdx-1)*(isMobile?208:340)}px);
 ">
 
         ${BOOSTERS.map((bx, ix) => {
@@ -1820,9 +1820,9 @@ function renderTabBoosters(th){
           const scale = isCen ? 1 : 0.74;
           const rotY  = 0;
           const zIdx  = isCen ? 10 : 1;
-          const cardW = isMobile ? 248 : 230;
-          const cardH = isMobile ? 348 : 330;
-          const marginH = isMobile ? -20 : -42;
+          const cardW = isMobile ? 248 : 460;
+          const cardH = isMobile ? 348 : 660;
+          const marginH = isMobile ? -20 : -60;
           const opacity = isCen ? 1 : 0.62;
           const brightness = isCen ? 1 : 0.7;
           const bxIsOpen = state.boosterOpening === bx.id;
