@@ -3282,6 +3282,13 @@ function bindGame(){
     const w = rect.width, h = rect.height;
     const cx = rect.left + w/2, cy = rect.top + h/2;
 
+    // Masquer toute la zone visuelle du booster (image + effets décoratifs)
+    // pour éviter que le PNG original persiste derrière les moitiés animées.
+    // parentElement = div position:relative width:100% height:100% (conteneur effets+img)
+    const boosterVisual = centralImg.parentElement;
+    if(boosterVisual) boosterVisual.style.visibility = 'hidden';
+    else centralImg.style.opacity = '0';
+
     const overlay = document.createElement('div');
     overlay.id = 'booster-tear-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;pointer-events:none;overflow:hidden;background:rgba(0,0,0,0);animation:tearOverlayIn .18s ease both;';
