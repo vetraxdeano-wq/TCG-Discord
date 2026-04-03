@@ -1744,19 +1744,19 @@ function renderTabBoosters(th){
   const slideDir = selectedIdx > prevIdx ? 'right' : 'left'; // new center came from right or left
   const boosterMeta = [
     {
-      desc:"Toutes raretés · garanti Commune",
+      desc:"",
       gradient:`linear-gradient(160deg,#9ca3af20,#9ca3af06)`,
       src:"https://i.goopics.net/ueiki4.png",
       rates:"Common 65% · Uncommon 28% · Rare 6% · Mythic 1%",
     },
     {
-      desc:"Garantit au moins 1 Rare",
+      desc:"",
       gradient:`linear-gradient(160deg,#cd7f3222,#cd7f3206)`,
       src:"https://i.goopics.net/61e1o1.png",
       rates:"Common 25% · Uncommon 52% · Rare 18% · Mythic 5%",
     },
     {
-      desc:"Garantit au moins 1 Mythique",
+      desc:"",
       gradient:`linear-gradient(160deg,#f0c06022,#f0c06006)`,
       src:"https://i.goopics.net/cussu4.png",
       rates:"Common 12% · Uncommon 38% · Rare 35% · Mythic 15%",
@@ -3443,6 +3443,20 @@ function bindGame(){
   function triggerBoosterOpen(bid, color, imgSrc, href) {
     if(document.getElementById('booster-focus-overlay')) return;
 
+    // Fade out musique progressif
+    (function fadeOutMusic(){
+      if(!_ytPlayer || !audioPlaying) return;
+      let vol = typeof state.musicVolume === 'number' ? state.musicVolume : 60;
+      try { vol = _ytPlayer.getVolume ? _ytPlayer.getVolume() : vol; } catch(e){}
+      let step = 0;
+      const interval = setInterval(()=>{
+        step++;
+        const newVol = Math.max(0, vol - step * (vol / 18));
+        try { _ytPlayer.setVolume(newVol); } catch(e){}
+        if(newVol <= 0){ clearInterval(interval); try{ _ytPlayer.pauseVideo(); }catch(e){} }
+      }, 50);
+    })();
+
     const centralImg = document.querySelector('.booster-img.open-booster[data-bid="'+bid+'"]');
     if(!centralImg){ window.location.href = href; return; }
     const rect = centralImg.getBoundingClientRect();
@@ -3511,7 +3525,7 @@ function bindGame(){
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="animation:swipeHintArrow 1.4s ease-in-out .15s infinite;filter:drop-shadow(0 0 5px ${color});"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>`;
 
     const tapHint = document.createElement('div');
-    tapHint.style.cssText = `position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.8px;white-space:nowrap;`;
+    tapHint.style.cssText = `position:absolute;bottom:8%;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.8px;white-space:nowrap;pointer-events:none;`;
     tapHint.textContent = 'Glisse sur la couture · ou tape';
 
     boosterWrap.appendChild(boosterImg);
@@ -3581,7 +3595,7 @@ function bindGame(){
 
         // Dos de cartes éparpillées
         const cardSrc = 'https://i.goopics.net/iic46c.png';
-        const cardCount = tier===3 ? 7 : tier===2 ? 6 : 5;
+        const cardCount = 5;
         const cardW = Math.round(bW * (tier===3?.30:.28));
         const cardH = Math.round(cardW * 1.4);
         const cardPositions = [
@@ -3622,15 +3636,25 @@ function bindGame(){
       }, tierCfg.tensionDur);
     }
 
-    // Tap / clic → déchirer
-    overlay.addEventListener('click', doTear, {once:true});
+    // Tap / clic → déchirer (uniquement sur la zone du booster PNG sur mobile)
+    overlay.addEventListener('click', (e) => {
+      const isMob = window.innerWidth < 600;
+      if (isMob) {
+        // Sur mobile : tap valide uniquement sur la zone PNG du booster
+        const inBoosterX = e.clientX >= targetX && e.clientX <= targetX + targetW;
+        const inBoosterY = e.clientY >= targetY && e.clientY <= targetY + targetH;
+        if (!inBoosterX || !inBoosterY) return;
+      }
+      doTear();
+    }, {once:true});
 
-    // Glisser horizontalement sur la zone haute du booster → déchirer
+    // Glisser horizontalement sur la zone haute du booster PNG → déchirer
     let _tearX0=null, _tearY0=null, _tearInZone=false;
     overlay.addEventListener('touchstart', e=>{
       const t = e.touches[0];
       _tearX0 = t.clientX; _tearY0 = t.clientY;
-      const seamBottom = targetY + targetH * .30;
+      // Zone de swipe = haut du PNG (de targetY à 35% du booster)
+      const seamBottom = targetY + targetH * .35;
       _tearInZone = t.clientY >= targetY && t.clientY <= seamBottom
                  && t.clientX >= targetX && t.clientX <= targetX + targetW;
     }, {passive:true});
@@ -3639,7 +3663,7 @@ function bindGame(){
       const dx = Math.abs(e.changedTouches[0].clientX - _tearX0);
       const dy = Math.abs(e.changedTouches[0].clientY - _tearY0);
       _tearX0=null; _tearY0=null;
-      if((_tearInZone && dx>20 && dx>dy*1.1) || dx>55) doTear();
+      if(_tearInZone && dx>20 && dx>dy*1.1) doTear();
     }, {passive:true});
   }
 
