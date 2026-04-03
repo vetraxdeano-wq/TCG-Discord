@@ -479,6 +479,7 @@ let state = {
   // Boosters
   boosterOpening: null,
   boosterSelectedIdx: 1,
+  boosterPrevIdx: 1,
   showPioche: false,
   // Pioche
   piocheFlipped: {},
@@ -534,6 +535,9 @@ function t(){
 function setState(updates){
   if(updates.tab !== undefined && updates.tab !== state.tab) {
     updates.prevTab = state.tab;
+  }
+  if(updates.boosterSelectedIdx !== undefined && updates.boosterSelectedIdx !== state.boosterSelectedIdx) {
+    updates.boosterPrevIdx = state.boosterSelectedIdx;
   }
   Object.assign(state, updates);
   render();
@@ -1736,6 +1740,8 @@ function renderCardDetailModal(card,th){
 function renderTabBoosters(th){
   const isMobile = window.innerWidth < 600;
   const selectedIdx = state.boosterSelectedIdx ?? 1; // défaut : booster du milieu
+  const prevIdx = state.boosterPrevIdx ?? selectedIdx;
+  const slideDir = selectedIdx > prevIdx ? 'right' : 'left'; // new center came from right or left
   const boosterMeta = [
     {
       desc:"Toutes raretés · garanti Commune",
@@ -1822,8 +1828,8 @@ function renderTabBoosters(th){
           const innerHtml = isCen
             ? boosterInner(bx.id, mx, bxIsOpen)
             : `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                <img src="${mx.src}" class="booster-img open-booster" data-bid="${bx.id}"
-                  style="width:82%;height:82%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;"/>
+                <img src="${mx.src}" class="booster-img-side"
+                  style="width:82%;height:82%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;pointer-events:none;"/>
                </div>`;
           return `
           <div class="booster-carousel-item" data-cidx="${ix}"
@@ -1839,10 +1845,11 @@ function renderTabBoosters(th){
                    transition:transform .4s cubic-bezier(.34,1.28,.64,1),opacity .4s,filter .4s;
                    z-index:${zIdx};
                    position:relative;
-                   border:${isCen?'2px':'1px'} solid ${isCen?bx.color+'80':'rgba(255,255,255,.08)'};
+                   border:1px solid rgba(255,255,255,.06);
                    background:${mx.gradient};
                    overflow:hidden;
-                   box-shadow:${isCen?`0 0 40px ${bx.color}40, 0 12px 40px rgba(0,0,0,.6)`:'0 4px 16px rgba(0,0,0,.4)'};
+                   box-shadow:${isCen?'0 12px 40px rgba(0,0,0,.6)':'0 4px 16px rgba(0,0,0,.4)'};
+                   animation:${isCen && ix !== prevIdx ? (slideDir==='right' ? 'boosterSlideFromRight .45s cubic-bezier(.34,1.28,.64,1) both' : 'boosterSlideFromLeft .45s cubic-bezier(.34,1.28,.64,1) both') : 'none'};
                    cursor:${isCen?'default':'pointer'};">
             ${innerHtml}
           </div>`;
@@ -1911,6 +1918,14 @@ function renderTabBoosters(th){
     <style>
       @keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
       @keyframes floatPack{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+      @keyframes boosterSlideFromRight{
+        from{transform:scale(1) translateX(90px);opacity:.5;}
+        to{transform:scale(1) translateX(0);opacity:1;}
+      }
+      @keyframes boosterSlideFromLeft{
+        from{transform:scale(1) translateX(-90px);opacity:.5;}
+        to{transform:scale(1) translateX(0);opacity:1;}
+      }
     </style>
   </div>`;
 }
@@ -3250,6 +3265,9 @@ function bindGame(){
     btn.addEventListener('click',(e)=>{
       e.stopPropagation();
       const bid=parseInt(btn.dataset.bid);
+      const selectedBooster = BOOSTERS[state.boosterSelectedIdx ?? 1];
+      // Si le clic vient d'un booster non sélectionné, sélectionner seulement (ne pas ouvrir)
+      if (!selectedBooster || selectedBooster.id !== bid) return;
       const booster = BOOSTERS.find(b=>b.id===bid);
       if (!booster) return;
       // Vérifier le solde sans déduire (la déduction est gérée dans la page booster)
