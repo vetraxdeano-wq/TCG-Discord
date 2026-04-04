@@ -3614,20 +3614,20 @@ function bindGame(){
       return { rx: cx - targetX, ry: cy - targetY };
     }
 
-    // Active la lueur pendant le déchirement uniquement
-    let _glowActive = false;
-    function activateTearGlow() {
-      _glowActive = true;
-      glowCanvas.style.opacity = '1';
-    }
+    // Lueur active dès le début de la phase focus
+    glowCanvas.style.opacity = '1';
+    // Lueur initiale centrée sur la couture
+    drawTearGlow(targetW / 2, targetH * 0.13);
 
     function moveTearGlow(cx, cy) {
-      if(!_glowActive) return;
       const {rx, ry} = screenToBooster(cx, cy);
-      // Clamp dans les limites du PNG
-      const clampedRx = Math.max(0, Math.min(targetW, rx));
-      const clampedRy = Math.max(0, Math.min(targetH * 0.40, ry)); // limité au tiers haut
-      drawTearGlow(clampedRx, clampedRy);
+      // Si le curseur est sur le PNG, dessiner la lueur à cet endroit (clampé sur la moitié haute)
+      const onPng = rx >= 0 && rx <= targetW && ry >= 0 && ry <= targetH;
+      if(onPng) {
+        const clampedRx = Math.max(0, Math.min(targetW, rx));
+        const clampedRy = Math.max(0, Math.min(targetH * 0.45, ry));
+        drawTearGlow(clampedRx, clampedRy);
+      }
     }
 
     overlay.addEventListener('mousemove', e => moveTearGlow(e.clientX, e.clientY), {passive:true});
@@ -3645,11 +3645,6 @@ function bindGame(){
       if(overlay._tearing) return;
       overlay._tearing = true;
       cancelBtn.style.display = 'none';
-
-      // Activer la lueur sur le PNG dès le début de la tension
-      activateTearGlow();
-      // Dessiner une lueur centrée au milieu du haut du paquet par défaut
-      drawTearGlow(targetW / 2, targetH * 0.13);
 
       // Tension
       boosterImg.style.animation = tierCfg.tensionAnim;
@@ -3747,17 +3742,17 @@ function bindGame(){
       }, tierCfg.tensionDur);
     }
 
-    // Tap / clic → déchirer (uniquement sur la zone du booster PNG sur mobile)
+    // Clic dans le PNG → déchirer / clic hors PNG → fermer l'overlay (= Annuler)
     overlay.addEventListener('click', (e) => {
-      const isMob = window.innerWidth < 600;
-      if (isMob) {
-        // Sur mobile : tap valide uniquement sur la zone PNG du booster
-        const inBoosterX = e.clientX >= targetX && e.clientX <= targetX + targetW;
-        const inBoosterY = e.clientY >= targetY && e.clientY <= targetY + targetH;
-        if (!inBoosterX || !inBoosterY) return;
+      if(overlay._tearing) return;
+      const inBoosterX = e.clientX >= targetX && e.clientX <= targetX + targetW;
+      const inBoosterY = e.clientY >= targetY && e.clientY <= targetY + targetH;
+      if(inBoosterX && inBoosterY) {
+        doTear();
+      } else {
+        overlay.remove();
       }
-      doTear();
-    }, {once:true});
+    });
 
     // Glisser horizontalement sur la zone haute du booster PNG → déchirer (touch)
     let _tearX0=null, _tearY0=null, _tearInZone=false;
