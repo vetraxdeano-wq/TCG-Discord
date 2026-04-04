@@ -284,12 +284,18 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
 .stat-val{font-size:.78rem;font-weight:700;color:var(--cream);font-family:'Bebas Neue',sans-serif}
 .card-effect-text{font-size:.56rem;color:#b09060;line-height:1.45;background:#00000040;border:1px solid #ffffff08;border-radius:4px;padding:5px 8px;font-style:italic;font-family:'Cormorant Garamond',serif}
 .card-bottom{padding:5px 12px 8px;display:flex;align-items:center;justify-content:center;gap:6px;position:relative;z-index:4}
+.card-bottom-external{padding:10px 0 0;display:flex;align-items:center;justify-content:center;gap:6px;position:relative;z-index:4;pointer-events:none;}
+.card-bottom-external .rarity-stars,.card-bottom-external .rarity-label{font-size:.75rem;letter-spacing:3px;}
 .rarity-stars{font-size:.6rem;letter-spacing:2px}
 .rarity-label{font-size:.44rem;letter-spacing:.25em;text-transform:uppercase;font-family:'Bebas Neue',sans-serif}
 .card[data-rarity="COMMUNE"] .rarity-stars,.card[data-rarity="COMMUNE"] .rarity-label{color:#7dcea0}
 .card[data-rarity="PEU COMMMUNE"] .rarity-stars,.card[data-rarity="PEU COMMMUNE"] .rarity-label{color:#7ec8e3}
 .card[data-rarity="RARE"] .rarity-stars,.card[data-rarity="RARE"] .rarity-label{color:#b890f8}
 .card[data-rarity="MYTHIQUE"] .rarity-stars,.card[data-rarity="MYTHIQUE"] .rarity-label{color:var(--gold-bright)}
+.card-bottom-external[data-rarity="COMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="COMMUNE"] .rarity-label{color:#7dcea0}
+.card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-label{color:#7ec8e3}
+.card-bottom-external[data-rarity="RARE"] .rarity-stars,.card-bottom-external[data-rarity="RARE"] .rarity-label{color:#b890f8}
+.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-stars,.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-label{color:var(--gold-bright)}
 .card-id{position:absolute;top:8px;right:8px;font-size:.4rem;color:#ffffff15;letter-spacing:.1em;z-index:4;font-family:'Bebas Neue',sans-serif}
 .card[data-rarity="RARE"]{
   background:linear-gradient(160deg,#100820 0%,#1e1040 50%,#100820 100%);
@@ -885,7 +891,7 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
 </div>
 
 <div class="stage">
-  <div class="booster-wrap" id="boosterWrap" onclick="handleBoosterClick()">
+  <div class="booster-wrap" id="boosterWrap" onclick="handleBoosterClick()" style="display:none;">
     <div class="booster" id="booster">
       <div class="booster-frame"></div>
       <div class="booster-logo">
@@ -949,8 +955,8 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
       <div class="card-stats" id="cStats"></div>
       <div class="card-effect-text" id="cEffect" style="display:none"></div>
     </div>
-    <div class="card-bottom"><span class="rarity-stars" id="cStars"></span><span class="rarity-label" id="cRarity"></span></div>
   </div>
+  <div class="card-bottom card-bottom-external" id="cBottomExternal"><span class="rarity-stars" id="cStars"></span><span class="rarity-label" id="cRarity"></span></div>
   <div class="continue-hint">CLIQUER POUR CONTINUER</div>
 </div>
 
@@ -971,8 +977,8 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
       <div class="card-stats" id="fsStats"></div>
       <div class="card-effect-text" id="fsEffect" style="display:none"></div>
     </div>
-    <div class="card-bottom"><span class="rarity-stars" id="fsStars"></span><span class="rarity-label" id="fsRarity"></span></div>
   </div>
+  <div class="card-bottom card-bottom-external" id="fsBottomExternal"><span class="rarity-stars" id="fsStars"></span><span class="rarity-label" id="fsRarity"></span></div>
   <div class="fs-hint">CLIQUER POUR CONTINUER</div>
 </div>
 
@@ -1133,11 +1139,7 @@ async function autoOpenBooster() {
   const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
   setPackAura(bestR);
 
-  // Cacher le booster d'intro, afficher directement le stack
-  const wrap = document.getElementById('boosterWrap');
-  if (wrap) wrap.style.display = 'none';
-
-  // Afficher le stack
+  // Afficher directement le stack (boosterWrap est déjà masqué dans le HTML)
   refreshStackAura();
   const sw = document.getElementById('stackWrap');
   if (sw) { sw.classList.add('visible','appearing'); }
@@ -2227,10 +2229,10 @@ function showFlip(card){
   sc.querySelectorAll('.flip-particles').forEach(e=>e.remove());
   const R=card.rarity;
   const conf=FLIP_RARITY_CONF[R]||FLIP_RARITY_CONF['COMMUNE'];
-  // Subtle border colour hint
+  // Border stays neutral — no rarity colour hint on hidden card
   const bf=fi.querySelector('.flip-back-face');
-  bf.style.borderColor=conf.color+'55';
-  bf.style.boxShadow=`0 0 ${R==='MYTHIQUE'?28:R==='RARE'?18:10}px ${conf.color}${R==='COMMUNE'?'18':R==='PEU COMMMUNE'?'22':'30'},inset 0 0 30px #ffffff08`;
+  bf.style.borderColor='var(--gold-subtle)';
+  bf.style.boxShadow='inset 0 0 30px #ffffff08';
   // Particle layer — very few, very faint
   const pLayer=document.createElement('div');pLayer.className='flip-particles';
   for(let i=0;i<conf.count;i++){
@@ -2324,6 +2326,8 @@ function showCard(card){
   const rc=document.getElementById('revealedCard');
   rc.setAttribute('data-rarity',R);
   rc.className='card';
+  const cBotExt=document.getElementById('cBottomExternal');
+  if(cBotExt) cBotExt.setAttribute('data-rarity',R);
   fillCard({id:'cId',name:'cName',char:'cChar',emoji:'cEmoji',type:'cType',hp:'cHp',hpBadge:'cHpBadge',stars:'cStars',rarity:'cRarity',stats:'cStats',effect:'cEffect'},card);
   spawnCardFx('cFxLayer',R);
   wrap.classList.add('active');
@@ -2354,6 +2358,8 @@ function showFullscreen(card){
   const fsBg=document.getElementById('fsBg');
   fc.setAttribute('data-rarity',R);
   fc.className='fullscreen-card';
+  const fsBotExt=document.getElementById('fsBottomExternal');
+  if(fsBotExt) fsBotExt.setAttribute('data-rarity',R);
   document.getElementById('fsScanlines') && (document.getElementById('fsScanlines').style.display='none');
   fillCard({id:'fsId',name:'fsName',char:'fsChar',emoji:'fsEmoji',type:'fsType',hp:'fsHp',hpBadge:'fsHpBadge',stars:'fsStars',rarity:'fsRarity',stats:'fsStats',effect:'fsEffect'},card);
   spawnCardFx('fsFxLayer',R);
