@@ -1807,11 +1807,12 @@ function renderTabBoosters(th){
     return `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:visible;">
       ${shimmer}
       <img src="${bMeta.src}" class="booster-img open-booster" data-bid="${bid}"
+        draggable="false" ondragstart="return false;"
         style="width:95%;height:95%;object-fit:contain;display:block;position:relative;z-index:1;
                filter:${glow};
                transition:transform .35s cubic-bezier(.34,1.56,.64,1),filter .25s;
                animation:${bIsOpen?'shakePack .4s ease':'legendTremble 2.4s ease-in-out infinite, floatPack 2.2s ease-in-out infinite'};
-               cursor:pointer;"/>
+               cursor:pointer;user-select:none;-webkit-user-drag:none;"/>
     </div>`;
   }
 
@@ -1853,7 +1854,8 @@ function renderTabBoosters(th){
             ? boosterInner(bx.id, mx, bxIsOpen)
             : `<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:visible;">
                 <img src="${mx.src}" class="booster-img-side"
-                  style="width:95%;height:95%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;pointer-events:none;"/>
+                  draggable="false" ondragstart="return false;"
+                  style="width:95%;height:95%;object-fit:contain;display:block;position:relative;z-index:1;cursor:pointer;pointer-events:none;user-select:none;-webkit-user-drag:none;"/>
                </div>`;
           return `
           <div class="booster-carousel-item" data-cidx="${ix}"
