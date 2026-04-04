@@ -3599,19 +3599,27 @@ function bindGame(){
     boosterWrap.appendChild(glowCanvas);
     const glowCtx = glowCanvas.getContext('2d');
 
-    // Dessine la lueur centrée sur (rx, ry) en coordonnées relatives au PNG
+    // Dessine un trait de déchirure lumineux — ellipse fine et allongée horizontalement
     function drawTearGlow(rx, ry) {
       glowCtx.clearRect(0, 0, targetW, targetH);
-      // Gradient radial autour du point de contact
-      const gSize = targetW * 0.55;
-      const grad = glowCtx.createRadialGradient(rx, ry, 0, rx, ry, gSize);
-      grad.addColorStop(0,   'rgba(255,255,255,0.72)');
-      grad.addColorStop(0.18,'rgba(255,255,255,0.40)');
-      grad.addColorStop(0.38, color + 'a0');
-      grad.addColorStop(0.65, color + '30');
-      grad.addColorStop(1,   'rgba(0,0,0,0)');
+      // Dimensions : large horizontalement, très fine verticalement
+      const ellipseW = targetW * 0.52;  // demi-axe horizontal
+      const ellipseH = targetH * 0.028; // demi-axe vertical (trait fin)
+      glowCtx.save();
+      glowCtx.translate(rx, ry);
+      // Étirer l'espace pour dessiner un gradient radial circulaire puis l'aplatir
+      glowCtx.scale(1, ellipseH / ellipseW);
+      const grad = glowCtx.createRadialGradient(0, 0, 0, 0, 0, ellipseW);
+      grad.addColorStop(0,    'rgba(255,255,255,0.92)');
+      grad.addColorStop(0.12, 'rgba(255,255,255,0.60)');
+      grad.addColorStop(0.30, color + 'cc');
+      grad.addColorStop(0.60, color + '44');
+      grad.addColorStop(1,    'rgba(0,0,0,0)');
       glowCtx.fillStyle = grad;
-      glowCtx.fillRect(0, 0, targetW, targetH);
+      glowCtx.beginPath();
+      glowCtx.arc(0, 0, ellipseW, 0, Math.PI * 2);
+      glowCtx.fill();
+      glowCtx.restore();
     }
 
     // Convertit position écran → coordonnées relatives au PNG
