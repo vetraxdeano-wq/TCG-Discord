@@ -3511,7 +3511,7 @@ function bindGame(){
     // ── Overlay principal ──
     const overlay = document.createElement('div');
     overlay.id = 'booster-focus-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;animation:bgBlurIn .38s ease both;backdrop-filter:blur(16px);background:rgba(4,8,18,.90);';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;animation:bgBlurIn .38s ease both;backdrop-filter:blur(16px);background:rgba(4,8,18,.90);user-select:none;';
 
     // Aura de fond spécifique au tier
     const aura = document.createElement('div');
@@ -3528,9 +3528,11 @@ function bindGame(){
 
     const boosterImg = document.createElement('img');
     boosterImg.src = imgSrc;
+    boosterImg.draggable = false;
+    boosterImg.addEventListener('dragstart', e => e.preventDefault());
     boosterImg.style.cssText = `width:100%;height:100%;object-fit:contain;display:block;`
       +`filter:drop-shadow(0 0 ${tier===3?'38px':'24px'} ${color}${tier===3?'b0':'80'}) drop-shadow(0 16px 44px rgba(0,0,0,.75));`
-      +`animation:${tierCfg.idleAnim};`;
+      +`animation:${tierCfg.idleAnim};user-select:none;-webkit-user-drag:none;`;
 
     // Ligne de couture
     const seamLine = document.createElement('div');
@@ -3672,7 +3674,7 @@ function bindGame(){
       doTear();
     }, {once:true});
 
-    // Glisser horizontalement sur la zone haute du booster PNG → déchirer
+    // Glisser horizontalement sur la zone haute du booster PNG → déchirer (touch)
     let _tearX0=null, _tearY0=null, _tearInZone=false;
     overlay.addEventListener('touchstart', e=>{
       const t = e.touches[0];
@@ -3689,6 +3691,33 @@ function bindGame(){
       _tearX0=null; _tearY0=null;
       if(_tearInZone && dx>20 && dx>dy*1.1) doTear();
     }, {passive:true});
+
+    // Glisser horizontalement sur la zone haute du booster PNG → déchirer (souris PC)
+    let _mX0=null, _mY0=null, _mInZone=false, _mDragging=false;
+    overlay.addEventListener('mousedown', e=>{
+      e.preventDefault(); // bloque le drag navigateur
+      _mX0 = e.clientX; _mY0 = e.clientY; _mDragging = true;
+      const seamBottom = targetY + targetH * .35;
+      _mInZone = e.clientY >= targetY && e.clientY <= seamBottom
+              && e.clientX >= targetX && e.clientX <= targetX + targetW;
+      overlay.style.cursor = 'grabbing';
+    });
+    overlay.addEventListener('mousemove', e=>{
+      if(!_mDragging || _mX0===null) return;
+      const dx = Math.abs(e.clientX - _mX0);
+      const dy = Math.abs(e.clientY - _mY0);
+      // Déclencher dès 30px de glissement horizontal sur la zone couture
+      if(_mInZone && dx > 30 && dx > dy * 1.1) {
+        _mX0=null; _mDragging=false;
+        overlay.style.cursor = 'default';
+        doTear();
+      }
+    });
+    overlay.addEventListener('mouseup', e=>{
+      _mX0=null; _mY0=null; _mDragging=false;
+      overlay.style.cursor = 'default';
+    });
+    overlay.addEventListener('mouseleave', ()=>{ _mDragging=false; _mX0=null; overlay.style.cursor='default'; });
   }
 
   // ── Handler boutons open-booster ──
