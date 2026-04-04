@@ -179,13 +179,38 @@ body.mob .hcard{height:calc(13*var(--dvh));min-height:66px;max-height:92px}
 .tuto-hl{position:fixed;z-index:302;border-radius:10px;pointer-events:none;box-shadow:0 0 0 2px var(--gold),0 0 22px rgba(240,192,64,.38),0 0 44px rgba(240,192,64,.14)}
 body.mob .tuto-hl{border-radius:8px}
 
-/* END */
-#ov-end{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
-#ov-end.active{display:flex}
-.ov-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(1.8rem,6vw,2.8rem);letter-spacing:.1em;text-transform:uppercase}
-.ov-title.win{color:var(--gold);text-shadow:0 0 40px rgba(240,192,64,.4)}
-.ov-sub{font-size:.86rem;color:var(--sub);text-align:center;max-width:300px;line-height:1.5}
-.ov-reward{font-family:'Cinzel',serif;font-size:1.05rem;font-weight:700;color:var(--gold);letter-spacing:.06em;text-align:center;padding:8px 20px;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);border-radius:8px}
+/* END OVERLAY */
+#ov-end{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(3px)}
+#ov-end.active{display:flex;animation:fadeIn .5s ease both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.ov-end-inner{
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  background:linear-gradient(160deg,#0e0e18 0%,#161626 100%);
+  border:1px solid rgba(240,192,64,.3);border-radius:24px;
+  box-shadow:0 0 100px rgba(240,192,64,.12),0 30px 80px rgba(0,0,0,.9);
+  width:clamp(340px,72vw,580px);overflow:hidden;
+  animation:slideUp .55s cubic-bezier(.34,1.56,.64,1) both
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(28px) scale(.93)}to{opacity:1;transform:none}}
+.ov-hero-band{
+  width:100%;padding:36px 40px 28px;text-align:center;
+  background:linear-gradient(180deg,rgba(240,192,64,.08) 0%,transparent 100%);
+  border-bottom:1px solid rgba(240,192,64,.12)
+}
+.ov-trophy{font-size:3.2rem;display:block;margin-bottom:10px;animation:trophyBounce .7s cubic-bezier(.34,1.56,.64,1) .3s both}
+@keyframes trophyBounce{from{opacity:0;transform:scale(.4) rotate(-15deg)}to{opacity:1;transform:none}}
+.ov-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(2rem,5vw,2.8rem);letter-spacing:.16em;text-transform:uppercase;color:var(--gold);text-shadow:0 0 40px rgba(240,192,64,.5);white-space:nowrap}
+.ov-tagline{font-size:.85rem;color:var(--sub);margin-top:8px;white-space:nowrap}
+.ov-body{width:100%;padding:24px 40px 32px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.ov-sub{font-size:.9rem;color:var(--txt);text-align:center;white-space:nowrap;opacity:.85}
+.ov-divider{width:100%;height:1px;background:rgba(255,255,255,.06)}
+.ov-reward{
+  display:flex;align-items:center;gap:10px;
+  font-family:'Cinzel',serif;font-size:1rem;font-weight:700;
+  color:var(--gold);letter-spacing:.06em;white-space:nowrap;
+  padding:12px 24px;background:rgba(240,192,64,.08);
+  border:1px solid rgba(240,192,64,.3);border-radius:10px
+}
 .ov-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 
 /* SPELL ANNOUNCE */
@@ -196,7 +221,7 @@ body.mob .tuto-hl{border-radius:8px}
 .sa-desc{font-size:.76rem;color:var(--sub)}
 
 /* COMBAT */
-.comic-bubble{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;animation:koSplash 2.6s cubic-bezier(.2,0,.8,1) both}
+.comic-bubble{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;animation:koSplash 2.6s cubic-bezier(.2,0,.8,1) both;width:100%;display:flex;align-items:center;justify-content:center}
 .fc-atk-r{animation:atkRight .85s cubic-bezier(.2,0,.8,1) both !important}
 .fc-atk-l{animation:atkLeft .85s cubic-bezier(.2,0,.8,1) both !important}
 .fc-hit{animation:hitShake .5s cubic-bezier(.2,0,.8,1) both !important}
@@ -336,11 +361,20 @@ body.mob .tuto-hl{border-radius:8px}
 </div>
 
 <div id="ov-end">
-  <div id="ov-title" class="ov-title win">VICTOIRE !</div>
-  <div id="ov-sub" class="ov-sub"></div>
-  <div id="ov-reward" class="ov-reward"></div>
-  <div class="ov-btns">
-    <button class="btn" onclick="goMenu()">← Menu</button>
+  <div class="ov-end-inner">
+    <div class="ov-hero-band">
+      <span class="ov-trophy">🏆</span>
+      <div id="ov-title" class="ov-title">VICTOIRE !</div>
+      <div id="ov-tagline" class="ov-tagline"></div>
+    </div>
+    <div class="ov-body">
+      <div id="ov-sub" class="ov-sub"></div>
+      <div class="ov-divider"></div>
+      <div id="ov-reward" class="ov-reward"></div>
+      <div class="ov-btns">
+        <button class="btn" onclick="goMenu()">← Retour au menu</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -539,7 +573,7 @@ function renderHand() {
 
 function renderActions() {
   document.getElementById('btn-atk').disabled = G.phase!=='attack';
-  document.getElementById('btn-pass').disabled = !(G.phase==='sort' && !G.human.sortJoue);
+  document.getElementById('btn-pass').disabled = true; // tuto : on ne passe jamais, on doit jouer le sort
   const bar=document.getElementById('instr-bar'), txt=document.getElementById('instr-txt');
   const wt=document.getElementById('wt'), wtTxt=document.getElementById('wt-txt');
   if(G.phase==='choose_fighter'){
@@ -652,11 +686,13 @@ function endTurn() {
 }
 
 function endGame() {
-  G.phase='done'; hideTuto();
-  document.getElementById('ov-title').textContent='VICTOIRE !';
-  document.getElementById('ov-title').className='ov-title win';
-  document.getElementById('ov-sub').textContent='Bravo ! Tu maîtrises les bases en 2 tours. Héro, sort, attaque : tu sais tout !';
-  document.getElementById('ov-reward').textContent='🪙 +150 coins — Tutoriel réussi !';
+  G.phase='done';
+  hideTuto();
+  if(G.bot.fighter){ G.bot.fighter.hpCur=0; }
+  renderSide('b',G.bot);
+  document.getElementById('ov-tagline').textContent='Tutoriel terminé en 2 tours';
+  document.getElementById('ov-sub').textContent='Héro, sort, attaque — tu maîtrises les bases !';
+  document.getElementById('ov-reward').innerHTML='🪙 &nbsp;+150 coins débloqués';
   document.getElementById('ov-end').classList.add('active');
 }
 
@@ -680,14 +716,42 @@ function doAttack(atkId,defId,dmg,missed) {
   });
 }
 
+const DMG_IMGS = [
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/0.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8wLnBuZyIsImlhdCI6MTc3NTI5MTQyMSwiZXhwIjoyMDkwNjUxNDIxfQ.XMTQmPmfHfJCVYz_tM-TRYrh5O_VaOrJ_29XNd94nuE',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xLnBuZyIsImlhdCI6MTc3NTI5MTQzMywiZXhwIjoyMDkwNjUxNDMzfQ.R3Gp-A2rb9E1ciUqzAlunQI-LRIkI1C7WWIvieQLRcU',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/2.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8yLnBuZyIsImlhdCI6MTc3NTI5MTQ1MiwiZXhwIjoyMDkwNjUxNDUyfQ.OFjvIBXnPTBcw42Lpw_xnIuZ1r-p-m_o2xmjfXViB5s',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/3.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8zLnBuZyIsImlhdCI6MTc3NTI5MTQ3NiwiZXhwIjoyMDkwNjUxNDc2fQ.G8k6-8qzvH2vqZFacAnLOY_yfPAfhfM2HzX8WJVvGbU',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/4.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS80LnBuZyIsImlhdCI6MTc3NTI5MTQ4NSwiZXhwIjoyMDkwNjUxNDg1fQ.xgTFbwv6vRYdT3lFqGb9AdQVKWOfTaZiImMbL8IleqQ',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/5.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS81LnBuZyIsImlhdCI6MTc3NTI5MTQ5OSwiZXhwIjoyMDkwNjUxNDk5fQ.AjjVVTH_bJgvFXBkZWf25-CwcdnzmrB_Gl--ArQYhGA',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/6.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS82LnBuZyIsImlhdCI6MTc3NTI5MTUxMCwiZXhwIjoyMDkwNjUxNTEwfQ.yiMIdtUTczIDWGnZrBN0oDnrWtaP-dg_MfLu4PJbIvw',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/7.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS83LnBuZyIsImlhdCI6MTc3NTI5MTUyMCwiZXhwIjoyMDkwNjUxNTIwfQ.cgx2xg_MKCBpYxGn6t779k03E1n0lF1vjkTZkIza_2U',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/8.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS84LnBuZyIsImlhdCI6MTc3NTI5MTUzMCwiZXhwIjoyMDkwNjUxNTMwfQ.t6AUo-WkD6q4Zy5GkkgYTRCH3I74Fz6cmVSa-hK9e5k',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/9.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS85LnBuZyIsImlhdCI6MTc3NTI5MTUzOSwiZXhwIjoyMDkwNjUxNTM5fQ.4NOdRe6DVuE2XL-z13GrGmyzAq7-ugQD-ONXLBrbB-8',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/10.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xMC5wbmciLCJpYXQiOjE3NzUyOTE1NTEsImV4cCI6MjA5MDY1MTU1MX0.oorZ9C0BP7IGWMKLITe_SKt13EouHRA6BUJ3HeqPSKs',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/11.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xMS5wbmciLCJpYXQiOjE3NzUyOTE1NjEsImV4cCI6MjA5MDY1MTU2MX0.mmK5XvimP6wx2jIgwOGs5XQ9rNeJPI_l_XrRdSW4bqM',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/12.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xMi5wbmciLCJpYXQiOjE3NzUyOTE1NzgsImV4cCI6MjA5MDY1MTU3OH0.DGrpGfD6v9yv-pVCtFMTgbO6JoGWmmrzBUrzmix6QLU',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/13.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xMy5wbmciLCJpYXQiOjE3NzUyOTE1OTEsImV4cCI6MjA5MDY1MTU5MX0.82qoABbDYGUV6lQ2jy7fj7QJlwbeRKV4IQhVFb7tbGs',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/14.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xNC5wbmciLCJpYXQiOjE3NzUyOTE2MDAsImV4cCI6MjA5MDY1MTYwMH0.0ZrHHl6TuSyngdcj0w3gnp-1lXKbixsTJ3zXz4W3338',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/15.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xNS5wbmciLCJpYXQiOjE3NzUyOTE2MDgsImV4cCI6MjA5MDY1MTYwOH0.UrXsACemCH4ZFEjVGV94JKdHthgPJXnzCyYpMQI0cgM',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/16.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xNi5wbmciLCJpYXQiOjE3NzUyOTE2MTYsImV4cCI6MjA5MDY1MTYxNn0.lnO1CIDeMtorBo-AEsmI_I074VW3lV5-Bn_w14iTNVA',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/17.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xNy5wbmciLCJpYXQiOjE3NzUyOTE2MjQsImV4cCI6MjA5MDY1MTYyNH0.zKA0znCpQBCFkpYmfeTaZinZChl5qsIP53z5JrywtGw',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/18.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xOC5wbmciLCJpYXQiOjE3NzUyOTE2MzMsImV4cCI6MjA5MDY1MTYzM30.OA-1bLkoDy_4Gox6P9xGB0c2b51C4YH108qpSgbXhFY',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/19.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xOS5wbmciLCJpYXQiOjE3NzUyOTE2NDAsImV4cCI6MjA5MDY1MTY0MH0.nWaWAnMFzvkFq1QyEvmAqpMbDZZkGyCDqN8sEt-gm_A',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/20.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8yMC5wbmciLCJpYXQiOjE3NzUyOTE2NTUsImV4cCI6MjA5MDY1MTY1NX0.WxeumhpwDFGmlX0YiaxMVy2i1B05iBeP7Tma0l5ESzs',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/21.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8yMS5wbmciLCJpYXQiOjE3NzUyOTE2NjQsImV4cCI6MjA5MDY1MTY2NH0.sol6DoJYDKlRH8tgflRnXHuuSpAzJ4eHdSYZLKN6se8',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/22.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8yMi5wbmciLCJpYXQiOjE3NzUyOTE2NzQsImV4cCI6MjA5MDY1MTY3NH0.xncUpgTP6lpadedNbaoGsS05Qtq03QEdXG0DyXnjjKs',
+  'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/23.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8yMy5wbmciLCJpYXQiOjE3NzUyOTE2ODMsImV4cCI6MjA5MDY1MTY4M30.8pcD98XPkd5OFcOcmeYYaOaUhPxxe43L4xgOJO967Vc',
+];
+const IMG_KO   = 'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/KO.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS9LTy5wbmciLCJpYXQiOjE3NzUyOTE2OTEsImV4cCI6MjA5MDY1MTY5MX0.li9dPYPqdXpaZsjpPexQqudjqhvkiMl_fCC8gZ7F7-o';
+const IMG_RATE = 'https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/rate.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS9yYXRlLnBuZyIsImlhdCI6MTc3NTI5MTcyMiwiZXhwIjoyMDkwNjUxNzIyfQ.5ZYOYKYQq2keSZIJh_6Qh9PtSMXvLk_m68X72TUhat4';
+
 function showBubble(id,dmg,missed) {
   const fc=document.getElementById(`${id}-fc`); if(!fc) return;
   fc.querySelectorAll('.comic-bubble').forEach(e=>e.remove());
+  const src = missed ? IMG_RATE : DMG_IMGS[Math.min(dmg, DMG_IMGS.length-1)];
   const wrap=document.createElement('div'); wrap.className='comic-bubble';
-  const col=missed?'#22cc44':'#ff2244';
-  const lbl=missed?'RATÉ !!!':'-'+dmg+' HP !';
-  wrap.innerHTML=`<div style="font-family:'Bangers',cursive;font-size:${missed?'26px':'32px'};color:${col};text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000;padding:7px 12px;background:rgba(0,0,0,.55);border:3px solid ${col};border-radius:10px;transform:rotate(-4deg);display:inline-block;white-space:nowrap">${lbl}</div>`;
-  fc.appendChild(wrap); setTimeout(()=>wrap.remove(),2900);
+  wrap.innerHTML=`<img src="${src}" alt="${missed?'Raté':'-'+dmg+' HP'}" style="width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.9));pointer-events:none;display:block">`;
+  fc.appendChild(wrap); setTimeout(()=>wrap.remove(),2600);
 }
 
 function updateHeart(id,hp,hpMax) {
@@ -745,7 +809,7 @@ const STEPS = [
 
   // 2 — PV
   { icon:'❤️', pos:'center', btn:'Compris !',
-    msg:`Les <strong>cœurs en haut</strong> = tes <strong>10 PV joueur</strong>. Ils ne bougent que si ton combattant est mis KO.\n\nLa barre sur la carte = les HP du combattant. Ce sont deux choses distinctes !` },
+    msg:`Deux types de points de vie à bien distinguer :\n\n❤️ <strong>Les cœurs en haut</strong> (toi et le bot) = <strong>10 PV joueur</strong>. Ils ne bougent que si ton combattant est mis KO — son HP tombe à 0 et tu perds ses HP de base en PV.\n\n<em>La barre sur la carte</em> = les <strong>HP du combattant</strong> uniquement. Ce sont deux compteurs totalement séparés !` },
 
   // 3 — ACTION : jouer son héro
   { icon:'⚡', pos:'bottom', hl:'hcards', hint:'Joue la carte combattant 👇',
@@ -808,7 +872,7 @@ const STEPS = [
   { icon:'⚔️', pos:'top', hl:'btn-atk', hint:'Clique ⚔ Attaquer',
     msg:`Sam est à ⚔<strong>9</strong>. Maxy n'a que 5 HP. <strong>Un seul coup suffit.</strong>\n\nAttaque pour conclure !`,
     wait:'attack_done_t2',
-    onDone: () => { setTimeout(()=>endGame(), 600); } },
+    onDone: () => { setTimeout(()=>endGame(), 2200); } },
 ];
 
 const MILESTONES = [0, 3, 6, 8, 11, 13];
