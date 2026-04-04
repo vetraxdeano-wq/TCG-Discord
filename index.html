@@ -2005,23 +2005,24 @@ function renderTabBoosters(th){
         70%{transform:rotate(-1.5deg) scale(.996);}
         85%{transform:rotate(2deg) scale(1.006);}
       }
-      @keyframes tearTopLeft{
-        0%  {transform:rotateX(0deg) translateX(0);opacity:1;}
-        20% {transform:rotateX(-18deg) translateX(-4%) scaleY(.97);opacity:1;}
-        55% {transform:rotateX(-82deg) translateX(-18%) scaleY(.9);opacity:.92;}
-        100%{transform:rotateX(-125deg) translateX(-38%) scaleY(.8) translateY(-10%);opacity:0;}
+      /* Flap haut : se replie vers l'arrière et monte */
+      @keyframes flapUp{
+        0%  {transform:rotateX(0deg) translateY(0);opacity:1;}
+        25% {transform:rotateX(-35deg) translateY(-4%);opacity:1;}
+        60% {transform:rotateX(-95deg) translateY(-12%);opacity:.85;}
+        100%{transform:rotateX(-145deg) translateY(-22%);opacity:0;}
       }
-      @keyframes tearTopRight{
-        0%  {transform:rotateX(0deg) translateX(0);opacity:1;}
-        20% {transform:rotateX(-18deg) translateX(4%) scaleY(.97);opacity:1;}
-        55% {transform:rotateX(-82deg) translateX(18%) scaleY(.9);opacity:.92;}
-        100%{transform:rotateX(-125deg) translateX(38%) scaleY(.8) translateY(-10%);opacity:0;}
+      /* Corps du booster : glisse doucement vers le bas */
+      @keyframes tearBodyDrop{
+        0%   {transform:translateY(0) scaleX(1);opacity:1;}
+        20%  {transform:translateY(0) scaleX(1);opacity:1;}
+        65%  {transform:translateY(8%) scaleX(.98);opacity:.9;}
+        100% {transform:translateY(26%) scaleX(.96);opacity:0;}
       }
-      @keyframes tearBottomSlide{
-        0%  {transform:translateY(0);opacity:1;}
-        30% {transform:translateY(0);opacity:1;}
-        70% {transform:translateY(6%) scale(.98);opacity:.95;}
-        100%{transform:translateY(22%) scale(.96);opacity:0;}
+      /* Ligne de déchirure : trait SVG qui se trace de gauche à droite */
+      @keyframes tearLineGrow{
+        0%  {stroke-dashoffset:var(--tear-len);}
+        100%{stroke-dashoffset:0;}
       }
       @keyframes tearLinePulse{
         0%,100%{opacity:.35;transform:scaleX(.3);}
@@ -3672,90 +3673,172 @@ function bindGame(){
         // Son de déchirure
         playTearSound(tier);
 
-        // Masquer la lueur avant les flaps (le booster disparaît)
+        const bW = targetW, bH = targetH;
+        const bX = targetX, bY = targetY;
+        // Hauteur du flap haut (~20% du booster)
+        const flapH = Math.round(bH * .20);
+        // Y de la couture en coordonnées écran
+        const seamY = bY + flapH;
+
+        // Durée totale de la phase déchirure selon le tier (ms)
+        const tearDurMs = tier===3 ? 900 : tier===2 ? 680 : 520;
+        // Délai avant que le corps commence à tomber (après la déchirure)
+        const bodyDelayMs = Math.round(tearDurMs * 0.55);
+
+        // ── Étape 1 : Trait de déchirure SVG progressif ──────────────────
+        // Profil irrégulier de la déchirure (zigzag sur la couture)
+        // Points exprimés en % de bW, départ centre vers bords
+        const tearPts = [
+          [50, 0], [46, flapH*.30], [53, flapH*.55], [47, flapH*.80],
+          [52, flapH*.95], [48, flapH*.70], [44, flapH*.45], [38, flapH*.25],
+          [33, flapH*.60], [27, flapH*.35], [20, flapH*.55], [13, flapH*.20],
+          [7,  flapH*.45], [2,  flapH*.15], [0,  flapH*.30],
+        ];
+        // Miroir côté droit
+        const tearPtsR = [
+          [50, 0], [54, flapH*.30], [47, flapH*.55], [53, flapH*.80],
+          [48, flapH*.95], [52, flapH*.70], [56, flapH*.45], [62, flapH*.25],
+          [67, flapH*.60], [73, flapH*.35], [80, flapH*.55], [87, flapH*.20],
+          [93, flapH*.45], [98, flapH*.15], [100, flapH*.30],
+        ];
+        const allPts = [...tearPts.slice(1).reverse(), ...tearPtsR];
+
+        // Construire le polyline path SVG
+        function ptsToPath(pts) {
+          return pts.map((p,i)=>`${i===0?'M':'L'}${(p[0]/100*bW).toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+        }
+        const linePath = ptsToPath(allPts);
+
+        // Calculer la longueur approximative du chemin (somme des segments)
+        function pathLen(pts) {
+          let len = 0;
+          for(let i=1;i<pts.length;i++){
+            const dx=(pts[i][0]-pts[i-1][0])/100*bW;
+            const dy=pts[i][1]-pts[i-1][1];
+            len+=Math.sqrt(dx*dx+dy*dy);
+          }
+          return len;
+        }
+        const tearLen = Math.round(pathLen(allPts));
+
+        const tearSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        tearSvg.setAttribute('width', bW);
+        tearSvg.setAttribute('height', flapH + 4);
+        tearSvg.style.cssText = `position:absolute;left:${bX}px;top:${seamY - flapH}px;pointer-events:none;overflow:visible;`;
+
+        // Trait blanc principal
+        const tearLine = document.createElementNS('http://www.w3.org/2000/svg','path');
+        tearLine.setAttribute('d', linePath);
+        tearLine.setAttribute('fill','none');
+        tearLine.setAttribute('stroke','rgba(255,255,255,0.92)');
+        tearLine.setAttribute('stroke-width','2.2');
+        tearLine.setAttribute('stroke-linecap','round');
+        tearLine.setAttribute('stroke-linejoin','round');
+        tearLine.style.cssText = `stroke-dasharray:${tearLen};stroke-dashoffset:${tearLen};`
+          +`animation:tearLineGrow ${(tearDurMs/1000).toFixed(2)}s cubic-bezier(.4,0,.6,1) both;`
+          +`--tear-len:${tearLen};`;
+
+        // Lueur colorée derrière
+        const tearGlow = document.createElementNS('http://www.w3.org/2000/svg','path');
+        tearGlow.setAttribute('d', linePath);
+        tearGlow.setAttribute('fill','none');
+        tearGlow.setAttribute('stroke', color);
+        tearGlow.setAttribute('stroke-width','8');
+        tearGlow.setAttribute('stroke-linecap','round');
+        tearGlow.setAttribute('stroke-linejoin','round');
+        tearGlow.setAttribute('opacity','0.55');
+        tearGlow.style.cssText = `stroke-dasharray:${tearLen};stroke-dashoffset:${tearLen};`
+          +`filter:blur(3px);`
+          +`animation:tearLineGrow ${(tearDurMs/1000).toFixed(2)}s cubic-bezier(.4,0,.6,1) both;`
+          +`--tear-len:${tearLen};`;
+
+        tearSvg.appendChild(tearGlow);
+        tearSvg.appendChild(tearLine);
+        overlay.appendChild(tearSvg);
+
+        // Son au démarrage du tracé
+        playTearSound(tier);
         glowCanvas.style.opacity = '0';
-        boosterImg.style.opacity = '0';
         seamLine.style.display = 'none';
         hint.style.display = 'none';
         tapHint.style.display = 'none';
         aura.style.display = 'none';
 
-        const bW = targetW, bH = targetH;
-        const bX = targetX, bY = targetY;
-        const flapH = Math.round(bH * .22);
+        // ── Étape 2 : Flap haut qui se replie + corps qui tombe (après délai) ──
+        setTimeout(()=>{
+          boosterImg.style.opacity = '0';
 
-        const tearProfileL = `polygon(0% 0%, 50% 0%, 54% ${flapH*.35}px, 48% ${flapH*.6}px, 52% ${flapH*.85}px, 47% ${flapH}px, 0% ${flapH}px)`;
-        const tearProfileR = `polygon(50% 0%, 100% 0%, 100% ${flapH}px, 53% ${flapH}px, 48% ${flapH*.85}px, 52% ${flapH*.6}px, 46% ${flapH*.35}px)`;
-        const bodyClip     = `polygon(0% ${flapH}px, 47% ${flapH}px, 52% ${flapH*.85}px, 48% ${flapH*.6}px, 54% ${flapH*.35}px, 50% 0%, 100% 0%, 100% 100%, 0% 100%)`;
+          // Flap = partie haute du booster, clip au-dessus de la couture
+          const flapClip = `polygon(0% 0%, 100% 0%, 100% ${flapH}px, 0% ${flapH}px)`;
+          const bodyClip = `polygon(0% ${flapH}px, 100% ${flapH}px, 100% 100%, 0% 100%)`;
 
-        function makeFlap(side) {
-          const f = document.createElement('div');
-          f.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
-            +`clip-path:${side==='left'?tearProfileL:tearProfileR};`
-            +`transform-origin:${side==='left'?'left':'right'} top;`
-            +`animation:${side==='left'?'tearTopLeft':'tearTopRight'} ${tierCfg.flapSpeed} cubic-bezier(.4,0,.2,1) .04s both;`
-            +`pointer-events:none;`;
+          // Flap haut qui se replie vers l'arrière
+          const flap = document.createElement('div');
+          flap.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
+            +`clip-path:${flapClip};`
+            +`transform-origin:center ${flapH}px;`
+            +`animation:flapUp ${tierCfg.flapSpeed} cubic-bezier(.4,0,.2,1) both;`
+            +`pointer-events:none;perspective:600px;`;
           const fi = document.createElement('img');
           fi.src = imgSrc;
           fi.style.cssText = `position:absolute;left:0;top:0;width:${bW}px;height:${bH}px;object-fit:contain;`;
-          f.appendChild(fi);
-          return f;
-        }
+          flap.appendChild(fi);
 
-        const body = document.createElement('div');
-        body.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
-          +`clip-path:${bodyClip};transform-origin:center bottom;`
-          +`animation:tearBottomSlide ${tierCfg.bottomSpeed} cubic-bezier(.4,0,.2,1) .04s both;pointer-events:none;`;
-        const bi = document.createElement('img');
-        bi.src = imgSrc;
-        bi.style.cssText = `position:absolute;left:0;top:0;width:${bW}px;height:${bH}px;object-fit:contain;`;
-        body.appendChild(bi);
+          // Corps du booster qui tombe
+          const body = document.createElement('div');
+          body.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;`
+            +`clip-path:${bodyClip};transform-origin:center bottom;`
+            +`animation:tearBodyDrop ${tierCfg.bottomSpeed} cubic-bezier(.4,0,.2,1) both;pointer-events:none;`;
+          const bi = document.createElement('img');
+          bi.src = imgSrc;
+          bi.style.cssText = `position:absolute;left:0;top:0;width:${bW}px;height:${bH}px;object-fit:contain;`;
+          body.appendChild(bi);
 
-        const snap = document.createElement('div');
-        snap.style.cssText = `position:absolute;left:${bX+bW*.2}px;top:${bY+flapH*.2}px;`
-          +`width:${bW*.6}px;height:${flapH}px;`
-          +`background:radial-gradient(ellipse at 50% 50%,rgba(255,255,255,${tier===3?.98:.85}) 0%,${color}55 40%,transparent 80%);`
-          +`animation:tearFlash ${tier===3?'.55s':'.38s'} ease both;pointer-events:none;`;
+          // Flash bref sur la couture
+          const snap = document.createElement('div');
+          snap.style.cssText = `position:absolute;left:${bX}px;top:${seamY-4}px;`
+            +`width:${bW}px;height:8px;`
+            +`background:linear-gradient(90deg,transparent,rgba(255,255,255,${tier===3?.9:.7}),${color}cc,rgba(255,255,255,${tier===3?.9:.7}),transparent);`
+            +`animation:tearFlash ${tier===3?'.5s':'.32s'} ease both;pointer-events:none;`;
 
-        // Dos de cartes éparpillées
-        const cardSrc = 'https://i.goopics.net/iic46c.png';
-        const cardCount = 5;
-        const cardW = Math.round(bW * (tier===3?.30:.28));
-        const cardH = Math.round(cardW * 1.4);
-        const cardPositions = [
-          { dx:-bW*.50, dy: bH*.20, rot:-30, delay:.10, scale:.85 },
-          { dx:-bW*.25, dy:-bH*.10, rot:-12, delay:.16, scale:.93 },
-          { dx:-bW*.05, dy: bH*.24, rot:  2, delay:.13, scale:1.0 },
-          { dx: bW*.20, dy:-bH*.06, rot: 14, delay:.19, scale:.91 },
-          { dx: bW*.48, dy: bH*.16, rot: 30, delay:.09, scale:.86 },
-          { dx:-bW*.38, dy: bH*.42, rot:-22, delay:.22, scale:.80 },
-          { dx: bW*.36, dy: bH*.40, rot: 24, delay:.21, scale:.82 },
-        ].slice(0, cardCount);
-        const cxCenter = bX + bW/2;
-        const cyCenter = bY + flapH + cardH * .3;
+          // Dos de cartes éparpillées
+          const cardSrc = 'https://i.goopics.net/iic46c.png';
+          const cardCount = 5;
+          const cardW = Math.round(bW * (tier===3?.30:.28));
+          const cardH = Math.round(cardW * 1.4);
+          const cardPositions = [
+            { dx:-bW*.50, dy: bH*.20, rot:-30, delay:.10, scale:.85 },
+            { dx:-bW*.25, dy:-bH*.10, rot:-12, delay:.16, scale:.93 },
+            { dx:-bW*.05, dy: bH*.24, rot:  2, delay:.13, scale:1.0 },
+            { dx: bW*.20, dy:-bH*.06, rot: 14, delay:.19, scale:.91 },
+            { dx: bW*.48, dy: bH*.16, rot: 30, delay:.09, scale:.86 },
+          ].slice(0, cardCount);
+          const cxCenter = bX + bW/2;
+          const cyCenter = bY + flapH + cardH * .3;
 
-        cardPositions.forEach((c) => {
-          const cd = document.createElement('div');
-          const startT = `translateX(0px) translateY(${-bH*.15}px) rotate(0deg) scale(.25)`;
-          const endT   = `translateX(${c.dx}px) translateY(${c.dy}px) rotate(${c.rot}deg) scale(${c.scale})`;
-          cd.style.cssText = `position:absolute;left:${cxCenter - cardW/2}px;top:${cyCenter - cardH/2}px;`
-            +`width:${cardW}px;height:${cardH}px;`
-            +`--cf-start:${startT};--cf-end:${endT};`
-            +`animation:cardFanOut .55s cubic-bezier(.22,.68,0,1.25) ${c.delay+.3}s both, cardFanFade .9s ease ${c.delay+.85}s both;`
-            +`pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14);`;
-          const ci = document.createElement('img');
-          ci.src = cardSrc;
-          ci.style.cssText = `width:100%;height:100%;object-fit:cover;display:block;`;
-          cd.appendChild(ci);
-          overlay.appendChild(cd);
-        });
+          cardPositions.forEach((c) => {
+            const cd = document.createElement('div');
+            const startT = `translateX(0px) translateY(${-bH*.15}px) rotate(0deg) scale(.25)`;
+            const endT   = `translateX(${c.dx}px) translateY(${c.dy}px) rotate(${c.rot}deg) scale(${c.scale})`;
+            cd.style.cssText = `position:absolute;left:${cxCenter - cardW/2}px;top:${cyCenter - cardH/2}px;`
+              +`width:${cardW}px;height:${cardH}px;`
+              +`--cf-start:${startT};--cf-end:${endT};`
+              +`animation:cardFanOut .55s cubic-bezier(.22,.68,0,1.25) ${c.delay+.3}s both, cardFanFade .9s ease ${c.delay+.85}s both;`
+              +`pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14);`;
+            const ci = document.createElement('img');
+            ci.src = cardSrc;
+            ci.style.cssText = `width:100%;height:100%;object-fit:cover;display:block;`;
+            cd.appendChild(ci);
+            overlay.appendChild(cd);
+          });
 
-        overlay.appendChild(makeFlap('left'));
-        overlay.appendChild(makeFlap('right'));
-        overlay.appendChild(body);
-        overlay.appendChild(snap);
+          overlay.appendChild(flap);
+          overlay.appendChild(body);
+          overlay.appendChild(snap);
 
-        if(navigator.vibrate) navigator.vibrate(tier===3?[0,80,30,50,20,40,15]:[0,60,25,30,15]);
+          if(navigator.vibrate) navigator.vibrate(tier===3?[0,80,30,50,20,40,15]:[0,60,25,30,15]);
+        }, bodyDelayMs);
+
         setTimeout(()=>{ window.location.href = href; }, tierCfg.totalDur);
       }, tierCfg.tensionDur);
     }
