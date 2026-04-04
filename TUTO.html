@@ -6,52 +6,41 @@
 <title>PWL TCG — Tutoriel</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=DM+Sans:wght@400;600;700&family=DM+Mono:wght@500&family=Bangers&display=swap" rel="stylesheet">
 <style>
-/* ══ VARIABLES ══ */
 :root{
   --bg:#08080d;--s1:#0f0f16;--s2:#14141e;--s3:#1c1c2a;
   --bdr:#ffffff0d;--bdr2:#ffffff18;--bdr3:#ffffff26;
   --gold:#f0c040;--gold2:#fde68a;--red:#f04050;--blue:#5b9cf6;
   --grn:#3ecf8e;--pur:#a78bfa;--txt:#eeeef8;--sub:#7777aa;--dim:#44445a;
-  --C:#888;--PC:#3ecf8e;--R:#a78bfa;--M:#f0c040;
   --dvh:1vh;
 }
 @supports(height:1dvh){:root{--dvh:1dvh}}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased}
-
-/* ══ SCREENS ══ */
 .screen{display:none;height:100vh;flex-direction:column;overflow:hidden}
 .screen.active{display:flex}
 
-/* ══ INTRO / DEVICE CHOICE ══ */
+/* INTRO */
 #si{align-items:center;justify-content:center;position:relative;overflow:hidden;background:#07070c}
-#si-bg{position:absolute;inset:0;background:
-  radial-gradient(ellipse 80% 60% at 50% 30%,rgba(90,40,180,.18) 0%,transparent 70%),
-  radial-gradient(ellipse 60% 40% at 20% 80%,rgba(240,192,64,.06) 0%,transparent 60%)}
+#si-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 30%,rgba(90,40,180,.18) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 20% 80%,rgba(240,192,64,.06) 0%,transparent 60%)}
 .si-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:20px;padding:24px;text-align:center;max-width:460px;width:100%}
 .si-logo{font-family:'Cinzel',serif;font-size:clamp(1.5rem,6vw,2.2rem);font-weight:900;color:var(--gold);letter-spacing:.12em}
 .si-badge{font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.14em;color:var(--gold);background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.28);padding:4px 14px;border-radius:20px;text-transform:uppercase}
 .si-sub{font-size:.85rem;color:var(--sub);line-height:1.55;max-width:310px}
-
-/* Choix périphérique */
 .device-choice{display:flex;gap:14px;width:100%;max-width:360px}
 .device-card{flex:1;background:var(--s2);border:2px solid var(--bdr2);border-radius:14px;padding:18px 14px 16px;cursor:pointer;transition:all .22s;display:flex;flex-direction:column;align-items:center;gap:8px}
 .device-card:hover,.device-card.selected{border-color:var(--gold);background:rgba(240,192,64,.06);box-shadow:0 0 24px rgba(240,192,64,.12)}
 .device-card .dc-icon{font-size:2.4rem}
 .device-card .dc-name{font-family:'Cinzel',serif;font-weight:700;font-size:.85rem;color:var(--txt);letter-spacing:.06em}
 .device-card .dc-desc{font-size:.72rem;color:var(--sub);line-height:1.4}
-
 .si-reward{font-size:.74rem;color:var(--dim);display:flex;align-items:center;gap:6px}
 .start-btn{font-family:'Cinzel',serif;font-weight:700;font-size:.88rem;letter-spacing:.16em;text-transform:uppercase;padding:13px 40px;border:1.5px solid rgba(240,192,64,.38);background:rgba(240,192,64,.07);color:var(--gold2);border-radius:9px;cursor:pointer;transition:all .22s;opacity:.4;pointer-events:none}
 .start-btn.ready{opacity:1;pointer-events:auto}
 .start-btn.ready:hover{border-color:var(--gold);color:#fff;box-shadow:0 0 28px rgba(240,192,64,.22)}
 
-/* ══ GAME — PC layout ══ */
+/* GAME */
 #sg{overflow:hidden;display:flex;flex-direction:column}
 body.pc #sg{height:100vh}
 body.mob #sg{height:calc(100*var(--dvh))}
-
-/* Topbar */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:38px;flex-shrink:0;background:var(--s1);border-bottom:1px solid var(--bdr2)}
 .t-title{font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:var(--gold);letter-spacing:.08em}
 .t-badge{font-family:'DM Mono',monospace;font-size:10px;color:var(--sub);background:var(--s3);padding:2px 8px;border-radius:20px;border:1px solid var(--bdr2)}
@@ -64,21 +53,20 @@ body.mob #sg{height:calc(100*var(--dvh))}
 .bt .tdot{background:var(--red);animation:pulse .7s infinite}
 .ww .tdot{background:var(--dim)}
 
-/* ── PC FIELD ── */
+/* PC FIELD */
 body.pc .field{flex:1;min-height:0;display:grid;grid-template-columns:130px 0.8fr 340px 0.8fr 130px;overflow:hidden}
 body.pc .pj{display:flex;flex-direction:column;padding:12px 10px 8px;gap:8px;background:rgba(0,0,0,.15)}
 body.pc .pj-left{border-right:1px solid var(--bdr);align-items:flex-start}
 body.pc .pj-right{border-left:1px solid var(--bdr);align-items:flex-end}
-body.pc .pj-right .pj-name{text-align:right}
 body.pc .card-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 6px 4px;min-height:0;overflow:visible}
-body.pc .cz-human{background:linear-gradient(100deg,rgba(240,192,64,.03),transparent)}
-body.pc .cz-bot{background:linear-gradient(260deg,rgba(240,64,80,.03),transparent)}
+body.pc .cz-human{background:linear-gradient(260deg,rgba(240,192,64,.03),transparent)}
+body.pc .cz-bot{background:linear-gradient(100deg,rgba(240,64,80,.03),transparent)}
 body.pc .centre{display:flex;align-items:stretch;overflow:hidden}
 body.pc .stats-panel{flex:1;display:flex;flex-direction:column;gap:4px;padding:10px 8px;min-width:0}
 body.pc .sp-left{border-right:1px solid var(--bdr)}
 body.pc .arrows{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px;gap:10px;flex-shrink:0;font-size:16px;color:var(--bdr3)}
 
-/* ── MOB FIELD ── */
+/* MOB FIELD */
 body.mob .field{flex:1;min-height:0;display:grid;grid-template-columns:82px 1fr 90px;grid-template-rows:1fr 1.1fr;overflow:hidden}
 body.mob .pj-left{grid-column:1;grid-row:1;display:flex;flex-direction:column;padding:4px 4px 4px 6px;border-right:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2);overflow:hidden;min-width:0}
 body.mob .cz-bot{grid-column:2;grid-row:1;display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;padding:4px 3px;border-bottom:1px solid var(--bdr2);overflow:hidden}
@@ -86,29 +74,25 @@ body.mob .pj-right{grid-column:3;grid-row:1;display:flex;flex-direction:column;a
 body.mob .pj-mob-player{grid-column:1;grid-row:2;display:flex;flex-direction:column;padding:4px 4px 4px 6px;border-right:1px solid var(--bdr2);overflow:hidden;min-width:0}
 body.mob .cz-human{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;padding:4px 3px;overflow:hidden}
 body.mob .mob-hum-right{grid-column:3;grid-row:2;display:flex;flex-direction:column;align-items:center;padding:5px 4px 4px;border-left:1px solid var(--bdr2);gap:2px;overflow:hidden}
-/* Hide PC elements on mob */
 body.mob .centre{display:none}
 body.mob .pj-left .pj-deck{display:none}
 body.mob .pj-right .pj-deck{display:none}
 
-/* field cards */
-.field-card{flex:1;min-height:0;max-height:calc(100% - 24px);aspect-ratio:410/580;width:auto;max-width:83%;border-radius:11px;overflow:visible;position:relative;border:none;animation:cardIn .35s cubic-bezier(.34,1.56,.64,1) both;flex-shrink:1}
-body.mob .cz-human .field-card,
-body.mob .cz-bot .field-card{flex:1;min-height:0;width:100%;height:100%;max-height:none;max-width:none;aspect-ratio:unset;border-radius:8px}
-body.mob .cz-human .fc-img-wrap,
-body.mob .cz-bot .fc-img-wrap{flex:1;min-height:0;border-radius:8px;overflow:hidden}
+/* CARDS */
+.field-card{flex:1;min-height:0;max-height:calc(100% - 24px);aspect-ratio:410/580;width:auto;max-width:83%;border-radius:11px;overflow:visible;position:relative;border:none;flex-shrink:1}
+body.mob .cz-human .field-card,body.mob .cz-bot .field-card{flex:1;min-height:0;width:100%;height:100%;max-height:none;max-width:none;aspect-ratio:unset;border-radius:8px}
+body.mob .cz-human .fc-img-wrap,body.mob .cz-bot .fc-img-wrap{flex:1;min-height:0;border-radius:8px;overflow:hidden}
 .fc-img-wrap{width:100%;height:100%;border-radius:11px;overflow:hidden;position:relative}
 .fc-ph{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--s3);border-radius:11px}
 body.mob .fc-ph{border-radius:8px}
 .fc-ph .icon{font-size:32px;opacity:.2}
 .fc-ph .lbl{font-size:8px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
 .fc-hprow{display:flex;align-items:center;gap:6px;margin:3px auto 0;width:90%;max-width:130px;flex-shrink:0}
-body.mob .fc-hprow{margin:2px auto 0}
 .fc-hplabel{font-family:'DM Mono',monospace;font-size:9px;color:var(--sub);white-space:nowrap;flex-shrink:0}
 .fc-hpbar{flex:1;height:4px;background:var(--s3);border-radius:3px;overflow:hidden}
 .fc-hpfill{height:100%;border-radius:3px;transition:width .4s}
 
-/* stats panel PC */
+/* STATS */
 .pj-name{font-family:'Cinzel',serif;font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--txt)}
 .pj-deck{display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--sub)}
 .heart-wrap{position:relative;width:62px;height:56px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -116,9 +100,7 @@ body.mob .heart-wrap{width:50px;height:44px}
 .heart-svg{position:absolute;inset:0;width:100%;height:100%}
 .heart-txt{position:absolute;z-index:2;font-family:'Cinzel',serif;font-weight:900;font-size:17px;text-shadow:0 1px 5px rgba(0,0,0,.95);color:#fff;top:50%;left:50%;transform:translate(-50%,-48%);pointer-events:none;line-height:1}
 body.mob .heart-txt{font-size:13px}
-
-.sp-rar{font-size:7px;letter-spacing:.14em;font-weight:700;text-transform:uppercase;margin-bottom:2px}
-.rC{color:var(--C)}.rPC{color:var(--PC)}.rR{color:var(--R)}.rM{color:var(--M)}
+.sp-rar{font-size:7px;letter-spacing:.14em;font-weight:700;text-transform:uppercase;margin-bottom:2px;color:#888}
 .sp-name{font-family:'Cinzel',serif;font-weight:700;font-size:10px;line-height:1.2;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sp-hpbar{height:3px;background:var(--s3);border-radius:3px;overflow:hidden;margin:3px 0}
 .sp-hpfill{height:100%;border-radius:3px;transition:width .4s}
@@ -132,14 +114,12 @@ body.mob .heart-txt{font-size:13px}
 .etag{display:inline-flex;align-items:center;gap:2px;font-size:8px;padding:1px 5px;border-radius:20px;border:1px solid;margin:1px 1px 0 0}
 .etag.buf{background:rgba(62,207,142,.08);border-color:rgba(62,207,142,.3);color:var(--grn)}
 .etag.deb{background:rgba(240,64,80,.08);border-color:rgba(240,64,80,.3);color:var(--red)}
-
-/* mob mini-stats inside pj-mob-player */
 body.mob .mob-mstat{font-size:7px;font-family:'DM Mono',monospace;color:var(--sub);line-height:1.6;overflow:hidden}
 body.mob .mob-mstat strong{color:var(--txt)}
 body.mob .mob-pname{font-family:'Cinzel',serif;font-size:7.5px;font-weight:900;color:var(--txt);margin-bottom:2px;text-transform:uppercase}
 body.mob .mob-deck-small{font-family:'DM Mono',monospace;font-size:7px;color:var(--sub)}
 
-/* ── INSTR BAR ── */
+/* INSTR / ACTIONS */
 .instr-bar{display:flex;align-items:center;gap:8px;padding:4px 14px;flex-shrink:0;background:var(--s1);border-top:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2)}
 body.mob .instr-bar{padding:3px 10px}
 .instr-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
@@ -147,11 +127,8 @@ body.mob .instr-bar{padding:3px 10px}
 .ib-sort .instr-dot{background:var(--pur);animation:pulse 1s infinite}
 .ib-attack .instr-dot{background:var(--red);animation:pulse .6s infinite}
 .ib-bot .instr-dot{background:var(--dim)}
-.ib-ko .instr-dot{background:var(--gold);animation:pulse .6s infinite}
 .instr-txt{font-size:11px;color:var(--txt);flex:1}
 body.mob .instr-txt{font-size:9px}
-
-/* ── ACTIONS ── */
 .actions{display:flex;align-items:center;gap:8px;padding:8px 14px;flex-shrink:0;background:var(--s1);border-top:1px solid var(--bdr2)}
 body.mob .actions{padding:6px 10px 8px;gap:6px;flex-wrap:wrap;justify-content:center}
 .btn{font-family:'DM Sans',sans-serif;font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;padding:8px 18px;border-radius:7px;cursor:pointer;transition:all .18s;border:1px solid var(--bdr3);background:transparent;color:var(--txt)}
@@ -162,7 +139,7 @@ body.mob .btn{font-size:14px;padding:9px 18px}
 .btn-red{background:rgba(240,64,80,.12);border-color:rgba(240,64,80,.4);color:var(--red)}
 .btn-red:hover:not(:disabled){background:rgba(240,64,80,.22)}
 
-/* ── HAND ── */
+/* HAND */
 .hand-wrap{flex-shrink:0;overflow:visible;position:relative;z-index:20}
 .hand-meta{padding:2px 14px 0;display:flex;align-items:center;justify-content:space-between}
 body.mob .hand-meta{padding:2px 10px 0}
@@ -175,160 +152,95 @@ body.mob .hand-cards{height:calc(15*var(--dvh));min-height:78px;max-height:105px
 body.mob .hcard{height:calc(13*var(--dvh));min-height:66px;max-height:92px}
 .hcard:hover:not(.hc-dis){border-color:var(--gold);transform:translateY(-5px);box-shadow:0 6px 20px rgba(240,192,64,.18)}
 .hcard.hc-dis{opacity:.28;cursor:not-allowed}
-/* highlight playable cards */
-.hcard.hc-playable{border-color:rgba(240,192,64,.5);box-shadow:0 0 10px rgba(240,192,64,.15);animation:cardGlow 1.6s ease-in-out infinite}
-@keyframes cardGlow{0%,100%{box-shadow:0 0 8px rgba(240,192,64,.12)}50%{box-shadow:0 0 18px rgba(240,192,64,.32)}}
+.hcard.hc-playable{border-color:rgba(240,192,64,.6);box-shadow:0 0 12px rgba(240,192,64,.2);animation:cardGlow 1.6s ease-in-out infinite}
+@keyframes cardGlow{0%,100%{box-shadow:0 0 8px rgba(240,192,64,.12)}50%{box-shadow:0 0 22px rgba(240,192,64,.38)}}
 
-/* ══ END OVERLAY ══ */
+/* TUTO OVERLAY */
+#tuto-overlay{position:fixed;inset:0;z-index:300;pointer-events:none;display:none}
+.tuto-veil{position:fixed;inset:0;z-index:301;background:rgba(0,0,0,.65);transition:opacity .3s}
+#tuto-overlay.action-mode .tuto-veil{opacity:0;pointer-events:none}
+#tuto-overlay.info-mode .tuto-veil{opacity:1;pointer-events:auto}
+.tuto-bubble{position:fixed;z-index:410;background:linear-gradient(135deg,#161622 0%,#1a1a28 100%);border:1.5px solid var(--gold);border-radius:16px;padding:14px 16px 13px;width:clamp(200px,82vw,282px);box-shadow:0 0 28px rgba(240,192,64,.18),0 8px 32px rgba(0,0,0,.8);pointer-events:auto}
+.tuto-bubble::before{content:'';position:absolute;inset:-1px;border-radius:17px;background:linear-gradient(135deg,rgba(240,192,64,.18),transparent 55%);pointer-events:none;z-index:-1}
+.tuto-progress{display:flex;gap:3px;margin-bottom:10px}
+.tp-dot{width:14px;height:3px;border-radius:2px;background:var(--bdr3);transition:background .3s}
+.tp-dot.done{background:rgba(240,192,64,.45)}
+.tp-dot.active{background:var(--gold)}
+.tuto-icon{font-size:1.5rem;margin-bottom:4px;display:block}
+.tuto-msg{font-size:.8rem;color:var(--txt);line-height:1.6;margin-bottom:11px}
+.tuto-msg strong{color:var(--gold)}
+.tuto-msg em{color:var(--grn);font-style:normal}
+.tuto-msg .txt-red{color:var(--red)}
+.tuto-action-hint{font-size:.72rem;color:var(--gold);font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:6px;margin-bottom:10px;animation:blinkHint .9s ease-in-out infinite}
+@keyframes blinkHint{0%,100%{opacity:.65}50%{opacity:1}}
+.tuto-btn{font-family:'Cinzel',serif;font-weight:700;font-size:.74rem;letter-spacing:.1em;padding:8px 18px;background:var(--gold);color:#000;border:none;border-radius:7px;cursor:pointer;transition:background .15s;width:100%;text-transform:uppercase}
+.tuto-btn:hover{background:var(--gold2)}
+.tuto-bubble.arrow-bottom::after{content:'▼';position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:14px;color:var(--gold);filter:drop-shadow(0 0 6px rgba(240,192,64,.5));animation:arrowBounce .7s ease-in-out infinite alternate}
+.tuto-hl{position:fixed;z-index:302;border-radius:10px;pointer-events:none;box-shadow:0 0 0 2px var(--gold),0 0 22px rgba(240,192,64,.38),0 0 44px rgba(240,192,64,.14)}
+body.mob .tuto-hl{border-radius:8px}
+
+/* END */
 #ov-end{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 #ov-end.active{display:flex}
 .ov-title{font-family:'Cinzel',serif;font-weight:900;font-size:clamp(1.8rem,6vw,2.8rem);letter-spacing:.1em;text-transform:uppercase}
 .ov-title.win{color:var(--gold);text-shadow:0 0 40px rgba(240,192,64,.4)}
-.ov-title.lose{color:var(--sub)}
 .ov-sub{font-size:.86rem;color:var(--sub);text-align:center;max-width:300px;line-height:1.5}
-.ov-stats{display:flex;flex-direction:column;gap:7px;background:var(--s2);border:1px solid var(--bdr2);border-radius:12px;padding:14px 22px;min-width:240px}
-.ov-stat{display:flex;justify-content:space-between;gap:18px;align-items:center;font-size:.8rem}
-.ov-stat-lbl{color:var(--sub)}
-.ov-stat-val{font-family:'DM Mono',monospace;font-weight:700;color:var(--txt)}
-.ov-stat-val.gold{color:var(--gold)}
-.ov-stat-val.mvp{color:var(--pur);font-size:.72rem;max-width:130px;text-align:right;line-height:1.3}
 .ov-reward{font-family:'Cinzel',serif;font-size:1.05rem;font-weight:700;color:var(--gold);letter-spacing:.06em;text-align:center;padding:8px 20px;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.3);border-radius:8px}
 .ov-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 
-/* ══ SPELL ANNOUNCE ══ */
+/* SPELL ANNOUNCE */
 .spell-announce{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:150;background:rgba(14,14,22,.97);border:1px solid var(--blue);border-radius:14px;padding:14px 24px;text-align:center;box-shadow:0 0 30px rgba(91,156,246,.2),0 12px 40px rgba(0,0,0,.6);pointer-events:none;animation:spellIn .3s cubic-bezier(.34,1.56,.64,1) both}
-.spell-announce.piege{border-color:var(--red)}
+.spell-announce.ruse{border-color:var(--red)}
 .sa-who{font-size:.7rem;color:var(--sub);margin-bottom:3px}
 .sa-nom{font-family:'Cinzel',serif;font-weight:700;font-size:.9rem;color:var(--txt);margin-bottom:3px}
 .sa-desc{font-size:.76rem;color:var(--sub)}
 
-/* ══ KO ══ */
-.ko-splash{position:fixed;top:50%;z-index:160;pointer-events:none;animation:koSplash 3.8s cubic-bezier(.2,0,.8,1) both}
-.ko-flash-bg{position:fixed;inset:0;z-index:155;background:rgba(255,120,0,.08);pointer-events:none;animation:koFlash 1.2s both}
-.pv-loss{position:absolute;bottom:105%;left:50%;transform:translateX(-50%);font-family:'Bangers',cursive;font-weight:700;color:var(--red);pointer-events:none;animation:pvLoss 1.3s cubic-bezier(.2,0,.8,1) both;z-index:50;text-shadow:0 2px 6px rgba(0,0,0,.8)}
+/* COMBAT */
 .comic-bubble{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;animation:koSplash 2.6s cubic-bezier(.2,0,.8,1) both}
 .fc-atk-r{animation:atkRight .85s cubic-bezier(.2,0,.8,1) both !important}
 .fc-atk-l{animation:atkLeft .85s cubic-bezier(.2,0,.8,1) both !important}
 .fc-hit{animation:hitShake .5s cubic-bezier(.2,0,.8,1) both !important}
 
-/* ══ COIN TOAST ══ */
-#coin-ov{position:fixed;inset:0;z-index:190;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}
-.coin-box{background:var(--s2);border:1px solid var(--bdr3);border-radius:16px;padding:24px 32px;text-align:center;transform:scale(.6);opacity:0;transition:all .4s cubic-bezier(.34,1.56,.64,1)}
-.coin-box.show{transform:scale(1);opacity:1}
-.coin-emoji{font-size:2.6rem;display:block;margin-bottom:8px;animation:coinAnim 1.8s ease-out}
-.coin-who{font-family:'Cinzel',serif;font-weight:900;font-size:1rem;margin-bottom:4px}
-.coin-who.first{color:var(--gold)}.coin-who.second{color:var(--sub)}
-.coin-detail{font-size:.76rem;color:var(--sub)}
-
-/* ══════════════════════════════════════════
-   TUTORIEL — Refonte complète
-   Pas de voile sur les cartes lors des actions
-   Bulle légère + highlight lumineux uniquement
-   ══════════════════════════════════════════ */
-
-/* Overlay tuto : par défaut transparent, pointer-events none */
-#tuto-overlay{position:fixed;inset:0;z-index:300;pointer-events:none;display:none}
-
-/* Voile sombre — affiché SEULEMENT pour les bulles d'info (pas d'action requise) */
-.tuto-veil{position:fixed;inset:0;z-index:301;background:rgba(0,0,0,.62);transition:opacity .3s}
-/* Quand une action est requise : voile invisible, seule la bulle reste visible */
-#tuto-overlay.action-mode .tuto-veil{opacity:0;pointer-events:none}
-#tuto-overlay.info-mode .tuto-veil{opacity:1;pointer-events:auto}
-
-/* Bulle tuto */
-.tuto-bubble{
-  position:fixed;z-index:410;
-  background:linear-gradient(135deg,#161622 0%,#1a1a28 100%);
-  border:1.5px solid var(--gold);
-  border-radius:16px;
-  padding:14px 16px 13px;
-  width:clamp(200px,80vw,270px);
-  box-shadow:0 0 24px rgba(240,192,64,.15),0 8px 32px rgba(0,0,0,.8);
-  pointer-events:auto;
-  transition:all .25s cubic-bezier(.34,1.56,.64,1);
-}
-.tuto-bubble::before{content:'';position:absolute;inset:-1px;border-radius:17px;background:linear-gradient(135deg,rgba(240,192,64,.2),transparent 60%);pointer-events:none;z-index:-1}
-.tuto-progress{display:flex;gap:3px;margin-bottom:10px}
-.tp-dot{width:16px;height:3px;border-radius:2px;background:var(--bdr3);transition:background .3s}
-.tp-dot.done{background:rgba(240,192,64,.5)}
-.tp-dot.active{background:var(--gold)}
-.tuto-icon{font-size:1.6rem;margin-bottom:5px;display:block}
-.tuto-msg{font-size:.8rem;color:var(--txt);line-height:1.55;margin-bottom:12px}
-.tuto-msg strong{color:var(--gold)}
-.tuto-msg em{color:var(--grn);font-style:normal}
-/* Action hint — s'affiche en bas quand action requise */
-.tuto-action-hint{font-size:.72rem;color:var(--gold);font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:6px;margin-bottom:10px;animation:blinkHint 1s ease-in-out infinite}
-@keyframes blinkHint{0%,100%{opacity:.7}50%{opacity:1}}
-.tuto-btn{font-family:'Cinzel',serif;font-weight:700;font-size:.74rem;letter-spacing:.1em;padding:8px 18px;background:var(--gold);color:#000;border:none;border-radius:7px;cursor:pointer;transition:background .15s;width:100%;text-transform:uppercase}
-.tuto-btn:hover{background:var(--gold2)}
-/* Bulle flèche indicatrice */
-.tuto-bubble.arrow-bottom::after{content:'▼';position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:14px;color:var(--gold);filter:drop-shadow(0 0 6px rgba(240,192,64,.5));animation:arrowBounce .7s ease-in-out infinite alternate}
-.tuto-bubble.arrow-top::after{content:'▲';position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:14px;color:var(--gold);filter:drop-shadow(0 0 6px rgba(240,192,64,.5));animation:arrowBounce .7s ease-in-out infinite alternate}
-/* Highlight zone */
-.tuto-hl{position:fixed;z-index:302;border-radius:10px;pointer-events:none;transition:all .3s;box-shadow:0 0 0 2px var(--gold),0 0 20px rgba(240,192,64,.35),0 0 40px rgba(240,192,64,.12)}
-body.mob .tuto-hl{border-radius:8px}
-
-/* ══ ANIMATIONS ══ */
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes cardIn{from{opacity:0;transform:scale(.88) translateY(10px)}to{opacity:1;transform:none}}
 @keyframes atkRight{0%{transform:none}38%{transform:translateX(48%) scale(1.06)}70%{transform:none}84%{transform:translateX(5px)}100%{transform:none}}
 @keyframes atkLeft{0%{transform:none}38%{transform:translateX(-48%) scale(1.06)}70%{transform:none}84%{transform:translateX(-5px)}100%{transform:none}}
 @keyframes hitShake{0%,100%{transform:none}18%{transform:translateX(-10px) rotate(-2deg)}36%{transform:translateX(10px) rotate(2deg)}54%{transform:translateX(-6px)}72%{transform:translateX(6px)}}
 @keyframes heartDmg{0%{transform:scale(1);filter:none}10%{transform:scale(1.6);filter:drop-shadow(0 0 20px #ff0000) brightness(1.4)}22%{transform:scale(.78)}38%{transform:scale(1.35)}55%{transform:scale(.9)}100%{transform:scale(1);filter:none}}
-@keyframes pvLoss{0%{opacity:0;transform:translateX(-50%) scale(.5)}15%{opacity:1;transform:translateX(-50%) translateY(-10px) scale(1.3)}50%{opacity:1;transform:translateX(-50%) translateY(-28px)}100%{opacity:0;transform:translateX(-50%) translateY(-52px) scale(.85)}}
 @keyframes koSplash{0%{opacity:0;transform:translate(-50%,-50%) scale(.15) rotate(-10deg)}14%{opacity:1;transform:translate(-50%,-50%) scale(1.25) rotate(4deg)}26%{transform:translate(-50%,-50%) scale(.9) rotate(-3deg)}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-58%) scale(.92)}}
-@keyframes koFlash{0%{opacity:0}8%{opacity:1}22%{opacity:.4}36%{opacity:.9}55%{opacity:.3}100%{opacity:0}}
-@keyframes coinAnim{0%{opacity:0;transform:scale(.6) rotateY(0)}20%{opacity:1;transform:scale(.9) rotateY(180deg)}100%{transform:scale(1) rotateY(1440deg)}}
 @keyframes spellIn{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}to{opacity:1;transform:translate(-50%,-50%)}}
 @keyframes spellOut{to{opacity:0;transform:translate(-50%,-50%) scale(.9) translateY(-10px)}}
-@keyframes cardDeal{from{opacity:0;transform:translateY(-30px) scale(.8)}to{opacity:1;transform:none}}
 @keyframes arrowBounce{from{transform:translateX(-50%) translateY(0)}to{transform:translateX(-50%) translateY(-6px)}}
-@keyframes bubbleIn{from{opacity:0;transform:scale(.8) translateY(8px)}to{opacity:1;transform:none}}
+@keyframes bubbleIn{from{opacity:0;transform:scale(.82) translateY(8px)}to{opacity:1;transform:none}}
 </style>
 </head>
 <body>
 
-<!-- ══ INTRO + CHOIX PÉRIPHÉRIQUE ══ -->
 <div id="si" class="screen active">
   <div id="si-bg"></div>
   <div class="si-inner">
     <div class="si-badge">✦ Tutoriel ✦</div>
     <div class="si-logo">PWL TCG</div>
-    <p class="si-sub">Apprends à jouer en 1 partie guidée.<br>Même deck pour toi et le bot, ordre différent.</p>
-
+    <p class="si-sub">Apprends à jouer en 1 partie guidée, pas à pas.</p>
     <div style="font-size:.78rem;color:var(--sub);letter-spacing:.08em;text-transform:uppercase;margin-bottom:-8px">Tu joues sur…</div>
     <div class="device-choice">
-      <div class="device-card" id="dc-pc" onclick="selectDevice('pc')">
-        <div class="dc-icon">🖥️</div>
-        <div class="dc-name">PC / Tablette</div>
-        <div class="dc-desc">Layout large avec stats détaillées</div>
-      </div>
-      <div class="device-card" id="dc-mob" onclick="selectDevice('mob')">
-        <div class="dc-icon">📱</div>
-        <div class="dc-name">Téléphone</div>
-        <div class="dc-desc">Interface compacte optimisée mobile</div>
-      </div>
+      <div class="device-card" id="dc-pc" onclick="selectDevice('pc')"><div class="dc-icon">🖥️</div><div class="dc-name">PC / Tablette</div><div class="dc-desc">Layout large, stats détaillées</div></div>
+      <div class="device-card" id="dc-mob" onclick="selectDevice('mob')"><div class="dc-icon">📱</div><div class="dc-name">Téléphone</div><div class="dc-desc">Interface compacte mobile</div></div>
     </div>
-
     <button class="start-btn" id="start-btn" onclick="startTuto()">▶ Lancer le tutoriel</button>
     <div class="si-reward">🪙 <strong style="color:var(--gold)">+150 coins</strong> à la victoire</div>
   </div>
 </div>
 
-<!-- ══ GAME SCREEN ══ -->
 <div id="sg" class="screen">
-  <!-- Topbar -->
   <div class="topbar">
     <div class="t-title">PWL TCG</div>
-    <div class="t-badge" id="tbadge">TUTO</div>
+    <div class="t-badge" id="tbadge">TUTO · T.1</div>
     <div id="wt" class="wt-pill ww"><div class="tdot"></div><span id="wt-txt">—</span></div>
   </div>
 
-  <!-- Field — PC version -->
   <div class="field" id="field">
-    <!-- pj-left (PC: stats perso gauche / MOB: stats adversaire) -->
     <div class="pj pj-left" id="pj-left">
-      <!-- PC : cœur + stats joueur | MOB : mini-stats adversaire -->
       <div id="pjl-pc">
         <div id="h-hwrap" class="heart-wrap" style="margin-top:4px">
           <svg class="heart-svg" viewBox="0 0 68 62" fill="none">
@@ -337,51 +249,14 @@ body.mob .tuto-hl{border-radius:8px}
             <path d="M34 56C34 56 6 38 6 20C6 11 13 5 22 5C27 5 31 8 34 12C37 8 41 5 46 5C55 5 62 11 62 20C62 38 34 56 34 56Z" fill="#e03040" clip-path="url(#hclipH)"/>
             <path d="M33 14C28 17 23 25 22 33" stroke="rgba(255,255,255,.22)" stroke-width="3.5" stroke-linecap="round"/>
           </svg>
-          <span class="heart-txt" id="h-hpv">75</span>
+          <span class="heart-txt" id="h-hpv">10</span>
         </div>
         <div class="pj-name">Toi</div>
-        <div class="pj-deck"><span>🂠</span><span id="h-dk-txt">5</span></div>
+        <div class="pj-deck"><span>🂠</span><span id="h-dk-txt">2</span></div>
       </div>
-      <!-- MOB : mini stats adversaire (injectés par JS) -->
       <div id="pjl-mob" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden"></div>
     </div>
 
-    <!-- cz-bot -->
-    <div class="card-zone cz-bot" id="czb">
-      <div id="b-fc" class="field-card">
-        <div id="b-img-wrap" class="fc-img-wrap"><div id="b-art" class="fc-ph"><div class="icon">🤖</div><div class="lbl">Adversaire</div></div></div>
-      </div>
-      <div class="fc-hprow"><div class="fc-hplabel" id="b-fhplbl">—</div><div class="fc-hpbar"><div id="b-fhp" class="fc-hpfill" style="width:0%;background:var(--grn)"></div></div></div>
-    </div>
-
-    <!-- Centre stats (PC only) -->
-    <div class="centre" id="centre">
-      <div class="stats-panel sp-left" id="sp-left">
-        <div id="h-rar" class="sp-rar rC">—</div>
-        <div id="h-name" class="sp-name">—</div>
-        <div class="sp-hpbar"><div id="h-hpt" class="sp-hpfill" style="width:0%;background:var(--grn)"></div></div>
-        <div id="h-sr-atq" class="stat-row"><span class="sr-ico">⚔️</span><span class="sr-lbl">Attaque</span><span id="h-atq" class="sr-val">—</span></div>
-        <div id="h-sr-def" class="stat-row"><span class="sr-ico">🛡️</span><span class="sr-lbl">Défense</span><span id="h-def" class="sr-val">—</span></div>
-        <div id="h-sr-prec" class="stat-row"><span class="sr-ico">🎯</span><span class="sr-lbl">Précision</span><span id="h-prec" class="sr-val">—</span></div>
-        <div id="h-sr-dmg" class="stat-row"><span class="sr-ico">💥</span><span class="sr-lbl">Dégâts nets</span><span id="h-dmg" class="sr-val">—</span></div>
-        <div class="sp-effslbl">Effets</div>
-        <div id="h-act"></div>
-      </div>
-      <div class="arrows"><span>→</span><span>←</span></div>
-      <div class="stats-panel" id="sp-right">
-        <div id="b-rar" class="sp-rar rC">—</div>
-        <div id="b-name" class="sp-name">—</div>
-        <div class="sp-hpbar"><div id="b-hpt" class="sp-hpfill" style="width:0%;background:var(--grn)"></div></div>
-        <div id="b-sr-atq" class="stat-row"><span class="sr-ico">⚔️</span><span class="sr-lbl">Attaque</span><span id="b-atq" class="sr-val">—</span></div>
-        <div id="b-sr-def" class="stat-row"><span class="sr-ico">🛡️</span><span class="sr-lbl">Défense</span><span id="b-def" class="sr-val">—</span></div>
-        <div id="b-sr-prec" class="stat-row"><span class="sr-ico">🎯</span><span class="sr-lbl">Précision</span><span id="b-prec" class="sr-val">—</span></div>
-        <div id="b-sr-dmg" class="stat-row"><span class="sr-ico">💥</span><span class="sr-lbl">Dégâts nets</span><span id="b-dmg" class="sr-val">—</span></div>
-        <div class="sp-effslbl">Effets</div>
-        <div id="b-act"></div>
-      </div>
-    </div>
-
-    <!-- cz-human -->
     <div class="card-zone cz-human" id="czh">
       <div id="h-fc" class="field-card">
         <div id="h-img-wrap" class="fc-img-wrap"><div id="h-art" class="fc-ph"><div class="icon">⚡</div><div class="lbl">Ton combattant</div></div></div>
@@ -389,9 +264,36 @@ body.mob .tuto-hl{border-radius:8px}
       <div class="fc-hprow"><div class="fc-hplabel" id="h-fhplbl">—</div><div class="fc-hpbar"><div id="h-fhp" class="fc-hpfill" style="width:0%;background:var(--grn)"></div></div></div>
     </div>
 
-    <!-- pj-right -->
+    <div class="centre" id="centre">
+      <div class="stats-panel sp-left" id="sp-left">
+        <div id="h-rar" class="sp-rar">—</div><div id="h-name" class="sp-name">—</div>
+        <div class="sp-hpbar"><div id="h-hpt" class="sp-hpfill" style="width:0%;background:var(--grn)"></div></div>
+        <div id="h-sr-atq" class="stat-row"><span class="sr-ico">⚔️</span><span class="sr-lbl">Attaque</span><span id="h-atq" class="sr-val">—</span></div>
+        <div id="h-sr-def" class="stat-row"><span class="sr-ico">🛡️</span><span class="sr-lbl">Défense</span><span id="h-def" class="sr-val">—</span></div>
+        <div id="h-sr-prec" class="stat-row"><span class="sr-ico">🎯</span><span class="sr-lbl">Précision</span><span id="h-prec" class="sr-val">—</span></div>
+        <div id="h-sr-dmg" class="stat-row"><span class="sr-ico">💥</span><span class="sr-lbl">Dégâts nets</span><span id="h-dmg" class="sr-val">—</span></div>
+        <div class="sp-effslbl">Effets actifs</div><div id="h-act"></div>
+      </div>
+      <div class="arrows"><span>←</span><span>→</span></div>
+      <div class="stats-panel" id="sp-right">
+        <div id="b-rar" class="sp-rar">—</div><div id="b-name" class="sp-name">—</div>
+        <div class="sp-hpbar"><div id="b-hpt" class="sp-hpfill" style="width:0%;background:var(--grn)"></div></div>
+        <div id="b-sr-atq" class="stat-row"><span class="sr-ico">⚔️</span><span class="sr-lbl">Attaque</span><span id="b-atq" class="sr-val">—</span></div>
+        <div id="b-sr-def" class="stat-row"><span class="sr-ico">🛡️</span><span class="sr-lbl">Défense</span><span id="b-def" class="sr-val">—</span></div>
+        <div id="b-sr-prec" class="stat-row"><span class="sr-ico">🎯</span><span class="sr-lbl">Précision</span><span id="b-prec" class="sr-val">—</span></div>
+        <div id="b-sr-dmg" class="stat-row"><span class="sr-ico">💥</span><span class="sr-lbl">Dégâts nets</span><span id="b-dmg" class="sr-val">—</span></div>
+        <div class="sp-effslbl">Effets actifs</div><div id="b-act"></div>
+      </div>
+    </div>
+
+    <div class="card-zone cz-bot" id="czb">
+      <div id="b-fc" class="field-card">
+        <div id="b-img-wrap" class="fc-img-wrap"><div id="b-art" class="fc-ph"><div class="icon">🤖</div><div class="lbl">Adversaire</div></div></div>
+      </div>
+      <div class="fc-hprow"><div class="fc-hplabel" id="b-fhplbl">—</div><div class="fc-hpbar"><div id="b-fhp" class="fc-hpfill" style="width:0%;background:var(--grn)"></div></div></div>
+    </div>
+
     <div class="pj pj-right" id="pj-right">
-      <!-- PC -->
       <div id="pjr-pc">
         <div id="b-hwrap" class="heart-wrap" style="margin-top:4px">
           <svg class="heart-svg" viewBox="0 0 68 62" fill="none">
@@ -400,41 +302,30 @@ body.mob .tuto-hl{border-radius:8px}
             <path d="M34 56C34 56 6 38 6 20C6 11 13 5 22 5C27 5 31 8 34 12C37 8 41 5 46 5C55 5 62 11 62 20C62 38 34 56 34 56Z" fill="#e03040" clip-path="url(#hclipB)"/>
             <path d="M33 14C28 17 23 25 22 33" stroke="rgba(255,255,255,.22)" stroke-width="3.5" stroke-linecap="round"/>
           </svg>
-          <span class="heart-txt" id="b-hpv">75</span>
+          <span class="heart-txt" id="b-hpv">10</span>
         </div>
         <div class="pj-name" style="text-align:right">Bot</div>
-        <div class="pj-deck" style="justify-content:flex-end"><span>🂠</span><span id="b-dk-txt">5</span></div>
+        <div class="pj-deck" style="justify-content:flex-end"><span>🂠</span><span id="b-dk-txt">1</span></div>
       </div>
-      <!-- MOB : cœur bot -->
       <div id="pjr-mob" style="display:none;align-items:center;justify-content:flex-start;flex-direction:column;gap:2px;width:100%"></div>
     </div>
 
-    <!-- MOB ONLY: pj-mob-player (col1 row2) -->
     <div class="pj-mob-player" id="pj-mob-player" style="display:none">
       <div class="mob-pname">Toi</div>
       <div id="mob-player-stats" class="mob-mstat"></div>
       <div id="mob-h-deck" class="mob-deck-small"></div>
     </div>
-
-    <!-- MOB ONLY: mob-hum-right (col3 row2) -->
-    <div class="mob-hum-right" id="mob-hum-right" style="display:none">
-      <!-- cœur joueur sur mobile -->
-    </div>
+    <div class="mob-hum-right" id="mob-hum-right" style="display:none"></div>
   </div>
 
-  <!-- Instr bar -->
   <div id="instr-bar" class="instr-bar ib-choose">
     <div class="instr-dot"></div>
     <div id="instr-txt" class="instr-txt">Choisis un combattant dans ta main</div>
   </div>
-
-  <!-- Actions -->
   <div class="actions">
-    <button id="btn-atk" class="btn btn-gold" onclick="humanAttack()" disabled>⚔ Attaquer</button>
-    <button id="btn-pass" class="btn btn-red" onclick="humanPassSort()" disabled>⏭ Passer</button>
+    <button id="btn-atk" class="btn btn-gold" onclick="onHumanAttack()" disabled>⚔ Attaquer</button>
+    <button id="btn-pass" class="btn btn-red" onclick="onHumanPass()" disabled>⏭ Passer</button>
   </div>
-
-  <!-- Main -->
   <div class="hand-wrap" id="hand-wrap">
     <div class="hand-meta">
       <div class="hand-lbl">Ta main</div>
@@ -444,28 +335,15 @@ body.mob .tuto-hl{border-radius:8px}
   </div>
 </div>
 
-<!-- FIN DE PARTIE -->
 <div id="ov-end">
   <div id="ov-title" class="ov-title win">VICTOIRE !</div>
   <div id="ov-sub" class="ov-sub"></div>
-  <div id="ov-stats" class="ov-stats"></div>
   <div id="ov-reward" class="ov-reward"></div>
   <div class="ov-btns">
-    <button class="btn btn-gold" onclick="restartTuto()">🔄 Rejouer</button>
     <button class="btn" onclick="goMenu()">← Menu</button>
   </div>
 </div>
 
-<!-- COIN TOAST -->
-<div id="coin-ov">
-  <div class="coin-box" id="coin-box">
-    <span class="coin-emoji" id="coin-emoji">🪙</span>
-    <div class="coin-who" id="coin-who"></div>
-    <div class="coin-detail" id="coin-detail"></div>
-  </div>
-</div>
-
-<!-- TUTO OVERLAY -->
 <div id="tuto-overlay">
   <div class="tuto-veil" id="tuto-veil"></div>
   <div class="tuto-hl" id="tuto-hl" style="display:none"></div>
@@ -476,585 +354,584 @@ body.mob .tuto-hl{border-radius:8px}
     <div class="tuto-action-hint" id="tuto-action-hint" style="display:none">
       <span>👆</span><span id="tuto-hint-txt"></span>
     </div>
-    <button class="tuto-btn" id="tuto-btn" onclick="nextTutoStep()">Compris !</button>
+    <button class="tuto-btn" id="tuto-btn" onclick="tutoNext()">Compris !</button>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-// ════════════════════════
-// SUPABASE
-// ════════════════════════
-const SB_URL='https://ndsnbvvcbkblkncvoroc.supabase.co';
-const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kc25idnZjYmtibGtuY3Zvcm9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjczMTksImV4cCI6MjA4ODU0MzMxOX0.mMsaBIrDI3BIoeTFBsCXo2AbuBLRnzqk625fKRkYCtM';
-let _db=null,_user=null;
-async function initSB(){try{if(!window.supabase)return;_db=window.supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persistSession:true}});const{data:{session}}=await _db.auth.getSession();if(session)_user=session.user;}catch(e){}}
-async function saveCoins(c){if(!_db||!_user)return;try{const{data:p}=await _db.from('players').select('coins').eq('id',_user.id).single();if(p)await _db.from('players').update({coins:(p.coins||0)+c,tuto_done:true}).eq('id',_user.id);}catch(e){}}
+// ══════════════════════════════════════════
+// CARTES SCRIPTÉES
+// Carte 21  : Sam en boîte de nuit   ❤11 ⚔6 🛡3 🎯68%
+// Carte 16  : Maxy Crazy Thaïlande   ❤12 ⚔8 🛡1 🎯65%
+// Carte 110 : Arcane — +2 ATQ + prec 100% ce tour
+// Carte 119 : Ruse   — -1 DEF héro adverse 3 tours
+// Carte 101 : Arcane — +3 ATQ 1 tour
+// ══════════════════════════════════════════
+const CARDS = {
+  hero_h:  { id:21,  nom:'Sam en boîte de nuit',     perso:'Sam',  hp:11, atq:6, def:3, prec:.68, rarete:'C', ct:'fighter' },
+  hero_b:  { id:16,  nom:'Maxy Crazy en Thaïlande',  perso:'Maxy', hp:12, atq:8, def:1, prec:.65, rarete:'C', ct:'fighter' },
+  arc110:  { id:110, nom:'Parier 10c, en gagner 50',  type:'Arcane', effet:'buff_atq', val:2, dur:1, ct:'sort', rarete:'C', desc:'+2 Force ce tour' },
+  ruse119: { id:119, nom:'Otis & JohnMo x Lou-Anne', type:'Ruse',   effet:'debuff_def',   val:1, dur:3, ct:'sort', rarete:'C', desc:'-1 Défense adverse · 3 tours' },
+  arc101:  { id:101, nom:'La Grange',                 type:'Arcane', effet:'buff_atq',     val:3, dur:1, ct:'sort', rarete:'C', desc:'+3 Force · 1 tour' },
+};
+const RLAB = { C:'COMMUNE', PC:'PEU COMMUNE', R:'RARE', M:'MYTHIQUE' };
 
-// ════════════════════════
-// DEVICE CHOICE
-// ════════════════════════
-let _device='';
-function selectDevice(d){
-  _device=d;
-  document.getElementById('dc-pc').classList.toggle('selected',d==='pc');
-  document.getElementById('dc-mob').classList.toggle('selected',d==='mob');
+let _device = '';
+function selectDevice(d) {
+  _device = d;
+  document.getElementById('dc-pc').classList.toggle('selected', d==='pc');
+  document.getElementById('dc-mob').classList.toggle('selected', d==='mob');
   document.getElementById('start-btn').classList.add('ready');
 }
 
-// ════════════════════════
-// DECK MIROIR 10 CARTES
-// 6 combattants, 2 magies, 2 pièges
-// ════════════════════════
-const TUTO_BASE=[
-  {nom:"Who is Cody ?",      perso:"PWL",   hp:6,atq:7,def:2,prec:.65,rarete:"C",ct:'fighter'},
-  {nom:"Sam en after infini",perso:"Sam",   hp:7,atq:6,def:3,prec:.68,rarete:"C",ct:'fighter'},
-  {nom:"Shawn & le pavé",    perso:"Shawn", hp:7,atq:7,def:3,prec:.65,rarete:"C",ct:'fighter'},
-  {nom:"C'est quoi le but ?",perso:"Téo",   hp:8,atq:7,def:3,prec:.70,rarete:"C",ct:'fighter'},
-  {nom:"Nathan Gambardella", perso:"Nathan",hp:7,atq:7,def:1,prec:.65,rarete:"C",ct:'fighter'},
-  {nom:"Poupou & l'excuse",  perso:"Poupou",hp:7,atq:7,def:2,prec:.70,rarete:"C",ct:'fighter'},
-  {nom:"La Grange",    type:"Magie",effet:"buff_atq",val:3,dur:1,survit:false,rarete:"C",ct:'sort',desc:"+3 Force ce tour"},
-  {nom:"Run strava",   type:"Magie",effet:"buff_def",val:2,dur:3,survit:false,rarete:"C",ct:'sort',desc:"+2 Défense · 3 tours"},
-  {nom:"Blessure wtf", type:"Piège",effet:"skip_atq",val:0,dur:1,survit:false,rarete:"C",ct:'sort',desc:"Annule l'attaque adverse"},
-  {nom:"Insulte random",type:"Piège",effet:"debuff_atq",val:1,dur:2,survit:false,rarete:"C",ct:'sort',desc:"-1 ATQ adverse · 2 tours"},
-];
-function shuf(a){const r=[...a];for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]];}return r;}
-function hydrate(c){return{...c,hpCur:c.hp||c.hpCur||0,hpBase:c.hp||c.hpBase||0};}
-function buildMirror(){
-  let ho,bo;
-  do{ho=shuf(TUTO_BASE);}while(ho.slice(0,5).filter(c=>c.ct==='fighter').length<2);
-  do{bo=shuf(TUTO_BASE);}while(bo.slice(0,5).filter(c=>c.ct==='fighter').length<2);
-  return{ho:ho.map(hydrate),bo:bo.map(hydrate)};
+// ── ÉTAT ──
+let G = {};
+function mkF(tpl) { return { ...tpl, hpCur: tpl.hp, hpBase: tpl.hp }; }
+
+function initGame() {
+  G = {
+    turn: 1,
+    // 'choose_fighter' → joueur pose son héro
+    // 'bot_places'     → bot pose le sien (automatique + bulle)
+    // 'sort'           → joueur joue un sort ou passe
+    // 'attack'         → joueur attaque
+    // 'bot_turn'       → bot joue
+    phase: 'choose_fighter',
+    human: { hp:10, hpMax:10, fighter:null,
+             hand:[ mkF(CARDS.hero_h), {...CARDS.arc110} ],  // main T1
+             actives:[], sortJoue:false },
+    bot:   { hp:10, hpMax:10, fighter:null,
+             hand:[ {...CARDS.ruse119} ],
+             actives:[], sortJoue:false },
+    _card101: {...CARDS.arc101},
+  };
+  updateHeart('h',10,10);
+  updateHeart('b',10,10);
 }
 
-// ════════════════════════
-// ÉTAT JEU
-// ════════════════════════
-const RLAB={C:'COMMUNE',PC:'PEU COMMUNE',R:'RARE',M:'MYTHIQUE'};
-let G={};
-function mkP(){return{hp:30,hpMax:30,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false};}
-function initGame(){
-  const{ho,bo}=buildMirror();
-  G={turn:1,phase:'choose_fighter',human:mkP(),bot:mkP(),ended:false,fp:Math.random()<.5?'human':'bot',stats:{dmgByCard:{},totalDmgH:0,totalDmgB:0},_newCardIdx:-1};
-  G.human.hand=ho.slice(0,5); G.human.pioche=ho.slice(5);
-  G.bot.hand=bo.slice(0,5);   G.bot.pioche=bo.slice(5);
-  updateHeart('h',30,30); updateHeart('b',30,30);
-}
-
-// ════════════════════════
-// LAYOUT DEVICE
-// ════════════════════════
-function applyDeviceLayout(){
-  const isMob=_device==='mob';
-  document.body.classList.toggle('pc',!isMob);
-  document.body.classList.toggle('mob',isMob);
-
-  // PC: show/hide elements
-  document.getElementById('pjl-pc').style.display=isMob?'none':'block';
-  document.getElementById('pjr-pc').style.display=isMob?'none':'block';
-  document.getElementById('pjl-mob').style.display=isMob?'flex':'none';
-  document.getElementById('pjr-mob').style.display=isMob?'flex':'none';
-  document.getElementById('centre').style.display=isMob?'none':'flex';
-  document.getElementById('pj-mob-player').style.display=isMob?'flex':'none';
-  document.getElementById('mob-hum-right').style.display=isMob?'flex':'none';
-
-  if(isMob){
-    // Injecter cœur bot dans pjr-mob
-    const bHwrap=document.getElementById('b-hwrap');
-    const pjrMob=document.getElementById('pjr-mob');
-    pjrMob.innerHTML='';
-    pjrMob.appendChild(bHwrap);
-    const bName=document.createElement('div');bName.className='mob-pname';bName.textContent='Bot';pjrMob.appendChild(bName);
-    const bDk=document.createElement('div');bDk.className='mob-deck-small';bDk.id='b-dk-mob';bDk.textContent='5 🂠';pjrMob.appendChild(bDk);
-
-    // Injecter cœur joueur dans mob-hum-right
-    const hHwrap=document.getElementById('h-hwrap');
-    const mobHR=document.getElementById('mob-hum-right');
-    mobHR.innerHTML='';
-    mobHR.appendChild(hHwrap);
-    const hName=document.createElement('div');hName.className='mob-pname';hName.textContent='Toi';mobHR.appendChild(hName);
+// ── LAYOUT ──
+function applyDeviceLayout() {
+  const mob = _device === 'mob';
+  document.body.classList.toggle('pc', !mob);
+  document.body.classList.toggle('mob', mob);
+  document.getElementById('pjl-pc').style.display = mob?'none':'block';
+  document.getElementById('pjr-pc').style.display = mob?'none':'block';
+  document.getElementById('pjl-mob').style.display = mob?'flex':'none';
+  document.getElementById('pjr-mob').style.display = mob?'flex':'none';
+  document.getElementById('centre').style.display  = mob?'none':'flex';
+  document.getElementById('pj-mob-player').style.display = mob?'flex':'none';
+  document.getElementById('mob-hum-right').style.display = mob?'flex':'none';
+  if (mob) {
+    const pr = document.getElementById('pjr-mob');
+    pr.innerHTML = '';
+    pr.appendChild(document.getElementById('b-hwrap'));
+    const bn = document.createElement('div'); bn.className='mob-pname'; bn.textContent='Bot'; pr.appendChild(bn);
+    const mhr = document.getElementById('mob-hum-right');
+    mhr.innerHTML = '';
+    mhr.appendChild(document.getElementById('h-hwrap'));
+    const hn = document.createElement('div'); hn.className='mob-pname'; hn.textContent='Toi'; mhr.appendChild(hn);
   }
 }
 
-// ════════════════════════
-// RENDU
-// ════════════════════════
-function render(){
-  renderP('h',G.human); renderP('b',G.bot);
-  renderHand(); renderActions(); renderWT();
-  document.getElementById('tbadge').textContent=`T.${G.turn}`;
-}
-
-function renderWT(){
-  const el=document.getElementById('wt'),tx=document.getElementById('wt-txt');
-  if(G.phase==='bot'){el.className='wt-pill bt';tx.textContent='Bot joue…';}
-  else if(['choose_fighter','sort','attack'].includes(G.phase)){el.className='wt-pill ht';tx.textContent='Ton tour';}
-  else{el.className='wt-pill ww';tx.textContent='—';}
-}
-
-function cardHTML(f,isMob){
-  if(!f)return'';
-  const rc={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'}[f.rarete]||'#888';
-  const hp=f.hpCur/f.hpBase*100,hc=hp>60?'#3ecf8e':hp>30?'#f0c040':'#ff4444';
-  const fs=isMob?{title:16,name:18,sub:6,stats:8}:{title:7,name:18,sub:6,stats:9};
-  return`<div style="display:flex;flex-direction:column;align-items:center;justify-content:space-between;height:100%;padding:6px 4px;text-align:center">
-    <div style="font-family:'Cinzel',serif;font-size:${fs.title}px;font-weight:900;color:${rc};letter-spacing:.08em;text-transform:uppercase">${RLAB[f.rarete]||''}</div>
-    <div style="font-family:'Bangers',cursive;font-size:${fs.name}px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);line-height:1.1">${f.perso||f.nom}</div>
-    <div style="font-size:${fs.sub}px;color:var(--sub);line-height:1.2;padding:0 2px">${f.nom}</div>
+// ── RENDU ──
+function fighterCardHTML(f) {
+  const pct = f.hpCur/f.hpBase*100;
+  const hc  = pct>60?'#3ecf8e':pct>30?'#f0c040':'#ff4444';
+  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:space-between;height:100%;padding:6px 4px;text-align:center">
+    <div style="font-family:'Cinzel',serif;font-size:7px;font-weight:900;color:#888;letter-spacing:.08em;text-transform:uppercase">COMMUNE</div>
+    <div style="font-family:'Bangers',cursive;font-size:19px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);line-height:1.1">${f.perso}</div>
+    <div style="font-size:6px;color:var(--sub);line-height:1.2;padding:0 2px">${f.nom}</div>
     <div style="width:90%;background:rgba(255,255,255,.1);border-radius:3px;height:4px;overflow:hidden">
-      <div style="width:${hp}%;height:100%;background:${hc};border-radius:3px;transition:width .4s"></div>
+      <div style="width:${pct}%;height:100%;background:${hc};border-radius:3px;transition:width .4s"></div>
     </div>
-    <div style="display:flex;justify-content:center;gap:7px;margin-top:2px;font-size:${fs.stats}px;font-family:'DM Mono',monospace">
-      <span style="color:#ff6666">❤${f.hpCur}</span>
-      <span style="color:#ffaa44">⚔${f.atq}</span>
-      <span style="color:#5b9cf6">🛡${f.def}</span>
+    <div style="display:flex;justify-content:center;gap:7px;margin-top:2px;font-size:9px;font-family:'DM Mono',monospace">
+      <span style="color:#ff6666">❤${f.hpCur}</span><span style="color:#ffaa44">⚔${f.atq}</span><span style="color:#5b9cf6">🛡${f.def}</span>
     </div>
-    <div style="font-size:${fs.sub+1}px;color:#aaa;font-family:'DM Mono',monospace">🎯${Math.round(f.prec*100)}%</div>
+    <div style="font-size:7px;color:#aaa;font-family:'DM Mono',monospace">🎯${Math.round(f.prec*100)}%</div>
   </div>`;
 }
 
-function setImg(id,f){
-  const a=document.getElementById(`${id}-art`);if(!a)return;
-  const isMob=_device==='mob';
-  if(f){a.innerHTML=cardHTML(f,isMob);}
-  else{a.innerHTML=`<div class="icon" style="opacity:.18">💀</div>`;}
+function setFieldArt(id, f) {
+  const a = document.getElementById(`${id}-art`); if (!a) return;
+  a.innerHTML = f ? fighterCardHTML(f) : `<div class="icon" style="opacity:.15">💀</div>`;
 }
 
-function setStat(id,stat,eff,base){
-  const el=document.getElementById(`${id}-${stat}`);if(el)el.textContent=eff;
-  const row=document.getElementById(`${id}-sr-${stat}`);if(!row)return;
-  row.className='stat-row'+(eff-base>0?' buf':eff-base<0?' deb':'');
-}
+function aEff(p) { let v=p.fighter?p.fighter.atq:0; p.actives.forEach(a=>{ if(a.at==='ba') v+=a.val; }); return Math.max(0,v); }
+function dEff(p) { let v=p.fighter?p.fighter.def:0; p.actives.forEach(a=>{ if(a.at==='dd') v-=a.val; }); return Math.max(0,v); }
+function pEff(p) { return p.fighter ? p.fighter.prec : 0; }
 
-function renderP(id,p){
-  updateHeart(id,p.hp,p.hpMax);
-  const dk=document.getElementById(`${id}-dk-txt`);if(dk)dk.textContent=p.pioche.length;
-  const dkMob=document.getElementById('b-dk-mob');if(dkMob&&id==='b')dkMob.textContent=`${p.pioche.length} 🂠`;
-  if(id==='h')document.getElementById('h-hand-txt').textContent=`${p.hand.length} cartes`;
-
-  const f=p.fighter,fc=document.getElementById(`${id}-fc`);
-  if(!f){
-    setImg(id,null);fc.className='field-card';
+function renderSide(id, p) {
+  updateHeart(id, p.hp, p.hpMax);
+  const f = p.fighter;
+  if (!f) {
+    setFieldArt(id, null);
     document.getElementById(`${id}-fhp`).style.width='0%';
-    const lbl=document.getElementById(`${id}-fhplbl`);if(lbl)lbl.textContent='—';
-    ['rar','name','atq','def','prec'].forEach(s=>{const e=document.getElementById(`${id}-${s}`);if(e){e.textContent='—';if(s==='rar')e.className='sp-rar rC';}});
-    const dmg=document.getElementById(`${id}-dmg`);if(dmg)dmg.textContent='—';
-    const el=document.getElementById(`${id}-act`);if(el)el.innerHTML='<span style="font-size:9px;color:var(--dim)">Aucun</span>';
-    if(id==='h')updateMobStats(null);
-    return;
+    const lbl=document.getElementById(`${id}-fhplbl`); if(lbl) lbl.textContent='—';
+    ['rar','name','atq','def','prec','dmg'].forEach(k=>{ const e=document.getElementById(`${id}-${k}`); if(e) e.textContent='—'; });
+    const act=document.getElementById(`${id}-act`); if(act) act.innerHTML='<span style="font-size:9px;color:var(--dim)">Aucun</span>';
+    if(id==='h') mobStats(null); return;
   }
-  setImg(id,f);
-  const pp=f.hpCur/f.hpBase*100,col=pp>60?'var(--grn)':pp>30?'var(--gold)':'var(--red)';
-  document.getElementById(`${id}-fhp`).style.cssText=`width:${Math.max(0,pp)}%;background:${col}`;
-  const lbl=document.getElementById(`${id}-fhplbl`);if(lbl)lbl.textContent=`${f.hpCur}/${f.hpBase}`;
-  const rar=document.getElementById(`${id}-rar`);if(rar){rar.textContent=RLAB[f.rarete];rar.className=`sp-rar r${f.rarete}`;}
-  const nm=document.getElementById(`${id}-name`);if(nm)nm.textContent=f.nom;
-  setStat(id,'atq',aEff(p),f.atq); setStat(id,'def',dEff(p),f.def);
-  const pr=document.getElementById(`${id}-prec`);if(pr)pr.textContent=Math.round(pEff(p)*100)+'%';
-  const opp=id==='h'?G.bot:G.human,net=Math.max(0,aEff(p)-dEff(opp));
-  const dmgEl=document.getElementById(`${id}-dmg`);if(dmgEl)dmgEl.textContent=opp.fighter?`${net} HP`:'—';
-  const el=document.getElementById(`${id}-act`);if(el){el.innerHTML='';
-    if(!p.actives.length){el.innerHTML='<span style="font-size:9px;color:var(--dim)">Aucun</span>';}
-    else p.actives.forEach(a=>{const buf=a.at==='ba'||a.at==='bd';const t=document.createElement('div');t.className=`etag ${buf?'buf':'deb'}`;t.innerHTML=`${buf?'▲':'▼'}${a.val} ${a.at==='ba'||a.at==='da'?'Force':'Déf'}<span style="font-size:7px;opacity:.6"> ${a.turns}T</span>`;el.appendChild(t);});
-  }
-  if(id==='h')updateMobStats(f,p);
+  setFieldArt(id, f);
+  const pct=f.hpCur/f.hpBase*100, col=pct>60?'var(--grn)':pct>30?'var(--gold)':'var(--red)';
+  document.getElementById(`${id}-fhp`).style.cssText=`width:${Math.max(0,pct)}%;background:${col}`;
+  const lbl=document.getElementById(`${id}-fhplbl`); if(lbl) lbl.textContent=`${f.hpCur}/${f.hpBase}`;
+  const rar=document.getElementById(`${id}-rar`); if(rar) rar.textContent='COMMUNE';
+  const nm=document.getElementById(`${id}-name`); if(nm) nm.textContent=f.nom;
+  const aV=aEff(p), dV=dEff(p), pV=pEff(p);
+  statRow(id,'atq',aV,f.atq); statRow(id,'def',dV,f.def);
+  const prEl=document.getElementById(`${id}-prec`); if(prEl) prEl.textContent=Math.round(pV*100)+'%';
+  const opp=id==='h'?G.bot:G.human;
+  const net=opp.fighter?Math.max(0,aV-dEff(opp)):0;
+  const dmgEl=document.getElementById(`${id}-dmg`); if(dmgEl) dmgEl.textContent=opp.fighter?`${net} HP`:'—';
+  const act=document.getElementById(`${id}-act`);
+  if(act){ act.innerHTML='';
+    if(!p.actives.length){ act.innerHTML='<span style="font-size:9px;color:var(--dim)">Aucun</span>'; }
+    else p.actives.forEach(a=>{ 
+      if(a.at==='prec100') return; // secret, pas affiché
+      const b=a.at==='ba'||a.at==='bd'; const t=document.createElement('div'); t.className=`etag ${b?'buf':'deb'}`; t.innerHTML=`${b?'▲':'▼'}${a.val} ${a.at==='ba'?'Force':'Déf'}<span style="font-size:7px;opacity:.6"> ${a.turns}T</span>`; act.appendChild(t); }); }
+  if(id==='h') mobStats(f,p);
 }
 
-function updateMobStats(f,p){
-  if(_device!=='mob')return;
-  const el=document.getElementById('mob-player-stats');
-  const dk=document.getElementById('mob-h-deck');
-  if(!el)return;
-  if(!f){el.textContent='Aucun combattant';if(dk)dk.textContent='';return;}
+function statRow(id,stat,eff,base){
+  const el=document.getElementById(`${id}-${stat}`); if(el) el.textContent=eff;
+  const row=document.getElementById(`${id}-sr-${stat}`); if(!row) return;
+  row.className='stat-row'+(eff>base?' buf':eff<base?' deb':'');
+}
+
+function mobStats(f,p){
+  if(_device!=='mob') return;
+  const el=document.getElementById('mob-player-stats'), dk=document.getElementById('mob-h-deck');
+  if(!el) return;
+  if(!f){ el.textContent='Aucun combattant'; if(dk) dk.textContent=''; return; }
   el.innerHTML=`<strong>${f.perso}</strong><br>❤${f.hpCur} ⚔${aEff(p)} 🛡${dEff(p)} 🎯${Math.round(pEff(p)*100)}%`;
-  if(dk)dk.textContent=`${G.human.pioche.length} 🂠`;
+  if(dk) dk.textContent=`${G.human.hand.length} 🂠`;
 }
 
-function renderHand(){
-  const el=document.getElementById('hcards');el.innerHTML='';
+function renderHand() {
+  const el=document.getElementById('hcards'); el.innerHTML='';
   G.human.hand.forEach((c,i)=>{
-    const isFig=c.ct==='fighter';
-    const canPlay=G.phase==='choose_fighter'?isFig:G.phase==='sort'?(c.ct==='sort'&&!G.human.sortJoue):false;
-    const dis=G.phase==='choose_fighter'?!isFig:G.phase==='sort'?(c.ct!=='sort'||G.human.sortJoue):true;
-    const rc={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'}[c.rarete]||'#888';
+    const isFig = c.ct==='fighter';
+    const canPlay = (G.phase==='choose_fighter' && isFig) || (G.phase==='sort' && !G.human.sortJoue && !isFig);
     const d=document.createElement('div');
-    d.className=`hcard r${c.rarete}${dis?' hc-dis':canPlay?' hc-playable':''}`;
-    d.onclick=dis?null:()=>humanPlayCard(i);
+    d.className=`hcard${canPlay?' hc-playable':' hc-dis'}`;
+    d.onclick = canPlay ? ()=>onPlayCard(i) : null;
     if(isFig){
       d.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:5px 3px;text-align:center;gap:1px">
-        <div style="font-family:'Cinzel',serif;font-size:6.5px;font-weight:900;color:${rc};text-transform:uppercase">${RLAB[c.rarete]}</div>
+        <div style="font-family:'Cinzel',serif;font-size:6px;font-weight:900;color:#888;text-transform:uppercase">COMMUNE</div>
         <div style="font-family:'Bangers',cursive;font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);line-height:1.1">${c.perso}</div>
-        <div style="font-size:5.5px;color:var(--sub);line-height:1.1">${c.nom.substring(0,18)}</div>
-        <div style="display:flex;gap:3px;margin-top:1px;font-size:8px;font-family:'DM Mono',monospace">
-          <span style="color:var(--red)">❤${c.hpCur}</span><span style="color:#ffaa44">⚔${c.atq}</span><span style="color:var(--blue)">🛡${c.def}</span>
-        </div>
-      </div>`;
+        <div style="font-size:5.5px;color:var(--sub);line-height:1.1">${c.nom.substring(0,20)}</div>
+        <div style="display:flex;gap:3px;margin-top:2px;font-size:8px;font-family:'DM Mono',monospace">
+          <span style="color:var(--red)">❤${c.hp}</span><span style="color:#ffaa44">⚔${c.atq}</span><span style="color:var(--blue)">🛡${c.def}</span>
+        </div></div>`;
     } else {
       d.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:5px 3px;text-align:center;gap:2px">
-        <div style="font-size:18px">${c.type==='Piège'?'🪤':'✨'}</div>
-        <div style="font-family:'Cinzel',serif;font-size:6px;font-weight:900;color:${rc}">${c.type}</div>
-        <div style="font-family:'Bangers',cursive;font-size:11px;color:#fff;line-height:1.2">${c.nom}</div>
-        <div style="font-size:5.5px;color:var(--sub);line-height:1.3">${c.desc||''}</div>
+        <div style="font-size:18px">${c.type==='Ruse'?'🪤':'✨'}</div>
+        <div style="font-family:'Cinzel',serif;font-size:6px;font-weight:900;color:#888">${c.type}</div>
+        <div style="font-family:'Bangers',cursive;font-size:11px;color:#fff;line-height:1.1">${c.nom}</div>
+        <div style="font-size:5.5px;color:var(--sub);line-height:1.3">${c.desc}</div>
       </div>`;
     }
-    if(G._newCardIdx===i){d.style.animation='cardDeal .35s cubic-bezier(.16,1,.3,1) both';setTimeout(()=>d.style.animation='',750);}
     el.appendChild(d);
   });
-  G._newCardIdx=-1;
+  document.getElementById('h-hand-txt').textContent=`${G.human.hand.length} carte${G.human.hand.length>1?'s':''}`;
+  document.getElementById('h-dk-txt').textContent=G.human.hand.length;
 }
 
-function renderActions(){
-  document.getElementById('btn-atk').disabled=G.phase!=='attack';
-  document.getElementById('btn-pass').disabled=G.phase!=='sort';
-  const M={choose_fighter:{c:'ib-choose',t:'⚡ Choisis un combattant'},sort:{c:'ib-sort',t:'✨ Sort ou ⏭ Passe'},attack:{c:'ib-attack',t:'⚔ Attaque !'},bot:{c:'ib-bot',t:'🤖 Bot joue…'},ko:{c:'ib-ko',t:'💀 Choisis un nouveau combattant'}};
-  const ph=G.phase==='choose_fighter'?'choose_fighter':G.phase==='sort'?'sort':G.phase==='attack'?'attack':'bot';
-  const i=M[ph]||M.bot;
-  document.getElementById('instr-bar').className=`instr-bar ${i.c}`;
-  document.getElementById('instr-txt').textContent=i.t;
+function renderActions() {
+  document.getElementById('btn-atk').disabled = G.phase!=='attack';
+  document.getElementById('btn-pass').disabled = !(G.phase==='sort' && !G.human.sortJoue);
+  const bar=document.getElementById('instr-bar'), txt=document.getElementById('instr-txt');
+  const wt=document.getElementById('wt'), wtTxt=document.getElementById('wt-txt');
+  if(G.phase==='choose_fighter'){
+    bar.className='instr-bar ib-choose'; txt.textContent='⚡ Choisis un combattant dans ta main';
+    wt.className='wt-pill ht'; wtTxt.textContent='Ton tour';
+  } else if(G.phase==='bot_places'){
+    bar.className='instr-bar ib-bot'; txt.textContent='🤖 Le bot pose son combattant…';
+    wt.className='wt-pill bt'; wtTxt.textContent='Bot joue…';
+  } else if(G.phase==='sort'){
+    bar.className='instr-bar ib-sort'; txt.textContent='✨ Joue un sort ou passe';
+    wt.className='wt-pill ht'; wtTxt.textContent='Ton tour';
+  } else if(G.phase==='attack'){
+    bar.className='instr-bar ib-attack'; txt.textContent='⚔ Attaque !';
+    wt.className='wt-pill ht'; wtTxt.textContent='Ton tour';
+  } else if(G.phase==='bot_turn'){
+    bar.className='instr-bar ib-bot'; txt.textContent='🤖 Le bot joue…';
+    wt.className='wt-pill bt'; wtTxt.textContent='Bot joue…';
+  }
+  document.getElementById('tbadge').textContent=`TUTO · T.${G.turn}`;
 }
 
-// ════════════════════════
-// LOGIQUE JEU
-// ════════════════════════
-function aEff(p){if(!p.fighter)return 0;let v=p.fighter.atq;p.actives.forEach(a=>{if(a.at==='ba')v+=a.val;if(a.at==='da')v-=a.val;});return Math.max(0,v);}
-function dEff(p){if(!p.fighter)return 0;let v=p.fighter.def;p.actives.forEach(a=>{if(a.at==='bd')v+=a.val;if(a.at==='dd')v-=a.val;});return Math.max(0,v);}
-function pEff(p){return p.fighter?p.fighter.prec:0;}
-function applySort(s,cas,cib){
-  switch(s.effet){
-    case'buff_atq':cas.actives.push({at:'ba',val:s.val,turns:s.dur});break;
-    case'buff_def':cas.actives.push({at:'bd',val:s.val,turns:s.dur});break;
-    case'skip_atq':cib.skipAtq=true;break;
-    case'debuff_atq':cib.actives.push({at:'da',val:s.val,turns:s.dur});break;
-    case'debuff_def':cib.actives.push({at:'dd',val:s.val,turns:s.dur});break;
-  }
-}
-function tickActives(p){p.actives=p.actives.map(a=>({...a,turns:a.turns-1})).filter(a=>a.turns>0);p.skipAtq=false;}
+function render() { renderSide('h',G.human); renderSide('b',G.bot); renderHand(); renderActions(); }
 
-function humanPlayCard(idx){
-  const c=G.human.hand[idx];if(!c)return;
-  if(c.ct==='fighter'&&G.phase==='choose_fighter'){
-    G.human.hand.splice(idx,1);G.human.fighter=c;
-    if(!G.bot.fighter)botChooseFighter();
-    if(G.fp==='bot'&&G.turn===1){G.phase='bot';render();setTimeout(()=>botTurn(),1400);}
-    else{G.phase='sort';render();}
-    _tCheck('fighter_placed');return;
+// ── ACTIONS JOUEUR ──
+function onPlayCard(idx) {
+  const c = G.human.hand[idx]; if(!c) return;
+
+  if(G.phase==='choose_fighter' && c.ct==='fighter') {
+    G.human.hand.splice(idx,1);
+    G.human.fighter = mkF(CARDS.hero_h);
+    // Animer apparition côté joueur
+    animCardIn('h');
+    G.phase = 'bot_places';
+    render();
+    tutoSignal('fighter_placed');
+    return;
   }
-  if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
-    G.human.hand.splice(idx,1);G.human.sortJoue=true;
-    applySort(c,G.human,G.bot);
-    spellAnnounce('Joueur',c.nom,c.desc,c.type);
-    G.phase='attack';render();
-    _tCheck('sort_played');
+
+  if(G.phase==='sort' && !G.human.sortJoue && c.ct==='sort') {
+    G.human.hand.splice(idx,1);
+    G.human.sortJoue = true;
+    if(c.effet==='buff_atq'){
+      G.human.actives.push({at:'ba',val:c.val,turns:c.dur});
+    }
+    spellAnnounce('Toi', c.nom, c.desc, c.type);
+    G.phase='attack'; render();
+    tutoSignal('sort_played');
   }
 }
-function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();_tCheck('sort_played');}
-function humanAttack(){
-  if(G.phase!=='attack')return;
-  G.phase='bot';renderActions();
-  if(!G.human.fighter||!G.bot.fighter){endTurn();return;}
-  const bl=G.human.skipAtq,ms=!bl&&Math.random()>=pEff(G.human);
-  const dmg=(!bl&&!ms)?Math.max(0,aEff(G.human)-dEff(G.bot)):0;
-  playAttack('h','b',dmg,ms,bl).then(()=>{
-    if(!bl&&!ms){G.bot.fighter.hpCur-=dmg;G.stats.totalDmgH+=dmg;beatHeart('b');const cn=G.human.fighter?G.human.fighter.nom:'?';G.stats.dmgByCard[cn]=(G.stats.dmgByCard[cn]||0)+dmg;}
-    if(checkKO(G.bot))return;render();setTimeout(()=>botTurn(),1800);
+
+function onHumanPass() {
+  if(G.phase!=='sort'||G.human.sortJoue) return;
+  G.human.sortJoue=true; G.phase='attack'; render();
+  tutoSignal('sort_played');
+}
+
+function onHumanAttack() {
+  if(G.phase!=='attack') return;
+  G.phase='bot_turn'; renderActions();
+  const missed = false; // tuto : le joueur touche toujours
+  const dmg    = Math.max(0, aEff(G.human) - dEff(G.bot));
+  doAttack('h','b',dmg,missed).then(()=>{
+    if(G.bot.fighter){ G.bot.fighter.hpCur=Math.max(0,G.bot.fighter.hpCur-dmg); beatHeart('b'); }
+    renderSide('b',G.bot);
+    // Signaler selon le tour
+    if(G.turn===1) tutoSignal('attack_done_t1');
+    else           tutoSignal('attack_done_t2');
   });
 }
-function botChooseFighter(){
-  const fs=G.bot.hand.filter(c=>c.ct==='fighter');if(!fs.length)return;
-  const best=fs.reduce((b,c)=>(c.atq*c.prec*c.hpCur+c.def*2)>(b.atq*b.prec*b.hpCur+b.def*2)?c:b);
-  G.bot.hand=G.bot.hand.filter(c=>c!==best);G.bot.fighter=best;
-}
-function botTurn(){
-  if(G.ended)return;if(!G.bot.fighter){endTurn();return;}
-  const so=G.bot.hand.filter(c=>c.ct==='sort');
-  if(so.length&&!G.bot.sortJoue){const s=so[0];G.bot.hand=G.bot.hand.filter(c=>c!==s);G.bot.sortJoue=true;applySort(s,G.bot,G.human);spellAnnounce('Bot',s.nom,s.desc,s.type);}
-  if(!G.bot.skipAtq&&G.human.fighter){
-    const ms=Math.random()>=pEff(G.bot),dmg=ms?0:Math.max(0,aEff(G.bot)-dEff(G.human));
-    playAttack('b','h',dmg,ms,false).then(()=>{
-      if(!ms){G.human.fighter.hpCur-=dmg;G.stats.totalDmgB+=dmg;beatHeart('h');}
-      if(checkKO(G.human))return;endTurn();
-    });
-  }else{if(checkKO(G.human))return;endTurn();}
-}
-function endTurn(){
-  if(G.ended)return;
-  tickActives(G.human);tickActives(G.bot);
-  G.human.sortJoue=false;G.bot.sortJoue=false;
-  draw(G.human);draw(G.bot);G.turn++;
-  G.phase=G.human.fighter?'sort':'choose_fighter';
-  render();_tCheck('turn_done');
-}
-function draw(p){if(p.pioche.length){const c=p.pioche.shift();p.hand.push(c);if(p===G.human)G._newCardIdx=p.hand.length-1;}}
-function checkKO(player){
-  if(!player.fighter||player.fighter.hpCur>0)return false;
-  const f=player.fighter,pv=f.hpBase;
-  player.hp-=pv;heartDamage(player===G.human?'h':'b',pv);
-  showKOSplash(f.nom,player===G.human?'h':'b');
-  if(player.hp<=0){player.fighter=null;endGame(player===G.human?'bot':'human');return true;}
-  const surv=player.actives.filter(a=>a.su);
-  if(player===G.human){
-    player.fighter=null;player.actives=surv;G.phase='choose_fighter';
-    while(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
-    if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
-    render();return true;
-  }else{
-    player.actives=surv;
-    if(!player.hand.some(c=>c.ct==='fighter')){while(player.pioche.length){const c=player.pioche.shift();player.hand.push(c);if(c.ct==='fighter')break;}}
-    if(!player.hand.some(c=>c.ct==='fighter')){player.fighter=null;endGame('human');return true;}
-    botChooseFighter();return false;
-  }
-}
-function endGame(w){
-  G.ended=true;hideTuto();
-  const isWin=w==='human';
-  document.getElementById('ov-title').textContent=isWin?'VICTOIRE !':'Défaite...';
-  document.getElementById('ov-title').className='ov-title '+(isWin?'win':'lose');
-  document.getElementById('ov-sub').textContent=isWin?`Bravo ! Tu maîtrises les bases avec ${G.human.hp} PV restants !`:`Le bot l'emporte avec ${G.bot.hp} PV. Rejoue pour t'améliorer !`;
-  const dm=G.stats.dmgByCard;let mvpN='—',mvpV=0;
-  Object.entries(dm).forEach(([k,v])=>{if(v>mvpV){mvpV=v;mvpN=k;}});
-  document.getElementById('ov-stats').innerHTML=`
-    <div class="ov-stat"><span class="ov-stat-lbl">⏱ Tours</span><span class="ov-stat-val gold">${G.turn}</span></div>
-    <div class="ov-stat"><span class="ov-stat-lbl">⚔ Dégâts infligés</span><span class="ov-stat-val">${G.stats.totalDmgH}</span></div>
-    <div class="ov-stat"><span class="ov-stat-lbl">💀 Dégâts reçus</span><span class="ov-stat-val">${G.stats.totalDmgB}</span></div>
-    <div class="ov-stat"><span class="ov-stat-lbl">🏆 MVP</span><span class="ov-stat-val mvp">${mvpN} (${mvpV} dmg)</span></div>`;
-  const coins=isWin?150:30;
-  document.getElementById('ov-reward').textContent=isWin?`🪙 +${coins} coins — Tutoriel réussi !`:`🤝 +${coins} coins — Continue !`;
-  document.getElementById('ov-end').classList.add('active');
-  saveCoins(coins);
+
+// ── BOT ──
+function botPlaceFighter() {
+  G.bot.fighter = mkF(CARDS.hero_b);
+  animCardIn('b');
+  renderSide('b',G.bot);
 }
 
-// ════════════════════════
-// ANIMATIONS
-// ════════════════════════
-function playAttack(atkId,defId,dmg,missed,blocked){
+function botPlayTurn() {
+  const ruse = G.bot.hand.find(c=>c.id===119);
+  if(ruse && !G.bot.sortJoue){
+    G.bot.hand = G.bot.hand.filter(c=>c.id!==119);
+    G.bot.sortJoue=true;
+    G.human.actives.push({at:'dd',val:1,turns:3});
+    spellAnnounce('Bot', ruse.nom, ruse.desc, ruse.type);
+    // Attendre que l'annonce soit lisible, puis attaquer
+    setTimeout(()=>botDoAttack(), 2200);
+  } else { botDoAttack(); }
+}
+
+function botDoAttack() {
+  const missed = true; // tuto : le bot rate toujours
+  doAttack('b','h',0,missed).then(()=>{
+    renderSide('h',G.human);
+    // Le bot a fini — on affiche la bulle step 10 (résultat)
+    // endTurn() sera appelé par onBtn du step 10
+    tutoSignal('bot_done');
+  });
+}
+
+function endTurn() {
+  G.human.actives = G.human.actives.map(a=>({...a,turns:a.turns-1})).filter(a=>a.turns>0);
+  G.bot.actives   = G.bot.actives.map(a=>({...a,turns:a.turns-1})).filter(a=>a.turns>0);
+  G.human.sortJoue=false; G.bot.sortJoue=false;
+  G.turn++;
+  G.phase='sort';
+  if(G.turn===2 && G._card101){ G.human.hand.push({...G._card101}); G._card101=null; }
+  render();
+  // Avancer le tuto vers step 11 (Tour 2)
+  _tStep++; showTutoStep(_tStep);
+}
+
+function endGame() {
+  G.phase='done'; hideTuto();
+  document.getElementById('ov-title').textContent='VICTOIRE !';
+  document.getElementById('ov-title').className='ov-title win';
+  document.getElementById('ov-sub').textContent='Bravo ! Tu maîtrises les bases en 2 tours. Héro, sort, attaque : tu sais tout !';
+  document.getElementById('ov-reward').textContent='🪙 +150 coins — Tutoriel réussi !';
+  document.getElementById('ov-end').classList.add('active');
+}
+
+// ── ANIMATIONS ──
+function animCardIn(id) {
+  const fc=document.getElementById(`${id}-fc`); if(!fc) return;
+  fc.style.animation='none'; void fc.offsetWidth; fc.style.animation='cardIn .4s cubic-bezier(.34,1.56,.64,1) both';
+}
+
+function doAttack(atkId,defId,dmg,missed) {
   return new Promise(res=>{
-    const ac=document.getElementById(`${atkId}-fc`),dc=document.getElementById(`${defId}-fc`);
+    const ac=document.getElementById(`${atkId}-fc`), dc=document.getElementById(`${defId}-fc`);
     if(!ac||!dc){res();return;}
     const cls=atkId==='h'?'fc-atk-r':'fc-atk-l';
-    ac.classList.remove('fc-atk-r','fc-atk-l','fc-hit');void ac.offsetWidth;ac.classList.add(cls);
+    ac.classList.remove('fc-atk-r','fc-atk-l','fc-hit'); void ac.offsetWidth; ac.classList.add(cls);
     setTimeout(()=>{
-      dc.classList.remove('fc-hit');void dc.offsetWidth;dc.classList.add('fc-hit');
-      showBubble(defId,dmg,missed,blocked);
-      setTimeout(()=>{ac.classList.remove(cls);dc.classList.remove('fc-hit');res();},700);
+      dc.classList.remove('fc-hit'); void dc.offsetWidth; dc.classList.add('fc-hit');
+      showBubble(defId,dmg,missed);
+      setTimeout(()=>{ ac.classList.remove(cls); dc.classList.remove('fc-hit'); res(); },700);
     },420);
   });
 }
-function showBubble(id,dmg,missed,blocked){
-  const fc=document.getElementById(`${id}-fc`);if(!fc)return;
+
+function showBubble(id,dmg,missed) {
+  const fc=document.getElementById(`${id}-fc`); if(!fc) return;
   fc.querySelectorAll('.comic-bubble').forEach(e=>e.remove());
-  const wrap=document.createElement('div');wrap.className='comic-bubble';
-  const type=blocked?'block':missed?'miss':'hit';
-  const col=type==='hit'?'#ff2244':type==='miss'?'#22cc44':'#4488ff';
-  const lbl=type==='hit'?`-${dmg} HP !`:type==='miss'?'RATÉ !!!':'BLOQUÉ !';
-  wrap.innerHTML=`<div style="font-family:'Bangers',cursive;font-size:${type==='hit'?'32px':'26px'};color:${col};text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000;letter-spacing:.05em;white-space:nowrap;padding:7px 12px;background:rgba(0,0,0,.55);border:3px solid ${col};border-radius:10px;transform:rotate(-4deg);display:inline-block">${lbl}</div>`;
-  fc.appendChild(wrap);setTimeout(()=>wrap.remove(),2900);
+  const wrap=document.createElement('div'); wrap.className='comic-bubble';
+  const col=missed?'#22cc44':'#ff2244';
+  const lbl=missed?'RATÉ !!!':'-'+dmg+' HP !';
+  wrap.innerHTML=`<div style="font-family:'Bangers',cursive;font-size:${missed?'26px':'32px'};color:${col};text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000;padding:7px 12px;background:rgba(0,0,0,.55);border:3px solid ${col};border-radius:10px;transform:rotate(-4deg);display:inline-block;white-space:nowrap">${lbl}</div>`;
+  fc.appendChild(wrap); setTimeout(()=>wrap.remove(),2900);
 }
-function updateHeart(id,hp,hpMax){
+
+function updateHeart(id,hp,hpMax) {
   const pct=Math.max(0,Math.min(1,hp/hpMax));
-  const r=document.getElementById(`cpr-${id}`);if(r)r.setAttribute('y',90*(1-pct));
-  const t=document.getElementById(`${id}-hpv`);if(t)t.textContent=Math.max(0,hp);
+  const r=document.getElementById(`cpr-${id}`); if(r) r.setAttribute('y',90*(1-pct));
+  const t=document.getElementById(`${id}-hpv`); if(t) t.textContent=Math.max(0,hp);
 }
-function beatHeart(id){const w=document.getElementById(`${id}-hwrap`);if(!w)return;w.classList.remove('heart-beat');void w.offsetWidth;w.classList.add('heart-beat');setTimeout(()=>w.classList.remove('heart-beat'),420);}
-function heartDamage(id,pv){
-  const w=document.getElementById(`${id}-hwrap`);if(!w)return;
-  w.style.animation='none';void w.offsetWidth;w.style.animation='heartDmg .75s cubic-bezier(.2,0,.8,1) both';
+
+function beatHeart(id) {
+  const w=document.getElementById(`${id}-hwrap`); if(!w) return;
+  w.style.animation='none'; void w.offsetWidth;
+  w.style.animation='heartDmg .75s cubic-bezier(.2,0,.8,1) both';
   setTimeout(()=>w.style.animation='',800);
-  if(pv){const el=document.createElement('div');el.className='pv-loss';el.style.cssText=`font-size:${pv>=10?'26px':'20px'};left:50%`;el.textContent=`-${pv} PV`;w.appendChild(el);setTimeout(()=>el.remove(),1300);}
 }
-function showKOSplash(nom,side){
-  const flash=document.createElement('div');flash.className='ko-flash-bg';document.body.appendChild(flash);setTimeout(()=>flash.remove(),1200);
-  const sp=document.createElement('div');sp.className='ko-splash';sp.style.left=side==='h'?'25%':'75%';sp.style.transform='translateY(-50%) translateX(-50%)';
-  sp.innerHTML=`<div style="font-family:'Bangers',cursive;font-size:68px;color:#ff8800;text-shadow:-3px -3px 0 #000,3px -3px 0 #000,-3px 3px 0 #000,3px 3px 0 #000;letter-spacing:.08em;line-height:1">K.O.</div><div style="font-family:'Cinzel',serif;font-weight:700;font-size:10px;color:rgba(255,255,255,.7);text-align:center;margin-top:5px;text-shadow:0 2px 8px #000">${nom} envoyé à la défausse</div>`;
-  document.body.appendChild(sp);setTimeout(()=>sp.remove(),3800);
-}
+
 let _saTimer=null;
-function spellAnnounce(who,nom,desc,type){
-  if(_saTimer)clearTimeout(_saTimer);
+function spellAnnounce(who,nom,desc,type) {
+  if(_saTimer) clearTimeout(_saTimer);
   document.querySelectorAll('.spell-announce').forEach(e=>e.remove());
-  const d=document.createElement('div');d.className='spell-announce'+(type==='Piège'?' piege':'');
-  d.innerHTML=`<div class="sa-who">${who} joue · ${type==='Piège'?'🪤 Piège':'✨ Magie'}</div><div class="sa-nom">${nom}</div><div class="sa-desc">${desc}</div>`;
+  const d=document.createElement('div');
+  d.className='spell-announce'+(type==='Ruse'?' ruse':'');
+  d.innerHTML=`<div class="sa-who">${who} joue · ${type==='Ruse'?'🪤 Ruse':'✨ Arcane'}</div><div class="sa-nom">${nom}</div><div class="sa-desc">${desc}</div>`;
   document.body.appendChild(d);
-  _saTimer=setTimeout(()=>{d.style.animation='spellOut .4s ease-in both';setTimeout(()=>d.remove(),420);},3200);
-}
-let _ct;
-function showCoinToast(fp){
-  const ov=document.getElementById('coin-ov'),box=document.getElementById('coin-box');
-  document.getElementById('coin-emoji').textContent=fp==='human'?'🪙':'🤖';
-  const w=document.getElementById('coin-who');w.textContent=fp==='human'?'Tu commences !':'Le bot commence !';
-  w.className='coin-who '+(fp==='human'?'first':'second');
-  document.getElementById('coin-detail').textContent=fp==='human'?'Premier avantage !':'Le bot joue en premier';
-  ov.style.display='flex';requestAnimationFrame(()=>requestAnimationFrame(()=>box.classList.add('show')));
-  clearTimeout(_ct);_ct=setTimeout(()=>{box.classList.remove('show');setTimeout(()=>ov.style.display='none',400);},2600);
+  _saTimer=setTimeout(()=>{ d.style.animation='spellOut .4s ease-in both'; setTimeout(()=>d.remove(),420); },3000);
 }
 
-// ════════════════════════════════════════════════
-// SYSTÈME TUTO
-// Bulle légère positionnée contextuellement
-// Pas de voile sur les cartes pendant les actions
-// ════════════════════════════════════════════════
-let _tStep=0,_tActive=false,_tWait=null,_tFirstLoop=false;
+// ══════════════════════════════════════════
+// SCÉNARIO TUTO — séquence 100% manuelle
+//
+// Chaque étape attend soit un clic sur "OK/Compris/etc."
+// soit une action du joueur (jouer une carte, attaquer).
+// Rien ne se déclenche automatiquement.
+//
+// type 'info'   → bulle avec bouton, on avance au clic
+// type 'action' → bulle sans bouton, on attend l'event du jeu
+// type 'bot'    → bulle avec bouton, ET quand le joueur clique
+//                 on déclenche l'action du bot PUIS on passe à la suite
+// ══════════════════════════════════════════
 
-// Étapes : icon, msg court, action optionnelle, position
-const STEPS=[
+// Chaque step :
+//  msg, icon, pos, btn (texte bouton si info/bot), hl, hint
+//  wait  : event jeu à attendre (type action)
+//  onBtn : fonction à appeler quand le joueur clique sur le bouton (type bot)
+
+let _tStep = 0, _tActive = false, _tWaiting = false;
+
+const STEPS = [
   // 0 — Bienvenue
-  {icon:'🎮',msg:`Bienvenue ! Tu as <strong>30 PV</strong> pour ce tuto. Réduis les PV du bot à 0 pour gagner. C'est tout !`,btn:'Ok !',pos:'center'},
-  // 1 — Deck miroir
-  {icon:'🪞',msg:`Tu joues avec les <strong>mêmes 10 cartes</strong> que le bot, mais dans un ordre différent.`,btn:'Super !',pos:'center'},
-  // 2 — Ta main
-  {icon:'✋',msg:`Les cartes en bas = <strong>ta main</strong>. Les cartes avec ❤⚔🛡 sont tes <strong>combattants</strong>.`,btn:'J\'ai compris',pos:'bottom',hl:'hand'},
-  // 3 — Action : choisir combattant
-  {icon:'⚡',msg:`<strong>Tape sur un combattant</strong> dans ta main pour l'envoyer au combat !`,hint:'Choisis une carte avec ❤⚔🛡',pos:'bottom',hl:'hand',wait:'fighter_placed'},
-  // 4 — Stats
-  {icon:'📊',msg:`<strong>ATQ</strong> = tes dégâts. <strong>DEF</strong> = ce que l'adversaire encaisse en moins. Dégâts nets = ATQ − DEF adverse.`,btn:'Got it !',pos:'pc-stats'},
-  // 5 — Sorts
-  {icon:'🃏',msg:`Avant d'attaquer : joue un <strong>Sort ✨</strong> (buff) ou un <strong>Piège 🪤</strong> (affaiblit le bot). Ou passe directement.`,hint:'Joue un sort ou clique Passer',pos:'bottom',hl:'hand',wait:'sort_played'},
-  // 6 — Attaque
-  {icon:'⚔️',msg:`Clique sur <strong>⚔ Attaquer</strong> pour frapper le bot !`,hint:'Clique Attaquer',pos:'top',hl:'btn-atk',wait:'attack_done'},
-  // 7 — Boucle
-  {icon:'🔄',msg:`Et voilà la boucle ! <strong>Combattant → Sort/Passe → Attaque</strong>. Tu pioches 1 carte à chaque tour. Bonne chance !`,btn:'À moi de jouer 🔥',pos:'center',last:true},
+  { icon:'👋', pos:'center', btn:'Allons-y !',
+    msg:`Bienvenue dans le tuto ! Le principe en 3 mots :\n<strong>Héro → Sort → Attaque.</strong>\n\nRépète ça chaque tour et réduis les <strong>10 PV du bot</strong> à zéro pour gagner !` },
+
+  // 1 — Stats
+  { icon:'📊', pos:'center', btn:'OK !',
+    msg:`Les 3 stats qui comptent :\n⚔️ <strong>ATQ</strong> — tes dégâts bruts\n🛡️ <strong>DEF</strong> — l'absorption de l'adversaire\n🎯 <strong>Précision</strong> — ta chance de toucher\n\n<em>Dégâts nets = ton ATQ − DEF adverse.</em>` },
+
+  // 2 — PV
+  { icon:'❤️', pos:'center', btn:'Compris !',
+    msg:`Les <strong>cœurs en haut</strong> = tes <strong>10 PV joueur</strong>. Ils ne bougent que si ton combattant est mis KO.\n\nLa barre sur la carte = les HP du combattant. Ce sont deux choses distinctes !` },
+
+  // 3 — ACTION : jouer son héro
+  { icon:'⚡', pos:'bottom', hl:'hcards', hint:'Joue la carte combattant 👇',
+    msg:`Ta main contient deux cartes. Repère celle avec ❤⚔🛡 — c'est <strong>Sam en boîte de nuit</strong>, ton héro.\n\nTape dessus pour l'envoyer sur le terrain !`,
+    wait:'fighter_placed' },
+
+  // 4 — Bot pose son héro (onBtn déclenche botPlaceFighter + phase sort)
+  { icon:'🤖', pos:'center', btn:'Je vois !',
+    msg:`Sam est en place ! Maintenant le bot pose son combattant : <strong>Maxy Crazy en Thaïlande</strong> (❤12 ⚔8 🛡1 🎯65%).\n\nLes deux héros sont face à face.`,
+    onBtn: () => { botPlaceFighter(); G.phase='sort'; render(); } },
+
+  // 5 — Stats comparées
+  { icon:'📊', pos:'center', btn:'Intéressant !',
+    msg:`Compare les stats :\n\n<strong>Sam</strong> : ⚔6 🛡3 🎯68%\n<strong>Maxy</strong> : ⚔8 🛡1 🎯65%\n\nPar défaut Sam fait 6−1 = <em>5 dégâts</em>. Mais t'as une carte en main pour faire bien mieux…` },
+
+  // 6 — ACTION : jouer l'arcane 110
+  { icon:'✨', pos:'bottom', hl:'hcards', hint:'Joue l\'arcane ✨',
+    msg:`L'autre carte dans ta main c'est l'arcane <strong>"Parier 10c, en gagner 50"</strong>.\n\nIl donne <strong>+2 ATQ</strong> à Sam ce tour — de quoi faire plus mal à Maxy !`,
+    wait:'sort_played' },
+
+  // 7 — Explication effet
+  { icon:'🎯', pos:'center', btn:'En avant !',
+    msg:`Sam est maintenant à ⚔<strong>8</strong>.\n\nDégâts nets = 8 − 1 DEF Maxy = <em>7 dégâts</em>. Lance l'assaut !` },
+
+  // 8 — ACTION : attaquer
+  { icon:'⚔️', pos:'top', hl:'btn-atk', hint:'Clique ⚔ Attaquer',
+    msg:`Clique sur <strong>⚔ Attaquer</strong> pour frapper Maxy !`,
+    wait:'attack_done_t1' },
+
+  // 9 — Résultat attaque + bot joue (onBtn déclenche le bot)
+  { icon:'💥', pos:'center', btn:'Je regarde !',
+    msg:`<em>7 dégâts !</em> Maxy tombe à <strong>5 HP</strong> — il est dans le rouge.\n\nC'est au bot de jouer maintenant…`,
+    onBtn: () => { G.phase='bot_turn'; renderActions(); botPlayTurn(); },
+    wait_after_onBtn: 'bot_done' },
+
+  // 10 — Résultat tour bot — onBtn appelle endTurn (transition vers tour 2)
+  { icon:'🪤', pos:'center', btn:'Bien pour moi !',
+    msg:`Le bot a joué la ruse <strong>"Otis & JohnMo"</strong> — <span class="txt-red">-1 DEF</span> sur ton héro pendant 3 tours.\n\nMais sa précision de 65% l'a trahi : <strong>son attaque a raté !</strong> Ça arrive souvent en début de jeu.`,
+    onBtn: () => { endTurn(); } },
+
+  // 11 — Tour 2
+  { icon:'🔄', pos:'center', btn:'Faisons-le !',
+    msg:`Tour 2 ! Tu pioches <strong>"La Grange"</strong> : <strong>+3 ATQ</strong> à Sam.\n\nMaxy n'a plus que 5 HP. Avec ATQ à 9, tu fais <em>8 dégâts nets</em>. C'est le coup de grâce !` },
+
+  // 12 — ACTION : jouer La Grange
+  { icon:'✨', pos:'bottom', hl:'hcards', hint:'Joue "La Grange" ✨',
+    msg:`Joue l'arcane <strong>"La Grange"</strong> pour booster Sam une dernière fois.`,
+    wait:'sort_played' },
+
+  // 13 — ACTION : attaque finale → endGame via tutoSignal
+  { icon:'⚔️', pos:'top', hl:'btn-atk', hint:'Clique ⚔ Attaquer',
+    msg:`Sam est à ⚔<strong>9</strong>. Maxy n'a que 5 HP. <strong>Un seul coup suffit.</strong>\n\nAttaque pour conclure !`,
+    wait:'attack_done_t2',
+    onDone: () => { setTimeout(()=>endGame(), 600); } },
 ];
 
-function positionBubble(step){
-  const bubble=document.getElementById('tuto-bubble');
-  const hl=document.getElementById('tuto-hl');
-  const vw=window.innerWidth,vh=window.innerHeight;
-  const bw=270;
+const MILESTONES = [0, 3, 6, 8, 11, 13];
 
-  hl.style.display='none';
-  bubble.className='tuto-bubble';
+function showTutoStep(idx) {
+  if (idx >= STEPS.length) { hideTuto(); return; }
+  const s = STEPS[idx];
+  _tWaiting = !!s.wait; // true si on attend une action jeu
 
-  // Highlight zone
-  if(step.hl){
-    let el=null;
-    if(step.hl==='hand')el=document.getElementById('hcards');
-    else if(step.hl==='btn-atk')el=document.getElementById('btn-atk');
-    if(el){
-      const r=el.getBoundingClientRect(),p=6;
-      hl.style.cssText=`left:${r.left-p}px;top:${r.top-p}px;width:${r.width+p*2}px;height:${r.height+p*2}px;display:block`;
-    }
-  }
+  const ov     = document.getElementById('tuto-overlay');
+  const veil   = document.getElementById('tuto-veil');
+  const bubble = document.getElementById('tuto-bubble');
+  const hl     = document.getElementById('tuto-hl');
+  const hint   = document.getElementById('tuto-action-hint');
+  const hintTxt= document.getElementById('tuto-hint-txt');
+  const btn    = document.getElementById('tuto-btn');
 
-  if(step.pos==='center'){
-    bubble.style.left=`${vw/2-bw/2}px`;
-    bubble.style.top=`${vh/2-100}px`;
-    bubble.style.bottom='';
-  } else if(step.pos==='bottom'){
-    // Bulle juste au-dessus de la main, sans voile
-    const hand=document.getElementById('hand-wrap');
-    if(hand){
-      const r=hand.getBoundingClientRect();
-      bubble.style.left=`${Math.max(8,vw/2-bw/2)}px`;
-      bubble.style.top=`${r.top-210}px`;
-      bubble.style.bottom='';
-    }
-    bubble.classList.add('arrow-bottom');
-  } else if(step.pos==='top'){
-    // Positionner la bulle AU-DESSUS du bouton Attaquer
-    const btnAtk=document.getElementById('btn-atk');
-    if(btnAtk){
-      const r=btnAtk.getBoundingClientRect();
-      bubble.style.left=`${Math.max(8,vw/2-bw/2)}px`;
-      bubble.style.top=`${r.top-220}px`;
-      bubble.style.bottom='';
-    }
-    bubble.classList.add('arrow-bottom');
-  } else if(step.pos==='pc-stats'){
-    if(_device==='pc'){
-      const el=document.getElementById('sp-left');
-      if(el){const r=el.getBoundingClientRect();bubble.style.left=`${r.right+12}px`;bubble.style.top=`${r.top}px`;bubble.style.bottom='';}
-    } else {
-      bubble.style.left=`${vw/2-bw/2}px`;bubble.style.top=`${vh/2-100}px`;bubble.style.bottom='';
-    }
-  }
-}
-
-function showStep(idx){
-  const step=STEPS[idx];if(!step){hideTuto();return;}
-  _tWait=step.wait||null;
-  const overlay=document.getElementById('tuto-overlay');
-  const bubble=document.getElementById('tuto-bubble');
-  const veil=document.getElementById('tuto-veil');
-  const btn=document.getElementById('tuto-btn');
-  const hint=document.getElementById('tuto-action-hint');
-  const hintTxt=document.getElementById('tuto-hint-txt');
-
-  // Mode voile : seulement pour les étapes info (pas d'action requise)
-  if(_tWait){
-    overlay.className='';// pas de classe → veil invisible via CSS action-mode
-    overlay.classList.add('action-mode');
-    veil.style.pointerEvents='none';
-  } else {
-    overlay.className='';
-    overlay.classList.add('info-mode');
-    veil.style.pointerEvents='auto';
-  }
+  ov.style.display = 'block';
+  ov.className = '';
+  ov.classList.add(s.wait ? 'action-mode' : 'info-mode');
+  veil.style.pointerEvents = s.wait ? 'none' : 'auto';
 
   // Progress dots
-  const prog=document.getElementById('tuto-prog');
-  prog.innerHTML=STEPS.map((_,i)=>`<div class="tp-dot ${i<idx?'done':i===idx?'active':''}"></div>`).join('');
+  const prog = document.getElementById('tuto-prog');
+  prog.innerHTML = MILESTONES.map((m, i) => {
+    const cl = idx > m ? 'done' : idx === m ? 'active' : '';
+    return `<div class="tp-dot ${cl}"></div>`;
+  }).join('');
 
-  document.getElementById('tuto-icon').textContent=step.icon;
-  document.getElementById('tuto-msg').innerHTML=step.msg;
+  document.getElementById('tuto-icon').textContent = s.icon;
+  document.getElementById('tuto-msg').innerHTML = s.msg.replace(/\n/g, '<br>');
 
-  if(step.hint){hint.style.display='flex';hintTxt.textContent=step.hint;}
-  else{hint.style.display='none';}
+  if (s.hint) { hint.style.display = 'flex'; hintTxt.textContent = s.hint; }
+  else hint.style.display = 'none';
 
-  if(step.btn){btn.textContent=step.btn;btn.style.display='block';}
-  else{btn.style.display='none';}
+  if (s.btn) { btn.textContent = s.btn; btn.style.display = 'block'; }
+  else btn.style.display = 'none';
 
-  bubble.style.display='block';
-  bubble.style.animation='none';void bubble.offsetWidth;bubble.style.animation='bubbleIn .3s cubic-bezier(.34,1.56,.64,1) both';
+  // Highlight
+  hl.style.display = 'none';
+  bubble.className = 'tuto-bubble';
+  if (s.hl) {
+    const t = s.hl === 'hcards' ? document.getElementById('hcards')
+            : s.hl === 'btn-atk' ? document.getElementById('btn-atk')
+            : null;
+    if (t) {
+      const r = t.getBoundingClientRect(), p = 6;
+      hl.style.cssText = `left:${r.left-p}px;top:${r.top-p}px;width:${r.width+p*2}px;height:${r.height+p*2}px;display:block`;
+    }
+  }
 
-  positionBubble(step);
+  // Position bulle
+  const vw = window.innerWidth, vh = window.innerHeight, bw = 282;
+  if (s.pos === 'center') {
+    bubble.style.left = `${vw/2 - bw/2}px`;
+    bubble.style.top  = `${vh/2 - 120}px`;
+  } else if (s.pos === 'bottom') {
+    const hw = document.getElementById('hand-wrap');
+    if (hw) { const r = hw.getBoundingClientRect(); bubble.style.left = `${Math.max(8, vw/2-bw/2)}px`; bubble.style.top = `${r.top - 245}px`; }
+    bubble.classList.add('arrow-bottom');
+  } else if (s.pos === 'top') {
+    const ba = document.getElementById('btn-atk');
+    if (ba) { const r = ba.getBoundingClientRect(); bubble.style.left = `${Math.max(8, vw/2-bw/2)}px`; bubble.style.top = `${r.top - 245}px`; }
+    bubble.classList.add('arrow-bottom');
+  }
+  bubble.style.bottom = '';
+  bubble.style.display = 'block';
+  bubble.style.animation = 'none'; void bubble.offsetWidth;
+  bubble.style.animation = 'bubbleIn .3s cubic-bezier(.34,1.56,.64,1) both';
 }
 
-function nextTutoStep(){_tStep++;if(_tStep>=STEPS.length){hideTuto();return;}showStep(_tStep);}
+// Appelé par le bouton tuto-btn
+function tutoNext() {
+  const s = STEPS[_tStep];
+  if (!s) return;
 
-function _tCheck(event){
-  if(!_tActive||!_tWait)return;
-  const needsEvent={fighter_placed:'fighter_placed',sort_played:'sort_played',attack_done:'turn_done'};
-  // Étape 3 attend fighter_placed
-  if(_tWait==='fighter_placed'&&event==='fighter_placed'){_tWait=null;setTimeout(()=>nextTutoStep(),500);return;}
-  // Étape 5 attend sort_played
-  if(_tWait==='sort_played'&&event==='sort_played'){_tWait=null;setTimeout(()=>nextTutoStep(),400);return;}
-  // Étape 6 attend attack_done (turn_done = fin de tour après attaque du bot)
-  if(_tWait==='attack_done'&&event==='turn_done'&&G.turn===2){_tWait=null;setTimeout(()=>nextTutoStep(),600);return;}
+  if (s.onBtn) {
+    // Si après l'action on doit attendre un signal jeu
+    if (s.wait_after_onBtn) {
+      s.onBtn();
+      // On n'avance pas encore : on attend tutoSignal('bot_done')
+      _tWaiting = true;
+      // Patch temporaire : on simule un wait sur le step courant
+      STEPS[_tStep]._tmpWait = s.wait_after_onBtn;
+      return;
+    }
+    s.onBtn();
+  }
+  _tStep++;
+  showTutoStep(_tStep);
 }
 
-function hideTuto(){
-  _tActive=false;
-  document.getElementById('tuto-overlay').style.display='none';
+// Appelé par les actions du jeu
+function tutoSignal(event) {
+  if (!_tActive) return;
+
+  // Cas spécial : wait_after_onBtn (ex: bot_done après step 9)
+  const s = STEPS[_tStep];
+  if (s && s._tmpWait && s._tmpWait === event) {
+    s._tmpWait = null;
+    _tWaiting = false;
+    _tStep++;
+    showTutoStep(_tStep);
+    return;
+  }
+
+  if (!_tWaiting) return;
+  if (!s || s.wait !== event) return;
+
+  _tWaiting = false;
+  if (s.onDone) { s.onDone(); return; } // ex: endGame après attack_done_t2
+  _tStep++;
+  showTutoStep(_tStep);
 }
 
-// ════════════════════════
-// DÉMARRAGE
-// ════════════════════════
-function startTuto(){
-  if(!_device)return;
+function hideTuto() {
+  _tActive = false;
+  document.getElementById('tuto-overlay').style.display = 'none';
+}
+
+// ── DÉMARRAGE ──
+function startTuto() {
+  if (!_device) return;
   document.getElementById('si').classList.remove('active');
   document.getElementById('sg').classList.add('active');
-  applyDeviceLayout();
-  initGame();render();
-  document.getElementById('tuto-overlay').style.display='block';
-  _tStep=0;_tActive=true;_tWait=null;
-  showCoinToast(G.fp);
-  setTimeout(()=>showStep(0),2800);
-  if(G.fp==='bot')setTimeout(()=>{botChooseFighter();render();setTimeout(()=>botTurn(),900);},3000);
+  applyDeviceLayout(); initGame(); render();
+  document.getElementById('tuto-overlay').style.display = 'block';
+  _tStep = 0; _tActive = true; _tWaiting = false;
+  showTutoStep(0);
 }
 
-function restartTuto(){
-  document.getElementById('ov-end').classList.remove('active');
-  document.getElementById('tuto-overlay').style.display='block';
-  _tStep=0;_tActive=true;_tWait=null;
-  initGame();render();
-  showCoinToast(G.fp);
-  setTimeout(()=>showStep(0),2800);
-  if(G.fp==='bot')setTimeout(()=>{botChooseFighter();render();setTimeout(()=>botTurn(),900);},3000);
-}
-
-function goMenu(){window.location.href='index.html';}
-
-window.addEventListener('load',()=>{if(window.supabase)initSB();});
+function goMenu() { window.location.href = 'index.html'; }
 </script>
 </body>
 </html>
