@@ -35,9 +35,9 @@ body::before{content:'';position:fixed;inset:0;background:rgba(5,4,4,.45);z-inde
 body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:200px;opacity:.4;pointer-events:none;z-index:9999;mix-blend-mode:overlay}
 
 body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-repeat fixed;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;overflow:hidden;position:relative}
-.starfield{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 100%,#1a1205 0%,#0a0804 40%,var(--noir-deep) 100%);transition:background 1.5s}
-.starfield.myth-active{background:radial-gradient(ellipse at center,#3d2200 0%,#1c0d00 50%,var(--noir-deep) 100%)}
-.starfield.rare-active{background:radial-gradient(ellipse at center,#1a0a2e 0%,#0a0518 60%,var(--noir-deep) 100%)}
+.starfield{position:fixed;inset:0;z-index:0;pointer-events:none;background:transparent;transition:background 1.5s}
+.starfield.myth-active{background:radial-gradient(ellipse at center,rgba(61,34,0,.7) 0%,rgba(28,13,0,.5) 50%,transparent 100%)}
+.starfield.rare-active{background:radial-gradient(ellipse at center,rgba(26,10,46,.7) 0%,rgba(10,5,24,.5) 60%,transparent 100%)}
 .star{position:absolute;border-radius:50%;background:var(--gold-main);transition:background 1.5s,box-shadow 1.5s;animation:twinkle var(--d,3s) ease-in-out infinite var(--delay,0s)}
 @keyframes twinkle{0%,100%{opacity:0.05;transform:scale(1)}50%{opacity:.6;transform:scale(1.5)}}
 .starfield.myth-active .star{background:var(--gold-bright);box-shadow:0 0 5px var(--gold-bright)}
@@ -413,7 +413,8 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   width:100%;
   max-width:520px;
 }
-.summary-spread > .summary-card:nth-child(5){
+.summary-spread > .summary-card:nth-child(5),
+.summary-spread > div:nth-child(5){
   grid-column:1 / -1;
   justify-self:center;
   width:50%;
@@ -869,7 +870,7 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 <div class="rare-flash" id="rareFlash"></div>
 <div class="lightning" id="lightning"></div>
 <div class="fullscreen-bg" id="fsBg"></div>
-<div class="title">DISCORD TCG</div>
+<div class="title">BOOSTER NORMAL</div>
 
 <!-- FLIP CARD -->
 <div class="flip-wrap" id="flipWrap">
@@ -2075,74 +2076,47 @@ function removeLpRing(){
   if(lpRingEl){lpRingEl.remove();lpRingEl=null;}
 }
 
-// ===== STACK SWIPE / LONG-PRESS GESTURE =====
+// ===== STACK CLICK / TAP GESTURE (long-press fan removed) =====
 (function(){
-  const LONG_PRESS_MS = 420; // ms to hold before fan opens
   let touchStartX=0, touchStartY=0, touchActive=false;
-  let lpTimer=null, lpFired=false;
   let mouseDownX=0, mouseDownY=0;
 
   const stackEl=()=>document.getElementById('stackContainer');
   const wrapEl=()=>document.getElementById('stackWrap');
 
-  // ── CLICK → deal card (short press) ──
-  function handleStackClick(e){
-    if(lpFired) return; // was a long press, don't deal
-    const backBtn=document.getElementById('back-to-menu-btn');
-    if(backBtn) backBtn.style.display='none';
-    dealCard();
-  }
-
-  // ── LONG PRESS (desktop mouse) ──
+  // ── CLICK → deal card ──
   function onMouseDown(e){
     const wrap=wrapEl();
     if(!wrap||!wrap.classList.contains('visible')) return;
     if(e.button!==0) return;
-    lpFired=false;
     mouseDownX=e.clientX;mouseDownY=e.clientY;
     haptic(HAPTIC.tap);
-    showLpRing(e.clientX, e.clientY, LONG_PRESS_MS);
-    lpTimer=setTimeout(()=>{
-      lpFired=true;
-      removeLpRing();
-      haptic(HAPTIC.fanOpen);
-      openFan();
-    }, LONG_PRESS_MS);
   }
 
   function onMouseUp(e){
-    clearTimeout(lpTimer);
-    removeLpRing();
-    // Only fire deal if not dragged far
     const dx=e.clientX-mouseDownX, dy=e.clientY-mouseDownY;
-    if(!lpFired && Math.hypot(dx,dy)<10) dealCard();
-    lpFired=false;
+    if(Math.hypot(dx,dy)<10){
+      const backBtn=document.getElementById('back-to-menu-btn');
+      if(backBtn) backBtn.style.display='none';
+      dealCard();
+    }
   }
 
-  function onMouseLeave(){
-    clearTimeout(lpTimer);
-    removeLpRing();
-    lpFired=false;
-  }
-
-  // Attach to stack container (re-attach after each restart via polling)
+  // Attach to stack container
   function attachStackListeners(){
     const el=stackEl();
     if(!el||el._stackListened) return;
     el._stackListened=true;
     el.addEventListener('mousedown', onMouseDown);
     el.addEventListener('mouseup', onMouseUp);
-    el.addEventListener('mouseleave', onMouseLeave);
-    // Prevent context menu on long press
     el.addEventListener('contextmenu', e=>e.preventDefault());
   }
 
-  // Observe DOM for stack becoming visible
   const obs=new MutationObserver(()=>attachStackListeners());
   obs.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
   attachStackListeners();
 
-  // ── TOUCH: swipe → fan / tap → deal ──
+  // ── TOUCH: tap → deal (swipe fan removed) ──
   document.addEventListener('touchstart', e=>{
     const wrap=wrapEl();
     if(!wrap||!wrap.classList.contains('visible')) return;
@@ -2150,54 +2124,22 @@ function removeLpRing(){
     if(!sc) return;
     const rect=sc.getBoundingClientRect();
     const t=e.touches[0];
-    // Only if touch started on stack area
     const onStack=t.clientX>=rect.left-30&&t.clientX<=rect.right+30&&t.clientY>=rect.top-30&&t.clientY<=rect.bottom+30;
     touchStartX=t.clientX;touchStartY=t.clientY;
     touchActive=onStack;
-    lpFired=false;
-    if(onStack){
-      haptic(HAPTIC.tap);
-      showLpRing(t.clientX, t.clientY, LONG_PRESS_MS);
-      lpTimer=setTimeout(()=>{
-        lpFired=true;
-        removeLpRing();
-        haptic(HAPTIC.fanOpen);
-        openFan();
-      }, LONG_PRESS_MS);
-    }
-  },{passive:true});
-
-  document.addEventListener('touchmove', e=>{
-    if(!touchActive) return;
-    const t=e.touches[0];
-    const dx=t.clientX-touchStartX;
-    const dy=t.clientY-touchStartY;
-    // Cancel long press if moved
-    if(Math.hypot(dx,dy)>12){
-      clearTimeout(lpTimer);removeLpRing();
-    }
-    // Horizontal swipe → fan
-    if(Math.abs(dx)>38&&Math.abs(dx)>Math.abs(dy)*1.4&&!lpFired){
-      touchActive=false;lpFired=true;
-      clearTimeout(lpTimer);removeLpRing();
-      haptic(HAPTIC.fanOpen);
-      openFan();
-    }
+    if(onStack) haptic(HAPTIC.tap);
   },{passive:true});
 
   document.addEventListener('touchend', e=>{
-    clearTimeout(lpTimer);removeLpRing();
-    if(touchActive && !lpFired){
-      // Short tap → deal
-      dealCard();
+    if(touchActive){
+      const dx=Math.abs(e.changedTouches[0].clientX-touchStartX);
+      const dy=Math.abs(e.changedTouches[0].clientY-touchStartY);
+      if(Math.hypot(dx,dy)<15) dealCard();
     }
-    touchActive=false;lpFired=false;
+    touchActive=false;
   },{passive:true});
 
-  document.addEventListener('touchcancel',()=>{
-    clearTimeout(lpTimer);removeLpRing();
-    touchActive=false;lpFired=false;
-  },{passive:true});
+  document.addEventListener('touchcancel',()=>{ touchActive=false; },{passive:true});
 })();
 
 function setPackAura(rarity){
