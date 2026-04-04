@@ -394,6 +394,44 @@ body.mob .tuto-hl{border-radius:8px}
 
 <script>
 // ══════════════════════════════════════════
+// SUPABASE — coins & tuto_done
+// ══════════════════════════════════════════
+const SB_URL = 'https://ndsnbvvcbkblkncvoroc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kc25idnZjYmtibGtuY3Zvcm9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjczMTksImV4cCI6MjA4ODU0MzMxOX0.mMsaBIrDI3BIoeTFBsCXo2AbuBLRnzqk625fKRkYCtM';
+
+let _sb = null, _user = null;
+
+async function initSB() {
+  try {
+    if (!window.supabase) return;
+    _sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { autoRefreshToken: true, persistSession: true } });
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session) _user = session.user;
+  } catch(e) { console.warn('Supabase init failed', e); }
+}
+
+async function awardTutoCoins() {
+  if (!_sb || !_user) return false;
+  try {
+    const { data: player, error } = await _sb
+      .from('players')
+      .select('coins, tuto_done')
+      .eq('id', _user.id)
+      .single();
+
+    if (error || !player) return false;
+    if (player.tuto_done) return false; // déjà reçu
+
+    await _sb
+      .from('players')
+      .update({ coins: (player.coins || 0) + 150, tuto_done: true })
+      .eq('id', _user.id);
+
+    return true; // 1ère fois, coins accordés
+  } catch(e) { console.warn('awardTutoCoins failed', e); return false; }
+}
+
+// ══════════════════════════════════════════
 // CARTES SCRIPTÉES
 // Carte 21  : Sam en boîte de nuit   ❤11 ⚔6 🛡3 🎯68%
 // Carte 16  : Maxy Crazy Thaïlande   ❤12 ⚔8 🛡1 🎯65%
@@ -685,14 +723,20 @@ function endTurn() {
   _tStep++; showTutoStep(_tStep);
 }
 
-function endGame() {
+async function endGame() {
   G.phase='done';
   hideTuto();
   if(G.bot.fighter){ G.bot.fighter.hpCur=0; }
   renderSide('b',G.bot);
   document.getElementById('ov-tagline').textContent='Tutoriel terminé en 2 tours';
   document.getElementById('ov-sub').textContent='Héro, sort, attaque — tu maîtrises les bases !';
-  document.getElementById('ov-reward').innerHTML='🪙 &nbsp;+150 coins débloqués';
+
+  // Tenter de donner les coins — la fonction retourne true si c'est la 1ère fois
+  const firstTime = await awardTutoCoins();
+  document.getElementById('ov-reward').innerHTML = firstTime
+    ? '🪙 &nbsp;+150 coins débloqués !'
+    : '✅ &nbsp;Coins déjà reçus pour ce tuto';
+
   document.getElementById('ov-end').classList.add('active');
 }
 
@@ -1005,6 +1049,9 @@ function startTuto() {
 }
 
 function goMenu() { window.location.href = 'index.html'; }
+
+window.addEventListener('load', () => { if (window.supabase) initSB(); });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </body>
 </html>
