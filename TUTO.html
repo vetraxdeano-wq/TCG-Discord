@@ -775,10 +775,19 @@ const STEPS = [
     msg:`Clique sur <strong>⚔ Attaquer</strong> pour frapper Maxy !`,
     wait:'attack_done_t1' },
 
-  // 9 — Résultat attaque + bot joue (onBtn déclenche le bot)
+  // 9 — Résultat attaque + bot joue (onBtn déclenche le bot UNE SEULE FOIS)
   { icon:'💥', pos:'center', btn:'Je regarde !',
     msg:`<em>7 dégâts !</em> Maxy tombe à <strong>5 HP</strong> — il est dans le rouge.\n\nC'est au bot de jouer maintenant…`,
-    onBtn: () => { G.phase='bot_turn'; renderActions(); botPlayTurn(); },
+    onBtn: () => {
+      // Désactiver le bouton immédiatement pour éviter les double-clics
+      document.getElementById('tuto-btn').disabled = true;
+      // Fermer la bulle pendant le tour du bot
+      document.getElementById('tuto-bubble').style.display = 'none';
+      document.getElementById('tuto-hl').style.display = 'none';
+      document.getElementById('tuto-overlay').className = ''; // plus de voile non plus
+      document.getElementById('tuto-overlay').classList.add('action-mode');
+      G.phase='bot_turn'; renderActions(); botPlayTurn();
+    },
     wait_after_onBtn: 'bot_done' },
 
   // 10 — Résultat tour bot — onBtn appelle endTurn (transition vers tour 2)
@@ -835,7 +844,7 @@ function showTutoStep(idx) {
   if (s.hint) { hint.style.display = 'flex'; hintTxt.textContent = s.hint; }
   else hint.style.display = 'none';
 
-  if (s.btn) { btn.textContent = s.btn; btn.style.display = 'block'; }
+  if (s.btn) { btn.textContent = s.btn; btn.style.display = 'block'; btn.disabled = false; }
   else btn.style.display = 'none';
 
   // Highlight
