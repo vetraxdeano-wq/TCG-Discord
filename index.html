@@ -3578,9 +3578,14 @@ function bindGame(){
       cancelBtn.style.background='rgba(255,255,255,.06)';
       cancelBtn.style.color='rgba(255,255,255,.45)';
     });
+    function closeOverlaySoft() {
+      overlay.style.transition = 'opacity .32s ease';
+      overlay.style.opacity = '0';
+      setTimeout(()=>overlay.remove(), 340);
+    }
     cancelBtn.addEventListener('click', e=>{
       e.stopPropagation();
-      overlay.remove();
+      closeOverlaySoft();
     });
     overlay.appendChild(cancelBtn);
 
@@ -3614,20 +3619,25 @@ function bindGame(){
       return { rx: cx - targetX, ry: cy - targetY };
     }
 
-    // Lueur active dès le début de la phase focus
-    glowCanvas.style.opacity = '1';
-    // Lueur initiale centrée sur la couture
-    drawTearGlow(targetW / 2, targetH * 0.13);
+    // Lueur inactive au départ — s'active uniquement lors du début du déchirement
+    let _glowActive = false;
 
     function moveTearGlow(cx, cy) {
+      if(!_glowActive) return;
       const {rx, ry} = screenToBooster(cx, cy);
-      // Si le curseur est sur le PNG, dessiner la lueur à cet endroit (clampé sur la moitié haute)
       const onPng = rx >= 0 && rx <= targetW && ry >= 0 && ry <= targetH;
       if(onPng) {
         const clampedRx = Math.max(0, Math.min(targetW, rx));
         const clampedRy = Math.max(0, Math.min(targetH * 0.45, ry));
         drawTearGlow(clampedRx, clampedRy);
       }
+    }
+
+    function startGlow(cx, cy) {
+      if(_glowActive) return;
+      _glowActive = true;
+      glowCanvas.style.opacity = '1';
+      moveTearGlow(cx, cy);
     }
 
     overlay.addEventListener('mousemove', e => moveTearGlow(e.clientX, e.clientY), {passive:true});
@@ -3750,7 +3760,7 @@ function bindGame(){
       if(inBoosterX && inBoosterY) {
         doTear();
       } else {
-        overlay.remove();
+        closeOverlaySoft();
       }
     });
 
@@ -3763,13 +3773,16 @@ function bindGame(){
       const seamBottom = targetY + targetH * .35;
       _tearInZone = t.clientY >= targetY && t.clientY <= seamBottom
                  && t.clientX >= targetX && t.clientX <= targetX + targetW;
+      // Activer la lueur dès le début du toucher en zone couture
+      if(_tearInZone) startGlow(t.clientX, t.clientY);
     }, {passive:true});
     overlay.addEventListener('touchend', e=>{
       if(_tearX0===null) return;
       const dx = Math.abs(e.changedTouches[0].clientX - _tearX0);
       const dy = Math.abs(e.changedTouches[0].clientY - _tearY0);
       _tearX0=null; _tearY0=null;
-      if(_tearInZone && dx > targetW * 0.5 && dx > dy * 1.1) doTear();
+      // Seuil 75% de la largeur du booster
+      if(_tearInZone && dx > targetW * 0.75 && dx > dy * 1.1) doTear();
     }, {passive:true});
 
     // Glisser horizontalement sur la zone haute du booster PNG → déchirer (souris PC)
@@ -3780,14 +3793,16 @@ function bindGame(){
       const seamBottom = targetY + targetH * .35;
       _mInZone = e.clientY >= targetY && e.clientY <= seamBottom
               && e.clientX >= targetX && e.clientX <= targetX + targetW;
+      // Activer la lueur dès le début du drag en zone couture
+      if(_mInZone) startGlow(e.clientX, e.clientY);
       overlay.style.cursor = 'grabbing';
     });
     overlay.addEventListener('mousemove', e=>{
       if(!_mDragging || _mX0===null) return;
       const dx = Math.abs(e.clientX - _mX0);
       const dy = Math.abs(e.clientY - _mY0);
-      // Déclencher si glissement ≥ 50% de la largeur du booster sur la zone couture
-      if(_mInZone && dx > targetW * 0.5 && dx > dy * 1.1) {
+      // Déclencher si glissement ≥ 75% de la largeur du booster sur la zone couture
+      if(_mInZone && dx > targetW * 0.75 && dx > dy * 1.1) {
         _mX0=null; _mDragging=false;
         overlay.style.cursor = 'default';
         doTear();
