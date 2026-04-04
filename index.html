@@ -3494,13 +3494,13 @@ function bindGame(){
     // Paramètres selon le tier
     const tierCfg = {
       1: { sizeRatio:.78, maxW:330, idleAnim:'boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdle 2.4s ease-in-out .45s infinite',
-           tensionAnim:'tensionShake .20s ease both', tensionDur:210, tearDur:820, totalDur:1050,
+           tensionAnim:'tensionShake .20s ease both', tensionDur:210, tearDur:820, totalDur:2400,
            flapSpeed:'.72s', bottomSpeed:'.72s', auraColor:'rgba(156,163,175,.10)' },
       2: { sizeRatio:.80, maxW:345, idleAnim:'boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdlePrestige 2.0s ease-in-out .45s infinite',
-           tensionAnim:'tensionShakePrestige .28s ease both', tensionDur:240, tearDur:920, totalDur:1180,
+           tensionAnim:'tensionShakePrestige .28s ease both', tensionDur:240, tearDur:920, totalDur:2600,
            flapSpeed:'.85s', bottomSpeed:'.85s', auraColor:'rgba(205,127,50,.14)' },
       3: { sizeRatio:.82, maxW:360, idleAnim:'boosterFocusIn .42s cubic-bezier(.34,1.56,.64,1) both, boosterIdleLegend 1.6s ease-in-out .45s infinite',
-           tensionAnim:'tensionShakeLegend .38s ease both', tensionDur:300, tearDur:1150, totalDur:1480,
+           tensionAnim:'tensionShakeLegend .38s ease both', tensionDur:300, tearDur:1150, totalDur:3000,
            flapSpeed:'1.05s', bottomSpeed:'1.05s', auraColor:'rgba(240,192,96,.20)' },
     }[tier] || {};
 
@@ -3753,7 +3753,6 @@ function bindGame(){
           +`--tear-len:${tearLen};`;
 
         tearSvg.appendChild(tearGlow);
-        tearSvg.appendChild(tearLine);
         overlay.appendChild(tearSvg);
 
         // Son au démarrage du tracé
