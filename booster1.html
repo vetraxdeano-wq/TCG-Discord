@@ -29,6 +29,8 @@
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
+body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-repeat fixed !important;}
+body::before{content:'';position:fixed;inset:0;background:rgba(5,4,4,.72);z-index:0;pointer-events:none;}
 
 /* Noise grain texture overlay */
 body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:200px;opacity:.4;pointer-events:none;z-index:9999;mix-blend-mode:overlay}
@@ -143,9 +145,9 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
   transition:transform .4s cubic-bezier(.34,1.56,.64,1),box-shadow .3s,opacity .4s
 }
 /* Art-deco back pattern on stack */
-.stack-back{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:2rem}
-.stack-back::before{content:'';position:absolute;inset:6px;border:1px solid var(--gold-subtle);border-radius:6px}
-.stack-back-label{font-size:.55rem;color:var(--text-muted);letter-spacing:.2em;font-family:'Bebas Neue',sans-serif}
+.stack-back{position:absolute;inset:0;overflow:hidden;}
+.stack-back img{width:100%;height:100%;object-fit:cover;display:block;}
+.stack-back-label{display:none;}
 .stack-card:nth-child(1){transform:rotate(-4deg) translateY(8px)}
 .stack-card:nth-child(2){transform:rotate(-2deg) translateY(4px)}
 .stack-card:nth-child(3){transform:rotate(0deg)}
@@ -881,13 +883,23 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
   </div>
 
   <div class="card-stack-wrap" id="stackWrap">
+    <div id="back-to-menu-btn" style="position:absolute;top:16px;left:16px;z-index:20;">
+      <button onclick="window.location.href='index.html'" 
+        style="background:none;border:1px solid var(--gold-subtle);color:var(--text-muted);
+               font-family:'Bebas Neue',sans-serif;font-size:.65rem;letter-spacing:.25em;
+               padding:6px 20px;cursor:pointer;transition:color .2s,border-color .2s;"
+        onmouseenter="this.style.color='var(--gold-main)';this.style.borderColor='var(--gold-deep)'"
+        onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--gold-subtle)'">
+        ← RETOUR AU MENU
+      </button>
+    </div>
     <div style="position:relative">
       <div class="stack-container" id="stackContainer">
-        <div class="stack-card"><div class="stack-back"><span>🎴</span><span class="stack-back-label">TCG DISCORD</span></div></div>
-        <div class="stack-card"><div class="stack-back"><span>🎴</span></div></div>
-        <div class="stack-card"><div class="stack-back"><span>🎴</span></div></div>
-        <div class="stack-card"><div class="stack-back"><span>🎴</span></div></div>
-        <div class="stack-card"><div class="stack-back"><span>🎴</span></div></div>
+        <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
+        <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
+        <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
+        <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
+        <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
       </div>
       <div class="stack-count" id="stackCount">5 cartes restantes</div>
       <div style="position:absolute;bottom:-68px;left:50%;transform:translateX(-50%);color:var(--gold-subtle);font-size:.6rem;letter-spacing:.2em;white-space:nowrap;font-family:'Bebas Neue',sans-serif;animation:pulse 3s ease-in-out infinite .5s" id="fanHint">↔ GLISSER POUR VOIR LES CARTES</div>
@@ -1076,6 +1088,35 @@ async function loadCardsFromSupabase() {
 
   console.log('[Booster] ' + ALL_CARDS.length + ' cartes chargées depuis Supabase');
   _dbReady = true;
+
+  // Skip l'animation d'ouverture : lancer directement le tirage et afficher le stack
+  autoOpenBooster();
+}
+
+async function autoOpenBooster() {
+  // Attendre que le DOM soit prêt
+  await new Promise(r => setTimeout(r, 100));
+
+  // Déduire les coins
+  const ok = await deductBoosterCost();
+  if (!ok) { showInsufficientCoins(); return; }
+
+  // Tirer les cartes
+  boosterCards = pickWeightedCards(5);
+  currentIdx = 0; revealed = [];
+  const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
+  const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
+  setPackAura(bestR);
+
+  // Cacher le booster d'intro, afficher directement le stack
+  const wrap = document.getElementById('boosterWrap');
+  if (wrap) wrap.style.display = 'none';
+
+  // Afficher le stack
+  refreshStackAura();
+  const sw = document.getElementById('stackWrap');
+  if (sw) { sw.classList.add('visible','appearing'); }
+  updateStackCount();
 }
 
 // Sauvegarde toutes les cartes du booster en collection Supabase
@@ -2021,6 +2062,8 @@ function removeLpRing(){
   // ── CLICK → deal card (short press) ──
   function handleStackClick(e){
     if(lpFired) return; // was a long press, don't deal
+    const backBtn=document.getElementById('back-to-menu-btn');
+    if(backBtn) backBtn.style.display='none';
     dealCard();
   }
 
