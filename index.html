@@ -3559,6 +3559,52 @@ function bindGame(){
     boosterWrap.appendChild(hint);
     boosterWrap.appendChild(tapHint);
     overlay.appendChild(boosterWrap);
+
+    // ── Bouton Annuler ──
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '✕ Annuler';
+    cancelBtn.style.cssText = `position:absolute;bottom:6%;left:50%;transform:translateX(-50%);`
+      +`padding:8px 24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);`
+      +`color:rgba(255,255,255,.45);font-family:inherit;font-size:10px;font-weight:700;letter-spacing:1.2px;`
+      +`cursor:pointer;transition:background .18s,color .18s;z-index:10;`;
+    cancelBtn.addEventListener('mouseenter', ()=>{
+      cancelBtn.style.background='rgba(255,255,255,.12)';
+      cancelBtn.style.color='rgba(255,255,255,.8)';
+    });
+    cancelBtn.addEventListener('mouseleave', ()=>{
+      cancelBtn.style.background='rgba(255,255,255,.06)';
+      cancelBtn.style.color='rgba(255,255,255,.45)';
+    });
+    cancelBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      overlay.remove();
+    });
+    overlay.appendChild(cancelBtn);
+
+    // ── Lueur qui suit le curseur / doigt ──
+    const cursorGlow = document.createElement('div');
+    cursorGlow.style.cssText = `position:fixed;width:140px;height:140px;`
+      +`background:radial-gradient(ellipse at center,${color}60 0%,${color}22 45%,transparent 75%);`
+      +`pointer-events:none;z-index:9;transform:translate(-50%,-50%);`
+      +`opacity:0;transition:opacity .2s;border-radius:50%;`;
+    overlay.appendChild(cursorGlow);
+
+    const seamTop    = targetY;
+    const seamBottom = targetY + targetH * .35;
+    function moveGlow(cx, cy) {
+      const inZone = cy >= seamTop - 30 && cy <= seamBottom + 30
+                  && cx >= targetX - 20 && cx <= targetX + targetW + 20;
+      cursorGlow.style.left = cx + 'px';
+      cursorGlow.style.top  = cy + 'px';
+      cursorGlow.style.opacity = inZone ? '1' : '0';
+    }
+
+    overlay.addEventListener('mousemove', e => moveGlow(e.clientX, e.clientY), {passive:true});
+    overlay.addEventListener('touchmove', e => {
+      const t = e.touches[0];
+      moveGlow(t.clientX, t.clientY);
+    }, {passive:true});
+
     document.body.appendChild(overlay);
 
     if(navigator.vibrate) navigator.vibrate(tier===3 ? [20,30,20] : [18]);
@@ -3567,6 +3613,8 @@ function bindGame(){
     function doTear() {
       if(overlay._tearing) return;
       overlay._tearing = true;
+      cursorGlow.style.opacity = '0';
+      cancelBtn.style.display = 'none';
 
       // Tension
       boosterImg.style.animation = tierCfg.tensionAnim;
@@ -3689,7 +3737,7 @@ function bindGame(){
       const dx = Math.abs(e.changedTouches[0].clientX - _tearX0);
       const dy = Math.abs(e.changedTouches[0].clientY - _tearY0);
       _tearX0=null; _tearY0=null;
-      if(_tearInZone && dx>20 && dx>dy*1.1) doTear();
+      if(_tearInZone && dx > targetW * 0.5 && dx > dy * 1.1) doTear();
     }, {passive:true});
 
     // Glisser horizontalement sur la zone haute du booster PNG → déchirer (souris PC)
@@ -3706,8 +3754,8 @@ function bindGame(){
       if(!_mDragging || _mX0===null) return;
       const dx = Math.abs(e.clientX - _mX0);
       const dy = Math.abs(e.clientY - _mY0);
-      // Déclencher dès 30px de glissement horizontal sur la zone couture
-      if(_mInZone && dx > 30 && dx > dy * 1.1) {
+      // Déclencher si glissement ≥ 50% de la largeur du booster sur la zone couture
+      if(_mInZone && dx > targetW * 0.5 && dx > dy * 1.1) {
         _mX0=null; _mDragging=false;
         overlay.style.cursor = 'default';
         doTear();
