@@ -3551,14 +3551,17 @@ function bindGame(){
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" style="animation:swipeHintArrow 1.4s ease-in-out .15s infinite;filter:drop-shadow(0 0 5px ${color});"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>`;
 
     const tapHint = document.createElement('div');
-    tapHint.style.cssText = `position:absolute;bottom:8%;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.8px;white-space:nowrap;pointer-events:none;`;
+    // Positionné en fixed juste sous le bas du PNG, pas dans le boosterWrap
+    const tapHintTop = targetY + targetH + 14;
+    tapHint.style.cssText = `position:fixed;top:${tapHintTop}px;left:${targetX}px;width:${targetW}px;`
+      +`text-align:center;font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.8px;white-space:nowrap;pointer-events:none;`;
     tapHint.textContent = 'Glisse sur la couture · ou tape';
 
     boosterWrap.appendChild(boosterImg);
     boosterWrap.appendChild(seamLine);
     boosterWrap.appendChild(hint);
-    boosterWrap.appendChild(tapHint);
     overlay.appendChild(boosterWrap);
+    overlay.appendChild(tapHint);
 
     // ── Bouton Annuler ──
     const cancelBtn = document.createElement('button');
@@ -3581,28 +3584,56 @@ function bindGame(){
     });
     overlay.appendChild(cancelBtn);
 
-    // ── Lueur qui suit le curseur / doigt ──
-    const cursorGlow = document.createElement('div');
-    cursorGlow.style.cssText = `position:fixed;width:140px;height:140px;`
-      +`background:radial-gradient(ellipse at center,${color}60 0%,${color}22 45%,transparent 75%);`
-      +`pointer-events:none;z-index:9;transform:translate(-50%,-50%);`
-      +`opacity:0;transition:opacity .2s;border-radius:50%;`;
-    overlay.appendChild(cursorGlow);
+    // ── Lueur sur le PNG via canvas overlay — active UNIQUEMENT pendant le déchirement ──
+    // Un canvas transparent positionné par-dessus le PNG, visible seulement après doTear()
+    const glowCanvas = document.createElement('canvas');
+    glowCanvas.width  = targetW;
+    glowCanvas.height = targetH;
+    glowCanvas.style.cssText = `position:absolute;left:0;top:0;width:${targetW}px;height:${targetH}px;`
+      +`pointer-events:none;opacity:0;transition:opacity .15s;z-index:5;mix-blend-mode:screen;`;
+    boosterWrap.appendChild(glowCanvas);
+    const glowCtx = glowCanvas.getContext('2d');
 
-    const seamTop    = targetY;
-    const seamBottom = targetY + targetH * .35;
-    function moveGlow(cx, cy) {
-      const inZone = cy >= seamTop - 30 && cy <= seamBottom + 30
-                  && cx >= targetX - 20 && cx <= targetX + targetW + 20;
-      cursorGlow.style.left = cx + 'px';
-      cursorGlow.style.top  = cy + 'px';
-      cursorGlow.style.opacity = inZone ? '1' : '0';
+    // Dessine la lueur centrée sur (rx, ry) en coordonnées relatives au PNG
+    function drawTearGlow(rx, ry) {
+      glowCtx.clearRect(0, 0, targetW, targetH);
+      // Gradient radial autour du point de contact
+      const gSize = targetW * 0.55;
+      const grad = glowCtx.createRadialGradient(rx, ry, 0, rx, ry, gSize);
+      grad.addColorStop(0,   'rgba(255,255,255,0.72)');
+      grad.addColorStop(0.18,'rgba(255,255,255,0.40)');
+      grad.addColorStop(0.38, color + 'a0');
+      grad.addColorStop(0.65, color + '30');
+      grad.addColorStop(1,   'rgba(0,0,0,0)');
+      glowCtx.fillStyle = grad;
+      glowCtx.fillRect(0, 0, targetW, targetH);
     }
 
-    overlay.addEventListener('mousemove', e => moveGlow(e.clientX, e.clientY), {passive:true});
+    // Convertit position écran → coordonnées relatives au PNG
+    function screenToBooster(cx, cy) {
+      return { rx: cx - targetX, ry: cy - targetY };
+    }
+
+    // Active la lueur pendant le déchirement uniquement
+    let _glowActive = false;
+    function activateTearGlow() {
+      _glowActive = true;
+      glowCanvas.style.opacity = '1';
+    }
+
+    function moveTearGlow(cx, cy) {
+      if(!_glowActive) return;
+      const {rx, ry} = screenToBooster(cx, cy);
+      // Clamp dans les limites du PNG
+      const clampedRx = Math.max(0, Math.min(targetW, rx));
+      const clampedRy = Math.max(0, Math.min(targetH * 0.40, ry)); // limité au tiers haut
+      drawTearGlow(clampedRx, clampedRy);
+    }
+
+    overlay.addEventListener('mousemove', e => moveTearGlow(e.clientX, e.clientY), {passive:true});
     overlay.addEventListener('touchmove', e => {
       const t = e.touches[0];
-      moveGlow(t.clientX, t.clientY);
+      moveTearGlow(t.clientX, t.clientY);
     }, {passive:true});
 
     document.body.appendChild(overlay);
@@ -3613,8 +3644,12 @@ function bindGame(){
     function doTear() {
       if(overlay._tearing) return;
       overlay._tearing = true;
-      cursorGlow.style.opacity = '0';
       cancelBtn.style.display = 'none';
+
+      // Activer la lueur sur le PNG dès le début de la tension
+      activateTearGlow();
+      // Dessiner une lueur centrée au milieu du haut du paquet par défaut
+      drawTearGlow(targetW / 2, targetH * 0.13);
 
       // Tension
       boosterImg.style.animation = tierCfg.tensionAnim;
@@ -3624,6 +3659,8 @@ function bindGame(){
         // Son de déchirure
         playTearSound(tier);
 
+        // Masquer la lueur avant les flaps (le booster disparaît)
+        glowCanvas.style.opacity = '0';
         boosterImg.style.opacity = '0';
         seamLine.style.display = 'none';
         hint.style.display = 'none';
