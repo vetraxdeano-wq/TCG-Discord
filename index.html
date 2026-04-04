@@ -3679,19 +3679,15 @@ function bindGame(){
 
         const bW = targetW, bH = targetH;
         const bX = targetX, bY = targetY;
-        const flapH = Math.round(bH * .20); // hauteur de la zone déchirée (20% du haut)
+        const flapH = Math.round(bH * .20);
 
         // ── Profil de déchirure irrégulier ──
-        // Amplitude verticale du zigzag selon la rareté
-        const zigAmp  = tier===3 ? flapH * 0.38 : tier===2 ? flapH * 0.26 : flapH * 0.18;
-        // Nombre de dents (plus premium = plus de dents = déchirure plus fine)
-        const steps   = tier===3 ? 28 : tier===2 ? 20 : 14;
-        // Génère un profil de déchirure pseudo-aléatoire mais reproductible
+        const zigAmp = tier===3 ? flapH * 0.38 : tier===2 ? flapH * 0.26 : flapH * 0.18;
+        const steps  = tier===3 ? 28 : tier===2 ? 20 : 14;
         function makeTearProfile() {
           const pts = [];
           for (let i = 0; i <= steps; i++) {
             const x = i / steps;
-            // Ondulation principale + harmonique secondaire pour tier3
             const wave1 = Math.sin(x * Math.PI * (tier===3 ? 5.8 : tier===2 ? 4.2 : 3.0) + 0.7) * zigAmp * 0.6;
             const wave2 = Math.sin(x * Math.PI * (tier===3 ? 11.3 : tier===2 ? 7.8 : 5.5) + 2.1) * zigAmp * 0.4;
             const wave3 = tier===3 ? Math.sin(x * Math.PI * 17.6 + 1.3) * zigAmp * 0.15 : 0;
@@ -3701,131 +3697,132 @@ function bindGame(){
         }
         const tearProfile = makeTearProfile();
 
-        // Construit le clip-path polygon pour un "niveau de déchirure" allant de x=0 à x=revealW
-        // La partie gauche [0..revealW] est découpée selon le profil, le reste est une ligne droite à flapH
+        // ── clip-path : le front de déchirure avance de gauche à droite ──
+        // La "fente" suit exactement le profil ; à droite du front = coupure nette à flapH
         function buildClipFlap(revealW) {
-          // Top du booster → droite → descend le long du profil → retour gauche
+          // Forme : rectangle haut complet → descend le long du profil jusqu'au front → ligne droite à flapH jusqu'à droite → coin haut droit
+          const revealed = tearProfile.filter(p => p.x <= revealW);
+          const frontY   = revealed.length ? revealed[revealed.length - 1].y : flapH;
+          // Polygon : bord haut → droit en haut → droit à flapH → front de coupure → remonte le profil de droite à gauche → gauche bas
           let pts = [`0px 0px`, `${bW}px 0px`, `${bW}px ${flapH}px`];
-          // Partie droite pas encore déchirée : ligne droite à flapH
-          const firstReveal = tearProfile.findIndex(p => p.x >= revealW);
-          const cutIdx = firstReveal === -1 ? tearProfile.length - 1 : firstReveal;
-          for (let i = cutIdx; i >= 0; i--) {
-            const p = tearProfile[i];
-            pts.push(`${Math.min(p.x, revealW).toFixed(1)}px ${p.y.toFixed(1)}px`);
+          // Partie droite pas encore déchirée (ligne droite à flapH)
+          pts.push(`${revealW.toFixed(1)}px ${flapH}px`);
+          // Retour le long du profil déjà tracé (de droite à gauche)
+          for (let i = revealed.length - 1; i >= 0; i--) {
+            pts.push(`${revealed[i].x.toFixed(1)}px ${revealed[i].y.toFixed(1)}px`);
           }
           pts.push(`0px ${flapH}px`);
           return `polygon(${pts.join(', ')})`;
         }
         function buildClipBody(revealW) {
-          // Bas du booster + partie droite non déchirée en haut
+          const revealed = tearProfile.filter(p => p.x <= revealW);
+          // Polygon : gauche bas → droit bas → droit haut (flapH) → front de coupure (ligne droite) → profil tracé
           let pts = [`0px 100%`, `${bW}px 100%`, `${bW}px ${flapH}px`];
-          const firstReveal = tearProfile.findIndex(p => p.x >= revealW);
-          const cutIdx = firstReveal === -1 ? tearProfile.length - 1 : firstReveal;
-          for (let i = cutIdx; i >= 0; i--) {
-            const p = tearProfile[i];
-            pts.push(`${Math.min(p.x, revealW).toFixed(1)}px ${p.y.toFixed(1)}px`);
+          pts.push(`${revealW.toFixed(1)}px ${flapH}px`);
+          for (let i = revealed.length - 1; i >= 0; i--) {
+            pts.push(`${revealed[i].x.toFixed(1)}px ${revealed[i].y.toFixed(1)}px`);
           }
           pts.push(`0px ${flapH}px`);
           return `polygon(${pts.join(', ')})`;
         }
 
-        // ── Durée et easing selon tier ──
-        const tearDurMs   = tier===3 ? 860  : tier===2 ? 640  : 480;
-        const separateDly = tier===3 ? 140  : tier===2 ? 110  : 80;   // délai avant séparation (ms après début tracé)
-        const glowWidth   = tier===3 ? 18   : tier===2 ? 12   : 8;    // largeur de la lueur sur la fente
-        const glowOpacity = tier===3 ? 0.95 : tier===2 ? 0.75 : 0.55;
+        // ── Durées selon tier ──
+        const tearDurMs  = tier===3 ? 820  : tier===2 ? 600  : 440;  // durée du tracé
+        const glowWidth  = tier===3 ? 18   : tier===2 ? 12   : 8;
+        const glowOp     = tier===3 ? 0.95 : tier===2 ? 0.75 : 0.55;
+        // Durée du fade de la lueur après fin du tracé
+        const glowFadeMs = tier===3 ? 180  : tier===2 ? 140  : 100;
+        // Délai avant que flap/body commencent à bouger (après fin du tracé)
+        const physDelayMs = tier===3 ? 60  : tier===2 ? 50  : 40;
 
-        // ── Canvas lueur sur la fente ──
+        // ── SVG lueur sur la fente ──
         const fenteSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
         fenteSvg.setAttribute('width', bW);
         fenteSvg.setAttribute('height', bH);
         fenteSvg.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;pointer-events:none;overflow:visible;z-index:20;`;
-        // Dégradé de lueur
         const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
         const gradId = 'tearGrad_' + Date.now();
         const grad = document.createElementNS('http://www.w3.org/2000/svg','linearGradient');
         grad.setAttribute('id', gradId);
         grad.setAttribute('x1','0%'); grad.setAttribute('y1','0%');
         grad.setAttribute('x2','100%'); grad.setAttribute('y2','0%');
-        const s0 = document.createElementNS('http://www.w3.org/2000/svg','stop');
-        s0.setAttribute('offset','0%'); s0.setAttribute('stop-color', color); s0.setAttribute('stop-opacity','0');
-        const s1 = document.createElementNS('http://www.w3.org/2000/svg','stop');
-        s1.setAttribute('offset','50%'); s1.setAttribute('stop-color', color); s1.setAttribute('stop-opacity', String(glowOpacity));
-        const s2 = document.createElementNS('http://www.w3.org/2000/svg','stop');
-        s2.setAttribute('offset','100%'); s2.setAttribute('stop-color', color); s2.setAttribute('stop-opacity','0');
-        grad.appendChild(s0); grad.appendChild(s1); grad.appendChild(s2);
+        [['0%',0],['50%',glowOp],['100%',0]].forEach(([off, op]) => {
+          const s = document.createElementNS('http://www.w3.org/2000/svg','stop');
+          s.setAttribute('offset', off);
+          s.setAttribute('stop-color', color);
+          s.setAttribute('stop-opacity', String(op));
+          grad.appendChild(s);
+        });
         defs.appendChild(grad);
         fenteSvg.appendChild(defs);
-        // Polyline de la lueur (sera clipée à revealW)
         const fenteGlow = document.createElementNS('http://www.w3.org/2000/svg','polyline');
         fenteGlow.setAttribute('fill','none');
         fenteGlow.setAttribute('stroke', `url(#${gradId})`);
         fenteGlow.setAttribute('stroke-width', String(glowWidth));
         fenteGlow.setAttribute('stroke-linecap','round');
         fenteGlow.setAttribute('stroke-linejoin','round');
-        fenteGlow.style.cssText = `filter:blur(${tier===3?'4px':tier===2?'3px':'2px'});opacity:0;transition:opacity .12s;`;
+        fenteGlow.style.cssText = `filter:blur(${tier===3?'4px':tier===2?'3px':'2px'});opacity:0;transition:opacity ${glowFadeMs}ms ease;`;
         fenteSvg.appendChild(fenteGlow);
         overlay.appendChild(fenteSvg);
 
-        // ── Créer flap et body (copies de l'image clipées) ──
+        // ── Flap (haut) + Body (bas) — commencent full-image, clippath réduit au fil du tracé ──
         boosterImg.style.opacity = '0';
 
         const flap = document.createElement('div');
-        flap.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;pointer-events:none;will-change:clip-path,transform;`;
+        flap.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;pointer-events:none;will-change:clip-path,transform,opacity;`;
         const fi = document.createElement('img');
-        fi.src = imgSrc;
+        fi.src = imgSrc; fi.draggable = false;
         fi.style.cssText = `position:absolute;left:0;top:0;width:${bW}px;height:${bH}px;object-fit:contain;`;
-        flap.appendChild(fi);
-        overlay.appendChild(flap);
+        flap.appendChild(fi); overlay.appendChild(flap);
 
         const body = document.createElement('div');
-        body.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;pointer-events:none;will-change:clip-path,transform;`;
+        body.style.cssText = `position:absolute;left:${bX}px;top:${bY}px;width:${bW}px;height:${bH}px;pointer-events:none;will-change:clip-path,transform,opacity;`;
         const bi = document.createElement('img');
-        bi.src = imgSrc;
+        bi.src = imgSrc; bi.draggable = false;
         bi.style.cssText = `position:absolute;left:0;top:0;width:${bW}px;height:${bH}px;object-fit:contain;`;
-        body.appendChild(bi);
-        overlay.appendChild(body);
+        body.appendChild(bi); overlay.appendChild(body);
 
-        // ── Animation progressive via RAF ──
+        // Initialiser les clips (flap couvre tout en haut, body tout en bas)
+        flap.style.clipPath = buildClipFlap(0);
+        body.style.clipPath = buildClipBody(0);
+
+        // ── Easing ──
+        function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
+
+        // ── RAF : Phase 1 — tracé progressif de gauche à droite ──
         const startTs = performance.now();
-        let separated = false;
-        // Easing custom : rapide au début, ralentit vers la fin (tire = accélère puis freine)
-        function easeCustom(t) {
-          // Ease-in-out avec légère accélération initiale (tier 3 = plus vif)
-          if (tier===3) return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
-          if (tier===2) return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
-          return t * (2 - t); // ease-out basique pour normal
-        }
 
         function animTear(ts) {
           const elapsed = ts - startTs;
           const raw = Math.min(elapsed / tearDurMs, 1);
-          const progress = easeCustom(raw);
+          const progress = easeInOut(raw);
           const revealW = progress * bW;
 
-          // Mise à jour clip-path du flap (partie haute)
+          // Clip-path suit le front de déchirure
           flap.style.clipPath = buildClipFlap(revealW);
           body.style.clipPath = buildClipBody(revealW);
 
-          // Mise à jour de la polyline de lueur sur la fente déchirée
-          if (raw > 0.02) {
+          // Lueur suit le front (polyline des points déjà tracés)
+          if (raw > 0.01) {
             fenteGlow.style.opacity = '1';
-            const profilePts = tearProfile.filter(p => p.x <= revealW);
-            if (profilePts.length >= 2) {
+            const revealed = tearProfile.filter(p => p.x <= revealW);
+            if (revealed.length >= 2) {
               fenteGlow.setAttribute('points',
-                profilePts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+                revealed.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
               );
             }
           }
 
-          // Phase séparation physique : le flap se soulève, le corps tombe
-          if (!separated && elapsed > separateDly) {
-            separated = true;
-            flap.style.transition = `transform ${tierCfg.flapSpeed} cubic-bezier(.4,0,.2,1), opacity ${tierCfg.flapSpeed} ease`;
-            body.style.transition = `transform ${tierCfg.bottomSpeed} cubic-bezier(.4,0,.2,1), opacity ${tierCfg.bottomSpeed} ease`;
-            const sepDelay = Math.max(0, tearDurMs - separateDly - 80);
+          if (raw < 1) {
+            requestAnimationFrame(animTear);
+          } else {
+            // ── Phase 2 : tracé terminé → fade rapide de la lueur + séparation physique ──
+            fenteGlow.style.opacity = '0'; // CSS transition glowFadeMs
+
             setTimeout(()=>{
-              // Flap se recourbe vers le haut et disparaît
+              // Flap se soulève et disparaît
+              flap.style.transition = `transform ${tierCfg.flapSpeed} cubic-bezier(.4,0,.2,1), opacity ${tierCfg.flapSpeed} ease`;
+              body.style.transition = `transform ${tierCfg.bottomSpeed} cubic-bezier(.4,0,.2,1), opacity ${tierCfg.bottomSpeed} ease`;
               flap.style.transformOrigin = `center ${flapH}px`;
               flap.style.transform = tier===3
                 ? 'perspective(600px) rotateX(-160deg) translateY(-25%) scaleY(.85)'
@@ -3833,52 +3830,43 @@ function bindGame(){
                 ? 'perspective(600px) rotateX(-140deg) translateY(-20%)'
                 : 'perspective(400px) rotateX(-120deg) translateY(-16%)';
               flap.style.opacity = '0';
-              // Corps glisse vers le bas
               body.style.transform = tier===3
                 ? 'translateY(30%) scaleX(.94)'
                 : tier===2
                 ? 'translateY(24%) scaleX(.96)'
                 : 'translateY(20%) scaleX(.97)';
               body.style.opacity = '0';
-              // Lueur s'estompe
-              fenteGlow.style.opacity = '0';
-            }, sepDelay);
-          }
 
-          if (raw < 1) {
-            requestAnimationFrame(animTear);
-          } else {
-            // Fin du tracé : lancer cartes + vibration
-            if(navigator.vibrate) navigator.vibrate(tier===3?[0,80,30,50,20,40,15]:[0,60,25,30,15]);
-
-            const cardSrc = 'https://i.goopics.net/iic46c.png';
-            const cardCount = 5;
-            const cardW = Math.round(bW * (tier===3?.30:.28));
-            const cardH = Math.round(cardW * 1.4);
-            const cardPositions = [
-              { dx:-bW*.50, dy: bH*.20, rot:-30, delay:.10, scale:.85 },
-              { dx:-bW*.25, dy:-bH*.10, rot:-12, delay:.16, scale:.93 },
-              { dx:-bW*.05, dy: bH*.24, rot:  2, delay:.13, scale:1.0 },
-              { dx: bW*.20, dy:-bH*.06, rot: 14, delay:.19, scale:.91 },
-              { dx: bW*.48, dy: bH*.16, rot: 30, delay:.09, scale:.86 },
-            ].slice(0, cardCount);
-            const cxCenter = bX + bW/2;
-            const cyCenter = bY + flapH + cardH * .3;
-            cardPositions.forEach((c) => {
-              const cd = document.createElement('div');
-              const startT = `translateX(0px) translateY(${-bH*.15}px) rotate(0deg) scale(.25)`;
-              const endT   = `translateX(${c.dx}px) translateY(${c.dy}px) rotate(${c.rot}deg) scale(${c.scale})`;
-              cd.style.cssText = `position:absolute;left:${cxCenter - cardW/2}px;top:${cyCenter - cardH/2}px;`
-                +`width:${cardW}px;height:${cardH}px;`
-                +`--cf-start:${startT};--cf-end:${endT};`
-                +`animation:cardFanOut .55s cubic-bezier(.22,.68,0,1.25) ${c.delay+.15}s both, cardFanFade .9s ease ${c.delay+.70}s both;`
-                +`pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14);`;
-              const ci = document.createElement('img');
-              ci.src = cardSrc;
-              ci.style.cssText = `width:100%;height:100%;object-fit:cover;display:block;`;
-              cd.appendChild(ci);
-              overlay.appendChild(cd);
-            });
+              // Cartes éparpillées
+              if(navigator.vibrate) navigator.vibrate(tier===3?[0,80,30,50,20,40,15]:[0,60,25,30,15]);
+              const cardSrc = 'https://i.goopics.net/iic46c.png';
+              const cardCount = 5;
+              const cardW = Math.round(bW * (tier===3?.30:.28));
+              const cardH = Math.round(cardW * 1.4);
+              const cardPositions = [
+                { dx:-bW*.50, dy: bH*.20, rot:-30, delay:.10, scale:.85 },
+                { dx:-bW*.25, dy:-bH*.10, rot:-12, delay:.16, scale:.93 },
+                { dx:-bW*.05, dy: bH*.24, rot:  2, delay:.13, scale:1.0 },
+                { dx: bW*.20, dy:-bH*.06, rot: 14, delay:.19, scale:.91 },
+                { dx: bW*.48, dy: bH*.16, rot: 30, delay:.09, scale:.86 },
+              ].slice(0, cardCount);
+              const cxCenter = bX + bW/2;
+              const cyCenter = bY + flapH + cardH * .3;
+              cardPositions.forEach((c) => {
+                const cd = document.createElement('div');
+                const startT = `translateX(0px) translateY(${-bH*.15}px) rotate(0deg) scale(.25)`;
+                const endT   = `translateX(${c.dx}px) translateY(${c.dy}px) rotate(${c.rot}deg) scale(${c.scale})`;
+                cd.style.cssText = `position:absolute;left:${cxCenter - cardW/2}px;top:${cyCenter - cardH/2}px;`
+                  +`width:${cardW}px;height:${cardH}px;`
+                  +`--cf-start:${startT};--cf-end:${endT};`
+                  +`animation:cardFanOut .55s cubic-bezier(.22,.68,0,1.25) ${c.delay+.15}s both, cardFanFade .9s ease ${c.delay+.70}s both;`
+                  +`pointer-events:none;box-shadow:0 6px 22px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14);`;
+                const ci = document.createElement('img');
+                ci.src = cardSrc;
+                ci.style.cssText = `width:100%;height:100%;object-fit:cover;display:block;`;
+                cd.appendChild(ci); overlay.appendChild(cd);
+              });
+            }, physDelayMs);
           }
         }
         requestAnimationFrame(animTear);
