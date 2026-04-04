@@ -29,13 +29,12 @@
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-repeat fixed !important;}
 body::before{content:'';position:fixed;inset:0;background:rgba(5,4,4,.45);z-index:0;pointer-events:none;}
 
 /* Noise grain texture overlay */
 body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:200px;opacity:.4;pointer-events:none;z-index:9999;mix-blend-mode:overlay}
 
-body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;overflow:hidden;position:relative}
+body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-repeat fixed;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;overflow:hidden;position:relative}
 .starfield{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 50% 100%,#1a1205 0%,#0a0804 40%,var(--noir-deep) 100%);transition:background 1.5s}
 .starfield.myth-active{background:radial-gradient(ellipse at center,#3d2200 0%,#1c0d00 50%,var(--noir-deep) 100%)}
 .starfield.rare-active{background:radial-gradient(ellipse at center,#1a0a2e 0%,#0a0518 60%,var(--noir-deep) 100%)}
@@ -956,7 +955,7 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
       <div class="card-effect-text" id="cEffect" style="display:none"></div>
     </div>
   </div>
-  <div class="card-bottom card-bottom-external" id="cBottomExternal"><span class="rarity-stars" id="cStars"></span><span class="rarity-label" id="cRarity"></span></div>
+  <div class="card-bottom card-bottom-external" id="cBottomExternal" style="display:none;"><span class="rarity-stars" id="cStars"></span><span class="rarity-label" id="cRarity"></span></div>
   <div class="continue-hint">CLIQUER POUR CONTINUER</div>
 </div>
 
@@ -978,7 +977,7 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
       <div class="card-effect-text" id="fsEffect" style="display:none"></div>
     </div>
   </div>
-  <div class="card-bottom card-bottom-external" id="fsBottomExternal"><span class="rarity-stars" id="fsStars"></span><span class="rarity-label" id="fsRarity"></span></div>
+  <div class="card-bottom card-bottom-external" id="fsBottomExternal" style="display:none;"><span class="rarity-stars" id="fsStars"></span><span class="rarity-label" id="fsRarity"></span></div>
   <div class="fs-hint">CLIQUER POUR CONTINUER</div>
 </div>
 
@@ -1009,7 +1008,7 @@ body{background:var(--noir-deep);min-height:100vh;display:flex;align-items:cente
 <!-- DONE -->
 <div class="done-overlay" id="doneOverlay">
   <div class="done-title">✦ Booster Ouvert ✦</div>
-  <div class="done-sub">◆ Récap du Booster ◆</div>
+  <div class="done-sub">◆ Récap — Booster Normal ◆</div>
   <div class="summary-spread" id="summarySpread"></div>
   <button class="btn-restart" onclick="restart()">◆ Ouvrir un nouveau booster ◆</button>
   <button class="btn-restart" onclick="window.location.href='index.html'" style="margin-top:10px;background:linear-gradient(135deg,var(--noir-panel),var(--noir-mid));color:var(--gold-main);border-color:var(--gold-deep);box-shadow:none;opacity:.85;">← Retour au menu</button>
@@ -2863,15 +2862,18 @@ function showDone(){
     }
     const col = RARITY_COL[c.rarity]||'#7dcea0';
     const starsCount = {'COMMUNE':1,'PEU COMMMUNE':2,'RARE':3,'MYTHIQUE':4}[c.rarity]||1;
-    const starsHtml = Array(starsCount).fill(`<span style="color:${col};font-size:clamp(.8rem,2.5vw,1.1rem);text-shadow:0 0 8px ${col}80;">★</span>`).join('');
-    return `<div class="mini-card summary-card revealed" data-rarity="${c.rarity}" style="--delay:${i*.15}s">
-      <div class="mini-top"><div class="mini-name">${c.name}</div>${c.hp!=='x'?`<div class="mini-hp">${c.hp}</div>`:''}</div>
-      <div class="mini-art"><div class="mini-emoji">${TE[c.type]||'🎴'}</div></div>
-      <div><span class="mini-type">${TE[c.type]} ${c.type}</span></div>
-      <div style="flex:1;padding:2px 5px;display:flex;flex-direction:column;justify-content:flex-end;gap:3px">${body}</div>
-      <div class="mini-bottom" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding-bottom:4px;">
+    const starsHtml = Array(starsCount).fill(`<span style="color:${col};font-size:clamp(.7rem,2.2vw,1rem);text-shadow:0 0 8px ${col}80;">★</span>`).join('');
+    // Wrapper : carte + étoiles en dessous, hors de la carte
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;animation:miniIn .55s cubic-bezier(.34,1.56,.64,1) ${i*.15}s both;">
+      <div class="mini-card summary-card" data-rarity="${c.rarity}" style="--delay:${i*.15}s">
+        <div class="mini-top"><div class="mini-name">${c.name}</div>${c.hp!=='x'?`<div class="mini-hp">${c.hp}</div>`:''}</div>
+        <div class="mini-art"><div class="mini-emoji">${TE[c.type]||'🎴'}</div></div>
+        <div><span class="mini-type">${TE[c.type]} ${c.type}</span></div>
+        <div style="flex:1;padding:2px 5px;display:flex;flex-direction:column;justify-content:flex-end;gap:3px">${body}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
         <div style="display:flex;gap:2px;">${starsHtml}</div>
-        <span style="font-size:.5rem;color:${col};letter-spacing:.1em;font-family:'Bebas Neue',sans-serif;">${c.rarity}</span>
+        <span style="font-size:.48rem;color:${col};letter-spacing:.12em;font-family:'Bebas Neue',sans-serif;">${c.rarity}</span>
       </div>
     </div>`;
   }).join('');
