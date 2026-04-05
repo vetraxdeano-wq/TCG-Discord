@@ -432,7 +432,7 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 /* ── Header ── */
 .done-header{
   text-align:center;
-  padding:clamp(6px,1.8vh,14px) 16px clamp(4px,1.2vh,10px);
+  padding:clamp(5px,1.4vh,11px) 16px clamp(3px,1vh,8px);
   position:relative;z-index:2;
   border-bottom:1px solid rgba(240,192,96,.15);
   flex-shrink:0;
@@ -464,33 +464,34 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 .summary-spread{
   display:grid;
   grid-template-columns:repeat(2,1fr);
-  gap:clamp(6px,1.5vw,12px);
-  padding:clamp(8px,1.5vh,14px) clamp(10px,3.5vw,28px);
+  grid-auto-rows:1fr;
+  gap:clamp(4px,1vh,10px) clamp(6px,1.5vw,12px);
+  padding:clamp(6px,1.2vh,12px) clamp(8px,3vw,24px);
   width:100%;
   max-width:min(96vw,520px);
   margin:0 auto;
   flex:1;
   min-height:0;
-  overflow-y:auto;
+  overflow:hidden;
   position:relative;z-index:2;
-  align-content:start;
-  /* scrollbar discret */
-  scrollbar-width:thin;
-  scrollbar-color:rgba(240,192,96,.25) transparent;
+  align-content:stretch;
 }
-.summary-spread::-webkit-scrollbar{width:3px;}
-.summary-spread::-webkit-scrollbar-thumb{background:rgba(240,192,96,.25);}
 .recap-card-wrap:nth-child(5){
   grid-column:1 / -1;
-  display:flex;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
 }
 .recap-card-wrap:nth-child(5) .recap-card{
-  width:min(42%,170px);
+  width:50%;
+  max-width:min(50%,180px);
+  flex:unset;
+  aspect-ratio:2/3;
+  height:auto;
 }
 
 /* ── Carte récap format réel ── */
 .recap-card-wrap{
-  display:flex;flex-direction:column;align-items:center;gap:clamp(3px,.8vh,5px);
+  display:flex;flex-direction:column;align-items:center;gap:clamp(2px,.5vh,4px);
+  height:100%;min-height:0;
   animation:cardPopIn .45s cubic-bezier(.34,1.5,.64,1) var(--delay,0s) both;
 }
 @keyframes cardPopIn{
@@ -499,8 +500,8 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   100%{opacity:1;transform:scale(1) translateY(0)}
 }
 .recap-card{
+  flex:1;min-height:0;
   width:100%;
-  aspect-ratio:2/3;
   border-radius:8px;
   overflow:hidden;
   position:relative;
@@ -636,13 +637,14 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 /* Badge possession + étoiles sous la carte */
 .rc-own-badge{
   font-family:'Bebas Neue',cursive;
-  font-size:clamp(.42rem,.72vw,.54rem);
-  letter-spacing:.14em;
+  font-size:clamp(.38rem,.65vw,.5rem);
+  letter-spacing:.12em;
   padding:1px 5px;
   border:1px solid currentColor;
   opacity:.9;
   white-space:nowrap;
   line-height:1.4;
+  flex-shrink:0;
 }
 .rc-own-badge.new-card{
   color:#4ade80;
@@ -657,25 +659,27 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 }
 .rc-stars{
   display:flex;gap:1px;justify-content:center;line-height:1;
+  flex-shrink:0;
 }
 .rc-stars span{
-  font-size:clamp(.6rem,1.3vw,.78rem);
+  font-size:clamp(.5rem,1.1vw,.7rem);
   text-shadow:0 0 6px currentColor, 0 0 12px currentColor60, 1px 1px 0 #000;
 }
 .rc-rar-label{
   font-family:'Cinzel',serif;
-  font-size:clamp(.38rem,.65vw,.48rem);
+  font-size:clamp(.33rem,.58vw,.44rem);
   font-weight:400;
   font-style:italic;
-  letter-spacing:.18em;
+  letter-spacing:.15em;
   text-transform:uppercase;
   opacity:.8;
+  flex-shrink:0;
 }
 
 /* ── Boutons ── */
 .done-actions{
   display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
-  padding:clamp(6px,1.5vh,11px) 16px;
+  padding:clamp(5px,1.2vh,9px) 16px;
   position:relative;z-index:2;
   border-top:1px solid rgba(240,192,96,.12);
   flex-shrink:0;
@@ -1069,24 +1073,23 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   opacity:1 !important;
 }
 
-/* ── Petits écrans haute (< 680px) : encore plus compact ── */
-@media (max-height: 680px) {
-  .done-header{ padding:4px 14px 3px !important; }
-  .done-title{ font-size:.82rem !important; margin-bottom:1px !important; }
-  .done-sub{ font-size:.58rem !important; }
-  .summary-spread{ gap:5px !important; padding:6px 10px !important; }
-  .recap-card-wrap{ gap:2px !important; }
-  .rc-own-badge{ font-size:.38rem !important; padding:0 4px !important; line-height:1.3 !important; }
-  .rc-stars span{ font-size:.52rem !important; }
-  .rc-rar-label{ font-size:.33rem !important; }
-  .done-actions{ padding:5px 12px !important; gap:6px !important; }
-  .btn-restart{ padding:5px 14px !important; font-size:.62rem !important; }
+/* ── Petits écrans en hauteur (< 640px) : compactage maximal ── */
+@media (max-height: 640px) {
+  .done-header{ padding:3px 12px 2px !important; }
+  .done-title{ font-size:.78rem !important; margin-bottom:0 !important; }
+  .done-sub{ font-size:.52rem !important; }
+  .summary-spread{ gap:3px 5px !important; padding:4px 8px !important; }
+  .recap-card-wrap{ gap:1px !important; }
+  .rc-own-badge{ font-size:.32rem !important; padding:0 3px !important; line-height:1.2 !important; }
+  .rc-stars span{ font-size:.42rem !important; }
+  .rc-rar-label{ font-size:.28rem !important; }
+  .done-actions{ padding:4px 10px !important; gap:5px !important; }
+  .btn-restart{ padding:4px 12px !important; font-size:.58rem !important; border-width:1px !important; }
 }
 
-/* ── Très grandes résolutions desktop (> 900px hauteur) ── */
+/* ── Très grands écrans (> 900px hauteur) ── */
 @media (min-height: 900px) {
-  .summary-spread{ max-width:600px; gap:18px; }
-  .recap-card-wrap:nth-child(5) .recap-card{ width:min(38%,190px); }
+  .summary-spread{ max-width:600px; }
 }
 
 /* ===== LONG PRESS RING ===== */
