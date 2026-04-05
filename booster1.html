@@ -1148,8 +1148,8 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 /* Éclairs latéraux */
 .sfx-bolt {
   position: absolute;
-  width: clamp(26px,7.5vw,46px);
-  height: clamp(65px,19vw,115px);
+  width: clamp(50px,14vw,90px);
+  height: clamp(120px,36vw,220px);
   object-fit: contain;
   pointer-events: none;
   opacity: 0;
@@ -2155,29 +2155,46 @@ function updateStackFx(){
   // Tremblement sur le wrapper (enfant stack-container garde son hover)
   wrap.classList.add('stack-tremble-'+cfg.tremble);
 
-  // Distribution verticale des éclairs latéraux (en % de la hauteur du card)
-  function topPositions(n){
-    if(n===1) return [43];
-    const arr=[];
-    for(let i=0;i<n;i++) arr.push(Math.round(7 + i*(86/(n-1))));
+  // Distribution verticale des éclairs — positions INDÉPENDANTES gauche/droite
+  // Garantit qu'aucun éclair n'est au même endroit et que gauche ≠ droite
+  function randomTops(n) {
+    // Divise la hauteur en n tranches et tire une position aléatoire dans chaque tranche
+    // → garantit la dispersion sans doublons
+    const arr = [];
+    const sliceH = 86 / n;
+    for (let i = 0; i < n; i++) {
+      const base = 7 + i * sliceH;
+      arr.push(+(base + Math.random() * sliceH * 0.85).toFixed(1));
+    }
+    // Mélanger pour casser l'ordre régulier
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
     return arr;
   }
 
   let html='';
-  const tops = topPositions(cfg.perSide);
+  // Positions indépendantes pour gauche et droite
+  const topsLeft  = randomTops(cfg.perSide);
+  const topsRight = randomTops(cfg.perSide);
 
-  tops.forEach((topPct, idx)=>{
-    const dur1 = (1.1+Math.random()*.9).toFixed(2);
-    const dur2 = (1.1+Math.random()*.9).toFixed(2);
-    const del1 = (idx*.28).toFixed(2);
-    const del2 = (idx*.28+.14).toFixed(2);
+  for (let idx = 0; idx < cfg.perSide; idx++) {
+    const dur1 = (1.2 + Math.random() * 1.1).toFixed(2);
+    const dur2 = (1.2 + Math.random() * 1.1).toFixed(2);
+    // Décalages temporels différents gauche/droite pour éviter la synchronisation
+    const del1 = (Math.random() * 1.8).toFixed(2);
+    const del2 = (Math.random() * 1.8).toFixed(2);
+    // Taille légèrement variable pour chaque éclair (±15%)
+    const scaleL = (0.85 + Math.random() * 0.3).toFixed(2);
+    const scaleR = (0.85 + Math.random() * 0.3).toFixed(2);
     // Éclair gauche
     html+=`<img class="sfx-bolt sfx-bolt-left" src="${cfg.boltUrl}"
-      style="top:${topPct}%;animation:sfxBoltSide ${dur1}s ease-in-out ${del1}s infinite;--bolt-op:${cfg.boltOp};">`;
-    // Éclair droit (miroir)
+      style="top:${topsLeft[idx]}%;transform:translateY(-50%) scale(${scaleL});animation:sfxBoltSide ${dur1}s ease-in-out ${del1}s infinite;--bolt-op:${cfg.boltOp};">`;
+    // Éclair droit — position différente de gauche, pas de miroir symétrique
     html+=`<img class="sfx-bolt sfx-bolt-right" src="${cfg.boltUrl}"
-      style="top:${topPct}%;animation:sfxBoltSide ${dur2}s ease-in-out ${del2}s infinite;--bolt-op:${cfg.boltOp};">`;
-  });
+      style="top:${topsRight[idx]}%;transform:translateY(-50%) scaleX(-1) scale(${scaleR});animation:sfxBoltSide ${dur2}s ease-in-out ${del2}s infinite;--bolt-op:${cfg.boltOp};">`;
+  }
 
   // Éclairs sur le pack
   for(let p=0;p<cfg.onPack;p++){
