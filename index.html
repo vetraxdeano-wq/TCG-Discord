@@ -696,15 +696,42 @@ function renderSplash(th){
 }
 
 function bindSplash(){
-  document.getElementById('splash').addEventListener('click', ()=>{
+  const el = document.getElementById('splash');
+  if (!el) return;
+  let _clicked = false;
+  el.addEventListener('click', ()=>{
+    if (_clicked) return;
+    _clicked = true;
     const cta = document.querySelector('.cta-pulse');
     const arrow = document.querySelector('.arrow-bounce');
     if (cta) cta.style.opacity = '0.4';
     if (arrow) arrow.style.display = 'none';
+    // Attente robuste avec timeout max 8s
+    let attempts = 0;
+    const MAX = 160; // 8s à 50ms
     const wait = setInterval(()=>{
+      attempts++;
       if (window.checkAuthAndEnter) {
         clearInterval(wait);
         window.checkAuthAndEnter();
+        return;
+      }
+      if (attempts >= MAX) {
+        clearInterval(wait);
+        // Supabase/script pas encore chargé — réessayer immédiatement
+        // en tentant de construire db manuellement si supabase CDN disponible
+        if (window.supabase && window.supabase.createClient && !window.db) {
+          window.db = window.supabase.createClient(
+            'https://ndsnbvvcbkblkncvoroc.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kc25idnZjYmtibGtuY3Zvcm9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjczMTksImV4cCI6MjA4ODU0MzMxOX0.mMsaBIrDI3BIoeTFBsCXo2AbuBLRnzqk625fKRkYCtM',
+            { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } }
+          );
+        }
+        if (window.checkAuthAndEnter) {
+          window.checkAuthAndEnter();
+        } else if (typeof showDiscordLoginBtn === 'function') {
+          showDiscordLoginBtn();
+        }
       }
     }, 50);
   });
@@ -4763,11 +4790,25 @@ function showDiscordLoginBtn() {
 }
 
 window.checkAuthAndEnter = async function() {
-  // Attendre que Supabase soit prêt
-  await new Promise(resolve => waitForSupabase(resolve));
-  const db = window.db;
+  // Attendre que Supabase soit prêt (max 10s)
+  await new Promise((resolve, reject) => {
+    const t = setTimeout(reject, 10000);
+    waitForSupabase(() => { clearTimeout(t); resolve(); });
+  }).catch(() => {});
 
-  // 1. Session active via Supabase (gère le refresh automatique du token)
+  const db = window.db;
+  if (!db) {
+    // Supabase indisponible — tenter fallback localStorage direct
+    const stored = getStoredSession();
+    if (stored && stored.user) {
+      enterGame(stored.user, 0);
+      return;
+    }
+    showDiscordLoginBtn();
+    return;
+  }
+
+  // 1. Session active via Supabase
   try {
     const { data: { session } } = await db.auth.getSession();
     if (session && session.user) {
@@ -4784,7 +4825,11 @@ window.checkAuthAndEnter = async function() {
       const { data } = await db.from('players').select('coins').eq('id', stored.user.id).single();
       enterGame(stored.user, data ? data.coins : 0);
       return;
-    } catch(e) {}
+    } catch(e) {
+      // DB inaccessible mais session locale valide → entrer quand même
+      enterGame(stored.user, 0);
+      return;
+    }
   }
 
   // 3. Aucune session → afficher bouton Discord
