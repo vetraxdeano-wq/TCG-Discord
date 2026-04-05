@@ -2261,7 +2261,6 @@ function updateStackFx(){
   }
 
   let html = '';
-  const minGap = 80 / Math.max(cfg.perSide, 1);
   let topsLeft  = randomTops(cfg.perSide);
   let topsRight = ensureNoCross(topsLeft, randomTops(cfg.perSide), minGap);
 
