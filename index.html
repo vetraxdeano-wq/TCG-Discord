@@ -729,8 +729,12 @@ function bindSplash(){
         }
         if (window.checkAuthAndEnter) {
           window.checkAuthAndEnter();
-        } else if (typeof showDiscordLoginBtn === 'function') {
-          showDiscordLoginBtn();
+        } else if (typeof window.showDiscordLoginBtn === 'function') {
+          window.showDiscordLoginBtn();
+        } else {
+          // Dernier recours : afficher un message d'erreur sur le splash
+          const cta = document.querySelector('.cta-pulse');
+          if (cta) cta.innerHTML = '<div style="font-size:10px;letter-spacing:2px;color:#ef4444;font-weight:700;">Erreur de connexion — recharge la page</div>';
         }
       }
     }, 50);
@@ -4788,6 +4792,7 @@ function showDiscordLoginBtn() {
   btn.onclick = (e) => { e.stopPropagation(); window.loginDiscord(); };
   if (cta) cta.appendChild(btn);
 }
+window.showDiscordLoginBtn = showDiscordLoginBtn;
 
 window.checkAuthAndEnter = async function() {
   // Attendre que Supabase soit prêt (max 10s)
