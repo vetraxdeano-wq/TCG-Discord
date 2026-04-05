@@ -1477,26 +1477,81 @@ async function loadCardsFromSupabase() {
 }
 
 async function autoOpenBooster() {
-  // Attendre que le DOM soit prêt
   await new Promise(r => setTimeout(r, 100));
 
-  // Déduire les coins
+  // ── Anti-reload : vérifier si un tirage est déjà en cours ──
+  const SESSION_KEY = 'booster1_active_session';
+  const existingSession = sessionStorage.getItem(SESSION_KEY);
+
+  if (existingSession) {
+    // Un tirage était déjà en cours → restaurer exactement les mêmes cartes (pas de nouveau tirage)
+    try {
+      const saved = JSON.parse(existingSession);
+      // Retrouver les objets carte complets depuis ALL_CARDS par dbId
+      boosterCards = saved.cardIds.map(dbId => ALL_CARDS.find(c => c.dbId === dbId)).filter(Boolean);
+      if (boosterCards.length > 0) {
+        currentIdx = 0; revealed = [];
+        const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
+        const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
+        setPackAura(bestR);
+        refreshStackAura();
+        const sw = document.getElementById('stackWrap');
+        if (sw) { sw.classList.add('visible','appearing'); }
+        updateStackCount();
+        return; // Ne pas déduire à nouveau les coins
+      }
+    } catch(e) { sessionStorage.removeItem(SESSION_KEY); }
+  }
+
+  // Nouveau tirage : déduire les coins d'abord
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
 
-  // Tirer les cartes
+  // Tirer les cartes et verrouiller immédiatement en sessionStorage
   boosterCards = pickWeightedCards(5);
+
+  // Sauvegarder le tirage pour anti-reload
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      cardIds: boosterCards.map(c => c.dbId),
+      ts: Date.now(),
+    }));
+  } catch(e) {}
+
   currentIdx = 0; revealed = [];
   const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
   const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
   setPackAura(bestR);
-
-  // Afficher directement le stack (boosterWrap est déjà masqué dans le HTML)
   refreshStackAura();
   const sw = document.getElementById('stackWrap');
   if (sw) { sw.classList.add('visible','appearing'); }
   updateStackCount();
 }
+
+// Effacer la session quand le booster est entièrement terminé (toutes cartes révélées)
+function clearBoosterSession() {
+  try { sessionStorage.removeItem('booster1_active_session'); } catch(e) {}
+}
+
+// Bloquer F5 / Ctrl+R / Cmd+R pendant l'ouverture du booster
+document.addEventListener('keydown', (e) => {
+  const isReload = e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key === 'r');
+  if (isReload && boosterCards && boosterCards.length > 0 && revealed.length < boosterCards.length) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    // Feedback visuel discret
+    const flash = document.createElement('div');
+    flash.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      z-index:99999;padding:12px 24px;background:var(--noir-panel);border:1px solid var(--gold-deep);
+      font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold-main);letter-spacing:.2em;
+      text-align:center;opacity:0;transition:opacity .2s;pointer-events:none;`;
+    flash.textContent = 'OUVERTURE EN COURS — RECHARGEMENT BLOQUÉ';
+    document.body.appendChild(flash);
+    requestAnimationFrame(() => { flash.style.opacity = '1'; });
+    setTimeout(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 300); }, 1800);
+    return false;
+  }
+}, true);
 
 // Sauvegarde toutes les cartes du booster en collection Supabase
 async function saveBoosterToCollection(cards) {
@@ -2135,6 +2190,8 @@ const TIER_CFG = {
 };
 
 function stopStackFx(){
+  clearInterval(window._boltMoveInterval);
+  window._boltMoveInterval = null;
   const wrap = document.getElementById('stack-shake-wrap');
   if(wrap){ wrap.style.animation=''; wrap.className=''; }
   const fx = document.getElementById('stack-fx');
@@ -2155,45 +2212,78 @@ function updateStackFx(){
   // Tremblement sur le wrapper (enfant stack-container garde son hover)
   wrap.classList.add('stack-tremble-'+cfg.tremble);
 
-  // Distribution verticale des éclairs — positions INDÉPENDANTES gauche/droite
-  // Garantit qu'aucun éclair n'est au même endroit et que gauche ≠ droite
+  // Distribution verticale des éclairs — positions DYNAMIQUES, jamais au même endroit
+  // Génère n positions bien dispersées sur [7%..93%] sans doublons proches
   function randomTops(n) {
-    // Divise la hauteur en n tranches et tire une position aléatoire dans chaque tranche
-    // → garantit la dispersion sans doublons
-    const arr = [];
-    const sliceH = 86 / n;
-    for (let i = 0; i < n; i++) {
-      const base = 7 + i * sliceH;
-      arr.push(+(base + Math.random() * sliceH * 0.85).toFixed(1));
+    const minGap = 80 / Math.max(n, 1); // écart minimum entre éclairs
+    const result = [];
+    let attempts = 0;
+    while (result.length < n && attempts < 200) {
+      attempts++;
+      const candidate = 7 + Math.random() * 86;
+      if (result.every(v => Math.abs(v - candidate) >= minGap)) {
+        result.push(+candidate.toFixed(1));
+      }
     }
-    // Mélanger pour casser l'ordre régulier
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+    // Fallback si pas assez trouvé
+    while (result.length < n) result.push(+(7 + result.length * (86 / n)).toFixed(1));
+    return result;
   }
 
-  let html='';
-  // Positions indépendantes pour gauche et droite
-  const topsLeft  = randomTops(cfg.perSide);
-  const topsRight = randomTops(cfg.perSide);
+  // S'assurer que deux listes n'ont aucun éclair à moins de minGap l'un de l'autre
+  function ensureNoCross(listA, listB, minGap) {
+    const out = [...listB];
+    for (let i = 0; i < out.length; i++) {
+      let attempts = 0;
+      while (listA.some(a => Math.abs(a - out[i]) < minGap) && attempts < 50) {
+        out[i] = +(7 + Math.random() * 86).toFixed(1);
+        attempts++;
+      }
+    }
+    return out;
+  }
 
+  let html = '';
+  const minGap = 80 / Math.max(cfg.perSide, 1);
+  let topsLeft  = randomTops(cfg.perSide);
+  let topsRight = ensureNoCross(topsLeft, randomTops(cfg.perSide), minGap);
+
+  // Créer les éléments avec IDs pour pouvoir les repositionner dynamiquement
   for (let idx = 0; idx < cfg.perSide; idx++) {
-    const dur1 = (1.2 + Math.random() * 1.1).toFixed(2);
-    const dur2 = (1.2 + Math.random() * 1.1).toFixed(2);
-    // Décalages temporels différents gauche/droite pour éviter la synchronisation
-    const del1 = (Math.random() * 1.8).toFixed(2);
-    const del2 = (Math.random() * 1.8).toFixed(2);
-    // Taille légèrement variable pour chaque éclair (±15%)
+    const dur1   = (1.2 + Math.random() * 1.1).toFixed(2);
+    const dur2   = (1.2 + Math.random() * 1.1).toFixed(2);
+    const del1   = (Math.random() * 1.8).toFixed(2);
+    const del2   = (Math.random() * 1.8).toFixed(2);
     const scaleL = (0.85 + Math.random() * 0.3).toFixed(2);
     const scaleR = (0.85 + Math.random() * 0.3).toFixed(2);
-    // Éclair gauche
-    html+=`<img class="sfx-bolt sfx-bolt-left" src="${cfg.boltUrl}"
+    html += `<img id="bolt-L-${idx}" class="sfx-bolt sfx-bolt-left" src="${cfg.boltUrl}"
       style="top:${topsLeft[idx]}%;transform:translateY(-50%) scale(${scaleL});animation:sfxBoltSide ${dur1}s ease-in-out ${del1}s infinite;--bolt-op:${cfg.boltOp};">`;
-    // Éclair droit — position différente de gauche, pas de miroir symétrique
-    html+=`<img class="sfx-bolt sfx-bolt-right" src="${cfg.boltUrl}"
+    html += `<img id="bolt-R-${idx}" class="sfx-bolt sfx-bolt-right" src="${cfg.boltUrl}"
       style="top:${topsRight[idx]}%;transform:translateY(-50%) scaleX(-1) scale(${scaleR});animation:sfxBoltSide ${dur2}s ease-in-out ${del2}s infinite;--bolt-op:${cfg.boltOp};">`;
+  }
+
+  // Repositionnement dynamique : chaque éclair change de position indépendamment
+  // après chaque cycle d'animation complet (jamais au même endroit)
+  if (cfg.perSide > 0) {
+    clearInterval(window._boltMoveInterval);
+    window._boltMoveInterval = setInterval(() => {
+      const newL = randomTops(cfg.perSide);
+      const newR = ensureNoCross(newL, randomTops(cfg.perSide), minGap);
+      for (let idx = 0; idx < cfg.perSide; idx++) {
+        const bL = document.getElementById('bolt-L-' + idx);
+        const bR = document.getElementById('bolt-R-' + idx);
+        if (bL) {
+          const s = (0.85 + Math.random() * 0.3).toFixed(2);
+          bL.style.top = newL[idx] + '%';
+          bL.style.transform = `translateY(-50%) scale(${s})`;
+        }
+        if (bR) {
+          const s = (0.85 + Math.random() * 0.3).toFixed(2);
+          bR.style.top = newR[idx] + '%';
+          bR.style.transform = `translateY(-50%) scaleX(-1) scale(${s})`;
+        }
+      }
+    }, 1800 + Math.random() * 800); // intervalle légèrement variable
   }
 
   // Éclairs sur le pack
@@ -3311,6 +3401,8 @@ function showDone(){
   spawn3DParticles(window.innerWidth/2,window.innerHeight/2,'#c8953a',30);
   // Sauvegarder les cartes en collection Supabase
   saveBoosterToCollection(revealed);
+  // Effacer la session anti-reload : booster terminé proprement
+  clearBoosterSession();
 }
 
 // ===== DEDUCT COINS ON BOOSTER OPEN =====
