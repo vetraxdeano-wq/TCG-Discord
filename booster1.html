@@ -1104,6 +1104,109 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   stroke-dasharray:0 283;filter:drop-shadow(0 0 5px var(--gold-main));
   transition:stroke-dasharray var(--lp-dur,.5s) linear;
 }
+
+/* ═══ STACK FX — Rarity Visual Effects ═══ */
+
+/* Wrapper shake (tremble sur le tas de cartes) */
+.stack-tremble-1 { animation: sfxShake1 3.5s ease-in-out infinite; }
+.stack-tremble-2 { animation: sfxShake2 2.3s ease-in-out infinite; }
+.stack-tremble-3 { animation: sfxShake3 1.4s ease-in-out infinite; }
+.stack-tremble-4 { animation: sfxShake4 0.65s ease-in-out infinite; }
+
+@keyframes sfxShake1 {
+  0%,100%{transform:translate(0,0) rotate(0)}
+  30%    {transform:translate(-1px,0) rotate(-.25deg)}
+  70%    {transform:translate(1px,0)  rotate(.25deg)}
+}
+@keyframes sfxShake2 {
+  0%,100%{transform:translate(0,0) rotate(0)}
+  15%{transform:translate(-1px,1px) rotate(-.4deg)}
+  45%{transform:translate(1px,-1px) rotate(.4deg)}
+  75%{transform:translate(-1px,0)   rotate(-.3deg)}
+}
+@keyframes sfxShake3 {
+  0%,100%{transform:translate(0,0)   rotate(0)}
+  10%{transform:translate(-2px,1px)  rotate(-.7deg)}
+  25%{transform:translate(2px,-1px)  rotate(.6deg)}
+  50%{transform:translate(-1px,1px)  rotate(-.5deg)}
+  70%{transform:translate(2px,0)     rotate(.5deg)}
+  88%{transform:translate(-1px,-1px) rotate(-.4deg)}
+}
+@keyframes sfxShake4 {
+  0%,100%{transform:translate(0,0)  rotate(0)}
+  8% {transform:translate(-3px,2px)  rotate(-1.5deg)}
+  18%{transform:translate(3px,-2px)  rotate(1.4deg)}
+  28%{transform:translate(-3px,1px)  rotate(-1.7deg)}
+  38%{transform:translate(3px,-1px)  rotate(1.5deg)}
+  48%{transform:translate(-2px,2px)  rotate(-1.3deg)}
+  58%{transform:translate(3px,-2px)  rotate(1.8deg)}
+  68%{transform:translate(-3px,1px)  rotate(-1.4deg)}
+  78%{transform:translate(2px,-1px)  rotate(1.2deg)}
+  88%{transform:translate(-2px,0)    rotate(-.9deg)}
+}
+
+/* Éclairs latéraux */
+.sfx-bolt {
+  position: absolute;
+  width: clamp(26px,7.5vw,46px);
+  height: clamp(65px,19vw,115px);
+  object-fit: contain;
+  pointer-events: none;
+  opacity: 0;
+}
+.sfx-bolt-left  { right: calc(100% + 2px); transform: translateY(-50%); }
+.sfx-bolt-right { left:  calc(100% + 2px); transform: translateY(-50%) scaleX(-1); }
+
+/* Éclairs sur le pack (blend additive) */
+.sfx-bolt-onpack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+
+/* Diamants montants */
+.sfx-diamond {
+  position: absolute;
+  width: clamp(9px,2.6vw,15px);
+  height: auto;
+  pointer-events: none;
+  bottom: 5%;
+  opacity: 0;
+}
+
+/* ── Keyframes éclairs côté ── */
+@keyframes sfxBoltSide {
+  0%,100%{ opacity:0; }
+  7%     { opacity:var(--bolt-op,.7); }
+  13%    { opacity:calc(var(--bolt-op,.7)*.3); }
+  19%    { opacity:var(--bolt-op,.7); }
+  55%    { opacity:calc(var(--bolt-op,.7)*.82); }
+  87%    { opacity:var(--bolt-op,.7); }
+  93%    { opacity:calc(var(--bolt-op,.7)*.2); }
+  97%    { opacity:var(--bolt-op,.7); }
+}
+
+/* ── Keyframes éclairs sur le pack ── */
+@keyframes sfxBoltPack {
+  0%,80%,100%{ opacity:0; }
+  81%,84%    { opacity:.95; }
+  82%,83%    { opacity:.12; }
+  89%,93%    { opacity:.72; }
+  90%,92%    { opacity:0; }
+}
+
+/* ── Keyframes diamants montants ── */
+@keyframes sfxDiamondRise {
+  0%  { opacity:0; transform:translate(var(--dx,0px), 0) scale(.5); }
+  10% { opacity:1; transform:translate(var(--dx,0px), -8px) scale(1.15); }
+  70% { opacity:.75; transform:translate(var(--dx,0px), var(--rise,-80px)) scale(1); }
+  100%{ opacity:0;   transform:translate(var(--dx,0px), var(--end,-120px)) scale(.55); }
+}
 </style>
 <body>
 <div class="starfield" id="starfield"></div>
@@ -1167,7 +1270,7 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
         ← RETOUR AU MENU
       </button>
     </div>
-    <div style="position:relative">
+    <div id="stack-shake-wrap" style="position:relative;">
       <div class="stack-container" id="stackContainer">
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
@@ -1175,6 +1278,8 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
       </div>
+      <!-- FX layer : éclairs + diamants positionnés autour du pack -->
+      <div id="stack-fx" style="position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6;"></div>
       <div class="stack-count" id="stackCount">5 cartes restantes</div>
       <div style="position:absolute;bottom:-68px;left:50%;transform:translateX(-50%);color:var(--gold-subtle);font-size:.6rem;letter-spacing:.2em;white-space:nowrap;font-family:'Bebas Neue',sans-serif;animation:pulse 3s ease-in-out infinite .5s" id="fanHint">↔ GLISSER POUR VOIR LES CARTES</div>
     </div>
@@ -1978,6 +2083,8 @@ function refreshStackAura(){
   const best=computeBestRemainingRarity();
   const RO={COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
   if(RO[best]>=2) startStackAura(best);
+  // Effets visuels (éclairs + diamants) mis à jour selon les cartes restantes
+  updateStackFx();
 }
 
 function startStackAura(rarity){
@@ -1997,6 +2104,104 @@ function stopStackAura(){
   if(auraInterval){clearInterval(auraInterval);auraInterval=null;}
   auraRarity=null;
 }
+// ===== PACK TIER — analyse les cartes restantes =====
+function computePackTier(){
+  if(!boosterCards||boosterCards.length===0) return 'commune';
+  const rem = boosterCards.slice(currentIdx);
+  const myth = rem.filter(c=>c.rarity==='MYTHIQUE').length;
+  const rare = rem.filter(c=>c.rarity==='RARE').length;
+  const peu  = rem.filter(c=>c.rarity==='PEU COMMMUNE').length;
+  if(myth>=2)          return 'double-myth';
+  if(myth>=1)          return 'myth';
+  if(rare>=2)          return 'double-rare';
+  if(rare>=1)          return 'rare';
+  if(peu>=1)           return 'peu';
+  return 'commune';
+}
+
+const TIER_CFG = {
+  // commune: 1 éclair côté, 1 diamant, tremble 1
+  'commune':     {boltUrl:'https://i.goopics.net/r7o0dc.png', perSide:1, onPack:0, diamonds:1,  tremble:1, boltOp:.55},
+  // peu:     2 éclairs côté, 2 diamants, tremble 2
+  'peu':         {boltUrl:'https://i.goopics.net/shn4s4.png', perSide:2, onPack:0, diamonds:2,  tremble:2, boltOp:.65},
+  // rare:    3 éclairs côté + 1 sur pack, 3 diamants, tremble 3
+  'rare':        {boltUrl:'https://i.goopics.net/i3tf5v.png', perSide:3, onPack:1, diamonds:3,  tremble:3, boltOp:.75},
+  // 2 rares: 5 éclairs côté + 2 sur pack, 4 diamants, tremble 3
+  'double-rare': {boltUrl:'https://i.goopics.net/i3tf5v.png', perSide:5, onPack:2, diamonds:4,  tremble:3, boltOp:.82},
+  // myth:    5 éclairs côté + 2 sur pack, 5 diamants, tremble 4
+  'myth':        {boltUrl:'https://i.goopics.net/e2mn7c.png', perSide:5, onPack:2, diamonds:5,  tremble:4, boltOp:.88},
+  // 2 myth:  10 éclairs côté + 3 sur pack, 10 diamants, tremble 4 max
+  'double-myth': {boltUrl:'https://i.goopics.net/e2mn7c.png', perSide:10,onPack:3, diamonds:10, tremble:4, boltOp:.95},
+};
+
+function stopStackFx(){
+  const wrap = document.getElementById('stack-shake-wrap');
+  if(wrap){ wrap.style.animation=''; wrap.className=''; }
+  const fx = document.getElementById('stack-fx');
+  if(fx) fx.innerHTML='';
+}
+
+function updateStackFx(){
+  stopStackFx();
+  if(!boosterCards||boosterCards.length===0) return;
+  const tier = computePackTier();
+  const cfg  = TIER_CFG[tier];
+  if(!cfg) return;
+
+  const wrap = document.getElementById('stack-shake-wrap');
+  const fx   = document.getElementById('stack-fx');
+  if(!wrap||!fx) return;
+
+  // Tremblement sur le wrapper (enfant stack-container garde son hover)
+  wrap.classList.add('stack-tremble-'+cfg.tremble);
+
+  // Distribution verticale des éclairs latéraux (en % de la hauteur du card)
+  function topPositions(n){
+    if(n===1) return [43];
+    const arr=[];
+    for(let i=0;i<n;i++) arr.push(Math.round(7 + i*(86/(n-1))));
+    return arr;
+  }
+
+  let html='';
+  const tops = topPositions(cfg.perSide);
+
+  tops.forEach((topPct, idx)=>{
+    const dur1 = (1.1+Math.random()*.9).toFixed(2);
+    const dur2 = (1.1+Math.random()*.9).toFixed(2);
+    const del1 = (idx*.28).toFixed(2);
+    const del2 = (idx*.28+.14).toFixed(2);
+    // Éclair gauche
+    html+=`<img class="sfx-bolt sfx-bolt-left" src="${cfg.boltUrl}"
+      style="top:${topPct}%;animation:sfxBoltSide ${dur1}s ease-in-out ${del1}s infinite;--bolt-op:${cfg.boltOp};">`;
+    // Éclair droit (miroir)
+    html+=`<img class="sfx-bolt sfx-bolt-right" src="${cfg.boltUrl}"
+      style="top:${topPct}%;animation:sfxBoltSide ${dur2}s ease-in-out ${del2}s infinite;--bolt-op:${cfg.boltOp};">`;
+  });
+
+  // Éclairs sur le pack
+  for(let p=0;p<cfg.onPack;p++){
+    const del=(p*2.2/Math.max(cfg.onPack,1)).toFixed(2);
+    html+=`<img class="sfx-bolt-onpack" src="${cfg.boltUrl}"
+      style="animation:sfxBoltPack 2.2s ease-in-out ${del}s infinite;">`;
+  }
+
+  // Diamants montants
+  for(let d=0;d<cfg.diamonds;d++){
+    const leftPct   = (28+Math.random()*44).toFixed(1);
+    const dx        = (-18+Math.random()*36).toFixed(0);
+    const rise      = (55+Math.random()*55).toFixed(0);
+    const end       = (parseInt(rise)+30).toFixed(0);
+    const dur       = (2.0+Math.random()*1.8).toFixed(2);
+    // Étaler les délais sur toute la durée du cycle pour flux continu
+    const del       = (d*parseFloat(dur)/cfg.diamonds).toFixed(2);
+    html+=`<img class="sfx-diamond" src="https://i.goopics.net/bdjq46.png"
+      style="left:${leftPct}%;--dx:${dx}px;--rise:-${rise}px;--end:-${end}px;animation:sfxDiamondRise ${dur}s ease-out ${del}s infinite;">`;
+  }
+
+  fx.innerHTML=html;
+}
+
 function spawnAuraParticle(cx, cy, color){
   const p=document.createElement('div');
   p.className='card-aura-particle';
@@ -3032,6 +3237,7 @@ function afterDismiss(){
 function showDone(){
   stopAmbientDrone();
   stopStackAura();
+  stopStackFx();
   document.getElementById('stackWrap').classList.remove('visible');
   const spread=document.getElementById('summarySpread');
   const RARITY_COL = {'COMMUNE':'#9ca3af','PEU COMMMUNE':'#60a5fa','RARE':'#a855f7','MYTHIQUE':'#f0c060'};
@@ -3145,6 +3351,7 @@ async function restart(){
   clearTypeBg();
   stopAmbientDrone();
   stopStackAura();
+  stopStackFx();
   if(fanOpen) closeFan();
   stopYT();
   ytMythStarted=false;
