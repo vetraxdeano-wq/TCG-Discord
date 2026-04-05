@@ -1662,66 +1662,54 @@ function renderCollCard(card,th,x,y,CW,CH){
     </div>`;
   }
   const rarCol = card.color;
-  const artH = CH - 20;
-  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;border:2px solid #000;background:${th.bgSecondary};">
-    ${card.count>1?`<div style="position:absolute;top:2px;right:2px;min-width:13px;height:13px;background:${th.accent};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:1;">×${card.count}</div>`:''}
-    <div style="position:absolute;top:0;left:0;right:0;height:${artH}px;overflow:hidden;">
-      ${card.image_url
-        ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
-        : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.4)}px;">🃏</div>`}
-    </div>
-    <div style="position:absolute;bottom:0;left:0;right:0;height:20px;background:${th.bgSecondary};display:flex;align-items:center;justify-content:space-between;padding:0 3px;">
-      <span style="font-size:8px;font-weight:800;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;">${card.name}</span>
-      <span style="font-size:9px;color:${rarCol};flex-shrink:0;">◆</span>
-    </div>
+  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;background:transparent;border:none;">
+    ${card.count>1?`<div style="position:absolute;top:3px;right:3px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
+    ${card.image_url
+      ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.4)}px;">🃏</div>`}
   </div>`;
 }
 
 
 // ─── CARD DETAIL MODAL ────────────────────────────────────────────
 function renderCardDetailModal(card,th){
+  const isMobile = window.innerWidth < 600;
+  const cardW = isMobile ? Math.min(130, window.innerWidth * 0.35) : 160;
+  const cardH = Math.round(cardW * 1.5);
+
   return `
-  <div id="card-modal-bg" style="position:absolute;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px 16px;background:rgba(0,0,0,0.88);backdrop-filter:blur(10px);">
-    <div style="display:flex;gap:14px;align-items:flex-start;max-width:360px;width:100%;">
-      <div style="flex-shrink:0;width:140px;perspective:800px;">
-        <div id="card-flip" style="width:140px;aspect-ratio:2/3;position:relative;transform-style:preserve-3d;transform:rotateY(${card.owned?'0deg':'180deg'});transition:transform .65s cubic-bezier(.25,.46,.45,.94);">
-          <div style="position:absolute;inset:0;backface-visibility:hidden;background:${th.bgSecondary};border:1px solid ${card.color}60;overflow:hidden;box-shadow:0 12px 40px ${card.color}50;display:flex;flex-direction:column;">
-            <div style="flex:1;overflow:hidden;position:relative;">
-              ${card.owned && card.image_url
-                ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
-                : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:46px;">🃏</div>`}
-              <div style="position:absolute;bottom:6px;right:8px;font-size:9px;font-weight:800;color:${card.color};background:rgba(0,0,0,.6);padding:2px 6px;">${RARITY_LABEL[card.rarity]}</div>
-            </div>
-            <div style="padding:8px 10px;background:${th.bgSecondary};">
-              <div style="font-family:'Bangers',cursive;font-size:11px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-              <div style="display:flex;justify-content:space-between;margin-top:4px;">
-                <span style="font-size:9px;color:${th.textMuted};background:${th.surface};padding:2px 6px;">${card.type}</span>
-                <span style="font-size:10px;color:${RARITY_COLOR[card.rarity]};">◆</span>
-              </div>
-              <div style="font-size:8px;color:${th.textFaint};margin-top:3px;">#${card.id} · ${SET_LABELS[card.set]||card.set}</div>
-            </div>
-          </div>
-          <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);border:2px solid #000;overflow:hidden;">
-            <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" />
-            ${!card.owned?`<div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,.8);text-shadow:0 1px 4px #000;letter-spacing:1px;">#${card.id}</div>`:''}
-          </div>
+  <div id="card-modal-bg" style="position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:${isMobile?'12px':'24px'};background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
+    <div style="display:flex;gap:${isMobile?'12px':'18px'};align-items:flex-start;max-width:520px;width:100%;max-height:calc(100vh - ${isMobile?'24':'48'}px);overflow:hidden;">
+
+      <!-- Carte seule, sans cadre — clic → viewer 3D -->
+      <div id="card-img-trigger" style="flex-shrink:0;width:${cardW}px;cursor:zoom-in;" title="Cliquer pour agrandir">
+        <div style="width:${cardW}px;height:${cardH}px;position:relative;overflow:hidden;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.6);">
+          ${card.owned && card.image_url
+            ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+            : card.owned
+              ? `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:52px;">🃏</div>`
+              : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" />`}
+          ${card.owned ? `<div style="position:absolute;bottom:6px;right:6px;font-size:9px;font-weight:800;color:${card.color};background:rgba(0,0,0,.65);padding:2px 6px;letter-spacing:.3px;">${RARITY_LABEL[card.rarity]}</div>` : ''}
         </div>
+        <div style="text-align:center;margin-top:6px;font-size:9px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
       </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding-top:4px;">
-        <div style="display:flex;justify-content:flex-end;">
+
+      <!-- Panel infos -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:${cardH + 32}px;">
+        <div style="display:flex;justify-content:flex-end;flex-shrink:0;">
           <button id="card-modal-close" style="width:28px;height:28px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
         </div>
-        ${card.owned?`
-          <div>
-            <div style="font-family:'Bangers',cursive;font-size:14px;font-weight:700;color:${th.text};line-height:1.2;">${card.name}</div>
+        ${card.owned ? `
+          <div style="flex-shrink:0;">
+            <div style="font-family:'Bangers',cursive;font-size:${isMobile?'15px':'17px'};font-weight:700;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
             <div style="font-size:10px;color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:3px;">◆ ${RARITY_LABEL[card.rarity]}</div>
           </div>
           ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
-          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid ${th.border};">
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid ${th.border};flex-shrink:0;">
             <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
             <span style="font-size:10px;font-weight:600;color:${th.text};">${r.v}</span>
           </div>`).join('')}
-          <div style="background:${th.bgSecondary};padding:10px 12px;border:2px solid #000;">
+          <div style="background:${th.bgSecondary};padding:10px 12px;border:2px solid #000;flex-shrink:0;">
             <div style="font-size:9px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Possession</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
               <span style="font-size:10px;color:${th.textMuted};">Exemplaires</span>
@@ -1736,21 +1724,21 @@ function renderCardDetailModal(card,th){
               <span style="font-size:10px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
             </div>
           </div>
-          <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;">＋ AJOUTER AU DECK</button>
-        `:`
-          <div>
+          <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;flex-shrink:0;">＋ AJOUTER AU DECK</button>
+        ` : `
+          <div style="flex-shrink:0;">
             <div style="font-family:'Bangers',cursive;font-size:16px;font-weight:900;color:${th.textMuted};letter-spacing:2px;">???</div>
             <div style="font-size:10px;color:${th.textFaint};margin-top:4px;">Carte mystère</div>
           </div>
-          <div style="background:${th.bgSecondary};padding:12px;border:2px solid #000;display:flex;flex-direction:column;gap:6px;">
+          <div style="background:${th.bgSecondary};padding:12px;border:2px solid #000;display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
             ${[{l:"ID",v:`#${card.id}`},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"Nom",v:"— — — —"},{l:"Rareté",v:"— — —"}].map(r=>`
             <div style="display:flex;justify-content:space-between;">
               <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
               <span style="font-size:10px;color:${r.l==="ID"||r.l==="Set"?th.text:th.textFaint};">${r.v}</span>
             </div>`).join('')}
           </div>
-          <div style="font-size:10px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;">Cette carte n'a pas encore été découverte. Ouvre des boosters pour la trouver !</div>
-          <button onclick="setState({collSelectedCard:null, tab:2})" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;">→ ALLER AUX BOOSTERS</button>
+          <div style="font-size:10px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;flex-shrink:0;">Cette carte n'a pas encore été découverte. Ouvre des boosters pour la trouver !</div>
+          <button onclick="setState({collSelectedCard:null, tab:2})" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;flex-shrink:0;">→ ALLER AUX BOOSTERS</button>
         `}
       </div>
     </div>
@@ -3271,6 +3259,14 @@ function bindGame(){
   if(cardModalBg) cardModalBg.addEventListener('click',(e)=>{if(e.target===cardModalBg)setState({collSelectedCard:null});});
   const cardModalClose = document.getElementById('card-modal-close');
   if(cardModalClose) cardModalClose.addEventListener('click',()=>setState({collSelectedCard:null}));
+
+  // Clic sur l'image de la carte → viewer 3D plein écran
+  const cardImgTrigger = document.getElementById('card-img-trigger');
+  if(cardImgTrigger && state.collSelectedCard?.owned) {
+    cardImgTrigger.addEventListener('click', () => {
+      openCard3DViewer(state.collSelectedCard);
+    });
+  }
 
   // Bouton "Ajouter au deck" dans modal carte → ouvre deck builder
   const btnAddToDeck = document.getElementById('btn-add-to-deck');
@@ -6033,6 +6029,176 @@ async function subscribeTradeNotifications() {
 }
 
 window.subscribeTradeNotifications = subscribeTradeNotifications;
-</script>
+
+// ─── CARD 3D VIEWER ──────────────────────────────────────────────
+function openCard3DViewer(card) {
+  if(document.getElementById('card-3d-viewer')) return;
+
+  const imgSrc = card.image_url || null;
+  const rarCol = RARITY_COLOR[card.rarity] || '#a78bfa';
+
+  const viewer = document.createElement('div');
+  viewer.id = 'card-3d-viewer';
+  viewer.style.cssText = `
+    position:fixed;inset:0;z-index:9000;
+    background:rgba(0,0,0,.92);backdrop-filter:blur(18px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:grab;user-select:none;-webkit-user-select:none;
+    animation:fadeIn .2s ease both;
+  `;
+
+  // Taille de la carte : max 80vh × 55vw
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const maxH = Math.round(vh * 0.78);
+  const maxW = Math.round(vw * 0.82);
+  const cardH = Math.min(maxH, Math.round(maxW / 0.667));
+  const cardW = Math.round(cardH * 0.667);
+
+  viewer.innerHTML = `
+    <div id="c3d-wrap" style="
+      width:${cardW}px;height:${cardH}px;
+      perspective:900px;position:relative;flex-shrink:0;
+    ">
+      <div id="c3d-card" style="
+        width:100%;height:100%;
+        position:relative;transform-style:preserve-3d;
+        border-radius:10px;overflow:hidden;
+        box-shadow:0 32px 80px rgba(0,0,0,.8),0 0 0 1px ${rarCol}40;
+        will-change:transform;transition:transform .08s ease-out;
+      ">
+        ${imgSrc
+          ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none;" draggable="false" />`
+          : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}40,${rarCol}15);display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
+        <!-- Overlay reflet holographique -->
+        <div id="c3d-holo" style="
+          position:absolute;inset:0;
+          background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);
+          mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .15s;
+        "></div>
+        <!-- Brillance spéculaire -->
+        <div id="c3d-spec" style="
+          position:absolute;inset:0;
+          background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.18) 0%,transparent 65%);
+          mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .1s;
+        "></div>
+        <!-- Reflet de rareté -->
+        <div id="c3d-rar" style="
+          position:absolute;inset:0;
+          background:linear-gradient(135deg,${rarCol}30,transparent 50%,${rarCol}20);
+          mix-blend-mode:color-dodge;pointer-events:none;opacity:0;transition:opacity .15s;
+        "></div>
+      </div>
+    </div>
+    <div style="margin-top:18px;font-family:'Bangers',cursive;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,.35);">MAINTENIR APPUYÉ · BOUGER POUR PIVOTER</div>
+    <div style="position:absolute;top:16px;right:16px;">
+      <button id="c3d-close" style="width:36px;height:36px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;">✕</button>
+    </div>
+  `;
+
+  document.body.appendChild(viewer);
+
+  const card3d   = document.getElementById('c3d-card');
+  const holo     = document.getElementById('c3d-holo');
+  const spec     = document.getElementById('c3d-spec');
+  const rar      = document.getElementById('c3d-rar');
+
+  let pressed = false;
+  let currentRX = 0, currentRY = 0;
+  const MAX_TILT = 22; // degrés max
+
+  function applyTilt(nx, ny) {
+    // nx, ny : -1 à 1 (position normalisée dans la carte)
+    const rx = -ny * MAX_TILT;
+    const ry =  nx * MAX_TILT;
+    currentRX = rx; currentRY = ry;
+    card3d.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.04,1.04,1.04)`;
+    // Reflet : se déplace avec la position
+    const hx = (nx * 0.5 + 0.5) * 100;
+    const hy = (ny * 0.5 + 0.5) * 100;
+    holo.style.background = `linear-gradient(${105 + ry}deg, transparent 35%, rgba(255,255,255,.12) 50%, transparent 65%)`;
+    spec.style.background  = `radial-gradient(circle at ${hx}% ${hy}%, rgba(255,255,255,.22) 0%, transparent 60%)`;
+    holo.style.opacity = '1';
+    spec.style.opacity = '1';
+    rar.style.opacity  = '0.6';
+    viewer.style.cursor = 'grabbing';
+  }
+
+  function releaseTilt() {
+    pressed = false;
+    card3d.style.transition = 'transform .45s cubic-bezier(.25,.46,.45,.94)';
+    card3d.style.transform = 'rotateX(0) rotateY(0) scale3d(1,1,1)';
+    holo.style.opacity = '0';
+    spec.style.opacity = '0';
+    rar.style.opacity  = '0';
+    viewer.style.cursor = 'grab';
+    setTimeout(() => { card3d.style.transition = 'transform .08s ease-out'; }, 460);
+  }
+
+  function getRelative(el, cx, cy) {
+    const r = el.getBoundingClientRect();
+    const nx = ((cx - r.left) / r.width)  * 2 - 1;
+    const ny = ((cy - r.top)  / r.height) * 2 - 1;
+    return { nx: Math.max(-1, Math.min(1, nx)), ny: Math.max(-1, Math.min(1, ny)) };
+  }
+
+  // Mouse
+  viewer.addEventListener('mousedown', (e) => {
+    if(e.target === document.getElementById('c3d-close')) return;
+    pressed = true;
+    card3d.style.transition = 'transform .08s ease-out';
+    const {nx, ny} = getRelative(card3d, e.clientX, e.clientY);
+    applyTilt(nx, ny);
+  });
+  viewer.addEventListener('mousemove', (e) => {
+    if(!pressed) return;
+    const {nx, ny} = getRelative(card3d, e.clientX, e.clientY);
+    applyTilt(nx, ny);
+  });
+  viewer.addEventListener('mouseup', releaseTilt);
+  viewer.addEventListener('mouseleave', () => { if(pressed) releaseTilt(); });
+
+  // Touch
+  viewer.addEventListener('touchstart', (e) => {
+    if(e.target === document.getElementById('c3d-close')) return;
+    e.preventDefault();
+    pressed = true;
+    card3d.style.transition = 'transform .08s ease-out';
+    const t = e.touches[0];
+    const {nx, ny} = getRelative(card3d, t.clientX, t.clientY);
+    applyTilt(nx, ny);
+  }, {passive:false});
+  viewer.addEventListener('touchmove', (e) => {
+    if(!pressed) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const {nx, ny} = getRelative(card3d, t.clientX, t.clientY);
+    applyTilt(nx, ny);
+  }, {passive:false});
+  viewer.addEventListener('touchend', releaseTilt);
+
+  // Fermer — clic sur fond ou bouton ✕
+  document.getElementById('c3d-close').addEventListener('click', () => closeViewer());
+  viewer.addEventListener('click', (e) => {
+    if(e.target === viewer) closeViewer();
+  });
+
+  // Échap
+  function onKey(e) { if(e.key === 'Escape') closeViewer(); }
+  document.addEventListener('keydown', onKey);
+
+  function closeViewer() {
+    viewer.style.animation = 'fadeOut .18s ease both';
+    setTimeout(() => { viewer.remove(); document.removeEventListener('keydown', onKey); }, 190);
+  }
+}
+
+// Keyframes pour fadeOut (fadeIn déjà défini dans les styles globaux)
+(function(){
+  if(document.getElementById('card3d-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'card3d-styles';
+  s.textContent = `@keyframes fadeOut{from{opacity:1}to{opacity:0}}`;
+  document.head.appendChild(s);
+})();
 </body>
 </html>
