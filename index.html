@@ -4763,18 +4763,31 @@ function showDiscordLoginBtn() {
 }
 
 window.checkAuthAndEnter = async function() {
-  // 1. Lire la session stockée directement — instantané, pas de réseau
+  // Attendre que Supabase soit prêt
+  await new Promise(resolve => waitForSupabase(resolve));
+  const db = window.db;
+
+  // 1. Session active via Supabase (gère le refresh automatique du token)
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session && session.user) {
+      const { data } = await db.from('players').select('coins').eq('id', session.user.id).single();
+      enterGame(session.user, data ? data.coins : 0);
+      return;
+    }
+  } catch(e) { console.warn('[auth] getSession error', e); }
+
+  // 2. Fallback localStorage si Supabase offline
   const stored = getStoredSession();
   if (stored && stored.user) {
-    const user = stored.user;
-    // Récupérer les vraies coins avant d'entrer (évite le flash à 100)
-    waitForSupabase(async () => {
-      const { data } = await window.db.from('players').select('coins').eq('id', user.id).single();
-      enterGame(user, data ? data.coins : 0);
-    });
-    return;
+    try {
+      const { data } = await db.from('players').select('coins').eq('id', stored.user.id).single();
+      enterGame(stored.user, data ? data.coins : 0);
+      return;
+    } catch(e) {}
   }
-  // 2. Pas de session stockée → afficher bouton Discord
+
+  // 3. Aucune session → afficher bouton Discord
   showDiscordLoginBtn();
 };
 
@@ -4820,14 +4833,29 @@ waitForSupabase(() => {
     return;
   }
 
-  // Session déjà stockée → entrer auto sans clic
-  const stored = getStoredSession();
-  if (stored && stored.user) {
-    db.from('players').select('coins').eq('id', stored.user.id).single()
-      .then(({ data }) => {
-        enterGame(stored.user, data ? data.coins : 0);
-      });
-  }
+  // Session active → entrer automatiquement sans clic
+  db.auth.getSession().then(async ({ data: { session } }) => {
+    if (session && session.user) {
+      const { data } = await db.from('players').select('coins').eq('id', session.user.id).single();
+      enterGame(session.user, data ? data.coins : 0);
+      return;
+    }
+    // Fallback localStorage
+    const stored = getStoredSession();
+    if (stored && stored.user) {
+      db.from('players').select('coins').eq('id', stored.user.id).single()
+        .then(({ data }) => { enterGame(stored.user, data ? data.coins : 0); })
+        .catch(() => {});
+    }
+  }).catch(() => {
+    // Supabase indisponible — fallback localStorage
+    const stored = getStoredSession();
+    if (stored && stored.user) {
+      db.from('players').select('coins').eq('id', stored.user.id).single()
+        .then(({ data }) => { enterGame(stored.user, data ? data.coins : 0); })
+        .catch(() => {});
+    }
+  });
 });
 
 // ─── COLLECTION ───────────────────────────────────────────────────
