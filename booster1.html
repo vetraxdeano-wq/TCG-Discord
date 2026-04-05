@@ -438,22 +438,23 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   border-bottom:1px solid rgba(240,192,96,.15);
 }
 .done-title{
-  font-family:'Oswald',sans-serif;
-  font-size:clamp(1.1rem,3.5vw,1.6rem);
-  font-weight:700;
-  letter-spacing:.12em;
+  font-family:'Cinzel',serif;
+  font-size:clamp(1.2rem,3.5vw,1.75rem);
+  font-weight:900;
+  letter-spacing:.18em;
   text-transform:uppercase;
   color:#f0c060;
-  margin:0 0 2px;
+  text-shadow:0 0 28px rgba(240,192,96,.45), 0 1px 0 rgba(0,0,0,.9);
+  margin:0 0 4px;
   animation:doneIn .4s ease both;
 }
 .done-sub{
-  font-family:'Oswald',sans-serif;
-  font-size:clamp(.6rem,1.5vw,.75rem);
+  font-family:'Bebas Neue',cursive;
+  font-size:clamp(.65rem,1.6vw,.82rem);
   font-weight:400;
-  letter-spacing:.3em;
+  letter-spacing:.45em;
   text-transform:uppercase;
-  color:rgba(255,255,255,.35);
+  color:rgba(255,255,255,.3);
   margin:0;
   animation:doneIn .4s ease .08s both;
 }
@@ -540,13 +541,13 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   position:relative;z-index:4;flex-shrink:0;
 }
 .rc-name{
-  font-family:'Oswald',sans-serif;
-  font-size:clamp(.45rem,.9vw,.65rem);
-  font-weight:600;
+  font-family:'Cinzel',serif;
+  font-size:clamp(.38rem,.78vw,.56rem);
+  font-weight:700;
   line-height:1.15;
   flex:1;
   color:#fff;
-  letter-spacing:.02em;
+  letter-spacing:.04em;
 }
 .recap-card[data-rarity="COMMUNE"]    .rc-name{color:#b8c4b0;}
 .recap-card[data-rarity="PEU COMMMUNE"].rc-name{color:#93c5fd;}
@@ -582,10 +583,10 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 /* Badge type */
 .rc-type{
   padding:clamp(2px,0.5vh,3px) 5px;
-  font-family:'Oswald',sans-serif;
-  font-size:clamp(.35rem,.65vw,.48rem);
-  font-weight:600;
-  letter-spacing:.1em;
+  font-family:'Bebas Neue',cursive;
+  font-size:clamp(.38rem,.7vw,.52rem);
+  font-weight:400;
+  letter-spacing:.22em;
   text-transform:uppercase;
   text-align:center;
   border-bottom:1px solid rgba(0,0,0,.5);
@@ -624,7 +625,28 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   color:#fff;display:block;
 }
 
-/* Étoiles sous la carte */
+/* Badge possession + étoiles sous la carte */
+.rc-own-badge{
+  font-family:'Bebas Neue',cursive;
+  font-size:clamp(.48rem,.82vw,.6rem);
+  letter-spacing:.18em;
+  padding:1px 7px;
+  border:1px solid currentColor;
+  opacity:.9;
+  white-space:nowrap;
+  line-height:1.5;
+}
+.rc-own-badge.new-card{
+  color:#4ade80;
+  border-color:rgba(74,222,128,.4);
+  background:rgba(74,222,128,.08);
+  text-shadow:0 0 8px rgba(74,222,128,.5);
+}
+.rc-own-badge.dup-card{
+  color:rgba(255,255,255,.45);
+  border-color:rgba(255,255,255,.15);
+  background:rgba(0,0,0,.2);
+}
 .rc-stars{
   display:flex;gap:1px;justify-content:center;line-height:1;
 }
@@ -633,12 +655,13 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   text-shadow:0 0 6px currentColor, 0 0 12px currentColor60, 1px 1px 0 #000;
 }
 .rc-rar-label{
-  font-family:'Oswald',sans-serif;
-  font-size:clamp(.42rem,.7vw,.52rem);
-  font-weight:600;
-  letter-spacing:.1em;
+  font-family:'Cinzel',serif;
+  font-size:clamp(.38rem,.65vw,.48rem);
+  font-weight:400;
+  font-style:italic;
+  letter-spacing:.18em;
   text-transform:uppercase;
-  opacity:.75;
+  opacity:.8;
 }
 
 /* ── Boutons ── */
@@ -2981,6 +3004,8 @@ function showDone(){
   const spread=document.getElementById('summarySpread');
   const RARITY_COL = {'COMMUNE':'#9ca3af','PEU COMMMUNE':'#60a5fa','RARE':'#a855f7','MYTHIQUE':'#f0c060'};
   const RARITY_FR  = {'COMMUNE':'Commune','PEU COMMMUNE':'Peu Commune','RARE':'Rare','MYTHIQUE':'Mythique'};
+  // Compteur local pour gérer les doublons dans le même booster
+  const localCount = {};
   spread.innerHTML=revealed.map((c,i)=>{
     const col = RARITY_COL[c.rarity]||'#9ca3af';
     const starsCount = {'COMMUNE':1,'PEU COMMMUNE':2,'RARE':3,'MYTHIQUE':4}[c.rarity]||1;
@@ -2994,7 +3019,19 @@ function showDone(){
       </div>`;
     } else {
       const eff=[c.text,c.atk].filter(Boolean).join(' — ');
-      statsHtml=`<div style="padding:3px 5px;font-family:'Oswald',sans-serif;font-size:clamp(.3rem,.55vw,.42rem);color:rgba(255,255,255,.55);line-height:1.4;background:rgba(0,0,0,.5);flex-shrink:0;">${eff.slice(0,50)}</div>`;
+      statsHtml=`<div style="padding:3px 5px;font-family:'Bebas Neue',cursive;font-size:clamp(.3rem,.55vw,.42rem);color:rgba(255,255,255,.45);line-height:1.4;background:rgba(0,0,0,.5);letter-spacing:.08em;flex-shrink:0;">${eff.slice(0,50)}</div>`;
+    }
+    // Badge possession
+    const dbId = c.dbId;
+    const prevOwned = (window._ownedMap && dbId) ? (window._ownedMap[dbId]||0) : 0;
+    const localPrev = localCount[dbId]||0;
+    const totalBefore = prevOwned + localPrev;
+    localCount[dbId] = localPrev + 1;
+    let ownBadge = '';
+    if(totalBefore === 0){
+      ownBadge = `<span class="rc-own-badge new-card">✦ Nouvelle carte</span>`;
+    } else {
+      ownBadge = `<span class="rc-own-badge dup-card">×${totalBefore+1} exemplaire${totalBefore+1>1?'s':''}</span>`;
     }
     return `<div class="recap-card-wrap" style="--delay:${i*.1}s;">
       <div class="recap-card" data-rarity="${c.rarity}">
@@ -3008,6 +3045,7 @@ function showDone(){
         <div class="rc-type">${c.type}</div>
         ${statsHtml}
       </div>
+      ${ownBadge}
       <div class="rc-stars">${starsHtml}</div>
       <span class="rc-rar-label" style="color:${col};">${RARITY_FR[c.rarity]||c.rarity}</span>
     </div>`;
