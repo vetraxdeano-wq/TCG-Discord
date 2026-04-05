@@ -2190,8 +2190,10 @@ const TIER_CFG = {
 };
 
 function stopStackFx(){
-  clearInterval(window._boltMoveInterval);
-  window._boltMoveInterval = null;
+  clearTimeout(window._boltMoveIntervalL);
+  clearTimeout(window._boltMoveIntervalR);
+  window._boltMoveIntervalL = null;
+  window._boltMoveIntervalR = null;
   const wrap = document.getElementById('stack-shake-wrap');
   if(wrap){ wrap.style.animation=''; wrap.className=''; }
   const fx = document.getElementById('stack-fx');
@@ -2262,28 +2264,56 @@ function updateStackFx(){
       style="top:${topsRight[idx]}%;transform:translateY(-50%) scaleX(-1) scale(${scaleR});animation:sfxBoltSide ${dur2}s ease-in-out ${del2}s infinite;--bolt-op:${cfg.boltOp};">`;
   }
 
-  // Repositionnement dynamique : chaque éclair change de position indépendamment
-  // après chaque cycle d'animation complet (jamais au même endroit)
+  // Repositionnement dynamique : gauche et droite sur deux timers ENTIÈREMENT indépendants
+  // → ils ne bougent jamais en même temps, toute symétrie temporelle est impossible
   if (cfg.perSide > 0) {
-    clearInterval(window._boltMoveInterval);
-    window._boltMoveInterval = setInterval(() => {
-      const newL = randomTops(cfg.perSide);
-      const newR = ensureNoCross(newL, randomTops(cfg.perSide), minGap);
-      for (let idx = 0; idx < cfg.perSide; idx++) {
-        const bL = document.getElementById('bolt-L-' + idx);
-        const bR = document.getElementById('bolt-R-' + idx);
-        if (bL) {
-          const s = (0.85 + Math.random() * 0.3).toFixed(2);
-          bL.style.top = newL[idx] + '%';
-          bL.style.transform = `translateY(-50%) scale(${s})`;
+    clearInterval(window._boltMoveIntervalL);
+    clearInterval(window._boltMoveIntervalR);
+
+    // Références aux positions courantes de chaque côté (pour ensureNoCross)
+    let curLeft  = topsLeft.slice();
+    let curRight = topsRight.slice();
+
+    // Timer GAUCHE — intervalle ~1600-2400ms, démarre immédiatement
+    function scheduleLeft() {
+      const delay = 1600 + Math.random() * 800;
+      window._boltMoveIntervalL = setTimeout(() => {
+        const newL = randomTops(cfg.perSide);
+        curLeft = newL;
+        for (let idx = 0; idx < cfg.perSide; idx++) {
+          const bL = document.getElementById('bolt-L-' + idx);
+          if (bL) {
+            const s = (0.85 + Math.random() * 0.3).toFixed(2);
+            bL.style.top = newL[idx] + '%';
+            bL.style.transform = `translateY(-50%) scale(${s})`;
+          }
         }
-        if (bR) {
-          const s = (0.85 + Math.random() * 0.3).toFixed(2);
-          bR.style.top = newR[idx] + '%';
-          bR.style.transform = `translateY(-50%) scaleX(-1) scale(${s})`;
+        scheduleLeft(); // re-planifier avec un nouveau délai aléatoire
+      }, delay);
+    }
+
+    // Timer DROITE — intervalle ~1900-2900ms, démarre avec un décalage initial
+    // pour garantir qu'il ne se synchronise pas avec le timer gauche au départ
+    function scheduleRight() {
+      const delay = 1900 + Math.random() * 1000;
+      window._boltMoveIntervalR = setTimeout(() => {
+        const newR = ensureNoCross(curLeft, randomTops(cfg.perSide), minGap);
+        curRight = newR;
+        for (let idx = 0; idx < cfg.perSide; idx++) {
+          const bR = document.getElementById('bolt-R-' + idx);
+          if (bR) {
+            const s = (0.85 + Math.random() * 0.3).toFixed(2);
+            bR.style.top = newR[idx] + '%';
+            bR.style.transform = `translateY(-50%) scaleX(-1) scale(${s})`;
+          }
         }
-      }
-    }, 1800 + Math.random() * 800); // intervalle légèrement variable
+        scheduleRight();
+      }, delay);
+    }
+
+    scheduleLeft();
+    // Décalage initial du timer droite : 700-1200ms après le gauche
+    setTimeout(scheduleRight, 700 + Math.random() * 500);
   }
 
   // Éclairs sur le pack
