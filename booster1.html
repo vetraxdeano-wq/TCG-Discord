@@ -1153,6 +1153,7 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
   object-fit: contain;
   pointer-events: none;
   opacity: 0;
+  transition: top 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sfx-bolt-left  { right: calc(100% + 2px); transform: translateY(-50%); }
 .sfx-bolt-right { left:  calc(100% + 2px); transform: translateY(-50%) scaleX(-1); }
@@ -2214,32 +2215,46 @@ function updateStackFx(){
   // Tremblement sur le wrapper (enfant stack-container garde son hover)
   wrap.classList.add('stack-tremble-'+cfg.tremble);
 
-  // Distribution verticale des éclairs — positions DYNAMIQUES, jamais au même endroit
-  // Génère n positions bien dispersées sur [7%..93%] sans doublons proches
+  // Calcul du gap minimum basé sur la hauteur physique du PNG éclair en % du conteneur
+  // → empêche toute superposition quand plusieurs éclairs sont du même côté
+  const fxEl = document.getElementById('stack-fx');
+  const containerH = fxEl ? fxEl.offsetHeight : 300;
+  // Hauteur max du bolt en px (clamp(120px, 36vw, 220px))
+  const boltPxH = Math.min(220, Math.max(120, window.innerWidth * 0.36));
+  // En % de la hauteur du conteneur, +20% de marge de sécurité
+  const boltGapPct = Math.ceil((boltPxH / Math.max(containerH, 1)) * 100 * 1.2);
+  // Gap effectif : max entre la taille physique et la distribution équitable
+  const minGap = Math.max(boltGapPct, 80 / Math.max(cfg.perSide, 1));
+
+  // Distribution verticale des éclairs — positions DYNAMIQUES, jamais superposées
   function randomTops(n) {
-    const minGap = 80 / Math.max(n, 1); // écart minimum entre éclairs
     const result = [];
     let attempts = 0;
-    while (result.length < n && attempts < 200) {
+    while (result.length < n && attempts < 400) {
       attempts++;
       const candidate = 7 + Math.random() * 86;
       if (result.every(v => Math.abs(v - candidate) >= minGap)) {
         result.push(+candidate.toFixed(1));
       }
     }
-    // Fallback si pas assez trouvé
-    while (result.length < n) result.push(+(7 + result.length * (86 / n)).toFixed(1));
+    // Fallback distribué si rejection sampling échoue (n trop grand pour la zone)
+    if (result.length < n) {
+      const step = 86 / n;
+      while (result.length < n) {
+        result.push(+(7 + result.length * step + Math.random() * step * 0.5).toFixed(1));
+      }
+    }
     return result;
   }
 
   // S'assurer que deux listes n'ont aucun éclair à moins de minGap l'un de l'autre
-  function ensureNoCross(listA, listB, minGap) {
+  function ensureNoCross(listA, listB, gap) {
     const out = [...listB];
     for (let i = 0; i < out.length; i++) {
-      let attempts = 0;
-      while (listA.some(a => Math.abs(a - out[i]) < minGap) && attempts < 50) {
+      let att = 0;
+      while (listA.some(a => Math.abs(a - out[i]) < gap) && att < 80) {
         out[i] = +(7 + Math.random() * 86).toFixed(1);
-        attempts++;
+        att++;
       }
     }
     return out;
@@ -2265,54 +2280,54 @@ function updateStackFx(){
   }
 
   // Repositionnement dynamique : gauche et droite sur deux timers ENTIÈREMENT indépendants
-  // → ils ne bougent jamais en même temps, toute symétrie temporelle est impossible
+  // Chaque éclair du même côté se déplace avec un micro-décalage pour éviter tout mouvement simultané
   if (cfg.perSide > 0) {
-    clearInterval(window._boltMoveIntervalL);
-    clearInterval(window._boltMoveIntervalR);
+    clearTimeout(window._boltMoveIntervalL);
+    clearTimeout(window._boltMoveIntervalR);
 
-    // Références aux positions courantes de chaque côté (pour ensureNoCross)
     let curLeft  = topsLeft.slice();
     let curRight = topsRight.slice();
 
-    // Timer GAUCHE — intervalle ~1600-2400ms, démarre immédiatement
+    // Repositionne les éclairs d'un côté avec un micro-décalage entre chaque
+    function movebolts(side, newTops, scaleXflip) {
+      newTops.forEach((top, idx) => {
+        // Décalage de 120ms entre chaque éclair du même côté → mouvement en cascade douce
+        setTimeout(() => {
+          const el = document.getElementById('bolt-' + side + '-' + idx);
+          if (el) {
+            const s = (0.85 + Math.random() * 0.3).toFixed(2);
+            el.style.top = top + '%';
+            el.style.transform = scaleXflip
+              ? `translateY(-50%) scaleX(-1) scale(${s})`
+              : `translateY(-50%) scale(${s})`;
+          }
+        }, idx * 120);
+      });
+    }
+
+    // Timer GAUCHE — intervalle ~1600-2400ms
     function scheduleLeft() {
       const delay = 1600 + Math.random() * 800;
       window._boltMoveIntervalL = setTimeout(() => {
         const newL = randomTops(cfg.perSide);
         curLeft = newL;
-        for (let idx = 0; idx < cfg.perSide; idx++) {
-          const bL = document.getElementById('bolt-L-' + idx);
-          if (bL) {
-            const s = (0.85 + Math.random() * 0.3).toFixed(2);
-            bL.style.top = newL[idx] + '%';
-            bL.style.transform = `translateY(-50%) scale(${s})`;
-          }
-        }
-        scheduleLeft(); // re-planifier avec un nouveau délai aléatoire
+        movebolts('L', newL, false);
+        scheduleLeft();
       }, delay);
     }
 
-    // Timer DROITE — intervalle ~1900-2900ms, démarre avec un décalage initial
-    // pour garantir qu'il ne se synchronise pas avec le timer gauche au départ
+    // Timer DROITE — intervalle ~1900-2900ms, démarre décalé
     function scheduleRight() {
       const delay = 1900 + Math.random() * 1000;
       window._boltMoveIntervalR = setTimeout(() => {
         const newR = ensureNoCross(curLeft, randomTops(cfg.perSide), minGap);
         curRight = newR;
-        for (let idx = 0; idx < cfg.perSide; idx++) {
-          const bR = document.getElementById('bolt-R-' + idx);
-          if (bR) {
-            const s = (0.85 + Math.random() * 0.3).toFixed(2);
-            bR.style.top = newR[idx] + '%';
-            bR.style.transform = `translateY(-50%) scaleX(-1) scale(${s})`;
-          }
-        }
+        movebolts('R', newR, true);
         scheduleRight();
       }, delay);
     }
 
     scheduleLeft();
-    // Décalage initial du timer droite : 700-1200ms après le gauche
     setTimeout(scheduleRight, 700 + Math.random() * 500);
   }
 
