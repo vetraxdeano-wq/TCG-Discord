@@ -1278,9 +1278,9 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
+        <!-- FX layer : éclairs + diamants positionnés autour du pack — DANS stack-container pour hériter du scale hover -->
+        <div id="stack-fx" style="position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6;"></div>
       </div>
-      <!-- FX layer : éclairs + diamants positionnés autour du pack -->
-      <div id="stack-fx" style="position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6;"></div>
       <div class="stack-count" id="stackCount">5 cartes restantes</div>
       <div style="position:absolute;bottom:-68px;left:50%;transform:translateX(-50%);color:var(--gold-subtle);font-size:.6rem;letter-spacing:.2em;white-space:nowrap;font-family:'Bebas Neue',sans-serif;animation:pulse 3s ease-in-out infinite .5s" id="fanHint">↔ GLISSER POUR VOIR LES CARTES</div>
     </div>
@@ -2218,7 +2218,8 @@ function updateStackFx(){
   // Calcul du gap minimum basé sur la hauteur physique du PNG éclair en % du conteneur
   // → empêche toute superposition quand plusieurs éclairs sont du même côté
   const fxEl = document.getElementById('stack-fx');
-  const containerH = fxEl ? fxEl.offsetHeight : 300;
+  const containerEl = document.getElementById('stackContainer');
+  const containerH = (containerEl ? containerEl.offsetHeight : 0) || (fxEl ? fxEl.offsetHeight : 0) || 280;
   // Hauteur max du bolt en px (clamp(120px, 36vw, 220px))
   const boltPxH = Math.min(220, Math.max(120, window.innerWidth * 0.36));
   // En % de la hauteur du conteneur, +20% de marge de sécurité
