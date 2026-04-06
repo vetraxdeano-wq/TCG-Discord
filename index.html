@@ -1108,13 +1108,13 @@ function renderDeckEdit(th){
         <div style="font-size:9px;color:${th.textMuted};font-weight:700;letter-spacing:1px;text-transform:uppercase;">Deck (${deckTotal}/30)</div>
         <div style="font-size:9px;color:${th.textMuted};font-weight:600;">Clique sur une carte du deck pour la retirer</div>
       </div>
-      <div style="display:flex;gap:${window.innerWidth<600?'6':'8'}px;overflow-x:auto;padding-bottom:4px;min-height:${window.innerWidth<600?'110':'148'}px;align-items:center;">
+      <div style="display:flex;gap:${window.innerWidth<600?'6':'8'}px;overflow-x:auto;padding-bottom:4px;min-height:${window.innerWidth<600?'138':'190'}px;align-items:center;">
         ${deckTotal===0?`<div style="color:${th.textFaint};font-size:10px;padding:0 8px;font-style:italic;">Ajoute des cartes ci-dessous</div>`
           :deckCards.map(entry=>{
             const card=ALL_CARDS.find(x=>parseInt(x.id)===parseInt(entry.card_id));
             if(!card) return '';
-            const dcW = window.innerWidth<600 ? 72 : 100;
-            const dcH = window.innerWidth<600 ? 102 : 142;
+            const dcW = window.innerWidth<600 ? 90 : 126;
+            const dcH = window.innerWidth<600 ? 128 : 178;
             return `<div class="db-deck-card" data-cardid="${card.id}" style="flex-shrink:0;width:${dcW}px;height:${dcH}px;background:linear-gradient(135deg,${card.color}40,${card.color}15);border:1px solid ${card.color}70;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px;overflow:visible;" title="${card.name} — clic pour retirer">
               ${card.image_url
                 ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;" />`
@@ -3414,26 +3414,13 @@ function bindGame(){
     btn.addEventListener('click',(e)=>{e.stopPropagation();deleteDeck(btn.dataset.deckid);});
   });
 
-  // Ajouter OU retirer une carte du deck (vue édition)
+  // Ajouter une carte au deck (vue édition) — la suppression se fait uniquement via la bande deck
   document.querySelectorAll('.db-add-card').forEach(el=>{
     el.addEventListener('click',()=>{
-      const cardId = el.dataset.cardid;
-      // Si la carte est déjà dans le deck → la retirer au lieu d'ajouter
-      const _deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
-      const inDeck = _deck && (_deck.cards||[]).some(c=>parseInt(c.card_id)===parseInt(cardId));
-      if(inDeck) removeCardFromDeck(cardId);
-      else addCardToDeck(cardId);
+      addCardToDeck(el.dataset.cardid);
     });
   });
-  // db-add-card-disabled : si carte déjà dans le deck → retirer au clic
-  document.querySelectorAll('.db-add-card-disabled').forEach(el=>{
-    el.addEventListener('click',()=>{
-      const cardId = el.dataset.cardid;
-      const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
-      const inDeck = deck && (deck.cards||[]).some(c=>parseInt(c.card_id)===parseInt(cardId));
-      if(inDeck) removeCardFromDeck(cardId);
-    });
-  });
+  // db-add-card-disabled : aucune action (deck plein ou limite atteinte)
 
   // Retirer une carte du deck (clic sur carte dans le deck)
   document.querySelectorAll('.db-deck-card').forEach(el=>{
