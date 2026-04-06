@@ -287,14 +287,14 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card-bottom-external .rarity-stars,.card-bottom-external .rarity-label{font-size:.75rem;letter-spacing:3px;}
 .rarity-stars{font-size:.6rem;letter-spacing:2px}
 .rarity-label{font-size:.44rem;letter-spacing:.25em;text-transform:uppercase;font-family:'Bebas Neue',sans-serif}
-.card[data-rarity="COMMUNE"] .rarity-stars,.card[data-rarity="COMMUNE"] .rarity-label{color:#7dcea0}
-.card[data-rarity="PEU COMMMUNE"] .rarity-stars,.card[data-rarity="PEU COMMMUNE"] .rarity-label{color:#7ec8e3}
-.card[data-rarity="RARE"] .rarity-stars,.card[data-rarity="RARE"] .rarity-label{color:#b890f8}
-.card[data-rarity="MYTHIQUE"] .rarity-stars,.card[data-rarity="MYTHIQUE"] .rarity-label{color:var(--gold-bright)}
-.card-bottom-external[data-rarity="COMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="COMMUNE"] .rarity-label{color:#7dcea0}
-.card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-label{color:#7ec8e3}
-.card-bottom-external[data-rarity="RARE"] .rarity-stars,.card-bottom-external[data-rarity="RARE"] .rarity-label{color:#b890f8}
-.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-stars,.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-label{color:var(--gold-bright)}
+.card[data-rarity="COMMUNE"] .rarity-stars,.card[data-rarity="COMMUNE"] .rarity-label{color:#9ca3af}
+.card[data-rarity="PEU COMMMUNE"] .rarity-stars,.card[data-rarity="PEU COMMMUNE"] .rarity-label{color:#60a5fa}
+.card[data-rarity="RARE"] .rarity-stars,.card[data-rarity="RARE"] .rarity-label{color:#a855f7}
+.card[data-rarity="MYTHIQUE"] .rarity-stars,.card[data-rarity="MYTHIQUE"] .rarity-label{color:#f0c060}
+.card-bottom-external[data-rarity="COMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="COMMUNE"] .rarity-label{color:#9ca3af}
+.card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-label{color:#60a5fa}
+.card-bottom-external[data-rarity="RARE"] .rarity-stars,.card-bottom-external[data-rarity="RARE"] .rarity-label{color:#a855f7}
+.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-stars,.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-label{color:#f0c060}
 .card-id{position:absolute;top:8px;right:8px;font-size:.4rem;color:#ffffff15;letter-spacing:.1em;z-index:4;font-family:'Bebas Neue',sans-serif}
 .card[data-rarity="RARE"]{
   background:transparent;
@@ -353,8 +353,8 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .fullscreen-card[data-rarity="MYTHIQUE"] .card-art{background:linear-gradient(160deg,#1c0e00,#2e1800);border:1px solid var(--gold-deep)}
 .fullscreen-card[data-rarity="RARE"] .card-type-badge{background:#1a104066;color:#b890f8;border:1px solid #3d2a8044}
 .fullscreen-card[data-rarity="MYTHIQUE"] .card-type-badge{background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep)}
-.fullscreen-card[data-rarity="RARE"] .rarity-stars,.fullscreen-card[data-rarity="RARE"] .rarity-label{color:#b890f8}
-.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-stars,.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-label{color:var(--gold-bright)}
+.fullscreen-card[data-rarity="RARE"] .rarity-stars,.fullscreen-card[data-rarity="RARE"] .rarity-label{color:#a855f7}
+.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-stars,.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-label{color:#f0c060}
 .fullscreen-card .card-foil{border-radius:16px}
 .fullscreen-card[data-rarity="RARE"] .card-foil{--foil-color1:#b890f860;--foil-color2:#d4b8ff50}
 .fullscreen-card[data-rarity="MYTHIQUE"] .card-foil{--foil-color1:#f0c06080;--foil-color2:#fde68a60}
@@ -1891,9 +1891,9 @@ function attachTilt(cardEl, foilId, baseTransform){
     const scaleFactor = holdActive ? 1.09 : 1.03;
     const rx = ((y-cy)/cy) * -maxTilt;
     const ry = ((x-cx)/cx) * maxTilt;
-    cardEl.style.transition = holdActive ? 'transform .06s linear,box-shadow .06s linear' : 'transform .08s linear,box-shadow .08s linear';
+    cardEl.style.transition = holdActive ? 'transform .06s linear' : 'transform .08s linear';
     cardEl.style.transform = `${base} perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${scaleFactor})`;
-    cardEl.style.boxShadow = `${-ry*.8}px ${rx*.8}px ${holdActive?90:55}px ${shadowColor()}`;
+    cardEl.style.boxShadow = 'none';
     if(foil){
       foil.style.setProperty('--mx', mx);
       foil.style.setProperty('--my', my);
