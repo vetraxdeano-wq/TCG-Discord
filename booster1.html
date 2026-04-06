@@ -3544,13 +3544,21 @@ function showInsufficientCoins() {
 
 // ===== RESTART =====
 async function restart(){
-  // Réinitialiser l'état complet
+  // 1. Déduire les coins en premier (avant tout reset visuel)
+  const ok = await deductBoosterCost();
+  if (!ok) { showInsufficientCoins(); return; }
+  showCoinsDeductedPopup(150);
+
+  // 2. Reset état complet
   document.getElementById('doneOverlay').classList.remove('active');
-  document.getElementById('stackWrap').classList.remove('visible','appearing');
+  const sw = document.getElementById('stackWrap');
+  sw.classList.remove('visible','appearing');
   const bw=document.getElementById('boosterWrap');
-  bw.classList.remove('opening','tearing');bw.style.display='none';bw.style.opacity='';
+  bw.classList.remove('opening','tearing');
+  bw.style.display='none';
+  bw.style.opacity='';
   document.querySelectorAll('.stack-card').forEach(c=>{c.style.opacity='';});
-  boosterCards=[];currentIdx=0;revealed=[];cardVisible=false;inFullscreen=false;tearPhase=false;scratchPhase=0;
+  cardVisible=false;inFullscreen=false;tearPhase=false;scratchPhase=0;_dealLocked=false;
   document.getElementById('stackContainer').style.pointerEvents='';
   const sc=document.getElementById('stackContainer');
   if(sc) sc._stackListened=false;
@@ -3567,31 +3575,26 @@ async function restart(){
   const b=document.getElementById('booster');
   b.style.animation='none';void b.offsetWidth;b.style.animation='';
 
-  // Skip l'animation d'ouverture : tirer directement les cartes
+  // 3. Nouveau tirage
   clearBoosterSession();
-  const ok = await deductBoosterCost();
-  if (!ok) {
-    // Pas assez de coins — réafficher le bouton booster pour le feedback
-    bw.style.display='';
-    showInsufficientCoins();
-    return;
-  }
-  showCoinsDeductedPopup(150);
-
   boosterCards = pickWeightedCards(5);
+  currentIdx=0; revealed=[];
   try {
     sessionStorage.setItem('booster1_active_session', JSON.stringify({
       cardIds: boosterCards.map(c => c.dbId), ts: Date.now()
     }));
   } catch(e){}
-  currentIdx = 0; revealed = [];
+
+  // 4. Afficher le stack directement
   const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
   const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
   setPackAura(bestR);
-  refreshStackAura();
-  const sw = document.getElementById('stackWrap');
-  if(sw){ sw.classList.add('visible','appearing'); }
-  updateStackCount();
+  // Laisser un frame pour que le DOM se stabilise avant refreshStackAura
+  requestAnimationFrame(()=>{
+    refreshStackAura();
+    sw.classList.add('visible','appearing');
+    updateStackCount();
+  });
 }
 </script>
 </body>
