@@ -1106,16 +1106,16 @@ function renderDeckEdit(th){
     <div style="background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;padding:8px 12px 6px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <div style="font-size:9px;color:${th.textMuted};font-weight:700;letter-spacing:1px;text-transform:uppercase;">Deck (${deckTotal}/30)</div>
-        <div style="font-size:7px;color:${th.textFaint};">Clique sur une carte du deck pour la retirer</div>
+        <div style="font-size:9px;color:${th.textMuted};font-weight:600;">Clique sur une carte du deck pour la retirer</div>
       </div>
-      <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;min-height:90px;align-items:center;">
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;min-height:110px;align-items:center;">
         ${deckTotal===0?`<div style="color:${th.textFaint};font-size:10px;padding:0 8px;font-style:italic;">Ajoute des cartes ci-dessous</div>`
           :deckCards.map(entry=>{
             const card=ALL_CARDS.find(x=>parseInt(x.id)===parseInt(entry.card_id));
             if(!card) return '';
-            return `<div class="db-deck-card" data-cardid="${card.id}" style="flex-shrink:0;width:58px;height:82px;background:linear-gradient(135deg,${card.color}40,${card.color}15);border:1px solid ${card.color}70;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px;overflow:hidden;" title="${card.name} — clic pour retirer">
+            return `<div class="db-deck-card" data-cardid="${card.id}" style="flex-shrink:0;width:72px;height:102px;background:linear-gradient(135deg,${card.color}40,${card.color}15);border:1px solid ${card.color}70;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px;overflow:visible;" title="${card.name} — clic pour retirer">
               ${card.image_url
-                ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
+                ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;" />`
                 : `🃏`}
               ${entry.quantity>1?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;background:${th.accent};color:#fff;font-size:7px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">×${entry.quantity}</div>`:''}
               <div style="position:absolute;bottom:2px;font-size:6px;color:${card.color};font-weight:700;z-index:2;${card.image_url?'text-shadow:0 0 4px #000;':''}">◆</div>
@@ -1135,10 +1135,10 @@ function renderDeckEdit(th){
           const maxCopies = (card.rarity==='mythic'||card.rarity==='rare') ? 2 : card.count;
           const canAddMore = chk.ok;
           const alreadyFull = !canAddMore && qty>0;
-          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:${canAddMore?'pointer':'default'};position:relative;overflow:hidden;" title="${canAddMore?'Ajouter au deck':chk.reason}">
-            <div style="position:absolute;inset:0;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);display:flex;align-items:center;justify-content:center;font-size:16px;'}">
+          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:${canAddMore?'pointer':'default'};position:relative;overflow:visible;" title="${canAddMore?'Ajouter au deck':chk.reason}">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}overflow:visible;">
               ${card.image_url
-                ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+                ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
                 : `🃏`}
             </div>
             <!-- Compteur deck (en haut à droite) -->
@@ -1146,8 +1146,8 @@ function renderDeckEdit(th){
             <!-- Exemplaires possédés (en bas à gauche) -->
             <div style="position:absolute;bottom:1px;left:1px;font-size:6px;font-weight:800;color:rgba(255,255,255,.85);text-shadow:0 0 3px #000;z-index:3;">×${card.count}</div>
             <!-- Overlay DÉJÀ DANS LE DECK -->
-            ${alreadyFull?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.60);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="font-size:5px;font-weight:900;color:#fff;text-align:center;letter-spacing:.3px;padding:2px 4px;background:rgba(0,0,0,.8);line-height:1.4;">DÉJÀ<br>DANS<br>LE DECK</div></div>`
-            :!canAddMore?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.60);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="font-size:5px;font-weight:900;color:#fbbf24;text-align:center;letter-spacing:.3px;padding:2px 4px;background:rgba(0,0,0,.8);line-height:1.4;">DECK<br>PLEIN</div></div>`:``}
+            ${alreadyFull?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,2.2vw,11px);font-weight:900;color:#fff;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DÉJÀ<br>DANS<br>LE DECK</div></div>`
+            :!canAddMore?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,2.2vw,11px);font-weight:900;color:#fbbf24;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DECK<br>PLEIN</div></div>`:``}
           </div>`;
         }).join('')}
       </div>
@@ -1676,7 +1676,7 @@ function renderCollCard(card,th,x,y,CW,CH){
     return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;overflow:visible;">
       <div style="position:absolute;left:${pngOffX}px;top:${pngOffY}px;width:${pngW}px;height:${pngH}px;">
         <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;opacity:.75;" />
-        <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:${Math.max(7, Math.round(CW*0.14))}px;font-weight:800;color:rgba(255,255,255,.95);text-shadow:0 1px 4px #000,0 0 8px #000;line-height:1;">#${card.id}</div>
+        <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:${Math.max(5, Math.round(CW*0.08))}px;font-weight:700;color:rgba(255,255,255,.80);text-shadow:0 1px 4px #000,0 0 8px #000;line-height:1;">#${card.id}</div>
       </div>
     </div>`;
   }
@@ -1744,7 +1744,7 @@ function renderCardDetailModal(card,th){
         <span style="font-size:11px;font-weight:800;color:${th.accent};">${card.myRank ? card.myRank + '/' + card.globalOwners : card.globalOwners + ' joueur' + (card.globalOwners>1?'s':'')}</span>
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
-        <span style="font-size:9px;color:${th.textMuted};">Obtenue le</span>
+        <span style="font-size:9px;color:${th.textMuted};">Dernier exemplaire obtenu le</span>
         <span style="font-size:9px;font-weight:600;color:${th.text};">${fmtDate(card.obtainedAt)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;">
@@ -1786,10 +1786,11 @@ function renderCardDetailModal(card,th){
       </div>
 
       <!-- Image — grande, centrée -->
-      <div id="card-img-trigger" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;cursor:zoom-in;padding:0 16px 8px;" title="Agrandir">
-        <div style="height:100%;max-height:${mobileCardH}px;aspect-ratio:2/3;position:relative;display:flex;align-items:center;justify-content:center;">
+      <div id="card-img-trigger" style="flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:zoom-in;padding:0 16px 8px;gap:6px;" title="Agrandir">
+        <div style="max-height:${mobileCardH}px;aspect-ratio:2/3;position:relative;display:flex;align-items:center;justify-content:center;flex:1;min-height:0;">
           ${mobileImgContent}
         </div>
+        ${card.owned && card.image_url ? `<div style="font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.8px;text-align:center;font-weight:600;">✦ Appuie pour observer la carte en 3D</div>` : ''}
       </div>
 
       <!-- Infos compactes en bas -->
@@ -1810,6 +1811,7 @@ function renderCardDetailModal(card,th){
           ${imgContent}
         </div>
         <div style="text-align:center;margin-top:6px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
+        ${card.owned && card.image_url ? `<div style="text-align:center;margin-top:3px;font-size:8px;color:rgba(255,255,255,.3);letter-spacing:.5px;">✦ Appuie pour observer la carte en 3D</div>` : ''}
       </div>
 
       <!-- Panel infos -->
@@ -3410,9 +3412,23 @@ function bindGame(){
     btn.addEventListener('click',(e)=>{e.stopPropagation();deleteDeck(btn.dataset.deckid);});
   });
 
-  // Ajouter une carte au deck (vue édition)
+  // Ajouter OU retirer une carte du deck (vue édition)
   document.querySelectorAll('.db-add-card').forEach(el=>{
-    el.addEventListener('click',()=>addCardToDeck(el.dataset.cardid));
+    el.addEventListener('click',()=>{
+      const cardId = el.dataset.cardid;
+      // Si la carte est déjà dans le deck → la retirer au lieu d'ajouter
+      const inDeck = state.activeDeck && (state.activeDeck.cards||[]).some(c=>parseInt(c.card_id)===parseInt(cardId));
+      if(inDeck) removeCardFromDeck(cardId);
+      else addCardToDeck(cardId);
+    });
+  });
+  // db-add-card-disabled : si carte déjà dans le deck → retirer au clic
+  document.querySelectorAll('.db-add-card-disabled').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const cardId = el.dataset.cardid;
+      const inDeck = state.activeDeck && (state.activeDeck.cards||[]).some(c=>parseInt(c.card_id)===parseInt(cardId));
+      if(inDeck) removeCardFromDeck(cardId);
+    });
   });
 
   // Retirer une carte du deck (clic sur carte dans le deck)
