@@ -1662,14 +1662,11 @@ function renderCollCard(card,th,x,y,CW,CH){
     </div>`;
   }
   const rarCol = card.color;
-  const pad = Math.max(2, Math.round(CW * 0.04)); // ~4% de marge interne
-  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;">
-    ${card.count>1?`<div style="position:absolute;top:${pad+2}px;right:${pad+2}px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
-    <div style="position:absolute;top:${pad}px;left:${pad}px;right:${pad}px;bottom:${pad}px;overflow:visible;border-radius:3px;display:flex;align-items:center;justify-content:center;">
-      ${card.image_url
-        ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
-        : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
-    </div>
+  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;display:flex;align-items:center;justify-content:center;">
+    ${card.count>1?`<div style="position:absolute;top:2px;right:2px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
+    ${card.image_url
+      ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
+      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
   </div>`;
 }
 
@@ -1701,10 +1698,10 @@ function renderCardDetailModal(card,th){
   }
 
   const imgContent = card.owned && card.image_url
-    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
     : card.owned
       ? `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:${Math.round(cardW*0.38)}px;">🃏</div>`
-      : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
+      : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />`;
 
   const infoRows = card.owned ? `
     <div style="font-family:'Bangers',cursive;font-size:${isMobile?'14px':'16px'};font-weight:700;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
@@ -1757,7 +1754,7 @@ function renderCardDetailModal(card,th){
 
         <!-- Image carte -->
         <div id="card-img-trigger" style="flex-shrink:0;cursor:zoom-in;" title="Agrandir">
-          <div style="width:${cardW}px;height:${cardH}px;position:relative;overflow:hidden;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.7);">
+          <div style="width:${cardW}px;height:${cardH}px;position:relative;display:flex;align-items:center;justify-content:center;">
             ${imgContent}
           </div>
           <div style="text-align:center;margin-top:5px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
@@ -1778,7 +1775,7 @@ function renderCardDetailModal(card,th){
 
       <!-- Image carte -->
       <div id="card-img-trigger" style="flex-shrink:0;cursor:zoom-in;" title="Agrandir">
-        <div style="width:${cardW}px;height:${cardH}px;position:relative;overflow:hidden;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.7);">
+        <div style="width:${cardW}px;height:${cardH}px;position:relative;display:flex;align-items:center;justify-content:center;">
           ${imgContent}
         </div>
         <div style="text-align:center;margin-top:6px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
@@ -6105,39 +6102,33 @@ function openCard3DViewer(card) {
   const cardW = Math.round(cardH * 0.667);
 
   viewer.innerHTML = `
-    <div id="c3d-wrap" style="
+    <div id="c3d-card" style="
       width:${cardW}px;height:${cardH}px;
-      perspective:900px;position:relative;flex-shrink:0;
+      position:relative;flex-shrink:0;
+      transform-style:preserve-3d;
+      will-change:transform;transition:transform .08s ease-out;
     ">
-      <div id="c3d-card" style="
-        width:100%;height:100%;
-        position:relative;transform-style:preserve-3d;
-        border-radius:10px;
-        box-shadow:0 32px 80px rgba(0,0,0,.8),0 0 0 1px ${rarCol}40;
-        will-change:transform;transition:transform .08s ease-out;
-      ">
-        ${imgSrc
-          ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;" draggable="false" />`
-          : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}40,${rarCol}15);display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
-        <!-- Overlay reflet holographique -->
-        <div id="c3d-holo" style="
-          position:absolute;inset:0;
-          background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);
-          mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .15s;
-        "></div>
-        <!-- Brillance spéculaire -->
-        <div id="c3d-spec" style="
-          position:absolute;inset:0;
-          background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.18) 0%,transparent 65%);
-          mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .1s;
-        "></div>
-        <!-- Reflet de rareté -->
-        <div id="c3d-rar" style="
-          position:absolute;inset:0;
-          background:linear-gradient(135deg,${rarCol}30,transparent 50%,${rarCol}20);
-          mix-blend-mode:color-dodge;pointer-events:none;opacity:0;transition:opacity .15s;
-        "></div>
-      </div>
+      ${imgSrc
+        ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;border-radius:0;" draggable="false" />`
+        : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}40,${rarCol}15);display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
+      <!-- Overlay reflet holographique -->
+      <div id="c3d-holo" style="
+        position:absolute;inset:0;
+        background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);
+        mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .15s;
+      "></div>
+      <!-- Brillance spéculaire -->
+      <div id="c3d-spec" style="
+        position:absolute;inset:0;
+        background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.18) 0%,transparent 65%);
+        mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .1s;
+      "></div>
+      <!-- Reflet de rareté -->
+      <div id="c3d-rar" style="
+        position:absolute;inset:0;
+        background:linear-gradient(135deg,${rarCol}30,transparent 50%,${rarCol}20);
+        mix-blend-mode:color-dodge;pointer-events:none;opacity:0;transition:opacity .15s;
+      "></div>
     </div>
     <div style="margin-top:18px;font-family:'Bangers',cursive;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,.35);">MAINTENIR APPUYÉ · BOUGER POUR PIVOTER</div>
     <div style="position:absolute;top:16px;right:16px;">
