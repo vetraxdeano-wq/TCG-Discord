@@ -1482,56 +1482,28 @@ async function loadCardsFromSupabase() {
 }
 
 async function autoOpenBooster() {
-  await new Promise(r => setTimeout(r, 100));
+  await new Promise(r => setTimeout(r, 80));
 
-  // ── Anti-reload : vérifier si un tirage est déjà en cours ──
-  const SESSION_KEY = 'booster1_active_session';
-  const existingSession = sessionStorage.getItem(SESSION_KEY);
-
-  if (existingSession) {
-    // Un tirage était déjà en cours → restaurer exactement les mêmes cartes (pas de nouveau tirage)
-    try {
-      const saved = JSON.parse(existingSession);
-      // Retrouver les objets carte complets depuis ALL_CARDS par dbId
-      boosterCards = saved.cardIds.map(dbId => ALL_CARDS.find(c => c.dbId === dbId)).filter(Boolean);
-      if (boosterCards.length > 0) {
-        currentIdx = 0; revealed = [];
-        const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
-        const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
-        setPackAura(bestR);
-        refreshStackAura();
-        const sw = document.getElementById('stackWrap');
-        if (sw) { sw.classList.add('visible','appearing'); }
-        updateStackCount();
-        return; // Ne pas déduire à nouveau les coins
-      }
-    } catch(e) { sessionStorage.removeItem(SESSION_KEY); }
-  }
-
-  // Nouveau tirage : déduire les coins d'abord
+  // Déduire les coins
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
   showCoinsDeductedPopup(150);
 
-  // Tirer les cartes et verrouiller immédiatement en sessionStorage
+  // Tirer les cartes
   boosterCards = pickWeightedCards(5);
-
-  // Sauvegarder le tirage pour anti-reload
-  try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-      cardIds: boosterCards.map(c => c.dbId),
-      ts: Date.now(),
-    }));
-  } catch(e) {}
-
   currentIdx = 0; revealed = [];
+
   const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
   const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
   setPackAura(bestR);
-  refreshStackAura();
-  const sw = document.getElementById('stackWrap');
-  if (sw) { sw.classList.add('visible','appearing'); }
-  updateStackCount();
+
+  // Laisser un frame au DOM avant d'afficher
+  requestAnimationFrame(() => {
+    refreshStackAura();
+    const sw = document.getElementById('stackWrap');
+    if (sw) { sw.classList.add('visible', 'appearing'); }
+    updateStackCount();
+  });
 }
 
 // Effacer la session quand le booster est entièrement terminé (toutes cartes révélées)
