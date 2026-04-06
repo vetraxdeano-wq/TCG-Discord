@@ -1102,39 +1102,52 @@ function renderDeckEdit(th){
       <button id="db-save" style="padding:6px 14px;background:${th.green};color:#000;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.3px;">💾 SAVE</button>
     </div>
 
-    <div style="background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;padding:10px 16px;">
-      <div style="font-size:9px;color:${th.textMuted};margin-bottom:6px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Cartes du deck (${deckTotal}/30)</div>
-      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;min-height:60px;align-items:center;">
-        ${deckTotal===0?`<div style="color:${th.textFaint};font-size:11px;padding:0 8px;">Aucune carte — ajoute des cartes ci-dessous</div>`
+    <!-- Bande deck : plus haute -->
+    <div style="background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;padding:8px 12px 6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:9px;color:${th.textMuted};font-weight:700;letter-spacing:1px;text-transform:uppercase;">Deck (${deckTotal}/30)</div>
+        <div style="font-size:7px;color:${th.textFaint};font-style:italic;">← cliquer pour retirer</div>
+      </div>
+      <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;min-height:72px;align-items:center;">
+        ${deckTotal===0?`<div style="color:${th.textFaint};font-size:10px;padding:0 8px;font-style:italic;">Ajoute des cartes ci-dessous</div>`
           :deckCards.map(entry=>{
             const card=ALL_CARDS.find(x=>parseInt(x.id)===parseInt(entry.card_id));
             if(!card) return '';
-            return `<div class="db-deck-card" data-cardid="${card.id}" style="flex-shrink:0;width:36px;height:50px;background:linear-gradient(135deg,${card.color}40,${card.color}15);border:1px solid ${card.color}70;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px;overflow:hidden;" title="${card.name}">
+            return `<div class="db-deck-card" data-cardid="${card.id}" style="flex-shrink:0;width:44px;height:62px;background:linear-gradient(135deg,${card.color}40,${card.color}15);border:1px solid ${card.color}70;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:14px;overflow:hidden;" title="${card.name} — clic pour retirer">
               ${card.image_url
                 ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
                 : `🃏`}
-              ${entry.quantity>1?`<div style="position:absolute;top:-4px;right:-4px;width:13px;height:13px;background:${th.accent};color:#fff;font-size:7px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">×${entry.quantity}</div>`:''}
+              ${entry.quantity>1?`<div style="position:absolute;top:-3px;right:-3px;width:14px;height:14px;background:${th.accent};color:#fff;font-size:7px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">×${entry.quantity}</div>`:''}
               <div style="position:absolute;bottom:2px;font-size:6px;color:${card.color};font-weight:700;z-index:2;${card.image_url?'text-shadow:0 0 4px #000;':''}">◆</div>
             </div>`;
           }).join('')}
       </div>
     </div>
 
-    <div style="flex:1;overflow-y:auto;padding:10px 16px;">
-      <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Ma collection (${ownedCards.length} cartes)</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;">
+    <!-- Collection : plus de colonnes, sans titres, avec "DÉJÀ" et exemplaires -->
+    <div style="flex:1;overflow-y:auto;padding:8px 10px;">
+      <div style="font-size:8px;color:${th.textMuted};margin-bottom:6px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Collection (${ownedCards.length})</div>
+      <div style="display:grid;grid-template-columns:repeat(${window.innerWidth<600?5:7},1fr);gap:5px;">
         ${ownedCards.map(card=>{
           const qty=qtyInDeck(card.id);
           const chk=canAdd(card);
-          return `<div class="${chk.ok?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:5px 3px 3px;cursor:${chk.ok?'pointer':'default'};opacity:${chk.ok?1:.45};position:relative;overflow:hidden;gap:2px;" title="${chk.ok?'Ajouter':chk.reason}">
-            <div style="flex:1;width:100%;overflow:hidden;position:relative;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}display:flex;align-items:center;justify-content:center;font-size:16px;">
+          // Calcul exemplaires max ajoutables
+          const maxCopies = (card.rarity==='mythic'||card.rarity==='rare') ? 2 : card.count;
+          const canAddMore = chk.ok;
+          const alreadyFull = !canAddMore && qty>0;
+          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:${canAddMore?'pointer':'default'};position:relative;overflow:hidden;" title="${canAddMore?'Ajouter au deck':chk.reason}">
+            <div style="position:absolute;inset:0;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);display:flex;align-items:center;justify-content:center;font-size:16px;'}">
               ${card.image_url
-                ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
+                ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
                 : `🃏`}
             </div>
-            <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%;position:relative;z-index:1;">${card.name.slice(0,9)}</div>
-            <div style="font-size:7px;color:${RARITY_COLOR[card.rarity]};position:relative;z-index:1;">◆</div>
-            ${qty>0?`<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;background:${th.accent};color:#fff;font-size:7px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">${qty}</div>`:''}
+            <!-- Compteur deck (en haut à droite) -->
+            ${qty>0?`<div style="position:absolute;top:1px;right:1px;min-width:13px;height:13px;background:${th.accent};color:#fff;font-size:6px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:3;">${qty}</div>`:''}
+            <!-- Exemplaires possédés (en bas à gauche) -->
+            <div style="position:absolute;bottom:1px;left:1px;font-size:6px;font-weight:800;color:rgba(255,255,255,.85);text-shadow:0 0 3px #000;z-index:3;">×${card.count}</div>
+            <!-- Overlay DÉJÀ DANS LE DECK -->
+            ${alreadyFull?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="font-size:5px;font-weight:900;color:#fff;text-align:center;letter-spacing:.3px;padding:2px 3px;background:rgba(0,0,0,.7);line-height:1.3;">DÉJÀ<br>MAX</div></div>`
+            :!canAddMore?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:4;"></div>`:``}
           </div>`;
         }).join('')}
       </div>
@@ -1656,9 +1669,8 @@ function renderTabCollection(th){
 
 function renderCollCard(card,th,x,y,CW,CH){
   if(!card.owned){
-    const bW = Math.round(CW * 0.88), bH = Math.round(CH * 0.88);
     return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;overflow:hidden;display:flex;align-items:center;justify-content:center;">
-      <img src="https://i.goopics.net/iic46c.png" style="width:${bW}px;height:${bH}px;object-fit:contain;display:block;flex-shrink:0;" />
+      <img src="https://i.goopics.net/iic46c.png" style="width:${CW}px;height:${CH}px;object-fit:contain;display:block;flex-shrink:0;opacity:.75;" />
       <div style="position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:10px;font-weight:800;color:rgba(255,255,255,.95);text-shadow:0 1px 4px #000,0 0 8px #000;">#${card.id}</div>
     </div>`;
   }
@@ -1688,9 +1700,9 @@ function renderCardDetailModal(card,th){
   let cardW, cardH, layout;
 
   if (isMobile) {
-    // Mobile : image ~46% hauteur dispo, largeur max 60vw
+    // Mobile : image ~60% hauteur dispo, plus grande
     const availH = vh - 32;
-    cardH = Math.round(Math.min(availH * 0.46, vw * 0.60));
+    cardH = Math.round(Math.min(availH * 0.60, vw * 0.72));
     cardW = Math.round(cardH * 0.667);
     layout = 'vertical';
   } else {
@@ -1708,14 +1720,14 @@ function renderCardDetailModal(card,th){
       : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />`;
 
   const infoRows = card.owned ? `
-    <div style="font-family:'Bangers',cursive;font-size:${isMobile?'14px':'16px'};font-weight:700;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-    <div style="font-size:9px;color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:2px;">◆ ${RARITY_LABEL[card.rarity]}</div>
+    <div style="font-family:'Bangers',cursive;font-size:${isMobile?'12px':'16px'};font-weight:700;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+    <div style="font-size:${isMobile?'8px':'9px'};color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:1px;">◆ ${RARITY_LABEL[card.rarity]}</div>
     ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
-    <div style="display:flex;justify-content:space-between;padding:${isMobile?'3':'5'}px 0;border-bottom:1px solid ${th.border};">
-      <span style="font-size:${isMobile?'9':'10'}px;color:${th.textMuted};">${r.l}</span>
-      <span style="font-size:${isMobile?'9':'10'}px;font-weight:600;color:${th.text};">${r.v}</span>
+    <div style="display:flex;justify-content:space-between;padding:${isMobile?'2':'5'}px 0;border-bottom:1px solid ${th.border};">
+      <span style="font-size:${isMobile?'8':'10'}px;color:${th.textMuted};">${r.l}</span>
+      <span style="font-size:${isMobile?'8':'10'}px;font-weight:600;color:${th.text};">${r.v}</span>
     </div>`).join('')}
-    <div style="background:${th.bgSecondary};padding:${isMobile?'7':'10'}px 12px;border:2px solid #000;">
+    <div style="background:${th.bgSecondary};padding:${isMobile?'4':'10'}px 12px;border:2px solid #000;">
       <div style="font-size:8px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Possession</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
         <span style="font-size:9px;color:${th.textMuted};">Exemplaires</span>
