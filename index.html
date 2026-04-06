@@ -1662,11 +1662,14 @@ function renderCollCard(card,th,x,y,CW,CH){
     </div>`;
   }
   const rarCol = card.color;
-  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;background:transparent;border:none;padding:3px;">
-    ${card.count>1?`<div style="position:absolute;top:5px;right:5px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
-    ${card.image_url
-      ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:3px;" />`
-      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.4)}px;border-radius:3px;">🃏</div>`}
+  const pad = Math.max(2, Math.round(CW * 0.04)); // ~4% de marge interne
+  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;">
+    ${card.count>1?`<div style="position:absolute;top:${pad+2}px;right:${pad+2}px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
+    <div style="position:absolute;top:${pad}px;left:${pad}px;right:${pad}px;bottom:${pad}px;overflow:hidden;border-radius:3px;">
+      ${card.image_url
+        ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+        : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
+    </div>
   </div>`;
 }
 
@@ -1683,15 +1686,17 @@ function renderCardDetailModal(card,th){
   let cardW, cardH, layout;
 
   if (isMobile) {
-    // Image occupe ~45% de la hauteur disponible (on réserve de la place pour les infos sans scroll)
-    const availH = vh - 32; // padding 16px de chaque côté
-    cardH = Math.round(Math.min(availH * 0.44, vw * 0.55));
+    // Image occupe ~52% de la hauteur disponible pour être bien visible
+    const availH = vh - 32;
+    cardH = Math.round(Math.min(availH * 0.52, vw * 0.65));
     cardW = Math.round(cardH * 0.667);
     layout = 'vertical';
   } else {
-    // Desktop : image ~40% de la hauteur viewport
-    cardH = Math.round(Math.min(vh * 0.72, (vw - 80) * 0.42 / 0.667));
-    cardW = Math.round(cardH * 0.667);
+    // Desktop : image contrainte pour que le panel infos reste toujours visible à droite
+    // On calcule la hauteur max qui laisse assez de place au panel (min 220px de largeur)
+    const maxCardW = Math.min(vw * 0.30, 200); // max 30% de la largeur, jamais plus de 200px
+    cardW = Math.round(maxCardW);
+    cardH = Math.round(cardW * 1.5);
     layout = 'horizontal';
   }
 
@@ -1769,7 +1774,7 @@ function renderCardDetailModal(card,th){
   // ── DESKTOP : image à gauche, infos à droite, pas de scroll ──
   return `
   <div id="card-modal-bg" style="position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
-    <div style="display:flex;gap:20px;align-items:flex-start;max-width:580px;width:100%;overflow:hidden;">
+    <div style="display:flex;gap:20px;align-items:center;max-width:min(580px,calc(100vw - 48px));width:100%;">
 
       <!-- Image carte -->
       <div id="card-img-trigger" style="flex-shrink:0;cursor:zoom-in;" title="Agrandir">
@@ -1779,9 +1784,9 @@ function renderCardDetailModal(card,th){
         <div style="text-align:center;margin-top:6px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
       </div>
 
-      <!-- Panel infos (pas de scroll) -->
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow:hidden;max-height:${cardH + 32}px;">
-        <div style="display:flex;justify-content:flex-end;flex-shrink:0;">
+      <!-- Panel infos -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:flex-end;">
           <button id="card-modal-close" style="width:28px;height:28px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
         </div>
         ${infoRows}
