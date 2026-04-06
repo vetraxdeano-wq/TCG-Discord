@@ -203,7 +203,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card[data-rarity="PEU COMMMUNE"] .card-foil{--foil-color1:#60a5d050;--foil-color2:#93c5fd40}
 .card[data-rarity="RARE"] .card-foil{--foil-color1:#b890f860;--foil-color2:#d4b8ff50}
 .card[data-rarity="MYTHIQUE"] .card-foil{--foil-color1:#f0c06080;--foil-color2:#fde68a60}
-.card:hover .card-foil{opacity:1}
+/* .card:hover .card-foil removed — foil only via hold-inspect JS */
 
 /* Rainbow foil for RARE */
 .card[data-rarity="RARE"] .card-foil::before{background:conic-gradient(from calc(var(--mx,50%) * 3.6deg) at var(--mx,50%) var(--my,50%),#ff000030,#ff7f0030,#ffff0030,#00ff0030,#0000ff30,#8b00ff30,#ff000030);opacity:1}
@@ -360,7 +360,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .fullscreen-card[data-rarity="MYTHIQUE"] .card-foil{--foil-color1:#f0c06080;--foil-color2:#fde68a60}
 .fullscreen-card[data-rarity="RARE"] .card-foil::before{background:conic-gradient(from calc(var(--mx,50%) * 3.6deg) at var(--mx,50%) var(--my,50%),#ff000030,#ff7f0030,#ffff0030,#00ff0030,#0000ff30,#8b00ff30,#ff000030)}
 .fullscreen-card[data-rarity="MYTHIQUE"] .card-foil::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),#f0c06055 0%,#c8953a35 30%,transparent 70%)}
-.fullscreen-card:hover .card-foil{opacity:1}
+/* .fullscreen-card:hover .card-foil removed — foil only via hold-inspect JS */
 .fs-hint{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);color:var(--text-muted);font-size:.72rem;letter-spacing:.3em;animation:pulse 2s infinite;z-index:302;pointer-events:none;font-family:'Bebas Neue',sans-serif}
 
 /* ===== 3D PARTICLES ===== */
@@ -1873,110 +1873,107 @@ function spawnCardFx(fxLayerId, rarity){
   }
 }
 
-// ===== FOIL + TILT on mousemove =====
+// ===== FOIL + TILT on mousedown hold / touch hold =====
 function attachTilt(cardEl, foilId, baseTransform){
   const foil = foilId ? document.getElementById(foilId) : null;
-  const base = baseTransform || '';
-  let holdTimer = null;
-  let isHolding = false;
   let holdActive = false;
 
-  function shadowColor(){
-    const r = cardEl.dataset.rarity || '';
-    if(r==='MYTHIQUE') return '#c8953a60';
-    if(r==='RARE') return '#b890f850';
-    if(r==='PEU COMMMUNE') return '#7ec8e340';
-    return '#7dcea030';
+  // Wraps the card in a perspective container so transform doesn't fight CSS animations
+  // We use a separate style property approach: pause animation on hold, restore on release
+  let savedAnimation = '';
+
+  function startHold(){
+    if(holdActive) return;
+    holdActive = true;
+    cardEl.classList.add('hold-inspect');
+    // Pause any running CSS animation so it doesn't override our transform
+    savedAnimation = cardEl.style.animationPlayState;
+    cardEl.style.animationPlayState = 'paused';
+    if(foil){ foil.style.transition='opacity .1s'; foil.style.opacity='1'; }
   }
 
   function applyTilt(px, py){
+    if(!holdActive) return;
     const rect = cardEl.getBoundingClientRect();
+    if(!rect.width || !rect.height) return;
     const x = px - rect.left, y = py - rect.top;
-    const cx = rect.width/2, cy = rect.height/2;
-    const mx = ((x/rect.width)*100).toFixed(1)+'%';
-    const my = ((y/rect.height)*100).toFixed(1)+'%';
-    const maxTilt = holdActive ? 28 : 16;
-    const scaleFactor = holdActive ? 1.09 : 1.03;
-    const rx = ((y-cy)/cy) * -maxTilt;
-    const ry = ((x-cx)/cx) * maxTilt;
-    cardEl.style.transition = holdActive ? 'transform .06s linear' : 'transform .08s linear';
-    cardEl.style.transform = `${base} perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${scaleFactor})`;
-    cardEl.style.boxShadow = 'none';
+    const cx = rect.width / 2, cy = rect.height / 2;
+    const mx = ((x / rect.width) * 100).toFixed(1) + '%';
+    const my = ((y / rect.height) * 100).toFixed(1) + '%';
+    const rx = ((y - cy) / cy) * -22;
+    const ry = ((x - cx) / cx) * 22;
+    // Apply tilt — perspective on parent to avoid fighting CSS transforms
+    cardEl.style.transition = 'transform .05s linear';
+    cardEl.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.06)`;
     if(foil){
       foil.style.setProperty('--mx', mx);
       foil.style.setProperty('--my', my);
-      foil.style.opacity = holdActive ? '1' : '0.85';
     }
   }
 
-  function resetTilt(){
-    isHolding = false; holdActive = false;
-    clearTimeout(holdTimer);
-    cardEl.style.transition = 'transform .35s cubic-bezier(.34,1.2,.64,1), box-shadow .35s';
-    cardEl.style.transform = base || '';
-    cardEl.style.boxShadow = '';
-    if(foil){ foil.style.opacity='0'; foil.style.transition='opacity .3s'; }
+  function endHold(){
+    if(!holdActive) return;
+    holdActive = false;
     cardEl.classList.remove('hold-inspect');
+    cardEl.style.animationPlayState = savedAnimation || '';
+    cardEl.style.transition = 'transform .4s cubic-bezier(.34,1.2,.64,1)';
+    cardEl.style.transform = baseTransform || '';
+    if(foil){ foil.style.transition='opacity .3s'; foil.style.opacity='0'; }
   }
 
-  // ── MOUSE ──
-  // Tilt sur simple mousemove (pas besoin de cliquer)
-  cardEl.addEventListener('mousemove', e => {
-    applyTilt(e.clientX, e.clientY);
-  });
-  cardEl.addEventListener('mouseleave', resetTilt);
-
-  // Maintien clic = mode hold-inspect (tilt amplifié + foil plein)
+  // ── MOUSE : clic maintenu = tilt ──
   cardEl.addEventListener('mousedown', e => {
-    isHolding = true;
-    holdActive = true;
-    cardEl.classList.add('hold-inspect');
+    if(e.button !== 0) return;
+    e.stopPropagation(); // empêche dismiss immédiat
+    startHold();
     applyTilt(e.clientX, e.clientY);
-    // Stopper la propagation vers dismissCard tant qu'on bouge
-    e._holdStart = {x:e.clientX,y:e.clientY};
   });
   cardEl.addEventListener('mousemove', e => {
-    if(holdActive) applyTilt(e.clientX, e.clientY);
+    applyTilt(e.clientX, e.clientY);
   });
   cardEl.addEventListener('mouseup', e => {
-    isHolding=false;
     if(holdActive){
-      holdActive=false;
-      cardEl.classList.remove('hold-inspect');
+      endHold();
+      // Empêcher le dismiss si on était en tilt
+      e.stopPropagation();
     }
   });
+  cardEl.addEventListener('mouseleave', () => {
+    if(holdActive) endHold();
+  });
 
-  // ── TOUCH ──
-  let lastTouch = {x:0,y:0};
+  // ── TOUCH : press + move = tilt, tap rapide = dismiss ──
+  let touchStartX = 0, touchStartY = 0;
   let touchMoved = false;
+  let touchHoldTimer = null;
+
   cardEl.addEventListener('touchstart', e => {
     const t = e.touches[0];
-    lastTouch = {x:t.clientX, y:t.clientY};
+    touchStartX = t.clientX; touchStartY = t.clientY;
     touchMoved = false;
-    isHolding = true;
-    // Activer holdActive immédiatement dès le press
-    holdActive = true;
-    cardEl.classList.add('hold-inspect');
-    applyTilt(t.clientX, t.clientY);
+    // Démarrer le hold après 120ms de press
+    touchHoldTimer = setTimeout(() => {
+      startHold();
+      applyTilt(t.clientX, t.clientY);
+    }, 120);
   }, {passive:true});
 
   cardEl.addEventListener('touchmove', e => {
     const t = e.touches[0];
-    lastTouch = {x:t.clientX, y:t.clientY};
-    touchMoved = true;
-    applyTilt(t.clientX, t.clientY);
-    if(holdActive) e.preventDefault();
+    const dx = Math.abs(t.clientX - touchStartX);
+    const dy = Math.abs(t.clientY - touchStartY);
+    if(dx > 6 || dy > 6) touchMoved = true;
+    if(holdActive){
+      applyTilt(t.clientX, t.clientY);
+      e.preventDefault(); // bloquer le scroll pendant le tilt
+    }
   }, {passive:false});
 
   cardEl.addEventListener('touchend', e => {
-    isHolding = false;
-    clearTimeout(holdTimer);
+    clearTimeout(touchHoldTimer);
     if(holdActive){
-      holdActive = false;
-      cardEl.classList.remove('hold-inspect');
-      resetTilt();
-      // Si le doigt a bougé, empêcher le dismiss (c'était un tilt, pas un tap)
-      if(touchMoved) e.preventDefault();
+      endHold();
+      if(touchMoved) e.preventDefault(); // ne pas déclencher dismiss si c'était un tilt
     }
   }, {passive:false});
 }
