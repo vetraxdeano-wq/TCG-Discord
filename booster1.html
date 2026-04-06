@@ -1683,6 +1683,7 @@ function stopAmbientDrone(){}   // removed
 // ===== TYPE BACKGROUND =====
 const TYPE_BG_CLASS={'Héro':'bg-hero','Ruse':'bg-ruse','Arcane':'bg-arcane','Sort':'bg-sort'};
 function setTypeBg(type){
+  if(_typeBgTimer){clearTimeout(_typeBgTimer);_typeBgTimer=null;}
   const el=document.getElementById('typeBg');
   el.className='type-bg';
   const cls=TYPE_BG_CLASS[type];
@@ -1691,10 +1692,12 @@ function setTypeBg(type){
     el.classList.add(cls,'active');
   }
 }
+let _typeBgTimer=null;
 function clearTypeBg(){
   const el=document.getElementById('typeBg');
   el.classList.remove('active');
-  setTimeout(()=>el.className='type-bg',650);
+  if(_typeBgTimer){clearTimeout(_typeBgTimer);_typeBgTimer=null;}
+  _typeBgTimer=setTimeout(()=>{el.className='type-bg';_typeBgTimer=null;},650);
 }
 
 // ===== BOOSTER RAINBOW FOIL =====
@@ -1742,23 +1745,49 @@ function setStarfieldMood(mood){
 // ===== CARD DOM FILL =====
 function fillCard(ids,card){
   const {id:ID,name:N,character:CH,type:T,hp:HP,atk:ATK,def:DEF,precision:PRE,rarity:R,text:TX}=card;
+
+  // Trouver le conteneur carte parent
+  const charEl=document.getElementById(ids.char);
+  const cardEl=charEl&&(charEl.closest('.card')||charEl.closest('.fullscreen-card'));
+
+  if(card.image_url && cardEl){
+    // ── Mode PNG total : l'image remplace TOUTE la carte ──
+    // Supprimer tout ancien overlay plein
+    cardEl.querySelectorAll('.card-full-img').forEach(e=>e.remove());
+    // Injecter PNG en position absolue couvrant toute la carte, derrière holo/foil
+    const img=document.createElement('img');
+    img.className='card-full-img';
+    img.src=card.image_url;
+    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;border-radius:inherit;pointer-events:none;';
+    cardEl.insertBefore(img,cardEl.firstChild);
+    // Masquer tous les éléments texte/layout de la carte
+    cardEl.querySelectorAll('.card-id,.card-top,.card-art,.card-type-row,.card-body').forEach(el=>el.style.display='none');
+    // Masquer la bande externe (étoiles/rareté sous la carte)
+    const extBot=document.getElementById(ids.stars)?.closest('.card-bottom-external');
+    if(extBot) extBot.style.display='none';
+    // Appliquer data-rarity pour que les effets holo/foil fonctionnent
+    cardEl.setAttribute('data-rarity',R);
+    // Garder la classe d'animation rareté sur la carte
+    return;
+  }
+
+  // ── Mode normal (pas de PNG) ──
+  if(cardEl){
+    cardEl.querySelectorAll('.card-full-img').forEach(e=>e.remove());
+    cardEl.querySelectorAll('.card-id,.card-top,.card-art,.card-type-row,.card-body').forEach(el=>el.style.display='');
+    const extBot=document.getElementById(ids.stars)?.closest('.card-bottom-external');
+    if(extBot) extBot.style.display='';
+  }
   document.getElementById(ids.id).textContent=ID;
   document.getElementById(ids.name).textContent=N;
   document.getElementById(ids.char).textContent=CH;
   document.getElementById(ids.emoji).textContent=TE[T]||'🎴';
-  // Injecter le PNG image_url dans la zone art si disponible
+  // Zone art : emoji + char
   if(ids.char){
-    const artEl = document.getElementById(ids.char)?.closest('.card-art');
+    const artEl=document.getElementById(ids.char)?.closest('.card-art');
     if(artEl){
-      if(card.image_url){
-        // Remplacer tout le contenu par le PNG plein
-        artEl.innerHTML = `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;" />`;
-        artEl.style.background = 'none';
-        artEl.style.border = 'none';
-      } else {
-        // Pas de PNG : garder emoji centré, fond rareté
-        artEl.innerHTML = `<div class="card-emoji-art" id="${ids.emoji}">${TE[T]||'🎴'}</div><div class="card-char-art" id="${ids.char}">${CH}</div>`;
-      }
+      artEl.innerHTML=`<div class="card-emoji-art" id="${ids.emoji}">${TE[T]||'🎴'}</div><div class="card-char-art" id="${ids.char}">${CH}</div>`;
+      artEl.style.background='';artEl.style.border='';
     }
   }
   document.getElementById(ids.type).textContent=TE[T]+' '+T;
@@ -2822,6 +2851,7 @@ function showFlip(card){
 
 function handleFlipClick(){
   if(!pendingFlipCard) return;
+  _dealLocked = true; // Lock pendant l'animation flip (320ms)
   haptic(HAPTIC.deal);
   const card=pendingFlipCard;
   pendingFlipCard=null;
@@ -3129,6 +3159,16 @@ function buildMythZoomCard(card,CW,CH){
   } else {
     const eff=[card.text,card.atk].filter(Boolean).join(' — ');
     statsH=`<div style="font-size:.7rem;color:#ffffff80;line-height:1.4;background:#00000030;border-radius:6px;padding:7px 10px;font-style:italic">${eff||'—'}</div>`;
+  }
+  // Si image PNG Supabase : juste le PNG plein cadre + effets holographiques
+  if(card.image_url){
+    el.innerHTML=`
+    <img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;border-radius:inherit;" />
+    <div style="position:absolute;inset:0;border-radius:20px;overflow:hidden;pointer-events:none;z-index:1">
+      <div style="position:absolute;inset:0;background:conic-gradient(from 180deg at 50% 50%,#fbbf2428,#f59e0b20,#fde68a25,#fbbf2428);animation:holoGold 2s linear infinite;transform:scale(2.5);transform-origin:center"></div>
+      <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,#00000012 3px,#00000012 4px);animation:scanMove 5s linear infinite;opacity:.25"></div>
+    </div>`;
+    return;
   }
   el.innerHTML=`
     <div style="position:absolute;top:8px;right:8px;font-size:.5rem;color:#ffffff20">${card.id}</div>
