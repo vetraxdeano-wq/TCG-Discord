@@ -1760,8 +1760,16 @@ function fillCard(ids,card){
     img.src=card.image_url;
     img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;border-radius:0;pointer-events:none;';
     cardEl.insertBefore(img,cardEl.firstChild);
-    // Masquer TOUT sauf l'image : layout, overlays, effets
-    cardEl.querySelectorAll('.card-id,.card-top,.card-art,.card-type-row,.card-body,.card-holo,.card-foil,.card-fx-layer,.scanlines').forEach(el=>{ el.style.display='none'; el.style.opacity='0'; });
+    // Masquer layout et effets, mais GARDER .card-foil visible pour les reflets tilt
+    cardEl.querySelectorAll('.card-id,.card-top,.card-art,.card-type-row,.card-body,.card-holo,.card-fx-layer,.scanlines').forEach(el=>{ el.style.display='none'; el.style.opacity='0'; });
+    // Foil : le garder dans le DOM, visible, au-dessus du PNG (z-index 2 déjà défini)
+    const foilEl=cardEl.querySelector('.card-foil');
+    if(foilEl){
+      foilEl.style.display='';
+      foilEl.style.opacity='0'; // démarre invisible, s'active au tilt/hover
+      foilEl.style.zIndex='2';
+      foilEl.style.borderRadius='0';
+    }
     // Supprimer tout cadre, fond, glow, border-radius sur la carte
     cardEl.style.cssText = (cardEl.style.cssText||'') +
       ';background:transparent!important;border:none!important;box-shadow:none!important;border-radius:0!important;outline:none!important;';
@@ -1912,45 +1920,50 @@ function attachTilt(cardEl, foilId, baseTransform){
   }
 
   // ── MOUSE ──
+  // Tilt sur simple mousemove (pas besoin de cliquer)
   cardEl.addEventListener('mousemove', e => {
-    if(!holdActive) applyTilt(e.clientX, e.clientY);
+    applyTilt(e.clientX, e.clientY);
   });
   cardEl.addEventListener('mouseleave', resetTilt);
 
+  // Maintien clic = mode hold-inspect (tilt amplifié + foil plein)
   cardEl.addEventListener('mousedown', e => {
     isHolding = true;
-    holdTimer = setTimeout(()=>{
-      if(!isHolding) return;
-      holdActive = true;
-      cardEl.classList.add('hold-inspect');
-      applyTilt(e.clientX, e.clientY);
-    }, 180);
+    holdActive = true;
+    cardEl.classList.add('hold-inspect');
+    applyTilt(e.clientX, e.clientY);
+    // Stopper la propagation vers dismissCard tant qu'on bouge
+    e._holdStart = {x:e.clientX,y:e.clientY};
   });
   cardEl.addEventListener('mousemove', e => {
     if(holdActive) applyTilt(e.clientX, e.clientY);
   });
-  cardEl.addEventListener('mouseup', ()=>{ isHolding=false; clearTimeout(holdTimer); if(holdActive){ holdActive=false; cardEl.classList.remove('hold-inspect'); } });
+  cardEl.addEventListener('mouseup', e => {
+    isHolding=false;
+    if(holdActive){
+      holdActive=false;
+      cardEl.classList.remove('hold-inspect');
+    }
+  });
 
-  // ── TOUCH (mobile long-press) ──
+  // ── TOUCH ──
   let lastTouch = {x:0,y:0};
+  let touchMoved = false;
   cardEl.addEventListener('touchstart', e => {
     const t = e.touches[0];
     lastTouch = {x:t.clientX, y:t.clientY};
+    touchMoved = false;
     isHolding = true;
-    holdTimer = setTimeout(()=>{
-      if(!isHolding) return;
-      holdActive = true;
-      cardEl.classList.add('hold-inspect');
-      // prevent click-dismiss while inspecting
-      e.stopPropagation && e.stopPropagation();
-      applyTilt(lastTouch.x, lastTouch.y);
-    }, 200);
+    // Activer holdActive immédiatement dès le press
+    holdActive = true;
+    cardEl.classList.add('hold-inspect');
+    applyTilt(t.clientX, t.clientY);
   }, {passive:true});
 
   cardEl.addEventListener('touchmove', e => {
     const t = e.touches[0];
     lastTouch = {x:t.clientX, y:t.clientY};
-    // Always apply tilt on touchmove (not just during hold-inspect)
+    touchMoved = true;
     applyTilt(t.clientX, t.clientY);
     if(holdActive) e.preventDefault();
   }, {passive:false});
@@ -1962,8 +1975,8 @@ function attachTilt(cardEl, foilId, baseTransform){
       holdActive = false;
       cardEl.classList.remove('hold-inspect');
       resetTilt();
-      // eat the touchend so it doesn't fire click → dismiss
-      e.preventDefault();
+      // Si le doigt a bougé, empêcher le dismiss (c'était un tilt, pas un tap)
+      if(touchMoved) e.preventDefault();
     }
   }, {passive:false});
 }
@@ -2850,21 +2863,29 @@ function showFlip(card){
 
 function handleFlipClick(){
   if(!pendingFlipCard) return;
-  _dealLocked = true; // Lock pendant l'animation flip (320ms)
+  _dealLocked = true;
   haptic(HAPTIC.deal);
   const card=pendingFlipCard;
   pendingFlipCard=null;
   const fw=document.getElementById('flipWrap');
   const fi=document.getElementById('flipInner');
-  fi.style.transition='transform .32s ease-in';
+  // Phase 1 : rotation vers 90° (demi-flip) — plus lente, ease-in-out
+  fi.style.transition='transform .55s cubic-bezier(.4,0,.6,1)';
   fi.style.transform='rotateY(90deg)';
   sndCardFlip();
   setTimeout(()=>{
-    fw.classList.remove('active');
+    // Phase 2 : fondu de sortie du flip-wrap pendant que la carte reveal entre
+    fw.style.transition='opacity .4s ease';
+    fw.style.opacity='0';
     fi.style.transition='none';
     fi.style.transform='rotateY(0deg)';
     showCard(card);
-  },320);
+    setTimeout(()=>{
+      fw.classList.remove('active');
+      fw.style.opacity='';
+      fw.style.transition='';
+    },420);
+  },520);
 }
 
 // ===== SCRATCH SOUND =====
@@ -2933,9 +2954,17 @@ function showCard(card){
   if(cBotExt) cBotExt.setAttribute('data-rarity',R);
   fillCard({id:'cId',name:'cName',char:'cChar',emoji:'cEmoji',type:'cType',hp:'cHp',hpBadge:'cHpBadge',stars:'cStars',rarity:'cRarity',stats:'cStats',effect:'cEffect'},card);
   spawnCardFx('cFxLayer',R);
+  // Carte commence à opacity 0 pour un fade-in doux
+  rc.style.opacity='0';
   wrap.classList.add('active');
   void rc.offsetWidth;
   rc.classList.add(R==='COMMUNE'?'anim-commune':'anim-peu');
+  // Fade in doux
+  requestAnimationFrame(()=>{
+    rc.style.transition='opacity .45s ease';
+    rc.style.opacity='1';
+    setTimeout(()=>{ rc.style.transition=''; rc.style.opacity=''; },460);
+  });
   // Attach tilt to the normal card
   attachTilt(rc,'cFoil');
   const color=RC[R],cnt=R==='COMMUNE'?14:30;
