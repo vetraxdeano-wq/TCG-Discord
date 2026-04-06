@@ -34,7 +34,7 @@ body::before{content:'';position:fixed;inset:0;background:rgba(5,4,4,.72);z-inde
 /* Noise grain texture overlay */
 body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");background-size:200px;opacity:.4;pointer-events:none;z-index:9999;mix-blend-mode:overlay}
 
-body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-repeat fixed;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;overflow:hidden;position:relative}
+body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-repeat fixed;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;overflow:hidden;position:relative}
 .starfield{position:fixed;inset:0;z-index:0;pointer-events:none;background:transparent;transition:background 1.5s}
 .starfield.myth-active{background:radial-gradient(ellipse at center,rgba(61,34,0,.7) 0%,rgba(28,13,0,.5) 50%,transparent 100%)}
 .starfield.rare-active{background:radial-gradient(ellipse at center,rgba(26,10,46,.7) 0%,rgba(10,5,24,.5) 60%,transparent 100%)}
@@ -749,6 +749,10 @@ body{background:#050404 url(https://i.goopics.net/qqcrde.png) center/cover no-re
 /* flip card floating particles — very subtle */
 .flip-particles{position:absolute;inset:-20px;pointer-events:none;overflow:visible}
 .flip-ptcl{position:absolute;border-radius:50%;pointer-events:none;animation:flipPtcl var(--fp-d,3s) ease-in-out infinite var(--fp-s,0s)}
+@keyframes flipHaloPeu{0%,100%{opacity:.5;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}}
+@keyframes flipHaloRare{0%,100%{opacity:.4;transform:scale(.92) rotate(-1deg)}50%{opacity:1;transform:scale(1.08) rotate(1deg)}}
+@keyframes flipHaloMyth{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes flipScanlines{0%{background-position:0 0}100%{background-position:0 40px}}
 @keyframes flipPtcl{0%{transform:translateY(0) translateX(0) scale(1);opacity:0}20%{opacity:.55}80%{opacity:.2}100%{transform:translateY(var(--fp-y,-60px)) translateX(var(--fp-x,0px)) scale(0);opacity:0}}
 /* Card tremble — scales with rarity */
 @keyframes tremblePeu{0%,100%{transform:rotate(0) translateX(0)}25%{transform:rotate(-.4deg) translateX(-1px)}75%{transform:rotate(.4deg) translateX(1px)}}
@@ -1507,6 +1511,7 @@ async function autoOpenBooster() {
   // Nouveau tirage : déduire les coins d'abord
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
+  showCoinsDeductedPopup(150);
 
   // Tirer les cartes et verrouiller immédiatement en sessionStorage
   boosterCards = pickWeightedCards(5);
@@ -2774,10 +2779,38 @@ function showFlip(card){
   sc.querySelectorAll('.flip-particles').forEach(e=>e.remove());
   const R=card.rarity;
   const conf=FLIP_RARITY_CONF[R]||FLIP_RARITY_CONF['COMMUNE'];
-  // Border stays neutral — no rarity colour hint on hidden card
+  // Effets premium sur le dos selon rareté
   const bf=fi.querySelector('.flip-back-face');
-  bf.style.borderColor='var(--gold-subtle)';
-  bf.style.boxShadow='inset 0 0 30px #ffffff08';
+  const fw2=document.getElementById('flipWrap');
+  // Supprimer ancien halo
+  fw2.querySelectorAll('.flip-rarity-halo').forEach(e=>e.remove());
+  if(R==='COMMUNE'){
+    bf.style.borderColor='rgba(125,206,160,.3)';
+    bf.style.boxShadow='0 0 12px rgba(125,206,160,.15),inset 0 0 20px #ffffff05';
+  } else if(R==='PEU COMMMUNE'){
+    bf.style.borderColor='rgba(126,200,227,.5)';
+    bf.style.boxShadow='0 0 20px rgba(126,200,227,.25),0 0 40px rgba(126,200,227,.1),inset 0 0 25px #ffffff08';
+    // Halo bleu pulsant
+    const h=document.createElement('div');h.className='flip-rarity-halo';
+    h.style.cssText='position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(126,200,227,.12) 0%,transparent 65%);animation:flipHaloPeu 1.8s ease-in-out infinite;pointer-events:none;z-index:0;border-radius:inherit;';
+    const sc2=document.getElementById('flipScene');sc2.appendChild(h);
+  } else if(R==='RARE'){
+    bf.style.borderColor='rgba(184,144,248,.7)';
+    bf.style.boxShadow='0 0 28px rgba(184,144,248,.4),0 0 60px rgba(184,144,248,.18),inset 0 0 30px rgba(184,144,248,.08)';
+    const h=document.createElement('div');h.className='flip-rarity-halo';
+    h.style.cssText='position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,rgba(184,144,248,.22) 0%,transparent 65%);animation:flipHaloRare 1.2s ease-in-out infinite;pointer-events:none;z-index:0;border-radius:inherit;';
+    const sc2=document.getElementById('flipScene');sc2.appendChild(h);
+    // Scanlines
+    const sl=document.createElement('div');sl.className='flip-rarity-halo';
+    sl.style.cssText='position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(184,144,248,.04) 3px,rgba(184,144,248,.04) 4px);pointer-events:none;z-index:1;border-radius:inherit;animation:flipScanlines 8s linear infinite;';
+    const sc3=document.getElementById('flipScene');sc3.appendChild(sl);
+  } else if(R==='MYTHIQUE'){
+    bf.style.borderColor='rgba(240,192,96,.9)';
+    bf.style.boxShadow='0 0 40px rgba(240,192,96,.6),0 0 80px rgba(200,149,58,.3),0 0 120px rgba(240,192,96,.15),inset 0 0 40px rgba(240,192,96,.12)';
+    const h=document.createElement('div');h.className='flip-rarity-halo';
+    h.style.cssText='position:absolute;inset:0;background:conic-gradient(from 0deg at 50% 50%,rgba(240,192,96,.18),rgba(200,149,58,.1),rgba(240,192,96,.22),rgba(200,149,58,.08),rgba(240,192,96,.18));animation:flipHaloMyth .8s linear infinite;pointer-events:none;z-index:0;border-radius:inherit;';
+    const sc2=document.getElementById('flipScene');sc2.appendChild(h);
+  }
   // Particle layer — very few, very faint
   const pLayer=document.createElement('div');pLayer.className='flip-particles';
   for(let i=0;i<conf.count;i++){
@@ -2841,10 +2874,12 @@ function updateStackCount(){
   document.getElementById('stackCount').textContent=r===1?'1 carte restante':`${r} cartes restantes`;
 }
 
+let _dealLocked = false;
 function dealCard(){
-  if(currentIdx>=5) return;
+  if(_dealLocked) return;
+  if(currentIdx>=boosterCards.length) return;
   if(cardVisible||inFullscreen){
-    // Feedback: reject shake on the pile
+    // Feedback: reject shake sur la pile
     const cont=document.getElementById('stackContainer');
     cont.classList.remove('rejected');
     void cont.offsetWidth;
@@ -2852,11 +2887,18 @@ function dealCard(){
     setTimeout(()=>cont.classList.remove('rejected'),400);
     return;
   }
+  _dealLocked = true;
   resumeAC();
   const cont=document.getElementById('stackContainer');
   sndCardFlip();
   cont.classList.add('dealing');
-  setTimeout(()=>{cont.classList.remove('dealing');showFlip(boosterCards[currentIdx]);},280);
+  setTimeout(()=>{
+    cont.classList.remove('dealing');
+    if(currentIdx < boosterCards.length){
+      showFlip(boosterCards[currentIdx]);
+    }
+    _dealLocked = false;
+  },280);
 }
 
 function showCard(card){
@@ -3366,7 +3408,7 @@ function dismissFullscreen(){
   afterDismiss();
 }
 
-function afterDismiss(){
+function afterDismiss(){  _dealLocked=false;
   clearTypeBg();
   revealed.push(boosterCards[currentIdx]);
   currentIdx++;
@@ -3451,6 +3493,21 @@ function showDone(){
 }
 
 // ===== DEDUCT COINS ON BOOSTER OPEN =====
+function showCoinsDeductedPopup(amount) {
+  const el = document.createElement('div');
+  el.textContent = '-' + amount + ' Coins';
+  el.style.cssText = 'position:fixed;left:50%;bottom:30%;transform:translateX(-50%);' +
+    'font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#f0c060;' +
+    'text-shadow:0 0 12px #c8953a,1px 1px 0 #000;pointer-events:none;z-index:9998;' +
+    'opacity:1;transition:opacity .8s ease,transform .8s ease;white-space:nowrap;';
+  document.body.appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    el.style.transform='translateX(-50%) translateY(-40px)';
+    el.style.opacity='0';
+  }));
+  setTimeout(()=>el.remove(), 900);
+}
+
 async function deductBoosterCost() {
   const db = window._db;
   const myId = window._currentUserId;
@@ -3487,14 +3544,11 @@ function showInsufficientCoins() {
 
 // ===== RESTART =====
 async function restart(){
-  // Vérifier & déduire le solde pour le nouveau booster
-  const ok = await deductBoosterCost();
-  if (!ok) { showInsufficientCoins(); return; }
-
+  // Réinitialiser l'état complet
   document.getElementById('doneOverlay').classList.remove('active');
   document.getElementById('stackWrap').classList.remove('visible','appearing');
   const bw=document.getElementById('boosterWrap');
-  bw.classList.remove('opening','tearing');bw.style.display='';bw.style.opacity='';
+  bw.classList.remove('opening','tearing');bw.style.display='none';bw.style.opacity='';
   document.querySelectorAll('.stack-card').forEach(c=>{c.style.opacity='';});
   boosterCards=[];currentIdx=0;revealed=[];cardVisible=false;inFullscreen=false;tearPhase=false;scratchPhase=0;
   document.getElementById('stackContainer').style.pointerEvents='';
@@ -3512,6 +3566,32 @@ async function restart(){
   window._pendingMythCard=null;
   const b=document.getElementById('booster');
   b.style.animation='none';void b.offsetWidth;b.style.animation='';
+
+  // Skip l'animation d'ouverture : tirer directement les cartes
+  clearBoosterSession();
+  const ok = await deductBoosterCost();
+  if (!ok) {
+    // Pas assez de coins — réafficher le bouton booster pour le feedback
+    bw.style.display='';
+    showInsufficientCoins();
+    return;
+  }
+  showCoinsDeductedPopup(150);
+
+  boosterCards = pickWeightedCards(5);
+  try {
+    sessionStorage.setItem('booster1_active_session', JSON.stringify({
+      cardIds: boosterCards.map(c => c.dbId), ts: Date.now()
+    }));
+  } catch(e){}
+  currentIdx = 0; revealed = [];
+  const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
+  const bestR = boosterCards.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
+  setPackAura(bestR);
+  refreshStackAura();
+  const sw = document.getElementById('stackWrap');
+  if(sw){ sw.classList.add('visible','appearing'); }
+  updateStackCount();
 }
 </script>
 </body>
