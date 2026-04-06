@@ -1662,84 +1662,129 @@ function renderCollCard(card,th,x,y,CW,CH){
     </div>`;
   }
   const rarCol = card.color;
-  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;background:transparent;border:none;">
-    ${card.count>1?`<div style="position:absolute;top:3px;right:3px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
+  return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;overflow:hidden;background:transparent;border:none;padding:3px;">
+    ${card.count>1?`<div style="position:absolute;top:5px;right:5px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
     ${card.image_url
-      ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
-      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.4)}px;">🃏</div>`}
+      ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:3px;" />`
+      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.4)}px;border-radius:3px;">🃏</div>`}
   </div>`;
 }
 
 
 // ─── CARD DETAIL MODAL ────────────────────────────────────────────
 function renderCardDetailModal(card,th){
-  const isMobile = window.innerWidth < 600;
-  const cardW = isMobile ? Math.min(130, window.innerWidth * 0.35) : 160;
-  const cardH = Math.round(cardW * 1.5);
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const isMobile = vw < 600;
 
-  return `
-  <div id="card-modal-bg" style="position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:${isMobile?'12px':'24px'};background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
-    <div style="display:flex;gap:${isMobile?'12px':'18px'};align-items:flex-start;max-width:520px;width:100%;max-height:calc(100vh - ${isMobile?'24':'48'}px);overflow:hidden;">
+  // ── Calcul des dimensions adaptatif ──
+  // Mobile : layout vertical — image en haut, infos en bas
+  // Desktop : layout horizontal — image à gauche, infos à droite
+  let cardW, cardH, layout;
 
-      <!-- Carte seule, sans cadre — clic → viewer 3D -->
-      <div id="card-img-trigger" style="flex-shrink:0;width:${cardW}px;cursor:zoom-in;" title="Cliquer pour agrandir">
-        <div style="width:${cardW}px;height:${cardH}px;position:relative;overflow:hidden;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.6);">
-          ${card.owned && card.image_url
-            ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
-            : card.owned
-              ? `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:52px;">🃏</div>`
-              : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" />`}
-          ${card.owned ? `<div style="position:absolute;bottom:6px;right:6px;font-size:9px;font-weight:800;color:${card.color};background:rgba(0,0,0,.65);padding:2px 6px;letter-spacing:.3px;">${RARITY_LABEL[card.rarity]}</div>` : ''}
+  if (isMobile) {
+    // Image occupe ~45% de la hauteur disponible (on réserve de la place pour les infos sans scroll)
+    const availH = vh - 32; // padding 16px de chaque côté
+    cardH = Math.round(Math.min(availH * 0.44, vw * 0.55));
+    cardW = Math.round(cardH * 0.667);
+    layout = 'vertical';
+  } else {
+    // Desktop : image ~40% de la hauteur viewport
+    cardH = Math.round(Math.min(vh * 0.72, (vw - 80) * 0.42 / 0.667));
+    cardW = Math.round(cardH * 0.667);
+    layout = 'horizontal';
+  }
+
+  const imgContent = card.owned && card.image_url
+    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    : card.owned
+      ? `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:${Math.round(cardW*0.38)}px;">🃏</div>`
+      : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
+
+  const infoRows = card.owned ? `
+    <div style="font-family:'Bangers',cursive;font-size:${isMobile?'14px':'16px'};font-weight:700;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+    <div style="font-size:9px;color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:2px;">◆ ${RARITY_LABEL[card.rarity]}</div>
+    ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
+    <div style="display:flex;justify-content:space-between;padding:${isMobile?'3':'5'}px 0;border-bottom:1px solid ${th.border};">
+      <span style="font-size:${isMobile?'9':'10'}px;color:${th.textMuted};">${r.l}</span>
+      <span style="font-size:${isMobile?'9':'10'}px;font-weight:600;color:${th.text};">${r.v}</span>
+    </div>`).join('')}
+    <div style="background:${th.bgSecondary};padding:${isMobile?'7':'10'}px 12px;border:2px solid #000;">
+      <div style="font-size:8px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Possession</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-size:9px;color:${th.textMuted};">Exemplaires</span>
+        <span style="font-size:12px;font-weight:800;color:${th.green};">×${card.count}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
+        <span style="font-size:9px;color:${th.textMuted};">Obtenue le</span>
+        <span style="font-size:9px;font-weight:600;color:${th.text};">${fmtDate(card.obtainedAt)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span style="font-size:9px;color:${th.textMuted};">À</span>
+        <span style="font-size:9px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
+      </div>
+    </div>
+    <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'8':'10'}px;background:${th.accent};color:#fff;border:none;font-size:${isMobile?'10':'11'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
+  ` : `
+    <div style="font-family:'Bangers',cursive;font-size:15px;font-weight:900;color:${th.textMuted};letter-spacing:2px;">???</div>
+    <div style="font-size:10px;color:${th.textFaint};margin-top:3px;">Carte mystère</div>
+    <div style="background:${th.bgSecondary};padding:10px 12px;border:2px solid #000;display:flex;flex-direction:column;gap:5px;">
+      ${[{l:"ID",v:`#${card.id}`},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"Nom",v:"— — — —"},{l:"Rareté",v:"— — —"}].map(r=>`
+      <div style="display:flex;justify-content:space-between;">
+        <span style="font-size:9px;color:${th.textMuted};">${r.l}</span>
+        <span style="font-size:9px;color:${r.l==="ID"||r.l==="Set"?th.text:th.textFaint};">${r.v}</span>
+      </div>`).join('')}
+    </div>
+    <div style="font-size:9px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;">Ouvre des boosters pour la trouver !</div>
+    <button onclick="setState({collSelectedCard:null, tab:2})" style="padding:8px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;width:100%;">→ ALLER AUX BOOSTERS</button>
+  `;
+
+  if (layout === 'vertical') {
+    // ── MOBILE : image en haut, infos en bas, pas de scroll ──
+    return `
+    <div id="card-modal-bg" style="position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:380px;height:100%;max-height:${vh-32}px;overflow:hidden;">
+
+        <!-- Bouton fermer -->
+        <div style="display:flex;justify-content:flex-end;width:100%;flex-shrink:0;">
+          <button id="card-modal-close" style="width:28px;height:28px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
         </div>
-        <div style="text-align:center;margin-top:6px;font-size:9px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
+
+        <!-- Image carte -->
+        <div id="card-img-trigger" style="flex-shrink:0;cursor:zoom-in;" title="Agrandir">
+          <div style="width:${cardW}px;height:${cardH}px;position:relative;overflow:hidden;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.7);">
+            ${imgContent}
+          </div>
+          <div style="text-align:center;margin-top:5px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
+        </div>
+
+        <!-- Infos (pas de scroll, tout visible) -->
+        <div style="flex:1;min-height:0;width:100%;display:flex;flex-direction:column;gap:5px;overflow:hidden;">
+          ${infoRows}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── DESKTOP : image à gauche, infos à droite, pas de scroll ──
+  return `
+  <div id="card-modal-bg" style="position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
+    <div style="display:flex;gap:20px;align-items:flex-start;max-width:580px;width:100%;overflow:hidden;">
+
+      <!-- Image carte -->
+      <div id="card-img-trigger" style="flex-shrink:0;cursor:zoom-in;" title="Agrandir">
+        <div style="width:${cardW}px;height:${cardH}px;position:relative;overflow:hidden;border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.7);">
+          ${imgContent}
+        </div>
+        <div style="text-align:center;margin-top:6px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
       </div>
 
-      <!-- Panel infos -->
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:${cardH + 32}px;">
+      <!-- Panel infos (pas de scroll) -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;overflow:hidden;max-height:${cardH + 32}px;">
         <div style="display:flex;justify-content:flex-end;flex-shrink:0;">
           <button id="card-modal-close" style="width:28px;height:28px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
         </div>
-        ${card.owned ? `
-          <div style="flex-shrink:0;">
-            <div style="font-family:'Bangers',cursive;font-size:${isMobile?'15px':'17px'};font-weight:700;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-            <div style="font-size:10px;color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:3px;">◆ ${RARITY_LABEL[card.rarity]}</div>
-          </div>
-          ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
-          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid ${th.border};flex-shrink:0;">
-            <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
-            <span style="font-size:10px;font-weight:600;color:${th.text};">${r.v}</span>
-          </div>`).join('')}
-          <div style="background:${th.bgSecondary};padding:10px 12px;border:2px solid #000;flex-shrink:0;">
-            <div style="font-size:9px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Possession</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <span style="font-size:10px;color:${th.textMuted};">Exemplaires</span>
-              <span style="font-size:13px;font-weight:800;color:${th.green};">×${card.count}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-              <span style="font-size:10px;color:${th.textMuted};">Obtenue le</span>
-              <span style="font-size:10px;font-weight:600;color:${th.text};">${fmtDate(card.obtainedAt)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;">
-              <span style="font-size:10px;color:${th.textMuted};">À</span>
-              <span style="font-size:10px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
-            </div>
-          </div>
-          <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;flex-shrink:0;">＋ AJOUTER AU DECK</button>
-        ` : `
-          <div style="flex-shrink:0;">
-            <div style="font-family:'Bangers',cursive;font-size:16px;font-weight:900;color:${th.textMuted};letter-spacing:2px;">???</div>
-            <div style="font-size:10px;color:${th.textFaint};margin-top:4px;">Carte mystère</div>
-          </div>
-          <div style="background:${th.bgSecondary};padding:12px;border:2px solid #000;display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-            ${[{l:"ID",v:`#${card.id}`},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"Nom",v:"— — — —"},{l:"Rareté",v:"— — —"}].map(r=>`
-            <div style="display:flex;justify-content:space-between;">
-              <span style="font-size:10px;color:${th.textMuted};">${r.l}</span>
-              <span style="font-size:10px;color:${r.l==="ID"||r.l==="Set"?th.text:th.textFaint};">${r.v}</span>
-            </div>`).join('')}
-          </div>
-          <div style="font-size:10px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;flex-shrink:0;">Cette carte n'a pas encore été découverte. Ouvre des boosters pour la trouver !</div>
-          <button onclick="setState({collSelectedCard:null, tab:2})" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;flex-shrink:0;">→ ALLER AUX BOOSTERS</button>
-        `}
+        ${infoRows}
       </div>
     </div>
   </div>`;
