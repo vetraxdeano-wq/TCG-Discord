@@ -1665,9 +1665,9 @@ function renderCollCard(card,th,x,y,CW,CH){
   const pad = Math.max(2, Math.round(CW * 0.04)); // ~4% de marge interne
   return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;">
     ${card.count>1?`<div style="position:absolute;top:${pad+2}px;right:${pad+2}px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
-    <div style="position:absolute;top:${pad}px;left:${pad}px;right:${pad}px;bottom:${pad}px;overflow:hidden;border-radius:3px;">
+    <div style="position:absolute;top:${pad}px;left:${pad}px;right:${pad}px;bottom:${pad}px;overflow:visible;border-radius:3px;display:flex;align-items:center;justify-content:center;">
       ${card.image_url
-        ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+        ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
         : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
     </div>
   </div>`;
@@ -6112,12 +6112,12 @@ function openCard3DViewer(card) {
       <div id="c3d-card" style="
         width:100%;height:100%;
         position:relative;transform-style:preserve-3d;
-        border-radius:10px;overflow:hidden;
+        border-radius:10px;
         box-shadow:0 32px 80px rgba(0,0,0,.8),0 0 0 1px ${rarCol}40;
         will-change:transform;transition:transform .08s ease-out;
       ">
         ${imgSrc
-          ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none;" draggable="false" />`
+          ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;" draggable="false" />`
           : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}40,${rarCol}15);display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
         <!-- Overlay reflet holographique -->
         <div id="c3d-holo" style="
