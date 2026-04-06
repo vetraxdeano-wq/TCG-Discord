@@ -1662,10 +1662,17 @@ function renderCollCard(card,th,x,y,CW,CH){
     </div>`;
   }
   const rarCol = card.color;
+  const rarityGlow = {
+    mythic:  `drop-shadow(0 0 7px ${rarCol}dd) drop-shadow(0 0 14px ${rarCol}77)`,
+    rare:    `drop-shadow(0 0 5px ${rarCol}aa)`,
+    uncommon:`drop-shadow(0 0 3px ${rarCol}77)`,
+    common:  `none`,
+  };
+  const glowFilter = rarityGlow[card.rarity] || 'none';
   return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;display:flex;align-items:center;justify-content:center;">
-    ${card.count>1?`<div style="position:absolute;top:2px;right:2px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">×${card.count}</div>`:''}
+    ${card.count>1?`<div style="position:absolute;top:2px;right:2px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">x${card.count}</div>`:''}
     ${card.image_url
-      ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
+      ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;filter:${glowFilter};" />`
       : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
   </div>`;
 }
@@ -6082,7 +6089,45 @@ function openCard3DViewer(card) {
   if(document.getElementById('card-3d-viewer')) return;
 
   const imgSrc = card.image_url || null;
-  const rarCol = RARITY_COLOR[card.rarity] || '#a78bfa';
+  const rarity = card.rarity || 'common';
+  const rarCol = RARITY_COLOR[rarity] || '#a78bfa';
+
+  // Paramètres d'effets selon rareté
+  const rarityFX = {
+    mythic: {
+      holoAlpha: .28, specAlpha: .38, rarAlpha: .75,
+      holoColors: `rgba(255,100,100,.18) 20%, rgba(255,220,50,.22) 40%, rgba(50,255,180,.18) 60%, rgba(100,120,255,.22) 80%`,
+      specMult: 1.0,
+      glowColor: rarCol,
+      glowBlur: '0 0 40px ' + rarCol + '99, 0 0 80px ' + rarCol + '44',
+      shimmer: true, rainbow: true, particles: true,
+    },
+    rare: {
+      holoAlpha: .18, specAlpha: .28, rarAlpha: .55,
+      holoColors: `rgba(167,139,250,.14) 25%, rgba(255,255,255,.18) 50%, rgba(167,139,250,.14) 75%`,
+      specMult: 0.85,
+      glowColor: rarCol,
+      glowBlur: '0 0 28px ' + rarCol + '77, 0 0 56px ' + rarCol + '33',
+      shimmer: true, rainbow: false, particles: false,
+    },
+    uncommon: {
+      holoAlpha: .10, specAlpha: .18, rarAlpha: .35,
+      holoColors: `rgba(56,189,248,.10) 30%, rgba(255,255,255,.14) 50%, rgba(56,189,248,.10) 70%`,
+      specMult: 0.6,
+      glowColor: rarCol,
+      glowBlur: '0 0 16px ' + rarCol + '55',
+      shimmer: false, rainbow: false, particles: false,
+    },
+    common: {
+      holoAlpha: .06, specAlpha: .10, rarAlpha: .18,
+      holoColors: `rgba(255,255,255,.06) 30%, rgba(255,255,255,.10) 50%, rgba(255,255,255,.06) 70%`,
+      specMult: 0.4,
+      glowColor: 'transparent',
+      glowBlur: 'none',
+      shimmer: false, rainbow: false, particles: false,
+    },
+  };
+  const fx = rarityFX[rarity] || rarityFX.common;
 
   const viewer = document.createElement('div');
   viewer.id = 'card-3d-viewer';
@@ -6094,128 +6139,200 @@ function openCard3DViewer(card) {
     animation:fadeIn .2s ease both;
   `;
 
-  // Taille de la carte : max 80vh × 55vw
+  // Taille de la carte : max 78vh × 82vw
   const vw = window.innerWidth, vh = window.innerHeight;
   const maxH = Math.round(vh * 0.78);
   const maxW = Math.round(vw * 0.82);
   const cardH = Math.min(maxH, Math.round(maxW / 0.667));
   const cardW = Math.round(cardH * 0.667);
 
+  // Particules pour mythic
+  const particlesHTML = fx.particles ? `<div id="c3d-particles" style="position:absolute;inset:-20px;pointer-events:none;overflow:hidden;z-index:3;"></div>` : '';
+
+  // Overlay shimmer pour rare/mythic
+  const shimmerHTML = fx.shimmer ? `<div id="c3d-shimmer" style="
+    position:absolute;inset:0;pointer-events:none;z-index:2;opacity:0;transition:opacity .2s;
+    background:linear-gradient(125deg,transparent 20%,rgba(255,255,255,.07) 40%,transparent 45%,rgba(255,255,255,.04) 55%,transparent 60%);
+    background-size:200% 200%;
+  "></div>` : '';
+
   viewer.innerHTML = `
-    <div id="c3d-card" style="
+    <div id="c3d-scene" style="
       width:${cardW}px;height:${cardH}px;
-      position:relative;flex-shrink:0;
-      transform-style:preserve-3d;
-      will-change:transform;transition:transform .08s ease-out;
+      perspective:900px;position:relative;flex-shrink:0;
     ">
-      ${imgSrc
-        ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;border-radius:0;" draggable="false" />`
-        : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}40,${rarCol}15);display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
-      <!-- Overlay reflet holographique -->
-      <div id="c3d-holo" style="
-        position:absolute;inset:0;
-        background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);
-        mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .15s;
-      "></div>
-      <!-- Brillance spéculaire -->
-      <div id="c3d-spec" style="
-        position:absolute;inset:0;
-        background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.18) 0%,transparent 65%);
-        mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .1s;
-      "></div>
-      <!-- Reflet de rareté -->
-      <div id="c3d-rar" style="
-        position:absolute;inset:0;
-        background:linear-gradient(135deg,${rarCol}30,transparent 50%,${rarCol}20);
-        mix-blend-mode:color-dodge;pointer-events:none;opacity:0;transition:opacity .15s;
-      "></div>
+      <div id="c3d-card" style="
+        width:100%;height:100%;
+        position:relative;
+        transform-style:preserve-3d;
+        will-change:transform;transition:transform .08s ease-out;
+        box-shadow:${fx.glowBlur !== 'none' ? fx.glowBlur : 'none'};
+      ">
+        ${imgSrc
+          ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;" draggable="false" />`
+          : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${rarCol}40,${rarCol}15);display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
+        <!-- Overlay reflet holographique -->
+        <div id="c3d-holo" style="
+          position:absolute;inset:0;
+          background:linear-gradient(125deg,${fx.holoColors});
+          mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .15s;
+        "></div>
+        <!-- Brillance spéculaire -->
+        <div id="c3d-spec" style="
+          position:absolute;inset:0;
+          background:radial-gradient(circle at 50% 50%,rgba(255,255,255,${fx.specAlpha}) 0%,transparent 65%);
+          mix-blend-mode:screen;pointer-events:none;opacity:0;transition:opacity .1s;
+        "></div>
+        <!-- Reflet de rareté -->
+        <div id="c3d-rar" style="
+          position:absolute;inset:0;
+          background:linear-gradient(135deg,${rarCol}40,transparent 45%,${rarCol}25 55%,transparent 70%,${rarCol}30);
+          mix-blend-mode:color-dodge;pointer-events:none;opacity:0;transition:opacity .15s;
+        "></div>
+        ${shimmerHTML}
+        ${particlesHTML}
+      </div>
     </div>
-    <div style="margin-top:18px;font-family:'Bangers',cursive;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,.35);">MAINTENIR APPUYÉ · BOUGER POUR PIVOTER</div>
+    <div style="margin-top:18px;font-family:'Bangers',cursive;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,.35);">
+      ${rarity === 'mythic' ? '⚡ CARTE MYTHIQUE — PIVOTER POUR RÉVÉLER' : rarity === 'rare' ? '✦ CARTE RARE — PIVOTER POUR RÉVÉLER' : 'MAINTENIR APPUYÉ · BOUGER POUR PIVOTER'}
+    </div>
     <div style="position:absolute;top:16px;right:16px;">
-      <button id="c3d-close" style="width:36px;height:36px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:50%;">✕</button>
+      <button id="c3d-close" style="width:36px;height:36px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
   `;
 
   document.body.appendChild(viewer);
 
-  const card3d   = document.getElementById('c3d-card');
-  const holo     = document.getElementById('c3d-holo');
-  const spec     = document.getElementById('c3d-spec');
-  const rar      = document.getElementById('c3d-rar');
+  const scene  = document.getElementById('c3d-scene');
+  const card3d = document.getElementById('c3d-card');
+  const holo   = document.getElementById('c3d-holo');
+  const spec   = document.getElementById('c3d-spec');
+  const rar    = document.getElementById('c3d-rar');
+  const shimmer= document.getElementById('c3d-shimmer');
 
   let pressed = false;
-  let currentRX = 0, currentRY = 0;
-  const MAX_TILT = 22; // degrés max
+  // Drag delta-based rotation — corrige le bug de pivot dans un seul sens
+  let startX = 0, startY = 0;
+  let baseRX = 0, baseRY = 0;
+  let currRX = 0, currRY = 0;
+  const MAX_TILT = 28;
 
-  function applyTilt(nx, ny) {
-    // nx, ny : -1 à 1 (position normalisée dans la carte)
-    const rx = -ny * MAX_TILT;
-    const ry =  nx * MAX_TILT;
-    currentRX = rx; currentRY = ry;
+  // Particules mythic
+  if(fx.particles) {
+    const pContainer = document.getElementById('c3d-particles');
+    const colors = ['#f43f5e','#fbbf24','#a78bfa','#38bdf8','#fff'];
+    for(let i=0;i<12;i++){
+      const p = document.createElement('div');
+      const sz = 2 + Math.random()*3;
+      p.style.cssText = `
+        position:absolute;
+        width:${sz}px;height:${sz}px;
+        background:${colors[i%colors.length]};
+        left:${Math.random()*100}%;top:${Math.random()*100}%;
+        opacity:0;
+        animation:c3dParticle ${1.5+Math.random()*2}s ${Math.random()*2}s ease-in-out infinite;
+        box-shadow:0 0 4px currentColor;
+      `;
+      pContainer.appendChild(p);
+    }
+  }
+
+  function applyTilt(rx, ry) {
+    currRX = rx; currRY = ry;
     card3d.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.04,1.04,1.04)`;
-    // Reflet : se déplace avec la position
+    // nx/ny normalisé -1..1 pour les effets
+    const nx = ry / MAX_TILT;
+    const ny = -rx / MAX_TILT;
     const hx = (nx * 0.5 + 0.5) * 100;
     const hy = (ny * 0.5 + 0.5) * 100;
-    holo.style.background = `linear-gradient(${105 + ry}deg, transparent 35%, rgba(255,255,255,.12) 50%, transparent 65%)`;
-    spec.style.background  = `radial-gradient(circle at ${hx}% ${hy}%, rgba(255,255,255,.22) 0%, transparent 60%)`;
-    holo.style.opacity = '1';
+
+    if(fx.rainbow) {
+      // Mythic : dégradé arc-en-ciel qui tourne avec l'angle
+      const ang = 125 + ry * 1.5;
+      holo.style.background = `linear-gradient(${ang}deg,
+        rgba(255,80,80,${fx.holoAlpha}) 0%,
+        rgba(255,200,50,${fx.holoAlpha+.06}) 20%,
+        rgba(80,255,160,${fx.holoAlpha}) 40%,
+        rgba(80,160,255,${fx.holoAlpha+.06}) 60%,
+        rgba(200,80,255,${fx.holoAlpha}) 80%,
+        rgba(255,80,80,${fx.holoAlpha+.04}) 100%)`;
+    } else {
+      holo.style.background = `linear-gradient(${125 + ry}deg, ${fx.holoColors})`;
+    }
+    spec.style.background = `radial-gradient(circle at ${hx}% ${hy}%, rgba(255,255,255,${fx.specAlpha * fx.specMult}) 0%, transparent 55%)`;
+    holo.style.opacity = String(fx.holoAlpha * 8);
     spec.style.opacity = '1';
-    rar.style.opacity  = '0.6';
+    rar.style.opacity  = String(fx.rarAlpha);
+    if(shimmer) shimmer.style.opacity = '1';
     viewer.style.cursor = 'grabbing';
+    // Glow dynamique selon inclinaison
+    const glowIntensity = (Math.abs(rx) + Math.abs(ry)) / (MAX_TILT * 2);
+    if(fx.glowBlur !== 'none') {
+      card3d.style.boxShadow = fx.glowBlur.replace(/\d+px/g, (m) => Math.round(parseInt(m) * (1 + glowIntensity * 0.5)) + 'px');
+    }
   }
 
   function releaseTilt() {
     pressed = false;
-    card3d.style.transition = 'transform .45s cubic-bezier(.25,.46,.45,.94)';
+    baseRX = 0; baseRY = 0;
+    card3d.style.transition = 'transform .45s cubic-bezier(.25,.46,.45,.94), box-shadow .45s';
     card3d.style.transform = 'rotateX(0) rotateY(0) scale3d(1,1,1)';
     holo.style.opacity = '0';
     spec.style.opacity = '0';
     rar.style.opacity  = '0';
+    if(shimmer) shimmer.style.opacity = '0';
     viewer.style.cursor = 'grab';
+    if(fx.glowBlur !== 'none') card3d.style.boxShadow = fx.glowBlur;
     setTimeout(() => { card3d.style.transition = 'transform .08s ease-out'; }, 460);
   }
 
-  function getRelative(el, cx, cy) {
-    const r = el.getBoundingClientRect();
-    const nx = ((cx - r.left) / r.width)  * 2 - 1;
-    const ny = ((cy - r.top)  / r.height) * 2 - 1;
-    return { nx: Math.max(-1, Math.min(1, nx)), ny: Math.max(-1, Math.min(1, ny)) };
-  }
-
-  // Mouse
+  // Mouse — delta-based pour rotation libre dans les deux sens
   viewer.addEventListener('mousedown', (e) => {
     if(e.target === document.getElementById('c3d-close')) return;
     pressed = true;
+    startX = e.clientX; startY = e.clientY;
     card3d.style.transition = 'transform .08s ease-out';
-    const {nx, ny} = getRelative(card3d, e.clientX, e.clientY);
-    applyTilt(nx, ny);
   });
   viewer.addEventListener('mousemove', (e) => {
     if(!pressed) return;
-    const {nx, ny} = getRelative(card3d, e.clientX, e.clientY);
-    applyTilt(nx, ny);
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    const rx = Math.max(-MAX_TILT, Math.min(MAX_TILT, baseRX - dy * 0.4));
+    const ry = Math.max(-MAX_TILT, Math.min(MAX_TILT, baseRY + dx * 0.4));
+    applyTilt(rx, ry);
   });
-  viewer.addEventListener('mouseup', releaseTilt);
+  viewer.addEventListener('mouseup', (e) => {
+    if(!pressed) return;
+    baseRX = currRX; baseRY = currRY;
+    releaseTilt();
+  });
   viewer.addEventListener('mouseleave', () => { if(pressed) releaseTilt(); });
 
-  // Touch
+  // Touch — delta-based
+  let touchStartX = 0, touchStartY = 0;
   viewer.addEventListener('touchstart', (e) => {
     if(e.target === document.getElementById('c3d-close')) return;
     e.preventDefault();
     pressed = true;
-    card3d.style.transition = 'transform .08s ease-out';
     const t = e.touches[0];
-    const {nx, ny} = getRelative(card3d, t.clientX, t.clientY);
-    applyTilt(nx, ny);
+    touchStartX = t.clientX; touchStartY = t.clientY;
+    card3d.style.transition = 'transform .08s ease-out';
   }, {passive:false});
   viewer.addEventListener('touchmove', (e) => {
     if(!pressed) return;
     e.preventDefault();
     const t = e.touches[0];
-    const {nx, ny} = getRelative(card3d, t.clientX, t.clientY);
-    applyTilt(nx, ny);
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+    const rx = Math.max(-MAX_TILT, Math.min(MAX_TILT, baseRX - dy * 0.5));
+    const ry = Math.max(-MAX_TILT, Math.min(MAX_TILT, baseRY + dx * 0.5));
+    applyTilt(rx, ry);
   }, {passive:false});
-  viewer.addEventListener('touchend', releaseTilt);
+  viewer.addEventListener('touchend', (e) => {
+    if(!pressed) return;
+    baseRX = currRX; baseRY = currRY;
+    releaseTilt();
+  });
 
   // Fermer — clic sur fond ou bouton ✕
   document.getElementById('c3d-close').addEventListener('click', () => closeViewer());
@@ -6238,7 +6355,15 @@ function openCard3DViewer(card) {
   if(document.getElementById('card3d-styles')) return;
   const s = document.createElement('style');
   s.id = 'card3d-styles';
-  s.textContent = `@keyframes fadeOut{from{opacity:1}to{opacity:0}}`;
+  s.textContent = `
+    @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+    @keyframes c3dParticle{
+      0%{opacity:0;transform:translateY(0) scale(.8);}
+      30%{opacity:.9;transform:translateY(-14px) scale(1.1);}
+      70%{opacity:.6;transform:translateY(-28px) scale(.9);}
+      100%{opacity:0;transform:translateY(-44px) scale(.6);}
+    }
+  `;
   document.head.appendChild(s);
 })();
 </script>
