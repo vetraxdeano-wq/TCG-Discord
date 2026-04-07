@@ -1757,8 +1757,23 @@ function fillCard(ids,card){
     // PNG plein écran dans la cellule
     const img=document.createElement('img');
     img.className='card-full-img';
-    img.src=card.image_url;
     img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;border-radius:0;pointer-events:none;';
+    // Si l'image n'est pas encore chargée, masquer la carte jusqu'au chargement
+    if(!img.complete || img.naturalWidth===0){
+      cardEl.style.opacity='0';
+      img.onload=()=>{
+        cardEl.style.transition='opacity .25s ease';
+        cardEl.style.opacity='1';
+        setTimeout(()=>{ cardEl.style.transition=''; },280);
+      };
+      img.onerror=()=>{
+        cardEl.style.transition='opacity .2s ease';
+        cardEl.style.opacity='1';
+      };
+    }
+    img.src=card.image_url;
+    // Si déjà en cache (complete=true après avoir mis src), révéler immédiatement
+    if(img.complete && img.naturalWidth>0) cardEl.style.opacity='1';
     cardEl.insertBefore(img,cardEl.firstChild);
     // Masquer layout et effets, mais GARDER .card-foil visible pour les reflets tilt
     cardEl.querySelectorAll('.card-id,.card-top,.card-art,.card-type-row,.card-body,.card-holo,.card-fx-layer,.scanlines').forEach(el=>{ el.style.display='none'; el.style.opacity='0'; });
@@ -1931,13 +1946,20 @@ function attachTilt(cardEl, foilId, baseTransform){
   cardEl.addEventListener('mousemove', e => {
     applyTilt(e.clientX, e.clientY);
   });
+  let _justHeld = false;
   cardEl.addEventListener('mouseup', e => {
     if(holdActive){
       endHold();
+      _justHeld = true;
       // Empêcher le dismiss si on était en tilt
       e.stopPropagation();
+      // Bloquer l'événement click qui suit le mouseup
+      setTimeout(()=>{ _justHeld = false; }, 50);
     }
   });
+  cardEl.addEventListener('click', e => {
+    if(_justHeld){ e.stopPropagation(); _justHeld=false; }
+  }, true); // capture phase pour attraper avant onclick de l'ancestor
   cardEl.addEventListener('mouseleave', () => {
     if(holdActive) endHold();
   });
@@ -2856,6 +2878,12 @@ function showFlip(card){
   // Apply tremble animation based on rarity
   if(conf.tremble) fi.classList.add(conf.tremble);
   fw.classList.add('active');
+
+  // Précharger l'image de la carte pendant que le joueur voit le dos
+  if(card.image_url){
+    const _preload = new Image();
+    _preload.src = card.image_url;
+  }
 }
 
 function handleFlipClick(){
@@ -2951,17 +2979,23 @@ function showCard(card){
   if(cBotExt) cBotExt.setAttribute('data-rarity',R);
   fillCard({id:'cId',name:'cName',char:'cChar',emoji:'cEmoji',type:'cType',hp:'cHp',hpBadge:'cHpBadge',stars:'cStars',rarity:'cRarity',stats:'cStats',effect:'cEffect'},card);
   spawnCardFx('cFxLayer',R);
-  // Carte commence à opacity 0 pour un fade-in doux
-  rc.style.opacity='0';
-  wrap.classList.add('active');
-  void rc.offsetWidth;
-  rc.classList.add(R==='COMMUNE'?'anim-commune':'anim-peu');
-  // Fade in doux
-  requestAnimationFrame(()=>{
-    rc.style.transition='opacity .45s ease';
-    rc.style.opacity='1';
-    setTimeout(()=>{ rc.style.transition=''; rc.style.opacity=''; },460);
-  });
+  // Carte commence à opacity 0 pour un fade-in doux (géré par fillCard si PNG)
+  if(!card.image_url){
+    rc.style.opacity='0';
+    wrap.classList.add('active');
+    void rc.offsetWidth;
+    rc.classList.add(R==='COMMUNE'?'anim-commune':'anim-peu');
+    requestAnimationFrame(()=>{
+      rc.style.transition='opacity .45s ease';
+      rc.style.opacity='1';
+      setTimeout(()=>{ rc.style.transition=''; rc.style.opacity=''; },460);
+    });
+  } else {
+    // PNG : fillCard gère l'opacity via onload/oncomplete
+    wrap.classList.add('active');
+    void rc.offsetWidth;
+    rc.classList.add(R==='COMMUNE'?'anim-commune':'anim-peu');
+  }
   // Attach tilt to the normal card
   attachTilt(rc,'cFoil');
   const color=RC[R],cnt=R==='COMMUNE'?14:30;
