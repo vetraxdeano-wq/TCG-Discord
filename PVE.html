@@ -168,8 +168,26 @@ body.mobile .cz-bot .field-card{
 body.mobile .cz-bot .fc-img-wrap{
   flex:1;min-height:0;
   border-radius:8px;overflow:hidden;
+  display:flex;align-items:stretch;justify-content:stretch;
+  padding:0!important;
+}
+.fc-img-wrap>img,.fc-img-wrap img{
+  width:100%!important;height:100%!important;
+  object-fit:cover!important;
+  display:block;border-radius:8px;
+  flex:1;
 }
 body.mobile .cz-bot .fc-ph{border-radius:8px}
+body.mobile .cz-human .fc-img-wrap img,
+body.mobile .cz-bot .fc-img-wrap img{
+  border-radius:6px;
+  object-fit:cover;
+  width:100%;height:100%;
+}
+body.mobile .cz-human .fc-img-wrap,
+body.mobile .cz-bot .fc-img-wrap{
+  padding:0;margin:0;
+}
 
 /* ─── COL 3 ROW 1 : ❤️ vie adversaire ─── */
 body.mobile .pj-right{
@@ -218,7 +236,7 @@ body.mobile .cz-human{
   display:flex !important;
   flex-direction:column;
   align-items:stretch; justify-content:stretch;
-  padding:4px 3px;
+  padding:2px 2px;
   overflow:hidden;
 }
 body.mobile .cz-human .field-card{
@@ -233,6 +251,14 @@ body.mobile .cz-human .field-card{
 body.mobile .cz-human .fc-img-wrap{
   flex:1;min-height:0;
   border-radius:8px;overflow:hidden;
+  display:flex;align-items:stretch;justify-content:stretch;
+  padding:0!important;
+}
+.fc-img-wrap>img,.fc-img-wrap img{
+  width:100%!important;height:100%!important;
+  object-fit:cover!important;
+  display:block;border-radius:8px;
+  flex:1;
 }
 body.mobile .cz-human .fc-ph{border-radius:8px}
 
@@ -283,17 +309,24 @@ body.mobile .hand-lbl{font-size:8px}
 body.mobile .deck-count{font-size:8px}
 /* Hauteur des cartes en main = ~15dvh, min 80px, max 110px */
 body.mobile .hand-cards{
-  height:calc(15*var(--dvh));
-  min-height:80px; max-height:110px;
+  height:calc(16*var(--dvh));
+  min-height:88px; max-height:120px;
   gap:6px; padding:4px 10px 6px;
 }
 body.mobile .hcard{
-  height:calc(13*var(--dvh));
-  min-height:68px; max-height:95px;
+  height:calc(14*var(--dvh));
+  min-height:76px; max-height:108px;
 }
 
 /* ── Tooltip ── */
-body.mobile .hcard-tooltip{width:165px}
+body.mobile .hcard-tooltip-img{
+  padding:0!important;background:transparent!important;border:none!important;
+  box-shadow:0 8px 32px rgba(0,0,0,.7)!important;
+  overflow:hidden!important;
+  width:160px!important;
+  border-radius:10px!important;
+}
+.hcard-tooltip{width:165px}
 body.mobile .ht-name{font-size:11px}
 body.mobile .ht-stat-val{font-size:12px}
 
@@ -330,7 +363,7 @@ body.mobile .ht-stat-val{font-size:12px}
   padding:10px 16px 4px;display:flex;gap:12px;align-items:flex-start;
 }
 .mob-card-modal-img{
-  width:80px;flex-shrink:0;aspect-ratio:410/580;border-radius:8px;overflow:hidden;
+  width:120px;flex-shrink:0;aspect-ratio:410/580;border-radius:10px;overflow:hidden;
   background:var(--s3);
 }
 .mob-card-modal-img img,.mob-card-modal-img .fc-ph{width:100%;height:100%;border-radius:8px}
@@ -575,7 +608,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   max-height:calc(100% - 28px);
   aspect-ratio:410/580;
   width:auto;
-  max-width:83%;
+  max-width:92%;
   border-radius:11px;
   overflow:visible; 
   position:relative;
@@ -590,8 +623,9 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   border-radius:11px;
   overflow:hidden;
   position:relative;
+  display:flex;align-items:stretch;
 }
-.field-card img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;border:none}
+.field-card img,.fc-img-wrap img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;border:none;flex:1;}
 .fc-ph{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--s3);border-radius:11px}
 .fc-ph .icon{font-size:36px;opacity:.2}
 .fc-ph .lbl{font-size:9px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
@@ -743,11 +777,22 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .deck-info{display:flex;align-items:center;gap:10px}
 .deck-count{font-family:'DM Mono',monospace;font-size:9px;color:var(--dim);display:flex;align-items:center;gap:3px}
 .deck-count .deck-ico{font-size:11px}
-.hand-cards{display:flex;gap:9px;padding:8px 16px 10px;overflow-x:auto;overflow-y:visible;height:153px;align-items:flex-end}
+.hand-cards{display:flex;gap:9px;padding:8px 16px 10px;overflow-x:auto;overflow-y:visible;height:165px;align-items:flex-end}
 .hand-cards::-webkit-scrollbar{height:3px}
 .hand-cards::-webkit-scrollbar-thumb{background:var(--bdr3);border-radius:2px}
-.hcard{flex-shrink:0;height:138px;aspect-ratio:410/580;border-radius:9px;cursor:pointer;position:relative;border:none;overflow:hidden;box-shadow:none;transition:opacity .18s}
-.hcard:hover:not(.hc-dis){overflow:visible;z-index:100}
+.hcard{flex-shrink:0;height:148px;aspect-ratio:410/580;border-radius:9px;cursor:pointer;position:relative;border:none;overflow:hidden;box-shadow:none;transition:opacity .18s}
+.hcard:hover:not(.hc-dis){
+  z-index:100;
+  transform:translateY(-12px) scale(1.10);
+  box-shadow:0 16px 40px rgba(0,0,0,.65),0 4px 12px rgba(0,0,0,.4);
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s;
+}
+.hcard{transition:transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s, opacity .18s;}
+/* Rareté glow au hover */
+.hcard.rC:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 20px rgba(136,136,136,.3);}
+.hcard.rPC:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 20px rgba(62,207,142,.4);}
+.hcard.rR:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 24px rgba(167,139,250,.5);}
+.hcard.rM:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 30px rgba(240,192,64,.6);}
 .hcard.hc-dis{opacity:.16;pointer-events:all;cursor:default;filter:grayscale(.85)}
 .hcard img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;border:none;border-radius:9px}
 .hcard-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);opacity:.3}
@@ -1777,11 +1822,12 @@ function setImg(id,f){
   const a=document.getElementById(`${id}-art`);if(!a)return;
   if(f){
     if(f.image_url){
-      // ── Image disponible : on l'affiche seule, les stats sont sur le visuel ──
+      // ── Image disponible : plein cadre, les stats sont sur le visuel ──
       if(a.tagName==='IMG'){
         a.src=f.image_url;
+        a.style.cssText='width:100%;height:100%;object-fit:cover;display:block;border-radius:8px;';
       } else {
-        a.outerHTML=`<img id="${id}-art" src="${f.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;image-rendering:auto;" />`;
+        a.outerHTML=`<img id="${id}-art" src="${f.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:8px;" />`;
       }
     } else {
       // ── Pas d'image : placeholder textuel avec toutes les infos ──
@@ -1911,11 +1957,16 @@ function renderHand(){
     d.onclick=dis?null:()=>humanPlayCard(i);
 
     const rarCol={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'}[c.rarete]||'#888';
-    if(isFig){
+    if(c.image_url){
+      // ── Image disponible → on l'affiche, les stats sont dessus ──
+      d.innerHTML=`<div style="position:relative;width:100%;height:100%;overflow:hidden;">
+        <img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;" />
+        ${dis?'':''}
+      </div>`;
+    } else if(isFig){
       d.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:6px 4px;text-align:center;gap:2px">
         <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:900;color:${rarCol};letter-spacing:.06em;text-transform:uppercase">${RLAB[c.rarete]||''}</div>
-        <div style="font-family:'Bangers',cursive;font-size:18px;color:#fff;letter-spacing:.04em;text-shadow:0 1px 4px rgba(0,0,0,.8);line-height:1.1;padding:0 2px">${c.perso||c.nom}</div>
-        <div style="font-size:7px;color:var(--sub);line-height:1.2">${c.nom}</div>
+        <div style="font-family:'Bangers',cursive;font-size:18px;color:#fff;letter-spacing:.04em;text-shadow:0 1px 4px rgba(0,0,0,.8);line-height:1.1;padding:0 2px">${c.nom}</div>
         <div style="display:flex;gap:6px;margin-top:3px;font-size:9px;font-family:'DM Mono',monospace">
           <span style="color:var(--red)">❤${c.hpCur}</span>
           <span style="color:#ffaa44">⚔${c.atq}</span>
@@ -1933,7 +1984,12 @@ function renderHand(){
 
 
     let ttHTML='';
-    if(isFig){
+    if(c.image_url){
+      // Image disponible → on l'affiche en grand dans le tooltip
+      const hpPct=isFig&&c.hpCur&&c.hpBase?Math.round(c.hpCur/c.hpBase*100):100;
+      const hpCol=hpPct>60?'var(--grn)':hpPct>30?'var(--gold)':'var(--red)';
+      ttHTML=`<div style="width:140px;"><img src="${c.image_url}" style="width:100%;aspect-ratio:410/580;object-fit:cover;display:block;border-radius:6px 6px 0 0;" />${isFig?`<div style="padding:6px 8px;background:var(--s2);border-radius:0 0 6px 6px;"><div style="font-size:9px;font-weight:700;color:${rarCol};margin-bottom:3px;">${RLAB[c.rarete]}</div><div style="display:flex;justify-content:space-between;font-size:9px;font-family:'DM Mono',monospace;"><span style="color:var(--red)">❤ ${c.hpCur}/${c.hpBase}</span><span style="color:#ffaa44">⚔ ${c.atq}</span><span style="color:var(--blue)">🛡 ${c.def}</span></div><div style="font-size:8px;color:var(--sub);margin-top:2px;">🎯 ${Math.round(c.prec*100)}%</div></div>`:''}</div>`;
+    } else if(isFig){
       const hpPct=c.hpCur/c.hpBase*100;
       const hpCol=hpPct>60?'var(--grn)':hpPct>30?'var(--gold)':'var(--red)';
       ttHTML=`<div class="ht-rar" style="color:${rarCol}">${RLAB[c.rarete]}</div>
@@ -1951,7 +2007,7 @@ function renderHand(){
         <div class="ht-desc">${c.desc}</div>`;
     }
 
-    d.addEventListener('mouseenter',e=>showTT(ttHTML,e));
+    d.addEventListener('mouseenter',e=>{showTT(ttHTML,e);if(c.image_url)document.getElementById('hcard-tt').classList.add('hcard-tooltip-img');else document.getElementById('hcard-tt').classList.remove('hcard-tooltip-img');});
     d.addEventListener('mousemove',e=>moveTT(e));
     d.addEventListener('mouseleave',hideTT);
     /* Touch mobile : tap = ouvre modale stats + bouton JOUER CARTE */
@@ -2153,9 +2209,9 @@ function showCardModal(c, idx, disabled, ttHTML, rarCol){
   titleEl.textContent=c.nom;
 
   /* Image ou placeholder */
-  const imgSrc=IMGS&&IMGS[c.img]?IMGS[c.img]:null;
+  const imgSrc=c.image_url||null;
   imgEl.innerHTML=imgSrc
-    ?`<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block">`
+    ?`<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;border-radius:8px;">`
     :`<div class="fc-ph" style="height:100%"><div class="icon">${c.ct==='fighter'?'⚡':'✨'}</div></div>`;
 
   /* Stats */
