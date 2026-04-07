@@ -463,6 +463,7 @@ let state = {
   showAddFriend: false,
   // Collection
   collSortBy: "id",
+  collSortDir: "asc",
   collFilterSet: "all",
   collFilterRarity: "all",
   collFilterType: "all",
@@ -1582,7 +1583,7 @@ function renderTabCollection(th){
       if(c.owned && c.name.toLowerCase().includes(q)) return true;
       return false;
     })
-    .sort((a,b)=>state.collSortBy==="id"?a.id.localeCompare(b.id):RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
+    .sort((a,b)=>{const dir=state.collSortDir==="desc"?-1:1;if(state.collSortBy==="id") return dir*a.id.localeCompare(b.id,undefined,{numeric:true});if(state.collSortBy==="alpha") return dir*(a.name||"").localeCompare(b.name||"","fr",{sensitivity:"base"});return dir*(RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));});
   const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
 
   return `
@@ -1616,6 +1617,8 @@ function renderTabCollection(th){
         <span style="font-size:9px;color:${th.textMuted};white-space:nowrap;letter-spacing:.5px;text-transform:uppercase;">Tri</span>
         <button class="sort-btn" data-sort="id" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='id'?th.accent+'22':'transparent'};color:${state.collSortBy==='id'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='id'?th.accent+'50':th.border};transition:all .15s;">ID</button>
         <button class="sort-btn" data-sort="rarity" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='rarity'?th.accent+'22':'transparent'};color:${state.collSortBy==='rarity'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='rarity'?th.accent+'50':th.border};transition:all .15s;">Rareté</button>
+        <button class="sort-btn" data-sort="alpha" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='alpha'?th.accent+'22':'transparent'};color:${state.collSortBy==='alpha'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='alpha'?th.accent+'50':th.border};transition:all .15s;">A–Z</button>
+        <button id="sort-dir-btn" style="padding:5px 9px;font-size:12px;font-weight:900;background:${th.bgSecondary};color:${th.accent};border:1px solid ${th.accent+'50'};transition:all .15s;line-height:1;display:flex;align-items:center;" title="Inverser l'ordre">${state.collSortDir==='asc'?'↑':'↓'}</button>
         <div style="margin-left:auto;position:relative;">
           <div style="display:flex;gap:4px;margin-bottom:4px;">
             <button class="owned-filter-btn" data-val="all" style="padding:4px 10px;font-size:9px;font-weight:700;border:1px solid ${state.collShowOwned==='all'?th.accent+'50':th.border};background:${state.collShowOwned==='all'?th.accent+'18':'transparent'};color:${state.collShowOwned==='all'?th.accent:th.textMuted};transition:all .15s;">Toutes</button>
@@ -3033,8 +3036,18 @@ function bindGame(){
 
   // Collection filters
   document.querySelectorAll('.sort-btn').forEach(btn=>{
-    btn.addEventListener('click',()=>setState({collSortBy:btn.dataset.sort}));
+    btn.addEventListener('click',()=>{
+      if(state.collSortBy===btn.dataset.sort){
+        // Même bouton : inverser la direction
+        setState({collSortDir:state.collSortDir==='asc'?'desc':'asc'});
+      } else {
+        // Nouveau bouton : changer le tri, remettre asc
+        setState({collSortBy:btn.dataset.sort, collSortDir:'asc'});
+      }
+    });
   });
+  const sortDirBtn=document.getElementById('sort-dir-btn');
+  if(sortDirBtn) sortDirBtn.addEventListener('click',()=>setState({collSortDir:state.collSortDir==='asc'?'desc':'asc'}));
 
   // Recherche collection : mutater state directement sans re-render pour garder le focus
   window._collSearchHandler = function(val) {
