@@ -1788,8 +1788,16 @@ function fillCard(ids,card){
     // Supprimer tout cadre, fond, glow, border-radius sur la carte
     cardEl.style.cssText = (cardEl.style.cssText||'') +
       ';background:transparent!important;border:none!important;box-shadow:none!important;border-radius:0!important;outline:none!important;';
-    // Appliquer data-rarity (pour les animations d'entrée uniquement)
+    // Appliquer data-rarity (pour les animations d'entrée ET la couleur du label)
     cardEl.setAttribute('data-rarity',R);
+    // Mettre à jour stars et label rareté (ceux sous la carte)
+    const starsEl=document.getElementById(ids.stars);
+    const rarEl=document.getElementById(ids.rarity);
+    if(starsEl) starsEl.textContent=RS[R]||'★';
+    if(rarEl)   rarEl.textContent=R;
+    // Mettre à jour data-rarity sur le card-bottom-external aussi
+    const extBot=starsEl?.closest('.card-bottom-external');
+    if(extBot) extBot.setAttribute('data-rarity',R);
     return;
   }
 
