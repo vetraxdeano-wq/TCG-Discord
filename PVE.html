@@ -151,24 +151,28 @@ body.mobile .cz-bot{
   grid-column:2; grid-row:1;
   display:flex !important;
   flex-direction:column;
-  align-items:stretch; justify-content:stretch;
+  align-items:center; justify-content:center;
   padding:2px 2px;
   border-bottom:1px solid var(--bdr2);
   overflow:hidden;
 }
 body.mobile .cz-bot .field-card{
-  flex:1 !important;
+  flex:none !important;
   min-height:0 !important;
-  width:100% !important;
+  width:auto !important;
   height:100% !important;
-  max-height:none !important;
-  max-width:none !important;
-  aspect-ratio:unset !important;
+  max-height:100% !important;
+  max-width:100% !important;
+  aspect-ratio:2/3 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+  border-radius:8px !important;
 }
 body.mobile .cz-bot .fc-img-wrap{
   flex:1;min-height:0;
-  border-radius:8px;overflow:hidden;
-  display:flex;align-items:stretch;justify-content:stretch;
+  border-radius:6px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
   padding:0!important;
 }
 .fc-img-wrap>img,.fc-img-wrap img{
@@ -176,6 +180,14 @@ body.mobile .cz-bot .fc-img-wrap{
   object-fit:cover!important;
   display:block;border-radius:8px;
   flex:1;
+}
+/* Sur mobile terrain : contain pour voir la carte entière */
+body.mobile .cz-bot .fc-img-wrap img,
+body.mobile .cz-human .fc-img-wrap img{
+  object-fit:contain!important;
+  width:100%!important;
+  height:100%!important;
+  border-radius:6px;
 }
 body.mobile .cz-bot .fc-ph{border-radius:8px}
 body.mobile .cz-human .fc-img-wrap img,
@@ -235,23 +247,27 @@ body.mobile .cz-human{
   grid-column:2; grid-row:2;
   display:flex !important;
   flex-direction:column;
-  align-items:stretch; justify-content:stretch;
+  align-items:center; justify-content:center;
   padding:2px 2px;
   overflow:hidden;
 }
 body.mobile .cz-human .field-card{
-  flex:1 !important;
+  flex:none !important;
   min-height:0 !important;
-  width:100% !important;
+  width:auto !important;
   height:100% !important;
-  max-height:none !important;
-  max-width:none !important;
-  aspect-ratio:unset !important;
+  max-height:100% !important;
+  max-width:100% !important;
+  aspect-ratio:2/3 !important;
+  display:flex !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+  border-radius:8px !important;
 }
 body.mobile .cz-human .fc-img-wrap{
   flex:1;min-height:0;
-  border-radius:8px;overflow:hidden;
-  display:flex;align-items:stretch;justify-content:stretch;
+  border-radius:6px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
   padding:0!important;
 }
 .fc-img-wrap>img,.fc-img-wrap img{
@@ -259,6 +275,14 @@ body.mobile .cz-human .fc-img-wrap{
   object-fit:cover!important;
   display:block;border-radius:8px;
   flex:1;
+}
+/* Sur mobile terrain : contain pour voir la carte entière */
+body.mobile .cz-bot .fc-img-wrap img,
+body.mobile .cz-human .fc-img-wrap img{
+  object-fit:contain!important;
+  width:100%!important;
+  height:100%!important;
+  border-radius:6px;
 }
 body.mobile .cz-human .fc-ph{border-radius:8px}
 
