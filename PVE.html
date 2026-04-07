@@ -1941,9 +1941,20 @@ function renderP(id,p){
   const el=document.getElementById(`${id}-act`);el.innerHTML='';
   if(!p.actives.length){el.innerHTML='<span style="font-size:9px;color:var(--dim)">Aucun</span>';return;}
   p.actives.forEach(a=>{
-    const buf=a.at==='ba'||a.at==='bd';const lbl=a.at==='ba'||a.at==='da'?'Force':'Défense';
+    if(a.at==='love_peace_pending'){
+      const t=document.createElement('div');t.className='etag buf';
+      t.innerHTML=`💕 En attente…`;el.appendChild(t);return;
+    }
+    const buf=a.at==='ba'||a.at==='bd'||a.at==='bp';
+    let lbl,ico;
+    if(a.at==='ba'||a.at==='da'){lbl='Atq';ico=buf?'⚔️':'⚔️';}
+    else if(a.at==='bd'||a.at==='dd'){lbl='Déf';ico=buf?'🛡️':'🛡️';}
+    else if(a.at==='bp'||a.at==='dp'){lbl='Prec';ico='🎯';}
+    else{lbl='?';ico='?';}
+    const durTxt=a.turns>=9999?'∞':`${a.turns}T`;
     const t=document.createElement('div');t.className=`etag ${buf?'buf':'deb'}`;
-    t.innerHTML=`${buf?'▲':'▼'}${a.val} ${lbl}<span class="etag-t"> ${a.turns}T</span>`;el.appendChild(t);
+    t.innerHTML=`${buf?'▲':'▼'}${a.val}${lbl==='Prec'?'%':''} ${lbl}<span class="etag-t"> ${durTxt}</span>`;
+    el.appendChild(t);
   });
 }
 
