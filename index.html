@@ -1365,7 +1365,7 @@ function renderTradeModal(th){
             ${card.image_url
               ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
               : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:${Math.round(_CW*0.35)}px;">🃏</div>`}
-            ${sel ? `<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000;z-index:2;">✓</div>` : ''}
+            ${sel ? `<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000;z-index:2;">✓</div>` : (card.count>1 ? `<div style="position:absolute;top:2px;right:2px;min-width:14px;height:14px;background:rgba(0,0,0,.75);color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:2;border:1px solid rgba(255,255,255,.2);">×${card.count}</div>` : '')}
             <div style="position:absolute;bottom:0;left:0;right:0;font-size:${Math.round(_CW*0.095)}px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;text-shadow:0 1px 3px #000;padding-bottom:1px;">#${parseInt(card.id)}</div>
           </div>`;
         }).join('')}
@@ -2272,18 +2272,19 @@ function renderMessagesModal(th){
             const cardId = isLeft ? item.from_card_id : item.to_card_id;
             if(show && card) return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                <div style="width:44px;height:62px;background:linear-gradient(135deg,${col}30,${col}10);border:1px solid ${col}60;overflow:hidden;position:relative;">
+                <div style="width:58px;height:82px;background:transparent;overflow:visible;position:relative;">
                   ${card.image_url
-                    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
-                    : `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><div style="font-size:18px;">🃏</div><div style="font-size:6px;color:${col};font-weight:800;">◆</div></div>`}
+                    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
+                    : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${col}30,${col}10);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><div style="font-size:22px;">🃏</div><div style="font-size:6px;color:${col};font-weight:800;">◆</div></div>`}
                 </div>
-                <div style="font-size:8px;font-weight:700;color:${th.text};text-align:center;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+                <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
                 <div style="font-size:7px;color:${th.textMuted};">#${card.id}</div>
+                <div style="font-size:7px;color:${col};font-weight:700;">◆ ${RARITY_LABEL[card.rarity]}</div>
               </div>`;
             return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                <div style="width:44px;height:62px;border:2px solid #000;overflow:hidden;position:relative;opacity:.75;">
-                  <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                <div style="width:58px;height:82px;overflow:hidden;position:relative;opacity:.75;">
+                  <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />
                   <div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${cardId}</div>
                 </div>
                 <div style="font-size:7px;color:${th.textMuted};text-align:center;">Mystère</div>
