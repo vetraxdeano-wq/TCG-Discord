@@ -1344,22 +1344,16 @@ function renderTradeModal(th){
           style="flex:1;background:transparent;border:none;outline:none;color:${th.text};font-size:11px;font-family:inherit;font-weight:600;"
           oninput="(function(v){var cards=document.querySelectorAll('.trade-pick-card');cards.forEach(function(el){var name=(el.dataset.name||'').toLowerCase();var id=(el.dataset.cardid||'');var q=v.toLowerCase();el.style.display=(name.includes(q)||id.includes(q)||q==='')?'flex':'none';});})(this.value)" />
       </div>
-      <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-content:start;padding:4px 0;">
+      <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;align-content:start;padding:2px 0;">
         ${ownedCards.map(card=>{
           const sel = myCard && parseInt(myCard.id)===parseInt(card.id);
           return `
           <div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}"
-            style="border:2px solid ${sel?card.color:'#000'};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative;overflow:hidden;background:${sel?card.color+'22':th.bgTertiary};${sel?'box-shadow:0 0 0 2px '+card.color+', 0 4px 16px '+card.color+'40;':''}transition:transform .15s;">
-            <div style="flex:1;width:100%;overflow:hidden;position:relative;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}display:flex;align-items:center;justify-content:center;font-size:24px;">
-              ${card.image_url
-                ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
-                : `<div style="font-size:clamp(18px,6vw,28px);">🃏</div>`}
-              ${sel ? `<div style="position:absolute;top:3px;right:3px;width:18px;height:18px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#000;z-index:2;border:1px solid #000;">✓</div>` : ''}
-            </div>
-            <div style="width:100%;padding:3px 4px 4px;background:rgba(0,0,0,.7);position:relative;z-index:1;flex-shrink:0;">
-              <div style="font-size:7px;font-weight:800;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${card.name}</div>
-              <div style="font-size:6px;color:${RARITY_COLOR[card.rarity]};margin-top:1px;">◆ ${RARITY_LABEL[card.rarity]}</div>
-            </div>
+            style="border:2px solid ${sel?card.color:'#000'};aspect-ratio:2/3;cursor:pointer;position:relative;overflow:hidden;background:${sel?card.color+'22':'#000'};${sel?'box-shadow:0 0 0 2px '+card.color+';':''}transition:transform .15s;">
+            ${card.image_url
+              ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
+              : `<div style="position:absolute;inset:0;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:clamp(16px,5vw,24px);">🃏</div>`}
+            ${sel ? `<div style="position:absolute;top:3px;right:3px;width:16px;height:16px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#000;z-index:2;border:1px solid #000;">✓</div>` : ''}
           </div>`}).join('')}
       </div>
     </div>
