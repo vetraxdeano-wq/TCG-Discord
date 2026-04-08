@@ -350,7 +350,8 @@ body.mobile .hcard-tooltip-img{
   width:160px!important;
   border-radius:10px!important;
 }
-.hcard-tooltip{width:165px}
+body.mobile .hcard-tooltip-img>div{width:160px!important;}
+body.mobile .hcard-tooltip{width:165px}
 body.mobile .ht-name{font-size:11px}
 body.mobile .ht-stat-val{font-size:12px}
 
@@ -827,7 +828,8 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .hcard-tooltip{
   position:fixed;
   z-index:500;
-  width:210px;
+  width:auto;
+  max-width:280px;
   background:var(--s2);
   border:1px solid var(--bdr3);
   border-radius:12px;
@@ -837,6 +839,17 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   display:none;
   flex-direction:column;gap:6px;
   animation:slideUp .12s cubic-bezier(.34,1.56,.64,1) both;
+}
+/* Tooltip image : pas de padding, juste la carte */
+.hcard-tooltip-img{
+  padding:0!important;
+  background:transparent!important;
+  border:none!important;
+  box-shadow:0 12px 48px rgba(0,0,0,.85)!important;
+  overflow:hidden!important;
+  width:auto!important;
+  max-width:none!important;
+  border-radius:12px!important;
 }
 .ht-rar{font-size:8px;letter-spacing:.2em;font-weight:700;text-transform:uppercase;margin-bottom:1px}
 .ht-name{font-family:'Cinzel',serif;font-weight:700;font-size:13px;line-height:1.2;color:var(--txt)}
@@ -2085,7 +2098,7 @@ function renderHand(){
       // Image disponible → on l'affiche en grand dans le tooltip
       const hpPct=isFig&&c.hpCur&&c.hpBase?Math.round(c.hpCur/c.hpBase*100):100;
       const hpCol=hpPct>60?'var(--grn)':hpPct>30?'var(--gold)':'var(--red)';
-      ttHTML=`<div style="width:140px;"><img src="${c.image_url}" style="width:100%;aspect-ratio:410/580;object-fit:cover;display:block;border-radius:6px 6px 0 0;" />${isFig?`<div style="padding:6px 8px;background:var(--s2);border-radius:0 0 6px 6px;"><div style="font-size:9px;font-weight:700;color:${rarCol};margin-bottom:3px;">${RLAB[c.rarete]}</div><div style="display:flex;justify-content:space-between;font-size:9px;font-family:'DM Mono',monospace;"><span style="color:var(--red)">❤ ${c.hpCur}/${c.hpBase}</span><span style="color:#ffaa44">⚔ ${c.atq}</span><span style="color:var(--blue)">🛡 ${c.def}</span></div><div style="font-size:8px;color:var(--sub);margin-top:2px;">🎯 ${Math.round(c.prec*100)}%</div></div>`:''}</div>`;
+      ttHTML=`<div style="width:260px;"><img src="${c.image_url}" style="width:100%;aspect-ratio:410/580;object-fit:cover;display:block;border-radius:10px 10px 0 0;" />${isFig?`<div style="padding:8px 10px;background:var(--s2);border-radius:0 0 10px 10px;"><div style="font-size:9px;font-weight:700;color:${rarCol};margin-bottom:4px;">${RLAB[c.rarete]}</div><div style="display:flex;justify-content:space-between;font-size:11px;font-family:'DM Mono',monospace;"><span style="color:var(--red)">❤ ${c.hpCur}/${c.hpBase}</span><span style="color:#ffaa44">⚔ ${c.atq}</span><span style="color:var(--blue)">🛡 ${c.def}</span></div><div style="font-size:10px;color:var(--sub);margin-top:3px;">🎯 ${Math.round(c.prec*100)}%</div></div>`:''}</div>`;
     } else if(isFig){
       const hpPct=c.hpCur/c.hpBase*100;
       const hpCol=hpPct>60?'var(--grn)':hpPct>30?'var(--gold)':'var(--red)';
