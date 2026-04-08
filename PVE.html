@@ -805,7 +805,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .deck-info{display:flex;align-items:center;gap:10px}
 .deck-count{font-family:'DM Mono',monospace;font-size:9px;color:var(--dim);display:flex;align-items:center;gap:3px}
 .deck-count .deck-ico{font-size:11px}
-.hand-cards{display:flex;gap:9px;padding:8px 16px 10px;overflow-x:auto;overflow-y:visible;height:165px;align-items:flex-end}
+.hand-cards{display:flex;gap:9px;padding:8px 16px 10px;overflow-x:auto;overflow-y:visible;height:175px;align-items:flex-end}
 .hand-cards::-webkit-scrollbar{height:3px}
 .hand-cards::-webkit-scrollbar-thumb{background:var(--bdr3);border-radius:2px}
 .hcard{flex-shrink:0;height:148px;aspect-ratio:410/580;border-radius:9px;cursor:pointer;position:relative;border:none;overflow:hidden;box-shadow:none;transition:opacity .18s}
@@ -822,25 +822,13 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .hcard.rR:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 24px rgba(167,139,250,.5);}
 .hcard.rM:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 30px rgba(240,192,64,.6);}
 
-/* Glow par type de carte — permanent léger + renforcé au hover */
-.hcard.ct-hero{
-  box-shadow:0 0 8px 2px rgba(240,192,64,.35), 0 0 2px 1px rgba(240,192,64,.2);
-}
-.hcard.ct-hero:hover:not(.hc-dis){
-  box-shadow:0 16px 40px rgba(0,0,0,.65), 0 0 22px 4px rgba(240,192,64,.65), 0 0 8px 2px rgba(240,192,64,.4) !important;
-}
-.hcard.ct-ruse{
-  box-shadow:0 0 8px 2px rgba(167,139,250,.35), 0 0 2px 1px rgba(167,139,250,.2);
-}
-.hcard.ct-ruse:hover:not(.hc-dis){
-  box-shadow:0 16px 40px rgba(0,0,0,.65), 0 0 22px 4px rgba(167,139,250,.65), 0 0 8px 2px rgba(167,139,250,.4) !important;
-}
-.hcard.ct-arcane{
-  box-shadow:0 0 8px 2px rgba(91,156,246,.35), 0 0 2px 1px rgba(91,156,246,.2);
-}
-.hcard.ct-arcane:hover:not(.hc-dis){
-  box-shadow:0 16px 40px rgba(0,0,0,.65), 0 0 22px 4px rgba(91,156,246,.65), 0 0 8px 2px rgba(91,156,246,.4) !important;
-}
+/* Glow par type — filter sur l'image pour rester DANS la carte */
+.hcard.ct-hero img{filter:drop-shadow(0 0 6px rgba(240,192,64,.5));}
+.hcard.ct-hero:hover:not(.hc-dis) img{filter:drop-shadow(0 0 14px rgba(240,192,64,.9)) drop-shadow(0 0 6px rgba(240,192,64,.6));}
+.hcard.ct-ruse img{filter:drop-shadow(0 0 6px rgba(167,139,250,.5));}
+.hcard.ct-ruse:hover:not(.hc-dis) img{filter:drop-shadow(0 0 14px rgba(167,139,250,.9)) drop-shadow(0 0 6px rgba(167,139,250,.6));}
+.hcard.ct-arcane img{filter:drop-shadow(0 0 6px rgba(91,156,246,.5));}
+.hcard.ct-arcane:hover:not(.hc-dis) img{filter:drop-shadow(0 0 14px rgba(91,156,246,.9)) drop-shadow(0 0 6px rgba(91,156,246,.6));}
 .hcard.hc-dis{opacity:.16;pointer-events:all;cursor:default;filter:grayscale(.85)}
 .hcard img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;border:none;border-radius:9px}
 .hcard-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);opacity:.3}
@@ -2082,6 +2070,11 @@ function renderHand(){
   G.human.hand.forEach((c,i)=>{
     const isFig=c.ct==='fighter';
     let dis=G.phase==='choose_fighter'?!isFig:G.phase==='sort'?(c.ct!=='sort'||G.human.sortJoue):true;
+
+    // Wrapper externe pour grouper carte + label sans couper le glow
+    const wrapper=document.createElement('div');
+    wrapper.style.cssText='display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;';
+
     const d=document.createElement('div');
     const typeClass = c.ct==='fighter' ? 'ct-hero' : (c.type==='Piège' ? 'ct-ruse' : 'ct-arcane');
     d.className=`hcard r${c.rarete} ${typeClass}${dis?' hc-dis':''}`;
@@ -2089,7 +2082,6 @@ function renderHand(){
 
     const rarCol={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'}[c.rarete]||'#888';
     if(c.image_url){
-      // ── Image disponible → on l'affiche, les stats sont dessus ──
       d.innerHTML=`<div style="position:relative;width:100%;height:100%;overflow:hidden;">
         <img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;" />
         ${dis?'':''}
@@ -2113,10 +2105,23 @@ function renderHand(){
       </div>`;
     }
 
+    // Label type sous la carte
+    const typeCols={hero:'#f0c040',ruse:'#a78bfa',arcane:'#5b9cf6'};
+    const typeLabels={hero:'Héro',ruse:'Ruse',arcane:'Arcane'};
+    const tKey=c.ct==='fighter'?'hero':(c.type==='Piège'?'ruse':'arcane');
+    const lbl=document.createElement('div');
+    lbl.style.cssText=`
+      font-family:'DM Mono',monospace;font-weight:700;
+      font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+      color:${typeCols[tKey]};
+      opacity:${dis?.4:.85};
+      pointer-events:none;
+      white-space:nowrap;
+    `;
+    lbl.textContent=typeLabels[tKey];
 
     let ttHTML='';
     if(c.image_url){
-      // Image disponible → on l'affiche en grand dans le tooltip
       const hpPct=isFig&&c.hpCur&&c.hpBase?Math.round(c.hpCur/c.hpBase*100):100;
       const hpCol=hpPct>60?'var(--grn)':hpPct>30?'var(--gold)':'var(--red)';
       ttHTML=`<div style="width:340px;"><img src="${c.image_url}" style="width:100%;aspect-ratio:410/580;object-fit:cover;display:block;border-radius:12px 12px 0 0;" />${isFig?`<div style="padding:10px 12px;background:var(--s2);border-radius:0 0 12px 12px;"><div style="font-size:10px;font-weight:700;color:${rarCol};margin-bottom:5px;">${RLAB[c.rarete]}</div><div style="display:flex;justify-content:space-between;font-size:13px;font-family:'DM Mono',monospace;"><span style="color:var(--red)">❤ ${c.hpCur}/${c.hpBase}</span><span style="color:#ffaa44">⚔ ${c.atq}</span><span style="color:var(--blue)">🛡 ${c.def}</span></div><div style="font-size:11px;color:var(--sub);margin-top:4px;">🎯 ${Math.round(c.prec*100)}%</div></div>`:''}</div>`;
@@ -2141,7 +2146,6 @@ function renderHand(){
     d.addEventListener('mouseenter',e=>{showTT(ttHTML,e);if(c.image_url)document.getElementById('hcard-tt').classList.add('hcard-tooltip-img');else document.getElementById('hcard-tt').classList.remove('hcard-tooltip-img');});
     d.addEventListener('mousemove',e=>moveTT(e));
     d.addEventListener('mouseleave',hideTT);
-    /* Touch mobile : tap = ouvre modale stats + bouton JOUER CARTE */
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
       if(document.body.classList.contains('mobile')){
@@ -2162,7 +2166,10 @@ function renderHand(){
       const spd=SPEED_DELAYS[_autoSpeed];
       setTimeout(()=>d.style.animation='',spd.deal+400);
     }
-    el.appendChild(d);
+
+    wrapper.appendChild(d);
+    wrapper.appendChild(lbl);
+    el.appendChild(wrapper);
   });
 
   G._newCardIdx=-1;
