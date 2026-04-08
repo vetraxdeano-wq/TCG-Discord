@@ -1357,7 +1357,7 @@ const IMGS={
 };
 
 const BUBBLE_MISS_IMG = "https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/rate.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS9yYXRlLnBuZyIsImlhdCI6MTc3NTI5MTcyMiwiZXhwIjoyMDkwNjUxNzIyfQ.5ZYOYKYQq2keSZIJh_6Qh9PtSMXvLk_m68X72TUhat4";
-const BUBBLE_KO_IMG   = "https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/KO.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS9LTy5wbmciLCJpYXQiOjE3NzUyOTE2OTEsImV4cCI6MjA5MDY1MTY5MX0.li9dPYPqdXpaZsjpPexQqudjqhvkiMl_fCC8gZ7F7-o";
+const BUBBLE_KO_IMG   = "https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/public/tcg-image-hp-ko-rate/KO.png";
 const BUBBLE_HIT_IMGS = {
   0: "https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/0.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8wLnBuZyIsImlhdCI6MTc3NTI5MTQyMSwiZXhwIjoyMDkwNjUxNDIxfQ.XMTQmPmfHfJCVYz_tM-TRYrh5O_VaOrJ_29XNd94nuE",
   1: "https://ndsnbvvcbkblkncvoroc.supabase.co/storage/v1/object/sign/tcg-image-hp-ko-rate/1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85YjVhMWEyOS1iZWFlLTQwNGItOGM1Ny04YTQzZmI1ZTJjY2QiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ0Y2ctaW1hZ2UtaHAta28tcmF0ZS8xLnBuZyIsImlhdCI6MTc3NTI5MTQzMywiZXhwIjoyMDkwNjUxNDMzfQ.R3Gp-A2rb9E1ciUqzAlunQI-LRIkI1C7WWIvieQLRcU",
@@ -1569,7 +1569,7 @@ function heartDamage(id, lostPv){
   }
 }
 
-/* KO splash — image centrée sur la carte + texte dessous */
+/* KO splash — image KO centrée sur la carte + texte dessous */
 function showKOSplash(nom, side, pvPerdu, isHuman){
   // Flash écran + screen shake
   const flash=document.createElement('div');flash.className='ko-flash-bg';
@@ -1579,60 +1579,70 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   sg.style.animation='koShake .55s cubic-bezier(.4,0,.2,1) both';
   setTimeout(()=>sg.style.animation='',600);
 
-  // Cibler la carte concernée
+  // Récupérer les coordonnées exactes de la carte AVANT que render() la détruise
   const cardId=side==='h'?'h':'b';
   const fc=document.getElementById(`${cardId}-fc`);
+  let rect=null;
+  if(fc) rect=fc.getBoundingClientRect();
 
-  // Conteneur centré sur la carte
+  // Conteneur fixed positionné exactement sur la carte
   const wrap=document.createElement('div');
-  wrap.style.cssText=`
-    position:absolute;
-    top:0;left:0;
-    width:100%;height:100%;
-    display:flex;flex-direction:column;
-    align-items:center;justify-content:center;
-    z-index:60;pointer-events:none;
-    background:rgba(0,0,0,.45);
-    border-radius:11px;
-    animation:koSplash 3.8s cubic-bezier(.2,0,.8,1) both;
-  `;
+  if(rect){
+    wrap.style.cssText=`
+      position:fixed;
+      top:${rect.top}px;
+      left:${rect.left}px;
+      width:${rect.width}px;
+      height:${rect.height}px;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      z-index:400;pointer-events:none;
+      background:rgba(0,0,0,.52);
+      border-radius:11px;
+      animation:koSplash 3.8s cubic-bezier(.2,0,.8,1) both;
+    `;
+  } else {
+    // Fallback centré à l'écran côté concerné
+    wrap.style.cssText=`
+      position:fixed;
+      top:50%;
+      left:${side==='h'?'25%':'75%'};
+      transform:translate(-50%,-50%);
+      width:160px;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      z-index:400;pointer-events:none;
+      animation:koSplash 3.8s cubic-bezier(.2,0,.8,1) both;
+    `;
+  }
 
   // Image KO
   const img=document.createElement('img');
   img.src=BUBBLE_KO_IMG;
-  img.style.cssText='width:75%;max-width:180px;height:auto;object-fit:contain;display:block;flex-shrink:0;';
+  img.style.cssText='width:72%;max-width:180px;height:auto;object-fit:contain;display:block;flex-shrink:0;';
   img.draggable=false;
   wrap.appendChild(img);
 
   // Texte dessous
   const whoLabel=isHuman?'Joueur':'Bot';
   const koTxt=document.createElement('div');
+  const fs=rect?Math.max(7,Math.min(11,rect.width*0.075))+'px':'9px';
   koTxt.style.cssText=`
     font-family:'Cinzel',serif;font-weight:700;
-    font-size:clamp(7px,1.8vw,11px);
+    font-size:${fs};
     color:#fff;
     text-align:center;
-    margin-top:6px;
+    margin-top:5px;
     padding:0 6px;
-    text-shadow:0 1px 6px #000,0 0 18px rgba(255,80,0,.8);
-    letter-spacing:.04em;
+    text-shadow:0 1px 6px #000,0 0 14px rgba(255,80,0,.9);
+    letter-spacing:.03em;
     line-height:1.4;
   `;
   koTxt.textContent=`${nom} est K.O. et est envoyé vers la défausse, -${pvPerdu} HP ${whoLabel} !`;
   wrap.appendChild(koTxt);
 
-  if(fc){
-    fc.appendChild(wrap);
-    setTimeout(()=>wrap.remove(),3800);
-  } else {
-    // Fallback : centré sur l'écran comme avant
-    const sp=document.createElement('div');sp.className='ko-splash';
-    sp.style.left=side==='h'?'25%':'75%';
-    sp.style.transform='translateY(-50%) translateX(-50%)';
-    sp.appendChild(wrap);
-    document.body.appendChild(sp);
-    setTimeout(()=>sp.remove(),3800);
-  }
+  document.body.appendChild(wrap);
+  setTimeout(()=>wrap.remove(),3800);
 }
 
 /* ── Bulle BD sur la carte défenseur ── */
