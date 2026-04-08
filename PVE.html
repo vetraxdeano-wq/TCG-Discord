@@ -1569,7 +1569,7 @@ function heartDamage(id, lostPv){
   }
 }
 
-/* KO splash — image KO centrée sur la carte + texte dessous */
+/* KO splash — même mécanisme que showBubble, centré sur la carte */
 function showKOSplash(nom, side, pvPerdu, isHuman){
   // Flash écran + screen shake
   const flash=document.createElement('div');flash.className='ko-flash-bg';
@@ -1579,69 +1579,54 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   sg.style.animation='koShake .55s cubic-bezier(.4,0,.2,1) both';
   setTimeout(()=>sg.style.animation='',600);
 
-  // Récupérer les coordonnées exactes de la carte AVANT que render() la détruise
+  // Même logique que showBubble : s'attacher au fc en position:absolute
   const cardId=side==='h'?'h':'b';
   const fc=document.getElementById(`${cardId}-fc`);
-  let rect=null;
-  if(fc) rect=fc.getBoundingClientRect();
+  if(!fc) return;
 
-  // Conteneur fixed positionné exactement sur la carte
+  // Supprimer d'éventuelles bulles existantes
+  fc.querySelectorAll('.comic-bubble,.ko-bubble').forEach(e=>e.remove());
+
+  // Conteneur positionné exactement comme showBubble
   const wrap=document.createElement('div');
-  if(rect){
-    wrap.style.cssText=`
-      position:fixed;
-      top:${rect.top}px;
-      left:${rect.left}px;
-      width:${rect.width}px;
-      height:${rect.height}px;
-      display:flex;flex-direction:column;
-      align-items:center;justify-content:center;
-      z-index:400;pointer-events:none;
-      background:rgba(0,0,0,.52);
-      border-radius:11px;
-      animation:koSplash 3.8s cubic-bezier(.2,0,.8,1) both;
-    `;
-  } else {
-    // Fallback centré à l'écran côté concerné
-    wrap.style.cssText=`
-      position:fixed;
-      top:50%;
-      left:${side==='h'?'25%':'75%'};
-      transform:translate(-50%,-50%);
-      width:160px;
-      display:flex;flex-direction:column;
-      align-items:center;justify-content:center;
-      z-index:400;pointer-events:none;
-      animation:koSplash 3.8s cubic-bezier(.2,0,.8,1) both;
-    `;
-  }
+  wrap.className='ko-bubble';
+  wrap.style.cssText=`
+    position:absolute;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    z-index:60;pointer-events:none;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    width:90%;
+    animation:bubblePop 3.8s cubic-bezier(.2,0,.8,1) both;
+  `;
 
   // Image KO
   const img=document.createElement('img');
   img.src=BUBBLE_KO_IMG;
-  img.style.cssText='width:72%;max-width:180px;height:auto;object-fit:contain;display:block;flex-shrink:0;';
+  img.style.cssText='width:100%;max-width:220px;height:auto;object-fit:contain;display:block;';
   img.draggable=false;
   wrap.appendChild(img);
 
   // Texte dessous
   const whoLabel=isHuman?'Joueur':'Bot';
   const koTxt=document.createElement('div');
-  const fs=rect?Math.max(7,Math.min(11,rect.width*0.075))+'px':'9px';
   koTxt.style.cssText=`
     font-family:'Cinzel',serif;font-weight:700;
-    font-size:${fs};
+    font-size:clamp(6px,1.6vw,10px);
     color:#fff;
     text-align:center;
-    margin-top:5px;
-    padding:0 6px;
+    margin-top:4px;
+    padding:0 4px;
     text-shadow:0 1px 6px #000,0 0 14px rgba(255,80,0,.9);
     letter-spacing:.03em;
-    line-height:1.4;
+    line-height:1.35;
+    white-space:normal;
   `;
   koTxt.textContent=`${nom} est K.O. et est envoyé vers la défausse, -${pvPerdu} HP ${whoLabel} !`;
   wrap.appendChild(koTxt);
 
-  document.body.appendChild(wrap);
+  fc.appendChild(wrap);
   setTimeout(()=>wrap.remove(),3800);
 }
 
@@ -2236,7 +2221,11 @@ function checkKO(player,label){
   const pvPerdu=f.hpBase;
   player.hp-=pvPerdu;
   heartDamage(player===G.human?'h':'b', pvPerdu);
+  // Afficher la bulle KO AVANT que render() vide la carte
   showKOSplash(f.nom, player===G.human?'h':'b', pvPerdu, player===G.human);
+  // Capturer la bulle pour la ré-attacher après render()
+  const cardId=player===G.human?'h':'b';
+  const koBubble=document.querySelector(`#${cardId}-fc .ko-bubble`);
   addLog(`💀 ${f.nom} KO ! −${pvPerdu} PV`,'ko', player===G.human?'JOUEUR':'BOT');
   if(player.hp<=0){player.fighter=null;endGame(player===G.human?'bot':'human');return true;}
   const surv=player.actives.filter(a=>a.su);
@@ -2245,6 +2234,8 @@ function checkKO(player,label){
     while(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
     if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
     setInstr('ko');addLog('👆 Choisis ton prochain combattant !','sys');render();
+    // Ré-attacher la bulle après render()
+    if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);if(fc2)fc2.appendChild(koBubble);}
     if(_autoBattle)setTimeout(scheduleAutoStep,1600);
     return true;
   } else {
