@@ -498,6 +498,7 @@ let state = {
   tradeStep: null,
   tradeIncoming: null,
   tradeWantedNum: null,
+  tradeSearch: '',
   _tradeRealtimeSub: null,
   // Leaderboard
   showLeaderboard: false,
@@ -1221,15 +1222,24 @@ function renderTradeModal(th){
 
   // Vue step 2 : saisir le numéro de la carte voulue en échange
   if (state.tradeStep === 'pick_their_card' && state.tradeMyCard) {
-    const maxCardId = ALL_CARDS.length > 0 ? Math.max(...ALL_CARDS.map(c=>parseInt(c.id))) : 999;
     const wantedNum = state.tradeWantedNum ? String(state.tradeWantedNum).replace(/[^0-9]/g,'') : '';
     const wantedCard = wantedNum && parseInt(wantedNum) > 0 ? ALL_CARDS.find(c=>parseInt(c.id)===parseInt(wantedNum)) : null;
+    const tradeSearch = state.tradeSearch || '';
     const rarityOk = wantedCard && wantedCard.rarity === state.tradeMyCard.rarity;
     const notSame = wantedCard && parseInt(wantedCard.id) !== parseInt(state.tradeMyCard.id);
     const canSend = wantedCard && rarityOk && notSame;
+    // Suggestions : filtre par nom OU id, toutes raretés, pas la même carte
+    const suggestions = tradeSearch.length >= 1
+      ? ALL_CARDS.filter(c => {
+          const q = tradeSearch.toLowerCase();
+          const matchId  = String(parseInt(c.id)).includes(q) || c.id.toLowerCase().includes(q);
+          const matchName = c.name.toLowerCase().includes(q);
+          return (matchId || matchName) && parseInt(c.id) !== parseInt(state.tradeMyCard.id);
+        }).slice(0, 8)
+      : [];
     return `
     <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;">
-      <div style="width:100%;max-width:420px;background:${th.bgSecondary};padding:16px;display:flex;flex-direction:column;box-shadow:0 -20px 60px rgba(0,0,0,.7);border-top:1px solid ${th.borderStrong};">
+      <div style="width:100%;max-width:420px;background:${th.bgSecondary};padding:16px;display:flex;flex-direction:column;box-shadow:0 -20px 60px rgba(0,0,0,.7);border-top:1px solid ${th.borderStrong};max-height:90vh;overflow-y:auto;">
         <div style="width:36px;height:4px;background:${th.border};margin:0 auto 14px;flex-shrink:0;"></div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0;">
           <button id="trade-step-back" style="width:28px;height:28px;background:${th.surface};border:2px solid #000;color:${th.textMuted};font-size:14px;cursor:pointer;">←</button>
@@ -1238,38 +1248,66 @@ function renderTradeModal(th){
             <div style="font-size:10px;color:${th.textMuted};">Même rareté que ta carte — ${RARITY_LABEL[state.tradeMyCard.rarity]}</div>
           </div>
         </div>
-        <div style="background:${th.bgTertiary};padding:12px;margin-bottom:12px;">
-          <div style="font-size:10px;color:${th.textMuted};margin-bottom:8px;">Entrer le numéro de la carte (1 à ${maxCardId}) :</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span style="font-size:13px;font-weight:700;color:${th.textMuted};">#</span>
-            <input id="trade-wanted-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${wantedNum}"
-              placeholder="ex: 42"
-              style="flex:1;padding:8px 10px;background:${th.surface};color:${th.text};border:2px solid #000;font-size:14px;font-family:inherit;font-weight:700;outline:none;"/>
-          </div>
-          ${wantedNum ? (
-            wantedCard
-              ? rarityOk
-                ? notSame
-                  ? `<div style="margin-top:8px;display:flex;align-items:center;gap:10px;background:${th.green}12;border:1px solid ${th.green}40;padding:8px 10px;">
-                      <div style="width:32px;height:44px;border:2px solid #000;flex-shrink:0;overflow:hidden;position:relative;opacity:.75;">
-                        <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(.4);" />
-                        <div style="position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${wantedNum}</div>
-                      </div>
-                      <div style="flex:1;">
-                        <div style="font-size:11px;font-weight:700;color:${th.green};">✓ Carte valide</div>
-                        <div style="font-size:9px;color:${th.textMuted};margin-top:2px;">Carte #${wantedNum} · <span style="color:${RARITY_COLOR[wantedCard.rarity]};font-weight:700;">◆ ${RARITY_LABEL[wantedCard.rarity]}</span> — même rareté que ta carte</div>
-                        <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">Tu peux proposer l'échange !</div>
-                      </div>
-                    </div>`
-                  : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ C'est la même carte que tu proposes</div>`
-                : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ Rareté différente — la carte #${wantedNum} est <b>${RARITY_LABEL[wantedCard.rarity]}</b>, tu proposes du <b>${RARITY_LABEL[state.tradeMyCard.rarity]}</b></div>`
-              : `<div style="margin-top:8px;font-size:10px;color:${th.red};">⚠ Carte #${wantedNum} introuvable dans le jeu</div>`
-          ) : `<div style="margin-top:8px;font-size:10px;color:${th.textMuted};">Entre un numéro — la carte restera mystère jusqu'à l'échange.</div>`}
+
+        <!-- Barre de recherche nom ou ID -->
+        <div style="background:${th.bgTertiary};border:2px solid #000;padding:0;margin-bottom:2px;flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 12px;">
+          <span style="font-size:13px;color:${th.textMuted};">🔍</span>
+          <input id="trade-wanted-search" type="text" value="${tradeSearch}"
+            placeholder="Nom ou #ID de la carte…"
+            style="flex:1;background:transparent;border:none;outline:none;color:${th.text};font-size:12px;font-family:inherit;font-weight:600;"/>
+          ${tradeSearch ? `<button id="trade-search-clear" style="background:transparent;border:none;color:${th.textMuted};font-size:14px;cursor:pointer;padding:0 2px;line-height:1;">✕</button>` : ''}
         </div>
-        <button id="trade-confirm-send" ${canSend?'':'disabled'} style="padding:12px;background:${canSend?th.accent:th.surface};color:${canSend?'#fff':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${canSend?'pointer':'default'};opacity:${canSend?1:.5};">
+
+        <!-- Suggestions dropdown -->
+        ${suggestions.length > 0 ? `
+        <div style="background:${th.bgTertiary};border:2px solid #000;border-top:none;margin-bottom:10px;flex-shrink:0;max-height:220px;overflow-y:auto;">
+          ${suggestions.map(c => {
+            const col = RARITY_COLOR[c.rarity];
+            const isSelected = wantedCard && parseInt(wantedCard.id) === parseInt(c.id);
+            const rOk = c.rarity === state.tradeMyCard.rarity;
+            return `
+            <div class="trade-wanted-suggestion" data-cardid="${c.id}"
+              style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;background:${isSelected ? col+'18' : 'transparent'};border-bottom:1px solid ${th.border};transition:background .15s;">
+              <div style="width:30px;height:42px;flex-shrink:0;overflow:hidden;position:relative;border:1px solid ${col}50;background:linear-gradient(135deg,${col}25,${col}08);">
+                ${c.image_url
+                  ? `<img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+                  : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;">🃏</div>`}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:11px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</div>
+                <div style="font-size:9px;color:${col};margin-top:1px;">◆ ${RARITY_LABEL[c.rarity]} · #${c.id}</div>
+              </div>
+              ${isSelected ? `<span style="font-size:10px;color:${th.green};font-weight:900;">✓</span>` : ''}
+              ${!rOk ? `<span style="font-size:8px;color:${th.red};font-weight:700;">≠ rareté</span>` : ''}
+            </div>`;
+          }).join('')}
+        </div>` : tradeSearch.length >= 1 ? `
+        <div style="padding:10px 12px;font-size:10px;color:${th.textMuted};background:${th.bgTertiary};border:2px solid #000;border-top:none;margin-bottom:10px;">Aucune carte trouvée pour « ${tradeSearch} »</div>` : `
+        <div style="margin-bottom:10px;font-size:10px;color:${th.textMuted};padding:2px 0;">Tape un nom ou un numéro de carte pour rechercher.</div>`}
+
+        <!-- Carte sélectionnée + validation -->
+        ${wantedCard ? `
+        <div style="background:${th.bgTertiary};padding:10px 12px;margin-bottom:12px;flex-shrink:0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:40px;height:56px;flex-shrink:0;overflow:hidden;position:relative;border:2px solid ${rarityOk ? th.green : th.red};background:linear-gradient(135deg,${RARITY_COLOR[wantedCard.rarity]}25,${RARITY_COLOR[wantedCard.rarity]}08);">
+              ${wantedCard.image_url
+                ? `<img src="${wantedCard.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>`}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${wantedCard.name}</div>
+              <div style="font-size:9px;color:${RARITY_COLOR[wantedCard.rarity]};margin-top:1px;">◆ ${RARITY_LABEL[wantedCard.rarity]} · #${wantedCard.id}</div>
+              ${!rarityOk ? `<div style="font-size:9px;color:${th.red};margin-top:3px;font-weight:700;">⚠ Rareté différente — tu proposes du ${RARITY_LABEL[state.tradeMyCard.rarity]}</div>` : ''}
+              ${!notSame ? `<div style="font-size:9px;color:${th.red};margin-top:3px;font-weight:700;">⚠ C'est la même carte que tu proposes</div>` : ''}
+              ${canSend ? `<div style="font-size:9px;color:${th.green};margin-top:3px;font-weight:700;">✓ Échange valide — même rareté</div>` : ''}
+            </div>
+          </div>
+        </div>` : ''}
+
+        <button id="trade-confirm-send" ${canSend?'':'disabled'} style="padding:12px;background:${canSend?th.accent:th.surface};color:${canSend?'#fff':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${canSend?'pointer':'default'};opacity:${canSend?1:.5};flex-shrink:0;">
           Proposer l'échange →
         </button>
-        <div style="margin-top:10px;font-size:9px;color:${th.textFaint};text-align:center;">Si ${friendName} ne possède pas la carte #${wantedNum||'…'}, il ne pourra que décliner.</div>
+        <div style="margin-top:10px;font-size:9px;color:${th.textFaint};text-align:center;">Si ${friendName} ne possède pas la carte demandée, il ne pourra que décliner.</div>
       </div>
     </div>`;
   }
@@ -1298,17 +1336,27 @@ function renderTradeModal(th){
         <button id="trade-clear-card" style="padding:4px 8px;font-size:9px;background:${th.surface};color:${th.textMuted};border:2px solid #000;cursor:pointer;">Changer</button>
       </div>
       <button id="trade-send" style="padding:10px;background:${th.accent};color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:10px;flex-shrink:0;">Envoyer la proposition →</button>
-      ` : `<div style="font-size:11px;color:${th.textMuted};margin-bottom:10px;flex-shrink:0;">Sélectionne une de tes cartes à proposer :</div>`}
-      <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;align-content:start;">
+      ` : `<div style="font-size:11px;color:${th.textMuted};margin-bottom:8px;flex-shrink:0;">Sélectionne une de tes cartes à proposer :</div>`}
+      <!-- Barre de recherche dans la collection perso -->
+      <div style="display:flex;align-items:center;gap:6px;background:${th.bgTertiary};border:2px solid #000;padding:6px 10px;margin-bottom:10px;flex-shrink:0;">
+        <span style="font-size:12px;color:${th.textMuted};">🔍</span>
+        <input id="trade-search-input" type="text" placeholder="Nom ou #ID…"
+          style="flex:1;background:transparent;border:none;outline:none;color:${th.text};font-size:11px;font-family:inherit;font-weight:600;"
+          oninput="(function(v){var cards=document.querySelectorAll('.trade-pick-card');cards.forEach(function(el){var name=(el.dataset.name||'').toLowerCase();var id=(el.dataset.cardid||'');var q=v.toLowerCase();el.style.display=(name.includes(q)||id.includes(q)||q==='')?'flex':'none';});})(this.value)" />
+      </div>
+      <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;align-content:start;">
         ${ownedCards.map(card=>`
-          <div class="trade-pick-card" data-cardid="${card.id}" style="background:${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color+'30':th.bgTertiary};border:1px solid ${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:5px 3px 3px;cursor:pointer;gap:2px;position:relative;overflow:hidden;">
-            <div style="flex:1;width:100%;overflow:hidden;position:relative;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}display:flex;align-items:center;justify-content:center;font-size:16px;">
+          <div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}" style="background:${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color+'30':th.bgTertiary};border:2px solid ${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color:'#000'};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative;overflow:hidden;${myCard&&parseInt(myCard.id)===parseInt(card.id)?'box-shadow:0 0 0 2px '+card.color+';':''}">
+            <div style="flex:1;width:100%;overflow:hidden;position:relative;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}display:flex;align-items:center;justify-content:center;font-size:28px;">
               ${card.image_url
                 ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
                 : `🃏`}
+              ${myCard&&parseInt(myCard.id)===parseInt(card.id)?`<div style="position:absolute;top:4px;right:4px;width:16px;height:16px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#000;z-index:2;">✓</div>`:''}
             </div>
-            <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%;position:relative;z-index:1;">${card.name.slice(0,9)}</div>
-            <div style="font-size:7px;color:${RARITY_COLOR[card.rarity]};position:relative;z-index:1;">◆</div>
+            <div style="width:100%;padding:4px 6px 5px;background:rgba(0,0,0,.55);position:relative;z-index:1;">
+              <div style="font-size:8px;font-weight:800;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${card.name}</div>
+              <div style="font-size:7px;color:${RARITY_COLOR[card.rarity]};margin-top:1px;">◆ ${RARITY_LABEL[card.rarity]} · #${card.id}</div>
+            </div>
           </div>`).join('')}
       </div>
     </div>
@@ -2190,11 +2238,11 @@ function renderMessagesModal(th){
           const isMine = item.from_id === myId;
           const fromCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.from_card_id));
           const toCard   = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.to_card_id));
-          // Spoil : on ne révèle une carte que si l'utilisateur actuel la possède OU s'il en est l'auteur
-          // fromCard = carte que l'expéditeur propose → visible si isMine OU si le receveur la possède
-          // toCard = carte que l'expéditeur veut → visible si !isMine (receveur) OU si l'expéditeur la possède
-          const showFromCard = isMine || (fromCard && fromCard.owned);
-          const showToCard   = !isMine || (toCard && toCard.owned);
+          // Spoil : on ne révèle une carte que si l'utilisateur actuel la possède
+          // fromCard = carte que l'expéditeur propose → visible si le viewer la possède dans sa collection
+          // toCard = carte que l'expéditeur veut → visible si le viewer la possède dans sa collection
+          const showFromCard = !!(fromCard && fromCard.owned);
+          const showToCard   = !!(toCard && toCard.owned);
 
           const STATUS = {
             pending:  { label:'En attente…',   color:'#fee75c', icon:'⏳', bg:'rgba(254,231,92,.08)',  border:'rgba(254,231,92,.25)' },
@@ -2207,20 +2255,22 @@ function renderMessagesModal(th){
 
           const cardBox = (card, show, isLeft) => {
             const col = card ? RARITY_COLOR[card.rarity] : '#96989d';
+            const cardId = isLeft ? item.from_card_id : item.to_card_id;
             if(show && card) return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                <div style="width:44px;height:62px;background:linear-gradient(135deg,${col}30,${col}10);border:1px solid ${col}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
-                  <div style="font-size:18px;">🃏</div>
-                  <div style="font-size:6px;color:${col};font-weight:800;">◆</div>
+                <div style="width:44px;height:62px;background:linear-gradient(135deg,${col}30,${col}10);border:1px solid ${col}60;overflow:hidden;position:relative;">
+                  ${card.image_url
+                    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+                    : `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><div style="font-size:18px;">🃏</div><div style="font-size:6px;color:${col};font-weight:800;">◆</div></div>`}
                 </div>
                 <div style="font-size:8px;font-weight:700;color:${th.text};text-align:center;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
                 <div style="font-size:7px;color:${th.textMuted};">#${card.id}</div>
               </div>`;
             return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                <div style="width:44px;height:62px;border:2px solid #000;overflow:hidden;position:relative;opacity:.65;">
+                <div style="width:44px;height:62px;border:2px solid #000;overflow:hidden;position:relative;opacity:.75;">
                   <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" />
-                  <div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${isLeft?item.from_card_id:item.to_card_id}</div>
+                  <div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${cardId}</div>
                 </div>
                 <div style="font-size:7px;color:${th.textMuted};text-align:center;">Mystère</div>
               </div>`;
@@ -2831,7 +2881,7 @@ function renderFriendsModal(th){
           </div>` : friends.map(f=>`
           <div class="friend-item btn-hover" data-fid="${f.id}" style="display:flex;align-items:center;gap:12px;padding:10px;background:${th.bgTertiary};border:2px solid #000;margin-bottom:6px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;">
             <div style="width:40px;height:40px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid #000;">
-              ${f.avatar_url?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:18px;">👤</span>'}
+              ${(f.avatar_url && f.avatar_url !== 'https://i.goopics.net/iic46c.png')?`<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\'font-size:18px;\\'>👤</span>'">`:'<span style="font-size:18px;">👤</span>'}
             </div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Ami'}</div>
@@ -2850,7 +2900,7 @@ function renderFriendsModal(th){
           </div>` : pendingIn.map(r=>`
           <div style="display:flex;align-items:center;gap:12px;padding:10px;background:${th.bgTertiary};border:2px solid #000;margin-bottom:6px;">
             <div style="width:40px;height:40px;overflow:hidden;background:${th.surface};flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid #000;">
-              ${r.avatar_url?`<img src="${r.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:18px;">👤</span>'}
+              ${(r.avatar_url && r.avatar_url !== 'https://i.goopics.net/iic46c.png')?`<img src="${r.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\'font-size:18px;\\'>👤</span>'">`:'<span style="font-size:18px;">👤</span>'}
             </div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:12px;font-weight:700;color:${th.text};">${r.discord_username||'Joueur'}</div>
@@ -4264,21 +4314,21 @@ function bindGame(){
   document.querySelectorAll('.friend-trade').forEach(btn=>{
     btn.addEventListener('click',(e)=>{
       e.stopPropagation();
-      setState({showTrade:true, showFriends:false, tradeWithId:btn.dataset.fid, tradeMyCard:null});
+      setState({showTrade:true, showFriends:false, tradeWithId:btn.dataset.fid, tradeMyCard:null, tradeSearch:''});
     });
   });
 
   // Échange "+" depuis zone DM
   const msgTradeBtn = document.getElementById('msg-trade-btn');
   if(msgTradeBtn) msgTradeBtn.addEventListener('click',()=>{
-    setState({showTrade:true, tradeWithId:msgTradeBtn.dataset.fid, tradeMyCard:null});
+    setState({showTrade:true, tradeWithId:msgTradeBtn.dataset.fid, tradeMyCard:null, tradeSearch:''});
   });
 
   // Fermer trade
   const tradeClose = document.getElementById('trade-close');
-  if(tradeClose) tradeClose.addEventListener('click',()=>setState({showTrade:false,tradeMyCard:null,tradeIncoming:null,tradeWantedNum:null}));
+  if(tradeClose) tradeClose.addEventListener('click',()=>setState({showTrade:false,tradeMyCard:null,tradeIncoming:null,tradeWantedNum:null,tradeSearch:''}));
   const tradeBg = document.getElementById('trade-bg');
-  if(tradeBg) tradeBg.addEventListener('click',(e)=>{if(e.target===tradeBg)setState({showTrade:false,tradeMyCard:null,tradeIncoming:null,tradeWantedNum:null});});
+  if(tradeBg) tradeBg.addEventListener('click',(e)=>{if(e.target===tradeBg)setState({showTrade:false,tradeMyCard:null,tradeIncoming:null,tradeWantedNum:null,tradeSearch:''});});
 
   // Choisir une carte à proposer
   document.querySelectorAll('.trade-pick-card').forEach(el=>{
@@ -4294,23 +4344,45 @@ function bindGame(){
 
   // Envoyer la proposition de trade
   const tradeSend = document.getElementById('trade-send');
-  if(tradeSend) tradeSend.addEventListener('click',()=>setState({tradeStep:'pick_their_card',tradeWantedNum:null}));
+  if(tradeSend) tradeSend.addEventListener('click',()=>setState({tradeStep:'pick_their_card',tradeWantedNum:null,tradeSearch:''}));
 
   // Retour step 1 depuis step 2
   const tradeStepBack = document.getElementById('trade-step-back');
-  if(tradeStepBack) tradeStepBack.addEventListener('click',()=>setState({tradeStep:null,tradeWantedNum:null}));
+  if(tradeStepBack) tradeStepBack.addEventListener('click',()=>setState({tradeStep:null,tradeWantedNum:null,tradeSearch:''}));
 
-  // Choisir la carte voulue en échange (step 2) — input numéro
-  const tradeWantedInput = document.getElementById('trade-wanted-input');
-  if(tradeWantedInput){
-    tradeWantedInput.addEventListener('input',()=>{
-      state.tradeWantedNum = tradeWantedInput.value.replace(/[^0-9]/g,'') || '';
-      const pos = tradeWantedInput.selectionStart;
+  // Step 2 — barre de recherche nom/ID
+  const tradeWantedSearch = document.getElementById('trade-wanted-search');
+  if(tradeWantedSearch){
+    tradeWantedSearch.addEventListener('input',()=>{
+      const val = tradeWantedSearch.value;
+      const pos = tradeWantedSearch.selectionStart;
+      state.tradeSearch = val;
+      // Si la valeur est un nombre pur, mettre à jour tradeWantedNum aussi
+      const asNum = val.replace(/[^0-9]/g,'');
+      if(asNum && val.trim() === asNum) state.tradeWantedNum = asNum;
+      else if(!val) state.tradeWantedNum = '';
       render();
-      const inp2 = document.getElementById('trade-wanted-input');
+      const inp2 = document.getElementById('trade-wanted-search');
       if(inp2){ inp2.focus(); try{ inp2.setSelectionRange(pos, pos); }catch(e){} }
     });
   }
+  // Clear bouton recherche step 2
+  const tradeSearchClear = document.getElementById('trade-search-clear');
+  if(tradeSearchClear){
+    tradeSearchClear.addEventListener('click',()=>setState({tradeSearch:'',tradeWantedNum:''}));
+  }
+  // Suggestions step 2
+  document.querySelectorAll('.trade-wanted-suggestion').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(el.dataset.cardid));
+      if(card){
+        state.tradeWantedNum = String(parseInt(card.id));
+        state.tradeSearch = card.name;
+        render();
+      }
+    });
+  });
+
   const tradeConfirmSend = document.getElementById('trade-confirm-send');
   if(tradeConfirmSend && !tradeConfirmSend.disabled){
     tradeConfirmSend.addEventListener('click',()=>sendTradeOffer(state.tradeWantedNum));
