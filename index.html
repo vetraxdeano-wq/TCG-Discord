@@ -1181,9 +1181,9 @@ function renderTradeModal(th){
         <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px;">
           <div style="text-align:center;">
             <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Il propose</div>
-            <div style="width:70px;height:98px;background:${fromCard?`linear-gradient(135deg,${fromCard.color}30,${fromCard.color}10)`:th.surface};border:1px solid ${fromCard?fromCard.color+'60':th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;">
+            <div style="width:70px;height:98px;background:${fromCard?`linear-gradient(135deg,${fromCard.color}30,${fromCard.color}10)`:th.surface};border:1px solid ${fromCard?fromCard.color+'60':th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${fromCard?.image_url?'cursor:zoom-in;':''}" ${fromCard?.image_url?`onclick="openCard3DViewer(${JSON.stringify({id:fromCard.id,name:fromCard.name,rarity:fromCard.rarity,image_url:fromCard.image_url,owned:fromCard.owned,color:RARITY_COLOR[fromCard.rarity]})})"`:''}>
               ${fromCard?.image_url
-                ? `<img src="${fromCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);"></div>`
+                ? `<img src="${fromCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
                 : `<div style="font-size:22px;">🃏</div>`}
               <div style="font-size:7px;color:${fromCard?RARITY_COLOR[fromCard.rarity]:th.textMuted};font-weight:700;position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};">${fromCard?fromCard.name.slice(0,10):'?'}</div>
               <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};">#${incoming.from_card_id}</div>
@@ -1193,9 +1193,9 @@ function renderTradeModal(th){
           <div style="text-align:center;">
             <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Il veut ta carte</div>
             ${receiverOwnsToCard
-              ? `<div style="width:70px;height:98px;background:linear-gradient(135deg,${toCard.color}30,${toCard.color}10);border:1px solid ${toCard.color}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;">
+              ? `<div style="width:70px;height:98px;background:linear-gradient(135deg,${toCard.color}30,${toCard.color}10);border:1px solid ${toCard.color}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${toCard.image_url?'cursor:zoom-in;':''}" ${toCard.image_url?`onclick="openCard3DViewer(${JSON.stringify({id:toCard.id,name:toCard.name,rarity:toCard.rarity,image_url:toCard.image_url,owned:toCard.owned,color:RARITY_COLOR[toCard.rarity]})})"`:''}> 
                   ${toCard.image_url
-                    ? `<img src="${toCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);"></div>`
+                    ? `<img src="${toCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
                     : `<div style="font-size:22px;">🃏</div>`}
                   <div style="font-size:7px;color:${RARITY_COLOR[toCard.rarity]};font-weight:700;position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};">${toCard.name.slice(0,10)}</div>
                   <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};">#${incoming.to_card_id}</div>
@@ -1335,7 +1335,7 @@ function renderTradeModal(th){
       </div>
       ${myCard ? `
       <div style="background:${th.bgTertiary};padding:8px 10px;display:flex;align-items:center;gap:8px;border:1px solid ${myCard.color}50;">
-        <div style="width:32px;height:45px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;">
+        <div style="width:32px;height:45px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;${myCard.image_url?'cursor:zoom-in;':''}" ${myCard.image_url?`onclick="event.stopPropagation();openCard3DViewer(${JSON.stringify({id:myCard.id,name:myCard.name,rarity:myCard.rarity,image_url:myCard.image_url,owned:myCard.owned,color:RARITY_COLOR[myCard.rarity]})})"`:''}> 
           ${myCard.image_url
             ? `<img src="${myCard.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
             : `<span style="font-size:20px;">🃏</span>`}
@@ -1359,14 +1359,16 @@ function renderTradeModal(th){
       <div style="display:grid;grid-template-columns:repeat(${_COLS},1fr);gap:${_GAP}px;align-content:start;">
         ${ownedCards.map(card=>{
           const sel = myCard && parseInt(myCard.id)===parseInt(card.id);
+          const cardData = JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:RARITY_COLOR[card.rarity]});
           return `<div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}"
             style="height:${_CH}px;cursor:pointer;position:relative;background:transparent;${sel?'outline:2px solid '+card.color+';outline-offset:-1px;':''}"
           >
             ${card.image_url
-              ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
-              : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:${Math.round(_CW*0.35)}px;">🃏</div>`}
-            ${sel ? `<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000;z-index:2;">✓</div>` : (card.count>1 ? `<div style="position:absolute;top:2px;right:2px;min-width:14px;height:14px;background:rgba(0,0,0,.75);color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:2;border:1px solid rgba(255,255,255,.2);">×${card.count}</div>` : '')}
-            <div style="position:absolute;bottom:0;left:0;right:0;font-size:${Math.round(_CW*0.095)}px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;text-shadow:0 1px 3px #000;padding-bottom:1px;">#${parseInt(card.id)}</div>
+              ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
+              : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:${Math.round(_CW*0.35)}px;pointer-events:none;">🃏</div>`}
+            ${sel ? `<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000;z-index:2;pointer-events:none;">✓</div>` : (card.count>1 ? `<div style="position:absolute;top:2px;right:2px;min-width:14px;height:14px;background:rgba(0,0,0,.75);color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:2;border:1px solid rgba(255,255,255,.2);pointer-events:none;">×${card.count}</div>` : '')}
+            <div style="position:absolute;bottom:0;left:0;right:0;font-size:${Math.round(_CW*0.095)}px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;text-shadow:0 1px 3px #000;padding-bottom:1px;pointer-events:none;">#${parseInt(card.id)}</div>
+            ${card.image_url ? `<div onclick="event.stopPropagation();openCard3DViewer(${cardData})" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:18px;height:18px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:10px;z-index:3;cursor:zoom-in;" title="Agrandir">🔍</div>` : ''}
           </div>`;
         }).join('')}
       </div>
