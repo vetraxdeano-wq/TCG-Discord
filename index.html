@@ -491,6 +491,8 @@ let state = {
   decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
   activeDeckId: null,  // deck en cours d'édition
   deckBuilderView: 'list', // 'list' | 'edit'
+  deckSortBy:   'rarity',   // 'rarity'|'name'|'type'|'id'
+  deckSortDir:  'asc',      // 'asc'|'desc'
   // Trade
   showTrade: false,
   tradeWithId: null,
@@ -1129,10 +1131,60 @@ function renderDeckEdit(th){
     </div>
 
     <!-- Collection : plus de colonnes, sans titres, avec "DÉJÀ" et exemplaires -->
-    <div style="flex:1;overflow-y:auto;padding:8px 10px;">
-      <div style="font-size:8px;color:${th.textMuted};margin-bottom:6px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Collection (${ownedCards.length})</div>
+    <div style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;min-height:0;">
+
+      <!-- ── Barre de tri ── -->
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-shrink:0;flex-wrap:wrap;">
+        <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-right:4px;">Collection (${ownedCards.length})</div>
+        ${[
+          {k:'rarity',    label:'Rareté'},
+          {k:'name',      label:'Nom'},
+          {k:'type',      label:'Type'},
+          {k:'id',        label:'ID'},
+          {k:'attack',    label:'ATK'},
+          {k:'defense',   label:'DEF'},
+          {k:'precision', label:'PREC'},
+          {k:'hp',        label:'HP'},
+        ].map(opt=>{
+          const active  = state.deckSortBy===opt.k;
+          const dir     = state.deckSortDir;
+          const arrow   = active ? (dir==='asc'?' ↑':' ↓') : '';
+          // Masquer les boutons de stat si aucune carte ne possède ce champ
+          const isStat  = ['attack','defense','precision','hp'].includes(opt.k);
+          const hasData = !isStat || ownedCards.some(c=>c[opt.k]!=null);
+          if(!hasData) return '';
+          return `<button class="db-sort-btn" data-sortby="${opt.k}"
+            style="padding:3px 7px;font-size:8px;font-weight:${active?'900':'700'};
+            background:${active?th.accent+'22':th.bgTertiary};
+            color:${active?th.accent:th.textMuted};
+            border:1px solid ${active?th.accent+'60':th.border};
+            cursor:pointer;letter-spacing:.4px;white-space:nowrap;transition:all .15s;"
+          >${opt.label}${arrow}</button>`;
+        }).join('')}
+      </div>
+
       <div style="display:grid;grid-template-columns:repeat(${window.innerWidth<600?5:7},1fr);gap:5px;">
-        ${ownedCards.map(card=>{
+        ${(()=>{
+          const RARITY_O = {mythic:0,legendary:1,epic:2,rare:3,uncommon:4,common:5};
+          const sortedOwned = [...ownedCards].sort((a,b)=>{
+            const dir = state.deckSortDir==='asc'?1:-1;
+            const numSort = (field) => {
+              const va = a[field]??-1, vb = b[field]??-1;
+              return dir*(vb-va) || a.name.localeCompare(b.name,'fr',{sensitivity:'base'});
+            };
+            switch(state.deckSortBy){
+              case 'name':      return dir*(a.name.localeCompare(b.name,'fr',{sensitivity:'base'}));
+              case 'type':      return dir*(a.type||'').localeCompare(b.type||'','fr',{sensitivity:'base'}) || (RARITY_O[a.rarity]??9)-(RARITY_O[b.rarity]??9);
+              case 'id':        return dir*(parseInt(a.id)-parseInt(b.id));
+              case 'attack':    return numSort('attack');
+              case 'defense':   return numSort('defense');
+              case 'precision': return numSort('precision');
+              case 'hp':        return numSort('hp');
+              default:          return dir*((RARITY_O[a.rarity]??9)-(RARITY_O[b.rarity]??9)) || a.name.localeCompare(b.name,'fr',{sensitivity:'base'});
+            }
+          });
+          return sortedOwned;
+        })().map(card=>{
           const qty=qtyInDeck(card.id);
           const chk=canAdd(card);
           // Calcul exemplaires max ajoutables
@@ -1153,7 +1205,7 @@ function renderDeckEdit(th){
             ${alreadyFull?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fff;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DÉJÀ<br>DANS<br>LE DECK</div></div>`
             :!canAddMore?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fbbf24;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DECK<br>PLEIN</div></div>`:``}
           </div>`;
-        }).join('')}
+        }).join('')})()}
       </div>
     </div>
   </div>`;
@@ -1364,11 +1416,10 @@ function renderTradeModal(th){
             style="height:${_CH}px;cursor:pointer;position:relative;background:transparent;${sel?'outline:2px solid '+card.color+';outline-offset:-1px;':''}"
           >
             ${card.image_url
-              ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
+              ? `<img src="${card.image_url}" data-card3d="${cardData.replace(/"/g,'&quot;')}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
               : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:${Math.round(_CW*0.35)}px;pointer-events:none;">🃏</div>`}
             ${sel ? `<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000;z-index:2;pointer-events:none;">✓</div>` : (card.count>1 ? `<div style="position:absolute;top:2px;right:2px;min-width:14px;height:14px;background:rgba(0,0,0,.75);color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:2;border:1px solid rgba(255,255,255,.2);pointer-events:none;">×${card.count}</div>` : '')}
             <div style="position:absolute;bottom:0;left:0;right:0;font-size:${Math.round(_CW*0.095)}px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;text-shadow:0 1px 3px #000;padding-bottom:1px;pointer-events:none;">#${parseInt(card.id)}</div>
-            ${card.image_url ? `<div onclick="event.stopPropagation();openCard3DViewer(${cardData})" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:18px;height:18px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:10px;z-index:3;cursor:zoom-in;" title="Agrandir">🔍</div>` : ''}
           </div>`;
         }).join('')}
       </div>
@@ -3452,6 +3503,18 @@ function bindGame(){
   const dbBack = document.getElementById('db-back');
   if(dbBack) dbBack.addEventListener('click',()=>setState({deckBuilderView:'list'}));
 
+  // Tri deck builder
+  document.querySelectorAll('.db-sort-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const k = btn.dataset.sortby;
+      if(state.deckSortBy===k){
+        setState({deckSortDir: state.deckSortDir==='asc'?'desc':'asc'});
+      } else {
+        setState({deckSortBy:k, deckSortDir:'asc'});
+      }
+    });
+  });
+
   // Nouveau deck
   const dbNew = document.getElementById('db-new');
   if(dbNew) dbNew.addEventListener('click',()=>createDeck());
@@ -4349,7 +4412,33 @@ function bindGame(){
 
   // Choisir une carte à proposer
   document.querySelectorAll('.trade-pick-card').forEach(el=>{
+    // Clic long (>320ms) → vue 3D ; clic court → sélection
+    let _pressTimer = null;
+    let _longFired  = false;
+
+    const startPress = () => {
+      _longFired = false;
+      _pressTimer = setTimeout(() => {
+        _longFired = true;
+        const img = el.querySelector('img[data-card3d]');
+        if(img) {
+          try {
+            const data = JSON.parse(img.dataset.card3d.replace(/&quot;/g,'"'));
+            if(window.openCard3DViewer) openCard3DViewer(data);
+          } catch(e){}
+        }
+      }, 320);
+    };
+    const cancelPress = () => { if(_pressTimer) { clearTimeout(_pressTimer); _pressTimer = null; } };
+
+    el.addEventListener('mousedown', startPress);
+    el.addEventListener('touchstart', startPress, {passive:true});
+    el.addEventListener('mouseup',  cancelPress);
+    el.addEventListener('mouseleave', cancelPress);
+    el.addEventListener('touchend',  cancelPress);
+
     el.addEventListener('click',()=>{
+      if(_longFired) { _longFired = false; return; } // absorb click after long press
       const card = ALL_CARDS.find(c=>c.id===el.dataset.cardid);
       if(card) setState({tradeMyCard:card,tradeWantedNum:null});
     });
@@ -5072,6 +5161,11 @@ async function loadCollection() {
     obtainedAt: ownedMap[c.id] ? ownedMap[c.id].created_at : null,
     globalOwners: globalCountMap[c.id] ? globalCountMap[c.id].size : 0,
     myRank: cardRankMap[c.id] ? (cardRankMap[c.id].indexOf(userId) + 1 || null) : null,
+    // Stats Supabase (colonnes optionnelles — null si absentes de la table cards)
+    attack:    c.attack    ?? null,
+    defense:   c.defense   ?? null,
+    precision: c.precision ?? null,
+    hp:        c.hp        ?? null,
   }));
   render();
 }
