@@ -2272,9 +2272,9 @@ function renderMessagesModal(th){
             const cardId = isLeft ? item.from_card_id : item.to_card_id;
             if(show && card) return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
-                <div style="width:58px;height:82px;background:transparent;overflow:visible;position:relative;">
+                <div onclick="if(window.openCard3DViewer)openCard3DViewer(${JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:col})})" style="width:58px;height:82px;background:transparent;overflow:visible;position:relative;cursor:zoom-in;" title="Agrandir">
                   ${card.image_url
-                    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
+                    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
                     : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${col}30,${col}10);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;"><div style="font-size:22px;">🃏</div><div style="font-size:6px;color:${col};font-weight:800;">◆</div></div>`}
                 </div>
                 <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
