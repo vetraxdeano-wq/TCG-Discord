@@ -814,18 +814,22 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   animation:none;
   transition:opacity .35s ease;
 }
-/* badge apparaît avec un léger slide-up */
-@keyframes rarExtIn{0%{opacity:0;transform:translateX(-50%) translateY(8px)}100%{opacity:1;transform:translateX(-50%) translateY(0)}}
-/* centrage absolu sous la carte dans fullscreen */
+/* badge slide-up sans translateX (évite le décalage horizontal) */
+@keyframes rarExtIn{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+/* sous la carte fullscreen (RARE / MYTHIQUE) : dans le flux flex-column du parent */
 #fsBottomExternal{
-  position:absolute;
-  bottom:-46px;
-  left:50%;transform:translateX(-50%);
+  width:min(500px,97vw);
+  display:flex !important;
+  align-items:center;justify-content:center;gap:8px;
+  margin-top:12px;
   white-space:nowrap;
   animation:rarExtIn .4s ease-out both;
 }
+/* sous la carte normale (COMMUNE / PEU COMMUNE) */
 #cBottomExternal{
-  position:relative;
+  width:min(420px,96vw);
+  display:flex !important;
+  align-items:center;justify-content:center;gap:6px;
   margin-top:10px;
   animation:rarExtIn .35s ease-out both;
 }
