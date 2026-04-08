@@ -1344,20 +1344,23 @@ function renderTradeModal(th){
           style="flex:1;background:transparent;border:none;outline:none;color:${th.text};font-size:11px;font-family:inherit;font-weight:600;"
           oninput="(function(v){var cards=document.querySelectorAll('.trade-pick-card');cards.forEach(function(el){var name=(el.dataset.name||'').toLowerCase();var id=(el.dataset.cardid||'');var q=v.toLowerCase();el.style.display=(name.includes(q)||id.includes(q)||q==='')?'flex':'none';});})(this.value)" />
       </div>
-      <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;align-content:start;">
-        ${ownedCards.map(card=>`
-          <div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}" style="background:${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color+'30':th.bgTertiary};border:2px solid ${myCard&&parseInt(myCard.id)===parseInt(card.id)?card.color:'#000'};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative;overflow:hidden;${myCard&&parseInt(myCard.id)===parseInt(card.id)?'box-shadow:0 0 0 2px '+card.color+';':''}">
-            <div style="flex:1;width:100%;overflow:hidden;position:relative;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}display:flex;align-items:center;justify-content:center;font-size:28px;">
+      <div style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-content:start;padding:4px 0;">
+        ${ownedCards.map(card=>{
+          const sel = myCard && parseInt(myCard.id)===parseInt(card.id);
+          return `
+          <div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}"
+            style="border:2px solid ${sel?card.color:'#000'};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;cursor:pointer;position:relative;overflow:hidden;background:${sel?card.color+'22':th.bgTertiary};${sel?'box-shadow:0 0 0 2px '+card.color+', 0 4px 16px '+card.color+'40;':''}transition:transform .15s;">
+            <div style="flex:1;width:100%;overflow:hidden;position:relative;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}display:flex;align-items:center;justify-content:center;font-size:24px;">
               ${card.image_url
                 ? `<img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />`
-                : `🃏`}
-              ${myCard&&parseInt(myCard.id)===parseInt(card.id)?`<div style="position:absolute;top:4px;right:4px;width:16px;height:16px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#000;z-index:2;">✓</div>`:''}
+                : `<div style="font-size:clamp(18px,6vw,28px);">🃏</div>`}
+              ${sel ? `<div style="position:absolute;top:3px;right:3px;width:18px;height:18px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#000;z-index:2;border:1px solid #000;">✓</div>` : ''}
             </div>
-            <div style="width:100%;padding:4px 6px 5px;background:rgba(0,0,0,.55);position:relative;z-index:1;">
-              <div style="font-size:8px;font-weight:800;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${card.name}</div>
-              <div style="font-size:7px;color:${RARITY_COLOR[card.rarity]};margin-top:1px;">◆ ${RARITY_LABEL[card.rarity]} · #${card.id}</div>
+            <div style="width:100%;padding:3px 4px 4px;background:rgba(0,0,0,.7);position:relative;z-index:1;flex-shrink:0;">
+              <div style="font-size:7px;font-weight:800;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${card.name}</div>
+              <div style="font-size:6px;color:${RARITY_COLOR[card.rarity]};margin-top:1px;">◆ ${RARITY_LABEL[card.rarity]}</div>
             </div>
-          </div>`).join('')}
+          </div>`}).join('')}
       </div>
     </div>
   </div>`;
@@ -2213,7 +2216,7 @@ function renderMessagesModal(th){
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <button id="msg-back" style="width:32px;height:32px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">←</button>
       <div style="width:30px;height:30px;overflow:hidden;background:${th.surface};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        ${friend.avatar_url?`<img src="${friend.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:14px;">👤</span>'}
+        ${(friend.avatar_url && !friend.avatar_url.includes('iic46c'))?`<img src="${friend.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\"font-size:14px;\">👤</span>'">`:'<span style="font-size:14px;">👤</span>'}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${friend.discord_username||'Ami'}</div>
@@ -2238,11 +2241,14 @@ function renderMessagesModal(th){
           const isMine = item.from_id === myId;
           const fromCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.from_card_id));
           const toCard   = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(item.to_card_id));
-          // Spoil : on ne révèle une carte que si l'utilisateur actuel la possède
-          // fromCard = carte que l'expéditeur propose → visible si le viewer la possède dans sa collection
-          // toCard = carte que l'expéditeur veut → visible si le viewer la possède dans sa collection
-          const showFromCard = !!(fromCard && fromCard.owned);
-          const showToCard   = !!(toCard && toCard.owned);
+          // fromCard = carte que l'expéditeur propose :
+          //   - si c'est MOI l'expéditeur → je la possède forcément, afficher le vrai PNG
+          //   - si c'est l'ami l'expéditeur → afficher seulement si je la possède aussi
+          // toCard = carte que l'expéditeur veut :
+          //   - si c'est MOI l'expéditeur → c'est la carte que je veux recevoir, mystère pour moi aussi
+          //   - si c'est l'ami l'expéditeur → c'est MA carte qu'il veut, afficher si je la possède
+          const showFromCard = isMine ? !!(fromCard) : !!(fromCard && fromCard.owned);
+          const showToCard   = isMine ? !!(toCard && toCard.owned) : !!(toCard && toCard.owned);
 
           const STATUS = {
             pending:  { label:'En attente…',   color:'#fee75c', icon:'⏳', bg:'rgba(254,231,92,.08)',  border:'rgba(254,231,92,.25)' },
