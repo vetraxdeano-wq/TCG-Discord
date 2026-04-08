@@ -809,6 +809,38 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .myth-art-name{font-family:'Cinzel',serif;font-weight:700;font-size:.8rem;color:var(--gold-bright);letter-spacing:.28em;text-shadow:0 0 24px var(--gold-main);text-align:center;padding:0 28px;animation:nameReveal .8s ease-out .2s both}
 .myth-art-vignette{position:fixed;inset:0;background:radial-gradient(ellipse 55% 55% at 50% 50%,transparent 35%,#000000bb 100%);pointer-events:none}
 
+/* ===== BOTTOM EXTERNAL RARITY (sous carte reveal) ===== */
+.card-bottom-external{
+  animation:none;
+  transition:opacity .35s ease;
+}
+/* badge apparaît avec un léger slide-up */
+@keyframes rarExtIn{0%{opacity:0;transform:translateX(-50%) translateY(8px)}100%{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* centrage absolu sous la carte dans fullscreen */
+#fsBottomExternal{
+  position:absolute;
+  bottom:-46px;
+  left:50%;transform:translateX(-50%);
+  white-space:nowrap;
+  animation:rarExtIn .4s ease-out both;
+}
+#cBottomExternal{
+  position:relative;
+  margin-top:10px;
+  animation:rarExtIn .35s ease-out both;
+}
+
+/* ===== FLIP BACK DIAMONDS ===== */
+.flip-back-diamond{
+  position:absolute;
+  width:clamp(8px,2.2vw,13px);
+  height:auto;
+  pointer-events:none;
+  opacity:0;
+  bottom:10%;
+  z-index:10;
+}
+
 /* ===== SCRATCH CANVAS ===== */
 /* Suspense flash for RARE */
 @keyframes rareFlash{0%{opacity:0}15%{opacity:.5;background:radial-gradient(circle,#b890f840 0%,transparent 60%)}100%{opacity:0}}
@@ -1561,7 +1593,9 @@ loadCardsFromSupabase();
 
 const TE={'Héro':'⚔️','Ruse':'🌀','Arcane':'💀','Sort':'✨'};
 const RS={'COMMUNE':'★','PEU COMMMUNE':'★★','RARE':'★★★','MYTHIQUE':'★★★★'};
-const RC={'COMMUNE':'#7dcea0','PEU COMMMUNE':'#7ec8e3','RARE':'#b890f8','MYTHIQUE':'#f0c060'};
+const RC={'COMMUNE':'#9ca3af','PEU COMMMUNE':'#7ec8e3','RARE':'#b890f8','MYTHIQUE':'#f0c060'};
+// Couleur secondaire du 2e burst de particules au reveal
+const RC2={'COMMUNE':'#d1d5db','PEU COMMMUNE':'#93c5fd','RARE':'#d4b8ff','MYTHIQUE':'#fde68a'};
 
 let boosterCards=[],currentIdx=0,revealed=[],cardVisible=false,inFullscreen=false,tearPhase=false;
 
@@ -2883,6 +2917,27 @@ function showFlip(card){
     pLayer.appendChild(p);
   }
   sc.appendChild(pLayer);
+
+  // ── Diamants PNG sur le dos de carte selon rareté ──────────────────
+  sc.querySelectorAll('.flip-back-diamond').forEach(e=>e.remove());
+  const DIAMOND_COUNT={'COMMUNE':0,'PEU COMMMUNE':2,'RARE':4,'MYTHIQUE':8};
+  const dCount=DIAMOND_COUNT[R]||0;
+  for(let d=0;d<dCount;d++){
+    const dEl=document.createElement('img');
+    dEl.className='flip-back-diamond';
+    dEl.src='https://i.goopics.net/bdjq46.png';
+    const leftPct=(15+Math.random()*70).toFixed(1);
+    const dx=(-22+Math.random()*44).toFixed(0);
+    // MYTHIQUE : plus grand, monte plus haut
+    const baseSize = R==='MYTHIQUE' ? (Math.random()>.4?14:9) : R==='RARE' ? 11 : 8;
+    const rise=(60+Math.random()*80).toFixed(0);
+    const end=(parseInt(rise)+35).toFixed(0);
+    const dur=(R==='MYTHIQUE'?1.2+Math.random()*.8:1.6+Math.random()*1.2).toFixed(2);
+    const del=(d*parseFloat(dur)/Math.max(dCount,1)).toFixed(2);
+    dEl.style.cssText=`left:${leftPct}%;width:${baseSize}px;--dx:${dx}px;--rise:-${rise}px;--end:-${end}px;animation:sfxDiamondRise ${dur}s ease-out ${del}s infinite;`;
+    sc.appendChild(dEl);
+  }
+
   // Apply tremble animation based on rarity
   if(conf.tremble) fi.classList.add(conf.tremble);
   fw.classList.add('active');
@@ -2902,6 +2957,8 @@ function handleFlipClick(){
   pendingFlipCard=null;
   const fw=document.getElementById('flipWrap');
   const fi=document.getElementById('flipInner');
+  // Nettoyer les diamants du dos
+  document.getElementById('flipScene').querySelectorAll('.flip-back-diamond').forEach(e=>e.remove());
   // Phase 1 : rotation vers 90° (demi-flip) — plus lente, ease-in-out
   fi.style.transition='transform .55s cubic-bezier(.4,0,.6,1)';
   fi.style.transform='rotateY(90deg)';
@@ -3006,10 +3063,11 @@ function showCard(card){
   }
   // Attach tilt to the normal card
   attachTilt(rc,'cFoil');
-  const color=RC[R],cnt=R==='COMMUNE'?14:30;
+  const color=RC[R],color2=RC2[R],cnt=R==='COMMUNE'?14:30;
   setTimeout(()=>{
     spawnParticles(window.innerWidth/2,window.innerHeight/2,color,cnt);
     spawn3DParticles(window.innerWidth/2,window.innerHeight/2,color,R==='COMMUNE'?8:18);
+    setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,color2,Math.round(cnt*.6)),200);
     if(R==='COMMUNE'){ sndCommune(); haptic(HAPTIC.deal); }
     else { sndPeuCommune(); haptic(HAPTIC.deal); }
     showOwnershipBadge(card);
@@ -3017,6 +3075,9 @@ function showCard(card){
     const art=rc.querySelector('.card-art');
     if(art){art.classList.remove('shine');void art.offsetWidth;art.classList.add('shine');}
   },160);
+  // Rareté + étoiles sous la carte
+  const cBotExt=document.getElementById('cBottomExternal');
+  if(cBotExt){ cBotExt.setAttribute('data-rarity',R); cBotExt.style.display='flex'; }
 }
 
 function showFullscreen(card){
@@ -3048,9 +3109,12 @@ function showFullscreen(card){
     showOwnershipBadge(card);
     setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,color,40),150);
     setTimeout(()=>spawn3DParticles(window.innerWidth/2,window.innerHeight/2,color,20),150);
-    setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,'#fff',20),380);
+    setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,RC2[R],22),350);
     // Art shine (delayed to match card entrance)
     setTimeout(()=>{const art=fc.querySelector('.card-art');if(art){art.classList.remove('shine');void art.offsetWidth;art.classList.add('shine');}},420);
+    // Rareté + étoiles sous la carte
+    const fsBotExt=document.getElementById('fsBottomExternal');
+    if(fsBotExt){ fsBotExt.setAttribute('data-rarity',R); fsBotExt.style.display='flex'; }
   },550);
 }
 
@@ -3395,6 +3459,9 @@ function startMythZoom(card){
 }
 
 function onScratchComplete(){
+  // Rareté + étoiles sous la carte mythique
+  const _mBot=document.getElementById('fsBottomExternal');
+  if(_mBot){ _mBot.setAttribute('data-rarity','MYTHIQUE'); _mBot.style.display='flex'; }
   scratchPhase=3;
   const W=window.innerWidth,H=window.innerHeight;
   const zCard=document.getElementById('mythZoomCard');
@@ -3485,6 +3552,8 @@ function dismissCard(){
   const wrap=document.getElementById('cardReveal');
   const rc=document.getElementById('revealedCard');
   rc.style.cssText='transform:scale(.85) translateY(18px);opacity:0;transition:transform .28s,opacity .28s';
+  const _cBot=document.getElementById('cBottomExternal');
+  if(_cBot) _cBot.style.display='none';
   setTimeout(()=>{
     wrap.classList.remove('active');
     rc.style.cssText='';
@@ -3499,6 +3568,8 @@ function dismissFullscreen(){
   sndReveal(); haptic(HAPTIC.tap);
   document.getElementById('fsReveal').classList.remove('active');
   document.getElementById('fsBg').className='fullscreen-bg';
+  const _fsBot=document.getElementById('fsBottomExternal');
+  if(_fsBot) _fsBot.style.display='none';
   inFullscreen=false;cardVisible=false;
   setStarfieldMood(null);
   afterDismiss();
