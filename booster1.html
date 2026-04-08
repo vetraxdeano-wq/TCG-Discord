@@ -3040,8 +3040,6 @@ function showCard(card){
   const rc=document.getElementById('revealedCard');
   rc.setAttribute('data-rarity',R);
   rc.className='card';
-  const cBotExt=document.getElementById('cBottomExternal');
-  if(cBotExt) cBotExt.setAttribute('data-rarity',R);
   fillCard({id:'cId',name:'cName',char:'cChar',emoji:'cEmoji',type:'cType',hp:'cHp',hpBadge:'cHpBadge',stars:'cStars',rarity:'cRarity',stats:'cStats',effect:'cEffect'},card);
   spawnCardFx('cFxLayer',R);
   // Carte commence à opacity 0 pour un fade-in doux (géré par fillCard si PNG)
@@ -3090,8 +3088,6 @@ function showFullscreen(card){
   const fsBg=document.getElementById('fsBg');
   fc.setAttribute('data-rarity',R);
   fc.className='fullscreen-card';
-  const fsBotExt=document.getElementById('fsBottomExternal');
-  if(fsBotExt) fsBotExt.setAttribute('data-rarity',R);
   document.getElementById('fsScanlines') && (document.getElementById('fsScanlines').style.display='none');
   fillCard({id:'fsId',name:'fsName',char:'fsChar',emoji:'fsEmoji',type:'fsType',hp:'fsHp',hpBadge:'fsHpBadge',stars:'fsStars',rarity:'fsRarity',stats:'fsStats',effect:'fsEffect'},card);
   spawnCardFx('fsFxLayer',R);
