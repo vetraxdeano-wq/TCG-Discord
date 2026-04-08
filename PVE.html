@@ -1608,7 +1608,9 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   const cardId=side==='h'?'h':'b';
   const fc=document.getElementById(`${cardId}-fc`);
   if(!fc) return;
-  const r=fc.getBoundingClientRect();
+  // Cibler fc-img-wrap (juste la partie image, sans la barre HP du bas)
+  const imgWrap=fc.querySelector('.fc-img-wrap')||fc;
+  const r=imgWrap.getBoundingClientRect();
 
   // Overlay fixe sur document.body — survit à n'importe quel render()
   const wrap=document.createElement('div');
