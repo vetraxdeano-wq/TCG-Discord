@@ -821,6 +821,26 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .hcard.rPC:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 20px rgba(62,207,142,.4);}
 .hcard.rR:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 24px rgba(167,139,250,.5);}
 .hcard.rM:hover:not(.hc-dis){box-shadow:0 16px 40px rgba(0,0,0,.65),0 0 30px rgba(240,192,64,.6);}
+
+/* Glow par type de carte — permanent léger + renforcé au hover */
+.hcard.ct-hero{
+  box-shadow:0 0 8px 2px rgba(240,192,64,.35), 0 0 2px 1px rgba(240,192,64,.2);
+}
+.hcard.ct-hero:hover:not(.hc-dis){
+  box-shadow:0 16px 40px rgba(0,0,0,.65), 0 0 22px 4px rgba(240,192,64,.65), 0 0 8px 2px rgba(240,192,64,.4) !important;
+}
+.hcard.ct-ruse{
+  box-shadow:0 0 8px 2px rgba(167,139,250,.35), 0 0 2px 1px rgba(167,139,250,.2);
+}
+.hcard.ct-ruse:hover:not(.hc-dis){
+  box-shadow:0 16px 40px rgba(0,0,0,.65), 0 0 22px 4px rgba(167,139,250,.65), 0 0 8px 2px rgba(167,139,250,.4) !important;
+}
+.hcard.ct-arcane{
+  box-shadow:0 0 8px 2px rgba(91,156,246,.35), 0 0 2px 1px rgba(91,156,246,.2);
+}
+.hcard.ct-arcane:hover:not(.hc-dis){
+  box-shadow:0 16px 40px rgba(0,0,0,.65), 0 0 22px 4px rgba(91,156,246,.65), 0 0 8px 2px rgba(91,156,246,.4) !important;
+}
 .hcard.hc-dis{opacity:.16;pointer-events:all;cursor:default;filter:grayscale(.85)}
 .hcard img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;border:none;border-radius:9px}
 .hcard-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--s3);opacity:.3}
@@ -829,7 +849,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   position:fixed;
   z-index:500;
   width:auto;
-  max-width:280px;
+  max-width:360px;
   background:var(--s2);
   border:1px solid var(--bdr3);
   border-radius:12px;
@@ -2063,7 +2083,8 @@ function renderHand(){
     const isFig=c.ct==='fighter';
     let dis=G.phase==='choose_fighter'?!isFig:G.phase==='sort'?(c.ct!=='sort'||G.human.sortJoue):true;
     const d=document.createElement('div');
-    d.className=`hcard r${c.rarete}${dis?' hc-dis':''}`;
+    const typeClass = c.ct==='fighter' ? 'ct-hero' : (c.type==='Piège' ? 'ct-ruse' : 'ct-arcane');
+    d.className=`hcard r${c.rarete} ${typeClass}${dis?' hc-dis':''}`;
     d.onclick=dis?null:()=>humanPlayCard(i);
 
     const rarCol={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'}[c.rarete]||'#888';
@@ -2098,7 +2119,7 @@ function renderHand(){
       // Image disponible → on l'affiche en grand dans le tooltip
       const hpPct=isFig&&c.hpCur&&c.hpBase?Math.round(c.hpCur/c.hpBase*100):100;
       const hpCol=hpPct>60?'var(--grn)':hpPct>30?'var(--gold)':'var(--red)';
-      ttHTML=`<div style="width:260px;"><img src="${c.image_url}" style="width:100%;aspect-ratio:410/580;object-fit:cover;display:block;border-radius:10px 10px 0 0;" />${isFig?`<div style="padding:8px 10px;background:var(--s2);border-radius:0 0 10px 10px;"><div style="font-size:9px;font-weight:700;color:${rarCol};margin-bottom:4px;">${RLAB[c.rarete]}</div><div style="display:flex;justify-content:space-between;font-size:11px;font-family:'DM Mono',monospace;"><span style="color:var(--red)">❤ ${c.hpCur}/${c.hpBase}</span><span style="color:#ffaa44">⚔ ${c.atq}</span><span style="color:var(--blue)">🛡 ${c.def}</span></div><div style="font-size:10px;color:var(--sub);margin-top:3px;">🎯 ${Math.round(c.prec*100)}%</div></div>`:''}</div>`;
+      ttHTML=`<div style="width:340px;"><img src="${c.image_url}" style="width:100%;aspect-ratio:410/580;object-fit:cover;display:block;border-radius:12px 12px 0 0;" />${isFig?`<div style="padding:10px 12px;background:var(--s2);border-radius:0 0 12px 12px;"><div style="font-size:10px;font-weight:700;color:${rarCol};margin-bottom:5px;">${RLAB[c.rarete]}</div><div style="display:flex;justify-content:space-between;font-size:13px;font-family:'DM Mono',monospace;"><span style="color:var(--red)">❤ ${c.hpCur}/${c.hpBase}</span><span style="color:#ffaa44">⚔ ${c.atq}</span><span style="color:var(--blue)">🛡 ${c.def}</span></div><div style="font-size:11px;color:var(--sub);margin-top:4px;">🎯 ${Math.round(c.prec*100)}%</div></div>`:''}</div>`;
     } else if(isFig){
       const hpPct=c.hpCur/c.hpBase*100;
       const hpCol=hpPct>60?'var(--grn)':hpPct>30?'var(--gold)':'var(--red)';
