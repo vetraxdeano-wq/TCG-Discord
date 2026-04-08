@@ -766,8 +766,6 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   border-right:1px solid var(--bdr);
   min-height:0;overflow:hidden;
 }
-/* stats-row : grille 2 colonnes, les panels scrollent */
-.stats-row{display:grid;grid-template-columns:1fr 1fr;min-height:0;overflow:hidden;}
 .arrows{
   display:grid;grid-template-columns:1fr auto 1fr;
   align-items:center;padding:0 10px;gap:6px;
@@ -781,8 +779,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .stats-panel{
   display:flex;flex-direction:column;padding:9px 11px;gap:4px;
   min-height:0;
-  height:0;flex:1;
-  overflow-y:scroll;
+  overflow-y:auto;
   overflow-x:hidden;
   scroll-behavior:smooth;
 }
