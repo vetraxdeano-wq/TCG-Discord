@@ -2084,7 +2084,7 @@ function renderHand(){
     wrapper.style.cssText='display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;';
 
     const d=document.createElement('div');
-    const typeClass = c.ct==='fighter' ? 'ct-hero' : (c.type==='Piège' ? 'ct-ruse' : 'ct-arcane');
+    const typeClass = c.ct==='fighter' ? 'ct-hero' : (c.type==='Ruse' ? 'ct-ruse' : 'ct-arcane');
     d.className=`hcard r${c.rarete} ${typeClass}${dis?' hc-dis':''}`;
     d.onclick=dis?null:()=>humanPlayCard(i);
 
@@ -2106,7 +2106,7 @@ function renderHand(){
       </div>`;
     } else {
       d.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:6px 4px;text-align:center;gap:3px">
-        <div style="font-size:22px">${c.type==='Piège'?'🪤':'✨'}</div>
+        <div style="font-size:22px">${c.type==='Ruse'?'🪤':'✨'}</div>
         <div style="font-family:'Cinzel',serif;font-size:8px;font-weight:900;color:${rarCol};letter-spacing:.06em;text-transform:uppercase">${RLAB[c.rarete]||''}</div>
         <div style="font-family:'Bangers',cursive;font-size:14px;color:#fff;letter-spacing:.03em;text-shadow:0 1px 4px rgba(0,0,0,.8);line-height:1.2">${c.nom}</div>
         <div style="font-size:7px;color:var(--sub)">${c.desc||''}</div>
@@ -2116,7 +2116,7 @@ function renderHand(){
     // Label type sous la carte
     const typeCols={hero:'#f0c040',ruse:'#f472b6',arcane:'#5b9cf6'};
     const typeLabels={hero:'Héro',ruse:'Ruse',arcane:'Arcane'};
-    const tKey=c.ct==='fighter'?'hero':(c.type==='Piège'?'ruse':'arcane');
+    const tKey=c.ct==='fighter'?'hero':(c.type==='Ruse'?'ruse':'arcane');
     const lbl=document.createElement('div');
     lbl.style.cssText=`
       font-family:'DM Mono',monospace;font-weight:700;
@@ -2378,7 +2378,7 @@ function showCardModal(c, idx, disabled, ttHTML, rarCol){
   } else {
     const typeCol=c.type==='Magie'?'var(--blue)':'var(--red)';
     statsEl.innerHTML=`
-      <div class="mob-card-modal-rar" style="color:${typeCol};margin-bottom:4px">${c.type==='Piège'?'🪤 Ruse':'✨ Arcane'}</div>
+      <div class="mob-card-modal-rar" style="color:${typeCol};margin-bottom:4px">${c.type==='Ruse'?'🪤 Ruse':'✨ Arcane'}</div>
       <div class="mob-card-modal-desc">${c.desc||''}</div>`;
   }
 
@@ -2410,10 +2410,10 @@ function spellAnnounce(who, nom, desc, type){
   const isHuman=who==='Joueur';
   const borderCol=isHuman?'rgba(255,170,68,.6)':'rgba(255,85,102,.6)';
   const glowCol=isHuman?'rgba(255,150,50,.2)':'rgba(255,50,70,.2)';
-  d.className='spell-announce'+(type==='Piège'?' piege':'');
+  d.className='spell-announce'+(type==='Ruse'?' piege':'');
   d.style.borderColor=borderCol;
   d.style.boxShadow=`0 0 40px ${glowCol},0 12px 50px rgba(0,0,0,.8)`;
-  const typeLabel=type==='Piège'?'🪤 Ruse':'✨ Arcane';
+  const typeLabel=type==='Ruse'?'🪤 Ruse':'✨ Arcane';
   d.innerHTML=`<div class="sa-who">${who} joue · ${typeLabel}</div><div class="sa-nom">${nom}</div><div class="sa-desc">${desc}</div>`;
   document.body.appendChild(d);
   _saTimer=setTimeout(()=>{
@@ -2631,7 +2631,7 @@ function supaToGame(c){
     return {
       id: c.id,
       nom: c.name,
-      type: c.type==='Ruse' ? 'Ruse' : 'Arcane',
+      type: (c.type==='Ruse' || c.type==='Piège') ? 'Ruse' : 'Arcane',
       effet,
       val: val||0,
       val1: val1||0,
