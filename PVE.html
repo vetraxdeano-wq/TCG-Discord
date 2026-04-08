@@ -1594,7 +1594,7 @@ function heartDamage(id, lostPv){
   }
 }
 
-/* KO splash — identique à showBubble : s'attache au fc, position:absolute centré */
+/* KO splash — position:fixed calculée sur les coords réelles du fc AVANT render() */
 function showKOSplash(nom, side, pvPerdu, isHuman){
   // Flash écran + screen shake
   const flash=document.createElement('div');flash.className='ko-flash-bg';
@@ -1604,26 +1604,24 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   sg.style.animation='koShake .55s cubic-bezier(.4,0,.2,1) both';
   setTimeout(()=>sg.style.animation='',600);
 
-  // Exactement comme showBubble : s'attache au fc directement
+  // Capturer les coords MAINTENANT, avant tout render()
   const cardId=side==='h'?'h':'b';
   const fc=document.getElementById(`${cardId}-fc`);
   if(!fc) return;
+  const r=fc.getBoundingClientRect();
 
-  fc.querySelectorAll('.ko-bubble').forEach(e=>e.remove());
-
-  const fcRect=fc.getBoundingClientRect();
-  const maxW=Math.min(fcRect.width*0.9, 220);
-
+  // Overlay fixe sur document.body — survit à n'importe quel render()
   const wrap=document.createElement('div');
   wrap.className='ko-bubble';
   wrap.style.cssText=`
-    position:absolute;
-    top:50%;left:50%;
+    position:fixed;
+    top:${r.top + r.height/2}px;
+    left:${r.left + r.width/2}px;
     transform:translate(-50%,-50%);
-    z-index:60;pointer-events:none;
+    z-index:400;pointer-events:none;
     display:flex;flex-direction:column;
     align-items:center;justify-content:center;
-    width:${maxW}px;
+    width:${r.width*0.9}px;
     animation:bubblePop 3.8s cubic-bezier(.2,0,.8,1) both;
   `;
 
@@ -1652,7 +1650,7 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   koTxt.innerHTML=`<span style="color:#ff8800;text-shadow:0 0 8px #ff440088;">${nom}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> est K.O. et est envoyé vers la défausse, </span><span style="color:#ff3333;text-shadow:0 0 8px #ff000088;">-${pvPerdu} HP ${whoLabel}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> !</span>`;
   wrap.appendChild(koTxt);
 
-  fc.appendChild(wrap);
+  document.body.appendChild(wrap);
   setTimeout(()=>wrap.remove(),3800);
 }
 
@@ -2269,9 +2267,6 @@ function checkKO(player,label){
   heartDamage(player===G.human?'h':'b', pvPerdu);
   // Afficher la bulle KO AVANT que render() vide la carte
   showKOSplash(f.nom, player===G.human?'h':'b', pvPerdu, player===G.human);
-  // Capturer la bulle pour la ré-attacher après render()
-  const cardId=player===G.human?'h':'b';
-  const koBubble=document.querySelector(`#${cardId}-fc .ko-bubble`);
   addLog(`💀 ${f.nom} KO ! −${pvPerdu} PV`,'ko', player===G.human?'JOUEUR':'BOT');
   if(player.hp<=0){player.fighter=null;endGame(player===G.human?'bot':'human');return true;}
   const surv=player.actives.filter(a=>a.su);
@@ -2280,8 +2275,6 @@ function checkKO(player,label){
     while(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
     if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
     setInstr('ko');addLog('👆 Choisis ton prochain Héro !','sys');render();
-    // Ré-attacher la bulle après render()
-    if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);if(fc2)fc2.appendChild(koBubble);}
     if(_autoBattle)setTimeout(scheduleAutoStep,1600);
     return true;
   } else {
