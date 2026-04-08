@@ -1314,8 +1314,10 @@ function renderTradeModal(th){
   // ── Calcul grille adaptatif (style pioche) ──
   const _vw = window.innerWidth;
   const _vh = window.innerHeight;
-  const _PAD = 10, _GAP = 5;
-  const _COLS = Math.min(7, Math.max(4, Math.floor((_vw - _PAD*2) / 72)));
+  const _PAD = 8, _GAP = 4;
+  // Colonnes : assez pour que les cartes soient petites et tout tienne sans scroll horizontal
+  const _COLS = Math.min(10, Math.max(5, Math.floor((_vw - _PAD*2 + _GAP) / 56)));
+  // CW calculé pour remplir exactement la largeur disponible
   const _CW = Math.floor((_vw - _PAD*2 - _GAP*(_COLS-1)) / _COLS);
   const _CH = Math.round(_CW * 1.43);
 
@@ -1353,12 +1355,12 @@ function renderTradeModal(th){
       </div>
     </div>
     <!-- Grille cartes scrollable, style pioche -->
-    <div style="flex:1;overflow-y:auto;width:100%;max-width:680px;padding:0 ${_PAD}px ${_PAD}px;">
-      <div style="display:grid;grid-template-columns:repeat(${_COLS},${_CW}px);gap:${_GAP}px;align-content:start;">
+    <div style="flex:1;overflow-y:auto;width:100%;padding:0 ${_PAD}px ${_PAD}px;overflow-x:hidden;">
+      <div style="display:grid;grid-template-columns:repeat(${_COLS},1fr);gap:${_GAP}px;align-content:start;">
         ${ownedCards.map(card=>{
           const sel = myCard && parseInt(myCard.id)===parseInt(card.id);
           return `<div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}"
-            style="width:${_CW}px;height:${_CH}px;cursor:pointer;position:relative;background:transparent;${sel?'outline:2px solid '+card.color+';outline-offset:-1px;':''}"
+            style="height:${_CH}px;cursor:pointer;position:relative;background:transparent;${sel?'outline:2px solid '+card.color+';outline-offset:-1px;':''}"
           >
             ${card.image_url
               ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
