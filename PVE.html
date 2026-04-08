@@ -1614,16 +1614,17 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   koTxt.style.cssText=`
     font-family:'Cinzel',serif;font-weight:700;
     font-size:clamp(6px,1.6vw,10px);
-    color:#fff;
     text-align:center;
     margin-top:4px;
-    padding:0 4px;
-    text-shadow:0 1px 6px #000,0 0 14px rgba(255,80,0,.9);
+    padding:4px 6px;
+    background:rgba(0,0,0,.75);
+    border-radius:6px;
     letter-spacing:.03em;
-    line-height:1.35;
+    line-height:1.5;
     white-space:normal;
   `;
-  koTxt.textContent=`${nom} est K.O. et est envoyé vers la défausse, -${pvPerdu} HP ${whoLabel} !`;
+  // Nom en orange, HP en rouge, reste en blanc
+  koTxt.innerHTML=`<span style="color:#ff8800;text-shadow:0 0 8px #ff440088;">${nom}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> est K.O. et est envoyé vers la défausse, </span><span style="color:#ff3333;text-shadow:0 0 8px #ff000088;">-${pvPerdu} HP ${whoLabel}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> !</span>`;
   wrap.appendChild(koTxt);
 
   fc.appendChild(wrap);
