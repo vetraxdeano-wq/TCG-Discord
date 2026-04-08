@@ -825,8 +825,8 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 /* Glow par type — filter sur l'image pour rester DANS la carte */
 .hcard.ct-hero img{filter:drop-shadow(0 0 6px rgba(240,192,64,.5));}
 .hcard.ct-hero:hover:not(.hc-dis) img{filter:drop-shadow(0 0 14px rgba(240,192,64,.9)) drop-shadow(0 0 6px rgba(240,192,64,.6));}
-.hcard.ct-ruse img{filter:drop-shadow(0 0 6px rgba(167,139,250,.5));}
-.hcard.ct-ruse:hover:not(.hc-dis) img{filter:drop-shadow(0 0 14px rgba(167,139,250,.9)) drop-shadow(0 0 6px rgba(167,139,250,.6));}
+.hcard.ct-ruse img{filter:drop-shadow(0 0 6px rgba(244,114,182,.5));}
+.hcard.ct-ruse:hover:not(.hc-dis) img{filter:drop-shadow(0 0 14px rgba(244,114,182,.9)) drop-shadow(0 0 6px rgba(244,114,182,.6));}
 .hcard.ct-arcane img{filter:drop-shadow(0 0 6px rgba(91,156,246,.5));}
 .hcard.ct-arcane:hover:not(.hc-dis) img{filter:drop-shadow(0 0 14px rgba(91,156,246,.9)) drop-shadow(0 0 6px rgba(91,156,246,.6));}
 .hcard.hc-dis{opacity:.16;pointer-events:all;cursor:default;filter:grayscale(.85)}
@@ -1116,7 +1116,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
     <div class="card-zone cz-human">
       <div class="field-card" id="h-fc">
         <div class="fc-img-wrap">
-          <div id="h-art" class="fc-ph"><div class="icon">⚡</div><div class="lbl">Choisis</div></div>
+          <div id="h-art" class="fc-ph"><div class="icon">⚡</div><div class="lbl">Héro</div></div>
         </div>
         <div class="fc-hprow row-left">
           <div class="fc-hplabel" id="h-fhplbl">—</div>
@@ -1200,7 +1200,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 
   <div class="instr-bar ib-choose" id="instr-bar">
     <div class="instr-dot"></div>
-    <div class="instr-txt" id="instr-txt">Choisis un combattant dans ta main</div>
+    <div class="instr-txt" id="instr-txt">Choisis un Héro dans ta main</div>
   </div>
 
   <div class="hand-wrap">
@@ -1600,25 +1600,33 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   sg.style.animation='koShake .55s cubic-bezier(.4,0,.2,1) both';
   setTimeout(()=>sg.style.animation='',600);
 
-  // Même logique que showBubble : s'attacher au fc en position:absolute
+  // S'attacher à la card-zone (parent de field-card) qui survit au render()
   const cardId=side==='h'?'h':'b';
   const fc=document.getElementById(`${cardId}-fc`);
-  if(!fc) return;
+  const cardZone=fc?fc.closest('.card-zone'):null;
+  const host=cardZone||fc;
+  if(!host) return;
 
   // Supprimer d'éventuelles bulles existantes
-  fc.querySelectorAll('.comic-bubble,.ko-bubble').forEach(e=>e.remove());
+  host.querySelectorAll('.ko-bubble').forEach(e=>e.remove());
 
-  // Conteneur positionné exactement comme showBubble
+  // Récupérer les dimensions du field-card pour centrer dessus
+  const fcRect=fc?fc.getBoundingClientRect():null;
+  const hostRect=host.getBoundingClientRect();
+
   const wrap=document.createElement('div');
   wrap.className='ko-bubble';
+  // Centré sur le fc par rapport au host
+  const offsetTop=fcRect?(fcRect.top-hostRect.top+fcRect.height/2):hostRect.height/2;
+  const offsetLeft=fcRect?(fcRect.left-hostRect.left+fcRect.width/2):hostRect.width/2;
   wrap.style.cssText=`
     position:absolute;
-    top:50%;left:50%;
+    top:${offsetTop}px;left:${offsetLeft}px;
     transform:translate(-50%,-50%);
     z-index:60;pointer-events:none;
     display:flex;flex-direction:column;
     align-items:center;justify-content:center;
-    width:90%;
+    width:${fcRect?fcRect.width*0.9:160}px;
     animation:bubblePop 3.8s cubic-bezier(.2,0,.8,1) both;
   `;
 
@@ -1648,7 +1656,7 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   koTxt.innerHTML=`<span style="color:#ff8800;text-shadow:0 0 8px #ff440088;">${nom}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> est K.O. et est envoyé vers la défausse, </span><span style="color:#ff3333;text-shadow:0 0 8px #ff000088;">-${pvPerdu} HP ${whoLabel}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> !</span>`;
   wrap.appendChild(koTxt);
 
-  fc.appendChild(wrap);
+  host.appendChild(wrap);
   setTimeout(()=>wrap.remove(),3800);
 }
 
@@ -1865,11 +1873,11 @@ function playAttack(atkId,defId,dmg,missed,blocked){
 }
 
 const INSTRS={
-  choose_fighter:{c:'ib-choose',t:'Choisis un combattant dans ta main'},
-  sort:{c:'ib-sort',t:'Joue une Magie ou un Piège — ou passe'},
+  choose_fighter:{c:'ib-choose',t:'Choisis un Héro dans ta main'},
+  sort:{c:'ib-sort',t:'Joue un Arcane ou une Ruse — ou passe'},
   attack:{c:'ib-attack',t:'Lance ton attaque !'},
   bot:{c:'ib-bot',t:'Le bot réfléchit…'},
-  ko:{c:'ib-ko',t:'Ton combattant est KO — envoies-en un autre !'},
+  ko:{c:'ib-ko',t:'Ton Héro est K.O. — envoies-en un autre !'},
 };
 function setInstr(k){const b=document.getElementById('instr-bar'),t=document.getElementById('instr-txt');const i=INSTRS[k]||INSTRS.bot;b.className=`instr-bar ${i.c}`;t.textContent=i.t;}
 
@@ -2106,7 +2114,7 @@ function renderHand(){
     }
 
     // Label type sous la carte
-    const typeCols={hero:'#f0c040',ruse:'#a78bfa',arcane:'#5b9cf6'};
+    const typeCols={hero:'#f0c040',ruse:'#f472b6',arcane:'#5b9cf6'};
     const typeLabels={hero:'Héro',ruse:'Ruse',arcane:'Arcane'};
     const tKey=c.ct==='fighter'?'hero':(c.type==='Piège'?'ruse':'arcane');
     const lbl=document.createElement('div');
@@ -2136,7 +2144,7 @@ function renderHand(){
         <div class="ht-stat"><span class="ht-stat-ico">🛡️</span><span class="ht-stat-lbl">Défense</span><span class="ht-stat-val">${c.def}</span></div>
         <div class="ht-stat"><span class="ht-stat-ico">🎯</span><span class="ht-stat-lbl">Précision</span><span class="ht-stat-val">${Math.round(c.prec*100)}%</span></div>`;
     } else {
-      const typeCol=c.type==='Magie'?'var(--blue)':'var(--red)';
+      const typeCol=c.type==='Arcane'?'var(--blue)':'#f472b6';
       ttHTML=`<div class="ht-rar" style="color:${rarCol}">${RLAB[c.rarete]} · <span style="color:${typeCol}">${c.type}</span></div>
         <div class="ht-name">${c.nom}</div>
         <div class="ht-sep"></div>
@@ -2267,7 +2275,7 @@ function checkKO(player,label){
   showKOSplash(f.nom, player===G.human?'h':'b', pvPerdu, player===G.human);
   // Capturer la bulle pour la ré-attacher après render()
   const cardId=player===G.human?'h':'b';
-  const koBubble=document.querySelector(`#${cardId}-fc .ko-bubble`);
+  const koBubble=document.querySelector(`.cz-${cardId==='h'?'human':'bot'} .ko-bubble`)||document.querySelector(`#${cardId}-fc .ko-bubble`);
   addLog(`💀 ${f.nom} KO ! −${pvPerdu} PV`,'ko', player===G.human?'JOUEUR':'BOT');
   if(player.hp<=0){player.fighter=null;endGame(player===G.human?'bot':'human');return true;}
   const surv=player.actives.filter(a=>a.su);
@@ -2275,9 +2283,9 @@ function checkKO(player,label){
     player.fighter=null;player.actives=surv;G.phase='choose_fighter';
     while(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
     if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
-    setInstr('ko');addLog('👆 Choisis ton prochain combattant !','sys');render();
+    setInstr('ko');addLog('👆 Choisis ton prochain Héro !','sys');render();
     // Ré-attacher la bulle après render()
-    if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);if(fc2)fc2.appendChild(koBubble);}
+    if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);const cz2=fc2?fc2.closest('.card-zone'):null;const host2=cz2||fc2;if(host2)host2.appendChild(koBubble);}
     if(_autoBattle)setTimeout(scheduleAutoStep,1600);
     return true;
   } else {
@@ -2370,7 +2378,7 @@ function showCardModal(c, idx, disabled, ttHTML, rarCol){
   } else {
     const typeCol=c.type==='Magie'?'var(--blue)':'var(--red)';
     statsEl.innerHTML=`
-      <div class="mob-card-modal-rar" style="color:${typeCol};margin-bottom:4px">${c.type==='Piège'?'🪤':'✨'} ${c.type}</div>
+      <div class="mob-card-modal-rar" style="color:${typeCol};margin-bottom:4px">${c.type==='Piège'?'🪤 Ruse':'✨ Arcane'}</div>
       <div class="mob-card-modal-desc">${c.desc||''}</div>`;
   }
 
@@ -2405,7 +2413,7 @@ function spellAnnounce(who, nom, desc, type){
   d.className='spell-announce'+(type==='Piège'?' piege':'');
   d.style.borderColor=borderCol;
   d.style.boxShadow=`0 0 40px ${glowCol},0 12px 50px rgba(0,0,0,.8)`;
-  const typeLabel=type==='Piège'?'🪤 Piège':'✨ Magie';
+  const typeLabel=type==='Piège'?'🪤 Ruse':'✨ Arcane';
   d.innerHTML=`<div class="sa-who">${who} joue · ${typeLabel}</div><div class="sa-nom">${nom}</div><div class="sa-desc">${desc}</div>`;
   document.body.appendChild(d);
   _saTimer=setTimeout(()=>{
@@ -2623,7 +2631,7 @@ function supaToGame(c){
     return {
       id: c.id,
       nom: c.name,
-      type: c.type==='Ruse' ? 'Piège' : 'Magie',
+      type: c.type==='Ruse' ? 'Ruse' : 'Arcane',
       effet,
       val: val||0,
       val1: val1||0,
