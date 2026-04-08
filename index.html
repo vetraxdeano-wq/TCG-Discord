@@ -493,6 +493,8 @@ let state = {
   deckBuilderView: 'list', // 'list' | 'edit'
   deckSortBy:   'rarity',   // 'rarity'|'name'|'type'|'id'
   deckSortDir:  'asc',      // 'asc'|'desc'
+  deckTypeFilter: null,     // null | 'Héro' | 'Arcane' | 'Ruse' | ...
+  deckSearch:    '',        // recherche textuelle dans le deck builder
   // Trade
   showTrade: false,
   tradeWithId: null,
@@ -1133,40 +1135,91 @@ function renderDeckEdit(th){
     <!-- Collection : plus de colonnes, sans titres, avec "DÉJÀ" et exemplaires -->
     <div style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;min-height:0;">
 
-      <!-- ── Barre de tri ── -->
-      <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-shrink:0;flex-wrap:wrap;">
-        <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-right:4px;">Collection (${ownedCards.length})</div>
-        ${[
-          {k:'rarity',    label:'Rareté'},
-          {k:'name',      label:'Nom'},
-          {k:'type',      label:'Type'},
-          {k:'id',        label:'ID'},
-          {k:'attack',    label:'ATK'},
-          {k:'defense',   label:'DEF'},
-          {k:'precision', label:'PREC'},
-          {k:'hp',        label:'HP'},
-        ].map(opt=>{
-          const active  = state.deckSortBy===opt.k;
-          const dir     = state.deckSortDir;
-          const arrow   = active ? (dir==='asc'?' ↑':' ↓') : '';
-          // Masquer les boutons de stat si aucune carte ne possède ce champ
-          const isStat  = ['attack','defense','precision','hp'].includes(opt.k);
-          const hasData = !isStat || ownedCards.some(c=>c[opt.k]!=null);
-          if(!hasData) return '';
-          return `<button class="db-sort-btn" data-sortby="${opt.k}"
-            style="padding:3px 7px;font-size:8px;font-weight:${active?'900':'700'};
-            background:${active?th.accent+'22':th.bgTertiary};
-            color:${active?th.accent:th.textMuted};
-            border:1px solid ${active?th.accent+'60':th.border};
-            cursor:pointer;letter-spacing:.4px;white-space:nowrap;transition:all .15s;"
-          >${opt.label}${arrow}</button>`;
-        }).join('')}
+      <!-- ── Barre de recherche + tri + filtres type ── -->
+      <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px;flex-shrink:0;">
+
+        <!-- Ligne 0 : recherche -->
+        <div style="display:flex;align-items:center;gap:6px;background:${th.bgTertiary};border:1px solid ${th.border};padding:5px 10px;">
+          <span style="font-size:11px;color:${th.textMuted};flex-shrink:0;">🔍</span>
+          <input id="db-search-input" type="text" placeholder="Nom ou #ID…"
+            value="${state.deckSearch||''}"
+            style="flex:1;background:transparent;border:none;outline:none;color:${th.text};font-size:11px;font-family:inherit;font-weight:600;"
+          />
+          ${state.deckSearch ? `<button id="db-search-clear" style="background:none;border:none;color:${th.textMuted};font-size:13px;cursor:pointer;padding:0 2px;flex-shrink:0;">✕</button>` : ''}
+        </div>
+
+        <!-- Ligne 1 : compteur + tri -->
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+          <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-right:4px;">Collection (${ownedCards.length})</div>
+          ${[
+            {k:'rarity',    label:'Rareté'},
+            {k:'name',      label:'Nom'},
+            {k:'id',        label:'ID'},
+            {k:'attack',    label:'ATK'},
+            {k:'defense',   label:'DEF'},
+            {k:'precision', label:'PREC'},
+            {k:'hp',        label:'HP'},
+          ].map(opt=>{
+            const active  = state.deckSortBy===opt.k;
+            const dir     = state.deckSortDir;
+            const arrow   = active ? (dir==='asc'?' ↑':' ↓') : '';
+            const isStat  = ['attack','defense','precision','hp'].includes(opt.k);
+            const hasData = !isStat || ownedCards.some(c=>c[opt.k]!=null);
+            if(!hasData) return '';
+            return `<button class="db-sort-btn" data-sortby="${opt.k}"
+              style="padding:3px 7px;font-size:8px;font-weight:${active?'900':'700'};
+              background:${active?th.accent+'22':th.bgTertiary};
+              color:${active?th.accent:th.textMuted};
+              border:1px solid ${active?th.accent+'60':th.border};
+              cursor:pointer;letter-spacing:.4px;white-space:nowrap;transition:all .15s;"
+            >${opt.label}${arrow}</button>`;
+          }).join('')}
+        </div>
+
+        <!-- Ligne 2 : filtres par type -->
+        ${(()=>{
+          const types = [...new Set(ownedCards.map(c=>c.type||'Héro'))].sort();
+          if(types.length <= 1) return '';
+          const typeColors = {'Héro':'#60a5fa','Arcane':'#c084fc','Ruse':'#34d399'};
+          return `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <div style="font-size:7px;color:${th.textFaint};font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-right:2px;flex-shrink:0;">Type</div>
+            <button class="db-type-filter" data-type=""
+              style="padding:3px 7px;font-size:8px;font-weight:${!state.deckTypeFilter?'900':'700'};
+              background:${!state.deckTypeFilter?th.accent+'22':th.bgTertiary};
+              color:${!state.deckTypeFilter?th.accent:th.textMuted};
+              border:1px solid ${!state.deckTypeFilter?th.accent+'60':th.border};
+              cursor:pointer;letter-spacing:.4px;white-space:nowrap;transition:all .15s;">Tous</button>
+            ${types.map(t=>{
+              const active = state.deckTypeFilter===t;
+              const col = typeColors[t] || th.accentAlt;
+              return `<button class="db-type-filter" data-type="${t}"
+                style="padding:3px 7px;font-size:8px;font-weight:${active?'900':'700'};
+                background:${active?col+'22':th.bgTertiary};
+                color:${active?col:th.textMuted};
+                border:1px solid ${active?col+'60':th.border};
+                cursor:pointer;letter-spacing:.4px;white-space:nowrap;transition:all .15s;"
+              >${t}</button>`;
+            }).join('')}
+          </div>`;
+        })()}
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(${window.innerWidth<600?5:7},1fr);gap:5px;">
         ${(()=>{
           const RARITY_O = {mythic:0,legendary:1,epic:2,rare:3,uncommon:4,common:5};
-          const sortedOwned = [...ownedCards].sort((a,b)=>{
+          // Appliquer le filtre de type si actif
+          const typeFiltered = state.deckTypeFilter
+            ? ownedCards.filter(c=>(c.type||'Héro')===state.deckTypeFilter)
+            : ownedCards;
+          // Appliquer la recherche textuelle
+          const searchQ = (state.deckSearch||'').toLowerCase().trim();
+          const searchFiltered = searchQ
+            ? typeFiltered.filter(c=>
+                c.name.toLowerCase().includes(searchQ) ||
+                String(parseInt(c.id)).includes(searchQ)
+              )
+            : typeFiltered;
+          const sortedOwned = [...searchFiltered].sort((a,b)=>{
             const dir = state.deckSortDir==='asc'?1:-1;
             const numSort = (field) => {
               const va = a[field]??-1, vb = b[field]??-1;
@@ -1191,7 +1244,7 @@ function renderDeckEdit(th){
           const maxCopies = (card.rarity==='mythic'||card.rarity==='rare') ? 2 : card.count;
           const canAddMore = chk.ok;
           const alreadyFull = !canAddMore && qty>0;
-          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:${canAddMore||alreadyFull?'pointer':'default'};position:relative;overflow:visible;" title="${canAddMore?'Ajouter au deck':chk.reason}">
+          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:${canAddMore||alreadyFull?'pointer':'default'};position:relative;overflow:visible;" title="${canAddMore?'Ajouter au deck':chk.reason}">
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}overflow:visible;">
               ${card.image_url
                 ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
@@ -1233,24 +1286,26 @@ function renderTradeModal(th){
         <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px;">
           <div style="text-align:center;">
             <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Il propose</div>
-            <div style="width:70px;height:98px;background:${fromCard?`linear-gradient(135deg,${fromCard.color}30,${fromCard.color}10)`:th.surface};border:1px solid ${fromCard?fromCard.color+'60':th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${fromCard?.image_url?'cursor:zoom-in;':''}" ${fromCard?.image_url?`onclick="openCard3DViewer(${JSON.stringify({id:fromCard.id,name:fromCard.name,rarity:fromCard.rarity,image_url:fromCard.image_url,owned:fromCard.owned,color:RARITY_COLOR[fromCard.rarity]})})"`:''}>
+            <div style="width:70px;height:98px;background:${fromCard?`linear-gradient(135deg,${fromCard.color}30,${fromCard.color}10)`:th.surface};border:1px solid ${fromCard?fromCard.color+'60':th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${fromCard?.image_url?'cursor:zoom-in;':''}">
               ${fromCard?.image_url
-                ? `<img src="${fromCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
-                : `<div style="font-size:22px;">🃏</div>`}
-              <div style="font-size:7px;color:${fromCard?RARITY_COLOR[fromCard.rarity]:th.textMuted};font-weight:700;position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};">${fromCard?fromCard.name.slice(0,10):'?'}</div>
-              <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};">#${incoming.from_card_id}</div>
+                ? `<img src="${fromCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
+                : `<div style="font-size:22px;pointer-events:none;">🃏</div>`}
+              <div style="font-size:7px;color:${fromCard?RARITY_COLOR[fromCard.rarity]:th.textMuted};font-weight:700;position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};pointer-events:none;">${fromCard?fromCard.name.slice(0,10):'?'}</div>
+              <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};pointer-events:none;">#${incoming.from_card_id}</div>
+              ${fromCard?.image_url ? `<div onclick="openCard3DViewer(${JSON.stringify({id:fromCard.id,name:fromCard.name,rarity:fromCard.rarity,image_url:fromCard.image_url,owned:fromCard.owned,color:RARITY_COLOR[fromCard.rarity]})})" style="position:absolute;inset:0;z-index:5;cursor:zoom-in;"></div>` : ''}
             </div>
           </div>
           <div style="font-size:20px;color:${th.textMuted};">⇄</div>
           <div style="text-align:center;">
             <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Il veut ta carte</div>
             ${receiverOwnsToCard
-              ? `<div style="width:70px;height:98px;background:linear-gradient(135deg,${toCard.color}30,${toCard.color}10);border:1px solid ${toCard.color}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${toCard.image_url?'cursor:zoom-in;':''}" ${toCard.image_url?`onclick="openCard3DViewer(${JSON.stringify({id:toCard.id,name:toCard.name,rarity:toCard.rarity,image_url:toCard.image_url,owned:toCard.owned,color:RARITY_COLOR[toCard.rarity]})})"`:''}> 
+              ? `<div style="width:70px;height:98px;background:linear-gradient(135deg,${toCard.color}30,${toCard.color}10);border:1px solid ${toCard.color}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${toCard.image_url?'cursor:zoom-in;':''}">
                   ${toCard.image_url
-                    ? `<img src="${toCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
-                    : `<div style="font-size:22px;">🃏</div>`}
-                  <div style="font-size:7px;color:${RARITY_COLOR[toCard.rarity]};font-weight:700;position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};">${toCard.name.slice(0,10)}</div>
-                  <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};">#${incoming.to_card_id}</div>
+                    ? `<img src="${toCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
+                    : `<div style="font-size:22px;pointer-events:none;">🃏</div>`}
+                  <div style="font-size:7px;color:${RARITY_COLOR[toCard.rarity]};font-weight:700;position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};pointer-events:none;">${toCard.name.slice(0,10)}</div>
+                  <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};pointer-events:none;">#${incoming.to_card_id}</div>
+                  ${toCard.image_url ? `<div onclick="openCard3DViewer(${JSON.stringify({id:toCard.id,name:toCard.name,rarity:toCard.rarity,image_url:toCard.image_url,owned:toCard.owned,color:RARITY_COLOR[toCard.rarity]})})" style="position:absolute;inset:0;z-index:5;cursor:zoom-in;"></div>` : ''}
                 </div>`
               : `<div style="width:70px;height:98px;background:${th.surface};border:2px solid #000;overflow:hidden;position:relative;">
                   <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.45;filter:grayscale(1);" />
@@ -3497,11 +3552,11 @@ function bindGame(){
 
   // Fermer Deck Builder
   const dbClose = document.getElementById('db-close');
-  if(dbClose) dbClose.addEventListener('click',()=>setState({showDeckBuilder:false,deckBuilderView:'list'}));
+  if(dbClose) dbClose.addEventListener('click',()=>setState({showDeckBuilder:false,deckBuilderView:'list', deckSearch:'', deckTypeFilter:null, _dbSearchFocused:false}));
 
   // Retour liste depuis édition
   const dbBack = document.getElementById('db-back');
-  if(dbBack) dbBack.addEventListener('click',()=>setState({deckBuilderView:'list'}));
+  if(dbBack) dbBack.addEventListener('click',()=>setState({deckBuilderView:'list', deckSearch:'', deckTypeFilter:null, _dbSearchFocused:false}));
 
   // Tri deck builder
   document.querySelectorAll('.db-sort-btn').forEach(btn=>{
@@ -3514,6 +3569,65 @@ function bindGame(){
       }
     });
   });
+
+  // Filtres de type dans le deck builder
+  document.querySelectorAll('.db-type-filter').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const t = btn.dataset.type || null;
+      setState({deckTypeFilter: t || null});
+    });
+  });
+
+  // Recherche dans le deck builder
+  const dbSearchInput = document.getElementById('db-search-input');
+  if(dbSearchInput){
+    // Restaurer le focus + position curseur si on re-render pendant la frappe
+    if(state._dbSearchFocused){
+      dbSearchInput.focus();
+      try{ dbSearchInput.setSelectionRange(state._dbSearchCursor||0, state._dbSearchCursor||0); }catch(e){}
+    }
+    dbSearchInput.addEventListener('input', ()=>{
+      state._dbSearchFocused = true;
+      state._dbSearchCursor  = dbSearchInput.selectionStart;
+      state.deckSearch = dbSearchInput.value;
+      // Mise à jour directe sans re-render complet pour garder le focus
+      const searchQ = dbSearchInput.value.toLowerCase().trim();
+      document.querySelectorAll('.db-add-card,.db-add-card-disabled').forEach(el=>{
+        const name = (el.dataset.name||'').toLowerCase();
+        const id   = String(parseInt(el.dataset.cardid||'0'));
+        el.style.display = (!searchQ || name.includes(searchQ) || id.includes(searchQ)) ? '' : 'none';
+      });
+      // Afficher/masquer le bouton ✕
+      const clearBtn = document.getElementById('db-search-clear');
+      if(!clearBtn && dbSearchInput.value){
+        // Insérer le bouton clear dynamiquement sans re-render
+        const x = document.createElement('button');
+        x.id = 'db-search-clear';
+        x.textContent = '✕';
+        x.style.cssText = 'background:none;border:none;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer;padding:0 2px;flex-shrink:0;';
+        dbSearchInput.parentNode.appendChild(x);
+        x.addEventListener('click', ()=>{
+          dbSearchInput.value = '';
+          state.deckSearch = '';
+          state._dbSearchFocused = false;
+          x.remove();
+          document.querySelectorAll('.db-add-card,.db-add-card-disabled').forEach(el=>{ el.style.display=''; });
+        });
+      } else if(clearBtn && !dbSearchInput.value){
+        clearBtn.remove();
+      }
+    });
+    dbSearchInput.addEventListener('focus', ()=>{ state._dbSearchFocused = true; });
+    dbSearchInput.addEventListener('blur',  ()=>{ state._dbSearchFocused = false; });
+  }
+  const dbSearchClear = document.getElementById('db-search-clear');
+  if(dbSearchClear){
+    dbSearchClear.addEventListener('click',()=>{
+      state.deckSearch = '';
+      state._dbSearchFocused = false;
+      setState({deckSearch:''});
+    });
+  }
 
   // Nouveau deck
   const dbNew = document.getElementById('db-new');
