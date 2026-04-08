@@ -731,7 +731,11 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .arrow-r{background:linear-gradient(90deg,transparent,var(--red));transform-origin:right}
 .vs-label{font-family:'Cinzel',serif;font-weight:900;font-size:14px;letter-spacing:.12em;color:var(--dim);flex-shrink:0}
 .stats-row{display:grid;grid-template-columns:1fr 1fr;min-height:0;overflow:hidden}
-.stats-panel{display:flex;flex-direction:column;padding:9px 11px;gap:4px;min-height:0;overflow:hidden}
+.stats-panel{display:flex;flex-direction:column;padding:9px 11px;gap:4px;min-height:0;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;}
+.stats-panel::-webkit-scrollbar{width:3px}
+.stats-panel::-webkit-scrollbar-track{background:transparent}
+.stats-panel::-webkit-scrollbar-thumb{background:var(--bdr3);border-radius:2px}
+.stats-panel:hover::-webkit-scrollbar-thumb{background:var(--dim)}
 .sp-left{border-right:1px solid var(--bdr2)}
 .sp-rar{font-size:7px;letter-spacing:.22em;font-weight:700;text-transform:uppercase;margin-bottom:1px}
 .rC{color:var(--C)}.rPC{color:var(--PC)}.rR{color:var(--R)}.rM{color:var(--gold)}
@@ -1590,7 +1594,7 @@ function heartDamage(id, lostPv){
   }
 }
 
-/* KO splash — même mécanisme que showBubble, centré sur la carte */
+/* KO splash — identique à showBubble : s'attache au fc, position:absolute centré */
 function showKOSplash(nom, side, pvPerdu, isHuman){
   // Flash écran + screen shake
   const flash=document.createElement('div');flash.className='ko-flash-bg';
@@ -1600,40 +1604,33 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
   sg.style.animation='koShake .55s cubic-bezier(.4,0,.2,1) both';
   setTimeout(()=>sg.style.animation='',600);
 
-  // S'attacher à la card-zone (parent de field-card) qui survit au render()
+  // Exactement comme showBubble : s'attache au fc directement
   const cardId=side==='h'?'h':'b';
   const fc=document.getElementById(`${cardId}-fc`);
-  const cardZone=fc?fc.closest('.card-zone'):null;
-  const host=cardZone||fc;
-  if(!host) return;
+  if(!fc) return;
 
-  // Supprimer d'éventuelles bulles existantes
-  host.querySelectorAll('.ko-bubble').forEach(e=>e.remove());
+  fc.querySelectorAll('.ko-bubble').forEach(e=>e.remove());
 
-  // Récupérer les dimensions du field-card pour centrer dessus
-  const fcRect=fc?fc.getBoundingClientRect():null;
-  const hostRect=host.getBoundingClientRect();
+  const fcRect=fc.getBoundingClientRect();
+  const maxW=Math.min(fcRect.width*0.9, 220);
 
   const wrap=document.createElement('div');
   wrap.className='ko-bubble';
-  // Centré sur le fc par rapport au host
-  const offsetTop=fcRect?(fcRect.top-hostRect.top+fcRect.height/2):hostRect.height/2;
-  const offsetLeft=fcRect?(fcRect.left-hostRect.left+fcRect.width/2):hostRect.width/2;
   wrap.style.cssText=`
     position:absolute;
-    top:${offsetTop}px;left:${offsetLeft}px;
+    top:50%;left:50%;
     transform:translate(-50%,-50%);
     z-index:60;pointer-events:none;
     display:flex;flex-direction:column;
     align-items:center;justify-content:center;
-    width:${fcRect?fcRect.width*0.9:160}px;
+    width:${maxW}px;
     animation:bubblePop 3.8s cubic-bezier(.2,0,.8,1) both;
   `;
 
   // Image KO
   const img=document.createElement('img');
   img.src=BUBBLE_KO_IMG;
-  img.style.cssText='width:100%;max-width:220px;height:auto;object-fit:contain;display:block;';
+  img.style.cssText='width:100%;height:auto;object-fit:contain;display:block;';
   img.draggable=false;
   wrap.appendChild(img);
 
@@ -1652,11 +1649,10 @@ function showKOSplash(nom, side, pvPerdu, isHuman){
     line-height:1.5;
     white-space:normal;
   `;
-  // Nom en orange, HP en rouge, reste en blanc
   koTxt.innerHTML=`<span style="color:#ff8800;text-shadow:0 0 8px #ff440088;">${nom}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> est K.O. et est envoyé vers la défausse, </span><span style="color:#ff3333;text-shadow:0 0 8px #ff000088;">-${pvPerdu} HP ${whoLabel}</span><span style="color:#fff;text-shadow:0 1px 4px #000;"> !</span>`;
   wrap.appendChild(koTxt);
 
-  host.appendChild(wrap);
+  fc.appendChild(wrap);
   setTimeout(()=>wrap.remove(),3800);
 }
 
@@ -2275,7 +2271,7 @@ function checkKO(player,label){
   showKOSplash(f.nom, player===G.human?'h':'b', pvPerdu, player===G.human);
   // Capturer la bulle pour la ré-attacher après render()
   const cardId=player===G.human?'h':'b';
-  const koBubble=document.querySelector(`.cz-${cardId==='h'?'human':'bot'} .ko-bubble`)||document.querySelector(`#${cardId}-fc .ko-bubble`);
+  const koBubble=document.querySelector(`#${cardId}-fc .ko-bubble`);
   addLog(`💀 ${f.nom} KO ! −${pvPerdu} PV`,'ko', player===G.human?'JOUEUR':'BOT');
   if(player.hp<=0){player.fighter=null;endGame(player===G.human?'bot':'human');return true;}
   const surv=player.actives.filter(a=>a.su);
@@ -2285,7 +2281,7 @@ function checkKO(player,label){
     if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
     setInstr('ko');addLog('👆 Choisis ton prochain Héro !','sys');render();
     // Ré-attacher la bulle après render()
-    if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);const cz2=fc2?fc2.closest('.card-zone'):null;const host2=cz2||fc2;if(host2)host2.appendChild(koBubble);}
+    if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);if(fc2)fc2.appendChild(koBubble);}
     if(_autoBattle)setTimeout(scheduleAutoStep,1600);
     return true;
   } else {
