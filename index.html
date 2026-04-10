@@ -1490,7 +1490,7 @@ function renderTabPlay(th){
   const modes=[
     {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", img:"https://i.goopics.net/fxkzfv.png", color:th.accent,    available:true,  badge:"RANKED"},
     {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", img:"https://i.goopics.net/weqlkg.png", color:th.green,     available:true,  badge:"SOLO"},
-    {id:"secret",label:"???",    sub:"Mode secret",        desc:"Ce mode sera débloqué prochainement…",     icon:"🔒", img:null,                               color:th.textFaint, available:false, badge:"SOON"},
+    {id:"10v10", label:"10 vs 10",sub:"Mode initiation",    desc:"Choisis 10 cartes et affronte leur miroir", icon:"⚡", img:"https://i.goopics.net/iic46c.png",  color:th.accent,    available:true,  badge:"NEW",  url:"PVP10.html"},
   ];
   const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
     ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
@@ -1658,7 +1658,7 @@ function renderTabPlay(th){
     <div style="flex:1;display:flex;flex-direction:column;gap:4px;padding:0 10px 4px;min-height:0;overflow:hidden;">
       <!-- Ligne 1 : PvP + vs IA — prend tout l'espace restant -->
       <div style="flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-        ${modes.filter(m=>m.id!=='secret').map((m)=>`
+        ${modes.filter(m=>m.id!=='10v10').map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
           style="display:flex;flex-direction:column;align-items:stretch;padding:0;
             background:${m.available?th.bgSecondary:th.bgTertiary};
@@ -1682,20 +1682,22 @@ function renderTabPlay(th){
           </div>
         </button>`).join('')}
       </div>
-      <!-- Ligne 2 : Secret centré -->
+      <!-- Ligne 2 : 10v10 centré -->
       <div style="flex-shrink:0;display:flex;justify-content:center;">
-        ${modes.filter(m=>m.id==='secret').map((m)=>`
+        ${modes.filter(m=>m.id==='10v10').map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
-          style="display:flex;flex-direction:row;align-items:center;gap:10px;padding:10px 18px;
+          style="display:flex;flex-direction:row;align-items:center;gap:10px;padding:0;
             width:100%;
-            background:${th.bgTertiary};border:2px solid #000;
-            cursor:not-allowed;opacity:.4;position:relative;overflow:hidden;transition:all .22s;">
-          <div style="font-size:28px;flex-shrink:0;">${m.icon}</div>
-          <div style="text-align:left;">
-            <div style="font-family:'Bangers',cursive;font-size:14px;color:${th.textMuted};letter-spacing:.5px;">${m.label}</div>
-            <div style="font-size:9px;color:${th.textFaint};">${m.sub}</div>
+            background:${th.bgSecondary};border:2px solid #000;
+            cursor:pointer;opacity:1;position:relative;overflow:hidden;transition:all .22s;">
+          <div style="position:relative;width:90px;flex-shrink:0;overflow:hidden;align-self:stretch;">
+            ${m.img ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" />` : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;">${m.icon}</div>`}
           </div>
-          <div style="margin-left:auto;padding:3px 10px;background:${th.surface};border:1px solid ${th.border};font-size:8px;font-weight:900;color:${th.textMuted};letter-spacing:.5px;">${m.badge}</div>
+          <div style="text-align:left;flex:1;padding:8px 0;">
+            <div style="font-family:'Bangers',cursive;font-size:14px;color:${th.text};letter-spacing:.5px;">${m.label}</div>
+            <div style="font-size:9px;color:${th.textMuted};">${m.sub}</div>
+          </div>
+          <div style="flex-shrink:0;padding:8px 12px;background:${m.color};font-size:8px;font-weight:900;color:#fff;letter-spacing:.8px;align-self:stretch;display:flex;align-items:center;">JOUER</div>
         </button>`).join('')}
       </div>
     </div>` : `
@@ -3740,6 +3742,7 @@ function bindGame(){
   document.querySelectorAll('.mode-btn').forEach(btn=>{
     btn.addEventListener('click',async ()=>{
       const mode = btn.dataset.mode;
+      if (mode === '10v10') { window.location.href = 'PVP10.html'; return; }
       if (mode === 'ia' || mode === 'pvp') {
         // Vérifier qu'un deck par défaut jouable existe
         const ok = await checkDefaultDeck();
