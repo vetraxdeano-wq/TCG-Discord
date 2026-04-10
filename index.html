@@ -323,9 +323,9 @@ function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeStrin
 
 // ─── AMBIENT MUSIC ────────────────────────────────────────────────
 // ─── YOUTUBE AUDIO PLAYER ─────────────────────────────────────────
-// Musique : https://www.youtube.com/watch?v=niReTZnphks (départ à 7:05 = 425s)
+// Musique : https://www.youtube.com/watch?v=niReTZnphks
 const YT_VIDEO_ID = 'niReTZnphks';
-const YT_START_SEC = 425;
+const YT_START_SEC = 0;
 let _ytPlayer = null;
 let _ytReady = false;
 let _ytPendingPlay = false;
@@ -459,6 +459,7 @@ let state = {
   friendRequestsIn: [],
   combatRequestsIn: [],
   tradeResultNotifs: [],
+  welcomeNotifs: [],    // [{id, type:'tutorial'|'starter_pack'}] — première connexion
   friendsTab: 'list',
   showAddFriend: false,
   // Collection
@@ -761,7 +762,7 @@ function renderGame(th){
     {label:"Collection",icon:SVG.cards,id:1},
     {label:"Boosters",icon:SVG.package,id:2},
   ];
-  const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length + (state.pendingLevelRewards||[]).length;
+  const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length + (state.pendingLevelRewards||[]).length + (state.welcomeNotifs||[]).length;
   const MSG_COUNT = state.msgNotifCount || 0;
 
   return `
@@ -2551,7 +2552,8 @@ function renderNotifModal(th){
   const combatReqs = state.combatRequestsIn || [];
   const levelRewards = state.pendingLevelRewards || [];
   const tradeResults = state.tradeResultNotifs || [];
-  const allEmpty = reqs.length === 0 && combatReqs.length === 0 && levelRewards.length === 0 && tradeResults.length === 0;
+  const welcomeNotifs = state.welcomeNotifs || [];
+  const allEmpty = reqs.length === 0 && combatReqs.length === 0 && levelRewards.length === 0 && tradeResults.length === 0 && welcomeNotifs.length === 0;
   return `
   <div id="notif-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
     <div id="notif-sheet" style="width:100%;max-width:420px;background:${th.bgSecondary};padding:20px 20px 36px;box-shadow:0 -16px 60px rgba(0,0,0,.6);border-top:1px solid ${th.borderStrong};max-height:80vh;overflow-y:auto;">
@@ -2562,6 +2564,31 @@ function renderNotifModal(th){
           <div style="font-size:32px;margin-bottom:10px;opacity:.5;">🔔</div>
           <div style="font-size:12px;">Aucune notification.</div>
         </div>` : ''}
+      ${welcomeNotifs.map((n,idx) => {
+        if(n.type === 'tutorial') return `
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:#818cf8;"></div>
+          <div style="width:38px;height:38px;background:#818cf814;border:2px solid #000;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">📖</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:900;color:#818cf8;letter-spacing:.5px;">BIENVENUE !</div>
+            <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">Lance le tutoriel pour obtenir tes premières cartes gratuitement</div>
+          </div>
+          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n,showNotif:false,showTutorial:true,tutorialStep:0});})()" style="padding:7px 12px;font-size:9px;font-weight:900;background:#818cf8;color:#fff;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">TUTORIEL</button>
+          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n});})()" style="padding:7px 8px;font-size:10px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;flex-shrink:0;">✕</button>
+        </div>`;
+        if(n.type === 'starter_pack') return `
+        <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${th.green};"></div>
+          <div style="width:38px;height:38px;background:${th.green}14;border:2px solid #000;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">🎁</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;font-weight:900;color:${th.green};letter-spacing:.5px;">CADEAU DE BIENVENUE</div>
+            <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">Un Booster Normal offert ! Ouvre tes premières cartes gratuitement.</div>
+          </div>
+          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n,showNotif:false});sessionStorage.setItem('booster_free','1');window.location.href='booster1.html';})()" style="padding:7px 12px;font-size:9px;font-weight:900;background:${th.green};color:#000;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">OUVRIR</button>
+          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n});})()" style="padding:7px 8px;font-size:10px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;flex-shrink:0;">✕</button>
+        </div>`;
+        return '';
+      }).join('')}
       ${levelRewards.map(r => {
         const isLegend = r.type === 'booster_legendaire';
         const accentCol = isLegend ? '#eb459e' : '#fee75c';
@@ -4811,6 +4838,20 @@ function showToast(msg, icon='ℹ') {
 }
 
 function enterGame(user, coins) {
+  // Notifs de bienvenue (première connexion uniquement)
+  const _isNew = sessionStorage.getItem('_new_player');
+  if (_isNew) {
+    sessionStorage.removeItem('_new_player');
+    setTimeout(() => {
+      setState({
+        welcomeNotifs: [
+          { id: 'tuto', type: 'tutorial' },
+          { id: 'starter', type: 'starter_pack' },
+        ],
+        showNotif: true,
+      });
+    }, 1800); // délai pour laisser le jeu charger
+  }
   const s = document.getElementById('splash');
   if (s) s.style.opacity = '0';
   setTimeout(() => {
@@ -5206,12 +5247,19 @@ waitForSupabase(() => {
       if ((event === 'SIGNED_IN') && session) {
         history.replaceState(null, '', window.location.pathname);
         const user = session.user;
+        // Vérifier si le joueur existe déjà avant l'upsert
+        const { data: existingPlayer } = await db.from('players').select('id,coins').eq('id', user.id).single();
+        const isNewPlayer = !existingPlayer;
         await db.from('players').upsert({
           id: user.id,
           discord_username: user.user_metadata.full_name || user.user_metadata.name,
           avatar_url: user.user_metadata.avatar_url,
         }, { onConflict: 'id' });
         const { data: playerData } = await db.from('players').select('coins').eq('id', user.id).single();
+        if (isNewPlayer) {
+          // Stocker un flag pour déclencher les notifs de bienvenue après enterGame
+          sessionStorage.setItem('_new_player', '1');
+        }
         enterGame(user, playerData ? playerData.coins : 100);
       }
     });
