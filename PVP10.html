@@ -1399,17 +1399,14 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 </div>
 <div id="hcard-tt" class="hcard-tooltip"></div>
 <div class="ov" id="ov-end"><div class="ov-box">
-  <!-- Header coloré dynamiquement via JS -->
   <div class="ov-header" id="ov-header">
     <span class="ov-medal" id="ov-medal">🏆</span>
     <div class="ov-title" id="ov-title">?</div>
     <div class="ov-sub" id="ov-sub"></div>
   </div>
-  <!-- Corps -->
   <div class="ov-body">
     <div id="ov-reward" style="display:none"></div>
     <div class="ov-stats" id="ov-stats"></div>
-    <!-- Bandeau conseil 10v10 -->
     <div class="ov-road">
       <div class="ov-road-title">🗺️ La route vers le mode classique</div>
       <div class="ov-road-txt">Continue à jouer ici pour accumuler des <strong>coins</strong>, puis ouvre des boosters depuis le menu principal. À toi le grand bain une fois tes <strong>30 cartes</strong> en poche !</div>
@@ -2461,8 +2458,8 @@ function endGame(w){
   const isWin=w==='human';
   const hdr=document.getElementById('ov-header');
   const medal=document.getElementById('ov-medal');
-  if(hdr){hdr.className='ov-header '+(isWin?'win-hdr':'lose-hdr');}
-  if(medal){medal.textContent=isWin?'🏆':'😤';}
+  if(hdr) hdr.className='ov-header '+(isWin?'win-hdr':'lose-hdr');
+  if(medal) medal.textContent=isWin?'🏆':'😤';
   document.getElementById('ov-title').textContent=isWin?'Victoire !':'Défaite…';
   document.getElementById('ov-title').className='ov-title '+(isWin?'win':'lose');
   document.getElementById('ov-sub').textContent=isWin
@@ -2971,12 +2968,14 @@ function updatePlayButton(){
   const btn=document.getElementById('sd-play-btn');
   const cnt=document.getElementById('sd-count');
   const n=_selected10.length;
+  const hasHero=_selected10.some(c=>c.ct==='fighter');
   if(cnt) cnt.textContent=`${n} / 10 cartes`;
   if(btn){
-    btn.disabled=n!==10;
-    btn.textContent=n===10?'▶ Lancer la partie !':
-      n>0?`Encore ${10-n} carte${10-n>1?'s':''} à sélectionner`:
-      'Sélectionne 10 cartes';
+    const ready=n===10 && hasHero;
+    btn.disabled=!ready;
+    btn.textContent=n<10?
+      (n>0?`Encore ${10-n} carte${10-n>1?'s':''} à sélectionner`:'Sélectionne 10 cartes'):
+      (!hasHero?'⚠️ Ajoute au moins 1 Héro !':'▶ Lancer la partie !');
   }
 }
 
@@ -3008,38 +3007,51 @@ function autoPick10(){
 // ── Lancer la partie avec les 10 cartes ──────────────────────────────
 function launchGame10v10(){
   if(_selected10.length!==10) return;
+  // Sécurité : au moins 1 héro obligatoire
+  if(!_selected10.some(c=>c.ct==='fighter')){
+    showSelectError('⚠️ Tu dois inclure au moins 1 Héro dans ton deck !');
+    return;
+  }
 
-  // Cacher écran sélection, afficher jeu
   document.getElementById('sd').classList.remove('active');
   document.getElementById('sg').classList.add('active');
   document.getElementById('logp').classList.add('visible');
 
-  // Afficher le nom du joueur
   const uname=_currentUser?.user_metadata?.full_name||_currentUser?.user_metadata?.name||'Joueur';
   const pjNames=document.querySelectorAll('.pj-name');
   if(pjNames[0]) pjNames[0].textContent=uname;
 
-  initGame(true); // skipDeal=true : on gère les pioches nous-mêmes
+  initGame(true);
 
-  // ── Pioche joueur : mélange des 10 cartes sélectionnées ──
-  const humanPioche = shuf([..._selected10.map(c=>({
-    ...c,
-    hpCur: c.ct==='fighter'?(c.hp||c.hpCur||10):(c.hpCur||0),
-    hpBase: c.ct==='fighter'?(c.hp||c.hpBase||10):(c.hpBase||0),
-  }))]);
+  // ── Fonction : construire une pioche avec au moins 1 héro GARANTI en main ──
+  function buildTruquee(cards){
+    const mapped=cards.map(c=>({
+      ...c,
+      hpCur: c.ct==='fighter'?(c.hp||c.hpCur||10):(c.hpCur||0),
+      hpBase: c.ct==='fighter'?(c.hp||c.hpBase||10):(c.hpBase||0),
+    }));
+    // Séparer héros et non-héros
+    const heroes=shuf(mapped.filter(c=>c.ct==='fighter'));
+    const others=shuf(mapped.filter(c=>c.ct!=='fighter'));
+    // 1 héro garanti en main, le reste mélangé aléatoirement
+    const garantiHero=heroes.splice(0,1); // 1 héro tiré au sort
+    const reste=shuf([...heroes,...others]);
+    // Main : héro garanti + 2 cartes aléatoires
+    const hand=[...garantiHero,...reste.slice(0,2)];
+    const pioche=reste.slice(2);
+    return {hand, pioche};
+  }
 
-  // ── Pioche bot : MÊMES 10 cartes, mélange indépendant ──
-  const botPioche = shuf([..._selected10.map(c=>({
-    ...c,
-    hpCur: c.ct==='fighter'?(c.hp||c.hpCur||10):(c.hpCur||0),
-    hpBase: c.ct==='fighter'?(c.hp||c.hpBase||10):(c.hpBase||0),
-  }))]);
+  const hCards=_selected10.map(c=>({...c}));
+  const bCards=_selected10.map(c=>({...c}));
 
-  // Distribuer 3 cartes en main, 7 en pioche (deck de 10 seulement)
-  G.human.hand=humanPioche.slice(0,3);
-  G.human.pioche=humanPioche.slice(3);
-  G.bot.hand=botPioche.slice(0,3);
-  G.bot.pioche=botPioche.slice(3);
+  const h=buildTruquee(hCards);
+  const b=buildTruquee(bCards);
+
+  G.human.hand=h.hand;
+  G.human.pioche=h.pioche;
+  G.bot.hand=b.hand;
+  G.bot.pioche=b.pioche;
 
   addTourLog(1);
   showCoinToast(G.fp);
