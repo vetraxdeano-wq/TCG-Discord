@@ -2778,6 +2778,7 @@ function renderDeckGrid(){
     </div>`;
 
     div.innerHTML=imgHTML+badge+infoBar;
+    div.onclick=()=>cycleCard(`${g.id}`, used, maxCopies, totalSelected);
 
     // Contrôles SOUS la carte
     const ctrl=document.createElement('div');
@@ -2801,6 +2802,25 @@ function renderDeckGrid(){
 }
 
 // ── Ajuster la quantité d'une carte dans la sélection ────────────────
+function cycleCard(cardId, used, maxCopies, totalSelected){
+  const raw=_allCardsRaw.find(c=>c.id==cardId);
+  if(!raw) return;
+  const g=supaToGame(raw);
+  if(used===0){
+    // 0 → 1
+    if(totalSelected>=10) return;
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
+  } else if(used<maxCopies && totalSelected<10){
+    // 1 → 2 (si possible)
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
+  } else {
+    // max ou deck plein → retirer une copie (cycle vers le bas)
+    const idx=_selected10.map(c=>c.id).lastIndexOf(cardId);
+    if(idx>=0) _selected10.splice(idx,1);
+  }
+  renderDeckGrid();
+}
+
 function adjustCard(cardId, delta, event){
   if(event) event.stopPropagation();
   const raw=_allCardsRaw.find(c=>c.id==cardId);
