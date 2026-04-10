@@ -4200,6 +4200,15 @@ function showCoinsDeductedPopup(amount) {
 }
 
 async function deductBoosterCost() {
+  // Booster gratuit (starter pack ou récompense) → bypass total, aucune déduction
+  try {
+    const free = sessionStorage.getItem('booster_free');
+    if (free === '1') {
+      sessionStorage.removeItem('booster_free');
+      return true;
+    }
+  } catch(e) {}
+
   const db = window._db;
   const myId = window._currentUserId;
   if (!db || !myId) return true; // pas connecté → laisser ouvrir
