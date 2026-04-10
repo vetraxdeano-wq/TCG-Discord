@@ -311,6 +311,88 @@ const BOOSTERS = [
 // ALL_CARDS sera chargé depuis Supabase
 let ALL_CARDS = [];
 
+// ─── DAILY LIMITS (localStorage par joueur) ───────────────────────
+// Clé : daily_<userId>  →  { piocheDate, boosterPrestigeDate, boosterPrestigeCount,
+//                            boosterLegDate, boosterLegCount, tradeDate }
+function _dailyKey(userId){ return 'daily_' + userId; }
+function _todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function getDailyData(userId){
+  try{ return JSON.parse(localStorage.getItem(_dailyKey(userId)) || '{}'); }
+  catch(e){ return {}; }
+}
+function setDailyData(userId, patch){
+  const cur = getDailyData(userId);
+  localStorage.setItem(_dailyKey(userId), JSON.stringify({...cur, ...patch}));
+}
+
+// Pioche : 1x/jour
+function canPiocheToday(userId){
+  const d = getDailyData(userId);
+  return d.piocheDate !== _todayStr();
+}
+function markPiocheUsed(userId){
+  setDailyData(userId, { piocheDate: _todayStr() });
+}
+
+// Boosters : Prestige 2x/j, Légendaire 1x/j
+function getBoosterRemaining(userId, boosterId){
+  const d = getDailyData(userId);
+  const today = _todayStr();
+  if(boosterId === 2){ // Prestige
+    if(d.boosterPrestigeDate !== today) return 2;
+    return Math.max(0, 2 - (d.boosterPrestigeCount || 0));
+  }
+  if(boosterId === 3){ // Légendaire
+    if(d.boosterLegDate !== today) return 1;
+    return Math.max(0, 1 - (d.boosterLegCount || 0));
+  }
+  return Infinity; // Normal : illimité
+}
+function markBoosterUsed(userId, boosterId){
+  const d = getDailyData(userId);
+  const today = _todayStr();
+  if(boosterId === 2){
+    const count = d.boosterPrestigeDate === today ? (d.boosterPrestigeCount || 0) : 0;
+    setDailyData(userId, { boosterPrestigeDate: today, boosterPrestigeCount: count + 1 });
+  } else if(boosterId === 3){
+    const count = d.boosterLegDate === today ? (d.boosterLegCount || 0) : 0;
+    setDailyData(userId, { boosterLegDate: today, boosterLegCount: count + 1 });
+  }
+}
+
+// Trade : 1x/jour
+function canTradeToday(userId){
+  const d = getDailyData(userId);
+  return d.tradeDate !== _todayStr();
+}
+function markTradeUsed(userId){
+  setDailyData(userId, { tradeDate: _todayStr() });
+}
+
+// Renvoie un string "Xh Ym Zs" jusqu'au prochain minuit
+function timeUntilMidnight(){
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const diff = midnight - now;
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return h + 'h ' + String(m).padStart(2,'0') + 'm ' + String(s).padStart(2,'0') + 's';
+}
+
+// Ticker global pour rafraîchir les timers toutes les secondes
+let _dailyTickerInterval = null;
+function startDailyTicker(){
+  if(_dailyTickerInterval) return;
+  _dailyTickerInterval = setInterval(()=>{
+    document.querySelectorAll('[data-daily-timer]').forEach(el=>{
+      el.textContent = timeUntilMidnight();
+    });
+  }, 1000);
+}
+
 // loadCollection défini plus bas dans le bloc principal
 
 const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
@@ -1491,7 +1573,7 @@ function renderTabPlay(th){
   const modes=[
     {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", img:"https://i.goopics.net/fxkzfv.png", color:th.accent,    available:true,  badge:"RANKED"},
     {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", img:"https://i.goopics.net/weqlkg.png", color:th.green,     available:true,  badge:"SOLO"},
-    {id:"10v10", label:"10 vs 10",sub:"Mode initiation",    desc:"Choisis 10 cartes et affronte leur miroir", icon:"⚡", img:"https://i.goopics.net/iic46c.png",  color:th.accent,    available:true,  badge:"NEW",  url:"PVP10.html"},
+    {id:"10v10", label:"INITIATION",sub:"Format 10 vs 10",    desc:"Choisis 10 cartes et affronte leur miroir", icon:"⚡", img:"https://i.ibb.co/pH6fd5b/10v1.png",  color:th.accent,    available:true,  badge:"NEW",  url:"PVP10.html"},
   ];
   const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
     ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
@@ -2152,6 +2234,14 @@ function renderTabBoosters(th){
     </div>
 
     <!-- ═══ INFOS BOOSTER SÉLECTIONNÉ ═══ -->
+    ${(()=>{
+      const _uid = state.currentUser?.id || '';
+      const _rem = getBoosterRemaining(_uid, b.id);
+      const _limited = b.id === 2 || b.id === 3;
+      const _exhausted = _limited && _rem === 0;
+      const _remLabel = b.id === 1 ? '∞' : String(_rem);
+      const _remColor = _rem === 0 ? '#ef4444' : _rem === 1 ? '#f59e0b' : '#22c55e';
+      return `
     <div style="flex-shrink:0;padding:2px 16px 6px;text-align:center;">
       <div style="font-family:'Bangers',cursive;font-size:${isMobile?'20px':'24px'};letter-spacing:2px;color:${b.color};text-shadow:0 0 20px ${b.color}60;transition:color .4s;">${b.name}</div>
       <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${meta.desc}</div>
@@ -2160,15 +2250,27 @@ function renderTabBoosters(th){
           <svg width="10" height="10" viewBox="0 0 24 24" fill="${b.color}"><circle cx="12" cy="12" r="10" opacity=".5"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
           <span style="font-size:13px;font-weight:900;color:${b.color};">${b.price.toLocaleString()}</span>
         </div>
+        <!-- Compteur quotidien -->
+        ${_limited ? `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 10px;background:${_remColor}14;border:1px solid ${_remColor}40;min-width:52px;">
+          <div style="font-size:8px;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">Reste</div>
+          <div style="font-family:'Bangers',cursive;font-size:18px;color:${_remColor};line-height:1;">${_remLabel}</div>
+          <div style="font-size:7px;color:${th.textMuted};">/ jour</div>
+          ${_exhausted ? `<div data-daily-timer style="font-size:8px;color:${th.textMuted};margin-top:2px;">${timeUntilMidnight()}</div>` : ''}
+        </div>` : `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 10px;background:#22c55e14;border:1px solid #22c55e40;min-width:52px;">
+          <div style="font-size:8px;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">Reste</div>
+          <div style="font-family:'Bangers',cursive;font-size:18px;color:#22c55e;line-height:1;">∞</div>
+          <div style="font-size:7px;color:${th.textMuted};">/ jour</div>
+        </div>`}
         <button class="open-booster" data-bid="${b.id}"
-          style="padding:8px 28px;background:${isOpen?b.color+'70':b.color};color:#fff;border:none;
+          style="padding:8px 28px;background:${_exhausted?th.surface:isOpen?b.color+'70':b.color};color:${_exhausted?th.textMuted:'#fff'};border:${_exhausted?'2px solid #000':'none'};
                  font-size:11px;font-weight:900;letter-spacing:.8px;
-                 box-shadow:${isOpen?'none':`0 4px 20px ${b.color}60, 2px 2px 0 rgba(0,0,0,.5)`};
-                 transition:all .22s;cursor:pointer;">
-          ${isOpen?'⋯ OUVERTURE…':'OUVRIR LE BOOSTER'}
+                 box-shadow:${_exhausted||isOpen?'none':'0 4px 20px '+b.color+'60, 2px 2px 0 rgba(0,0,0,.5)'};
+                 transition:all .22s;cursor:${_exhausted?'not-allowed':'pointer'};opacity:${_exhausted?.5:1};">
+          ${isOpen?'⋯ OUVERTURE…':_exhausted?'⏳ DEMAIN':'OUVRIR LE BOOSTER'}
         </button>
       </div>
-    </div>
+    </div>`;
+    })()}
 
     <!-- Flèches navigation — masquées sur mobile -->
     ${isMobile ? '' : `
@@ -2186,22 +2288,29 @@ function renderTabBoosters(th){
     </div>
 
     <!-- Pioche compacte -->
-    <div id="btn-pioche"
-      style="margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'8px'};flex-shrink:0;
-        background:linear-gradient(135deg,${th.green}10,${th.green}03);
-        border:1px solid ${th.green}25;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${th.green}80,transparent);"></div>
-      <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'10px 16px'};">
-        <div style="position:relative;width:${isMobile?'24px':'36px'};height:${isMobile?'32px':'48px'};flex-shrink:0;">
-          ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;border:1px solid ${th.green}35;transform:rotate(${(k-2)*5}deg) translateY(${k}px);overflow:hidden;"><img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.7;"/></div>`).join('')}
+    ${(()=>{
+      const _pUid = state.currentUser?.id || '';
+      const _pUsed = !canPiocheToday(_pUid);
+      const _pColor = _pUsed ? '#ef4444' : th.green;
+      return `<div id="btn-pioche"
+        style="margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'8px'};flex-shrink:0;
+          background:linear-gradient(135deg,${_pColor}10,${_pColor}03);
+          border:1px solid ${_pColor}25;overflow:hidden;cursor:${_pUsed?'not-allowed':'pointer'};position:relative;transition:all .22s;opacity:${_pUsed?.7:1};">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_pColor}80,transparent);"></div>
+        <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'10px 16px'};">
+          <div style="position:relative;width:${isMobile?'24px':'36px'};height:${isMobile?'32px':'48px'};flex-shrink:0;">
+            ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;border:1px solid ${_pColor}35;transform:rotate(${(k-2)*5}deg) translateY(${k}px);overflow:hidden;"><img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.7;"/></div>`).join('')}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Bangers',cursive;font-size:${isMobile?'11px':'13px'};font-weight:700;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
+            <div style="font-size:${isMobile?'8px':'10px'};color:${_pUsed?_pColor:th.textMuted};margin-top:2px;">
+              ${_pUsed ? `⏳ Disponible dans <span data-daily-timer>${timeUntilMidnight()}</span>` : (isMobile?'1 carte gratuite · 1× par jour':'50 cartes face cachée · retourne-en une · 1× par jour')}
+            </div>
+          </div>
+          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_pUsed?th.surface:th.green};color:${_pUsed?th.textMuted:'#fff'};border:${_pUsed?'1px solid #000':'none'};font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:${_pUsed?'none':'0 3px 12px '+th.green+'40'};flex-shrink:0;">${_pUsed?'ÉPUISÉ':'PIOCHER'}</div>
         </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-family:'Bangers',cursive;font-size:${isMobile?'11px':'13px'};font-weight:700;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
-          <div style="font-size:${isMobile?'8px':'10px'};color:${th.textMuted};margin-top:2px;">${isMobile?'1 carte gratuite · 1× par jour':'50 cartes face cachée · retourne-en une · 1× par jour'}</div>
-        </div>
-        <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${th.green};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${th.green}40;flex-shrink:0;">PIOCHER</div>
-      </div>
-    </div>
+      </div>`;
+    })()}
 
     <style>
       @keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
@@ -2768,6 +2877,7 @@ function renderHowToModal(th){
     { icon:'🤖', color:th.green, title:'Mode vs IA (PvE)', text:"Entraîne-toi contre l'IA dans l'onglet Jouer. Parfait pour apprendre les mécaniques et gagner des coins sans pression !" },
     { icon:'⚔️', color:th.red, title:'Mode PvP', text:"Affronte tes amis ! Ouvre la liste d'amis, clique ⚔ pour envoyer un défi. Ton ami reçoit une notification et peut accepter si il a un deck configuré." },
     { icon:'🔄', color:'#38bdf8', title:'Les Échanges', text:"Trade des cartes avec tes amis via le bouton 🔄 dans la liste d'amis. Même rareté obligatoire." },
+    { icon:'⚡', color:th.accent, title:'Conseil : démarre en mode Initiation', text:"Une fois le tutoriel terminé et tes 10 premières cartes en poche, essaie le mode Initiation (10 vs 10). Il est idéal pour débuter : économise tes coins en ouvrant des boosters normaux jusqu'à avoir assez de cartes pour jouer au mode classique (deck de 30 cartes, max 2 exemplaires par carte, max 2 Mythiques par deck)." },
   ];
   const rows = sections.map(s =>
     '<div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:' + th.bgTertiary + ';border:2px solid #000;box-shadow:2px 2px 0 #000;">' +
@@ -2830,6 +2940,11 @@ function renderTutorialModal(th){
       icon:'🏆', title:'Le Classement',
       text:'Consulte le classement hebdo, mensuel ou all-time en cliquant sur le bouton RANG dans l\'onglet Jouer. Qui sera le meilleur joueur ?',
       color:th.accent,
+    },
+    {
+      icon:'⚡', title:'Conseil de départ : le mode Initiation',
+      text:'Tutoriel terminé et 10 premières cartes en poche ? Lance-toi en mode Initiation (10 vs 10) ! C\'est le format parfait pour commencer. Accumule des boosters normaux jusqu\'à réunir assez de cartes pour le mode classique : 30 cartes, max 2 exemplaires par carte, max 2 Mythiques par deck.',
+      color:'#38bdf8',
     },
   ];
   const cur = steps[step];
@@ -4349,13 +4464,24 @@ function bindGame(){
         showToast(`Il vous faut ${booster.price.toLocaleString('fr-FR')} coins pour ouvrir ce booster.`,'🚫');
         return;
       }
+      // Vérifier la limite quotidienne
+      const _uid = state.currentUser?.id || '';
+      const _rem = getBoosterRemaining(_uid, bid);
+      if(_rem === 0){
+        showToast('Limite quotidienne atteinte — réessaie demain ! ⏳ ' + timeUntilMidnight(), '🚫');
+        return;
+      }
       const meta = [
         {color:'#9ca3af', src:'https://i.goopics.net/ueiki4.png', href:'booster1.html'},
         {color:'#cd7f32', src:'https://i.goopics.net/61e1o1.png', href:'booster2.html'},
         {color:'#f0c060', src:'https://i.goopics.net/cussu4.png', href:'booster3.html'},
       ];
       const m = meta[bid-1];
-      if(m) triggerBoosterOpen(bid, m.color, m.src, m.href);
+      if(m){
+        markBoosterUsed(_uid, bid);
+        startDailyTicker();
+        triggerBoosterOpen(bid, m.color, m.src, m.href);
+      }
     });
   });
 
@@ -4411,7 +4537,14 @@ function bindGame(){
   }
 
   const btnPioche = document.getElementById('btn-pioche');
-  if(btnPioche) btnPioche.addEventListener('click',()=>setState({showPioche:true,piocheFlipped:{},piocheChosen:null,piocheResult:null}));
+  if(btnPioche) btnPioche.addEventListener('click',()=>{
+    const _uid = state.currentUser?.id || '';
+    if(!canPiocheToday(_uid)){
+      showToast('Pioche déjà utilisée aujourd\'hui ! ⏳ ' + timeUntilMidnight(), '🎴');
+      return;
+    }
+    setState({showPioche:true,piocheFlipped:{},piocheChosen:null,piocheResult:null});
+  });
 
   // Booster hover
   document.querySelectorAll('.booster-card').forEach(el=>{
@@ -4485,6 +4618,8 @@ function bindGame(){
         }
         // Recharger la collection
         if (window.loadCollection) window.loadCollection();
+        markPiocheUsed(myId);
+        startDailyTicker();
         showToast(`${card.name} ajoutée à la collection !`, '✓');
       }
     }
@@ -4858,6 +4993,7 @@ function enterGame(user, coins) {
     setState({ screen: 'game', musicOn: true, currentUser: user, coins: coins });
     audioPlay();
     loadCollection();
+    startDailyTicker();
     if (window.subscribeNotifications) window.subscribeNotifications();
     if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
     // Souscrire aux messages en realtime dès l'entrée (pas seulement à l'ouverture d'une conv)
@@ -6337,6 +6473,11 @@ async function sendTradeOffer(theirCardId) {
   if (parseInt(theirCard.id) === parseInt(myCard.id)) {
     showToast('Tu ne peux pas échanger une carte contre elle-même', '⚠'); return;
   }
+  // Limite 1 trade par jour
+  if (!canTradeToday(myId)) {
+    showToast('Tu as déjà effectué un échange aujourd\'hui ! ⏳ ' + timeUntilMidnight(), '🔄');
+    return;
+  }
 
   try {
     const { data, error } = await db.from('trades').insert({
@@ -6359,6 +6500,8 @@ async function sendTradeOffer(theirCardId) {
       read: false,
     }).then(()=>{}).catch(()=>{});
 
+    markTradeUsed(myId);
+    startDailyTicker();
     setState({ showTrade: false, tradeMyCard: null, tradeStep: null, tradeWantedNum: null });
     showToast('Proposition envoyée !', '🔄');
     // Rafraîchir les trades dans la conv si elle est ouverte
