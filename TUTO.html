@@ -66,17 +66,120 @@ body.pc .stats-panel{flex:1;display:flex;flex-direction:column;gap:4px;padding:1
 body.pc .sp-left{border-right:1px solid var(--bdr)}
 body.pc .arrows{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 6px;gap:10px;flex-shrink:0;font-size:16px;color:var(--bdr3)}
 
-/* MOB FIELD */
-body.mob .field{flex:1;min-height:0;display:grid;grid-template-columns:82px 1fr 90px;grid-template-rows:1fr 1.1fr;overflow:hidden}
-body.mob .pj-left{grid-column:1;grid-row:1;display:flex;flex-direction:column;padding:4px 4px 4px 6px;border-right:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2);overflow:hidden;min-width:0}
-body.mob .cz-bot{grid-column:2;grid-row:1;display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;padding:4px 3px;border-bottom:1px solid var(--bdr2);overflow:hidden}
-body.mob .pj-right{grid-column:3;grid-row:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:5px 4px 4px;border-left:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2);gap:2px;overflow:hidden}
-body.mob .pj-mob-player{grid-column:1;grid-row:2;display:flex;flex-direction:column;padding:4px 4px 4px 6px;border-right:1px solid var(--bdr2);overflow:hidden;min-width:0}
-body.mob .cz-human{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;padding:4px 3px;overflow:hidden}
-body.mob .mob-hum-right{grid-column:3;grid-row:2;display:flex;flex-direction:column;align-items:center;padding:5px 4px 4px;border-left:1px solid var(--bdr2);gap:2px;overflow:hidden}
-body.mob .centre{display:none}
+/* MOB FIELD — calqué sur PVE mobile */
+body.mob .field{
+  display:grid!important;
+  grid-template-columns:clamp(72px,22vw,90px) 1fr clamp(48px,14vw,66px);
+  grid-template-rows:1fr 1.18fr;
+  flex:1;min-height:0;overflow:hidden;
+}
+/* COL1 ROW1 : stats adversaire (comme .centre mobile PVE) */
+body.mob .pj-left{
+  grid-column:1;grid-row:1;
+  display:flex!important;flex-direction:column;
+  padding:3px 3px 3px 4px;
+  border-right:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2);
+  overflow:hidden;min-width:0;
+}
+/* COL2 ROW1 : carte terrain bot */
+body.mob .cz-bot{
+  grid-column:2;grid-row:1;
+  display:flex!important;flex-direction:column;
+  align-items:center;justify-content:flex-end;
+  padding:2px 2px;border-bottom:1px solid var(--bdr2);overflow:visible;
+}
+/* COL3 ROW1 : cœur adversaire */
+body.mob .pj-right{
+  grid-column:3;grid-row:1;
+  display:flex!important;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:3px 1px;
+  border-left:1px solid var(--bdr2);border-bottom:1px solid var(--bdr2);
+  gap:1px;overflow:hidden;
+}
+body.mob .pj-right .heart-wrap{width:clamp(32px,9vw,44px);height:clamp(28px,8vw,40px);margin-top:0;flex-shrink:0}
+body.mob .pj-right .heart-txt{font-size:clamp(9px,2.8vw,13px)}
+body.mob .pj-right .pj-name{display:none}
+body.mob .pj-right .pj-deck{display:none}
+/* COL1 ROW2 : mes stats joueur */
+body.mob .pj-mob-player{
+  grid-column:1;grid-row:2;
+  display:flex!important;flex-direction:column;
+  padding:3px 3px 3px 4px;
+  border-right:1px solid var(--bdr2);
+  gap:1px;overflow:hidden;min-width:0;
+}
+/* COL2 ROW2 : ma carte terrain */
+body.mob .cz-human{
+  grid-column:2;grid-row:2;
+  display:flex!important;flex-direction:column;
+  align-items:center;justify-content:flex-start;
+  padding:2px 2px;overflow:visible;
+}
+/* COL3 ROW2 : mon cœur */
+body.mob .mob-hum-right{
+  grid-column:3;grid-row:2;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:3px 1px;
+  border-left:1px solid var(--bdr2);
+  gap:1px;overflow:hidden;
+}
+body.mob .mob-hum-right .heart-wrap{width:clamp(30px,8.5vw,42px);height:clamp(26px,7.5vw,38px);margin:0;flex-shrink:0}
+body.mob .mob-hum-right .heart-txt{font-size:clamp(9px,2.8vw,13px)}
+body.mob .mob-hum-right .mob-pname{font-family:'Cinzel',serif;font-size:7px;font-weight:900;color:var(--txt);text-transform:uppercase}
+body.mob .centre{display:none!important}
 body.mob .pj-left .pj-deck{display:none}
 body.mob .pj-right .pj-deck{display:none}
+/* Stats panel dans pj-left mobile (stats bot) */
+body.mob .pj-left .mob-stats-inj{display:flex;flex-direction:column;gap:1px;flex:1;min-height:0;overflow:hidden;width:100%}
+body.mob .pj-left .sp-rar{font-size:clamp(6px,2vw,8px);letter-spacing:.1em;margin-bottom:1px}
+body.mob .pj-left .sp-name{font-size:clamp(7.5px,2.4vw,10px);font-weight:700;line-height:1.15;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:2px}
+body.mob .pj-left .stat-row{padding:1px 2px;gap:2px;border-radius:3px;border:1px solid transparent}
+body.mob .pj-left .sr-ico{font-size:clamp(8px,2.6vw,11px)}
+body.mob .pj-left .sr-lbl{font-size:clamp(6px,1.9vw,8px);letter-spacing:0}
+body.mob .pj-left .sr-val{font-size:clamp(9px,2.8vw,11.5px)}
+/* field-card mobile */
+body.mob .cz-human .field-card,
+body.mob .cz-bot .field-card{
+  flex:none!important;min-height:0!important;
+  width:100%!important;height:auto!important;
+  max-height:100%!important;max-width:100%!important;
+  aspect-ratio:2/3!important;
+  display:flex!important;flex-direction:column!important;
+  overflow:hidden!important;border-radius:8px!important;
+}
+body.mob .cz-human .fc-img-wrap,
+body.mob .cz-bot .fc-img-wrap{
+  flex:1;min-height:0;
+  border-radius:6px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:0!important;background:transparent;
+}
+body.mob .cz-human .fc-img-wrap img,
+body.mob .cz-bot .fc-img-wrap img{
+  object-fit:contain!important;
+  width:100%!important;height:100%!important;
+  border-radius:6px;background:transparent;
+}
+body.mob .fc-ph{border-radius:8px}
+body.mob .fc-hprow{margin:2px auto 0;gap:3px}
+body.mob .fc-hplabel{font-size:clamp(6px,1.9vw,7.5px)}
+body.mob .fc-hpbar{height:3px}
+/* Main mobile */
+body.mob .hand-wrap{flex-shrink:0;overflow:visible;position:relative;z-index:20}
+body.mob .hand-meta{padding:1px 7px 0;display:flex;align-items:center;justify-content:space-between}
+body.mob .hand-lbl{font-size:clamp(6.5px,2vw,8px)}
+body.mob .hand-cards{height:calc(14*var(--dvh));min-height:75px;max-height:105px;gap:4px;padding:2px 7px 4px}
+body.mob .hcard{height:calc(12.5*var(--dvh));min-height:68px;max-height:96px;background:transparent}
+/* Boutons mobile */
+body.mob .actions{height:auto;min-height:0;padding:3px 6px 4px;flex-wrap:wrap;gap:4px;flex-shrink:0;justify-content:center}
+body.mob .btn{font-size:clamp(10px,3.2vw,13px);padding:clamp(5px,1.5vw,8px) clamp(10px,3.5vw,15px);border-radius:6px}
+body.mob .btn-gold{padding:clamp(5px,1.5vw,8px) clamp(12px,4vw,18px);font-size:clamp(10px,3.2vw,13px)}
+body.mob .btn-red{font-size:clamp(10px,3.2vw,13px);padding:clamp(5px,1.5vw,8px) clamp(10px,3.5vw,15px)}
+body.mob .instr-bar{padding:2px 6px;flex-shrink:0}
+body.mob .instr-txt{font-size:clamp(7.5px,2.3vw,9px)}
+body.mob .instr-dot{width:4px;height:4px}
 
 /* CARDS — calqué sur PVE */
 .field-card{
@@ -114,52 +217,6 @@ body.mob .pj-right .pj-deck{display:none}
 .fc-hpbar{flex:1;min-width:0;height:6px;background:rgba(0,0,0,.35);border-radius:3px;overflow:hidden;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.4)}
 .fc-hpfill{height:100%;transition:width .6s cubic-bezier(.4,0,.2,1),background .4s;border-radius:3px;box-shadow:inset 0 1px 2px rgba(255,255,255,.2)}
 
-/* ── MODE MOB : grille calquée sur PVE mobile ── */
-body.mob .field{
-  display:grid!important;
-  grid-template-columns:clamp(72px,22vw,90px) 1fr clamp(48px,14vw,66px);
-  grid-template-rows:1fr 1.18fr;
-  flex:1;min-height:0;overflow:hidden;
-}
-body.mob .cz-bot{
-  grid-column:2;grid-row:1;
-  display:flex!important;
-  flex-direction:column;align-items:center;justify-content:flex-end;
-  padding:2px 2px;border-bottom:1px solid var(--bdr2);overflow:visible;
-}
-body.mob .cz-human{
-  grid-column:2;grid-row:2;
-  display:flex!important;
-  flex-direction:column;align-items:center;justify-content:flex-start;
-  padding:2px 2px;overflow:visible;
-}
-body.mob .cz-human .field-card,
-body.mob .cz-bot .field-card{
-  flex:none!important;
-  min-height:0!important;
-  width:100%!important;height:auto!important;
-  max-height:100%!important;max-width:100%!important;
-  aspect-ratio:2/3!important;
-  display:flex!important;flex-direction:column!important;
-  overflow:hidden!important;border-radius:8px!important;
-}
-body.mob .cz-human .fc-img-wrap,
-body.mob .cz-bot .fc-img-wrap{
-  flex:1;min-height:0;
-  border-radius:6px;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-  padding:0!important;background:transparent;
-}
-body.mob .cz-human .fc-img-wrap img,
-body.mob .cz-bot .fc-img-wrap img{
-  object-fit:contain!important;
-  width:100%!important;height:100%!important;
-  border-radius:6px;background:transparent;
-}
-body.mob .fc-ph{border-radius:8px}
-body.mob .fc-hprow{margin:2px auto 0;gap:3px}
-body.mob .fc-hplabel{font-size:clamp(6px,1.9vw,7.5px)}
-body.mob .fc-hpbar{height:3px}
 
 /* STATS */
 .pj-name{font-family:'Cinzel',serif;font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--txt)}
@@ -220,8 +277,8 @@ body.mob .hand-lbl{font-size:8px}
 .hand-cards::-webkit-scrollbar-thumb{background:var(--bdr3);border-radius:2px}
 body.mob .hand-cards{height:calc(14*var(--dvh));min-height:75px;max-height:105px;gap:4px;padding:2px 7px 4px}
 /* Cartes en main — style PVE */
-.hcard{flex-shrink:0;height:148px;aspect-ratio:410/580;border-radius:9px;cursor:pointer;position:relative;border:none;overflow:hidden;box-shadow:none;transition:opacity .18s}
-body.mob .hcard{height:calc(12.5*var(--dvh));min-height:68px;max-height:96px}
+.hcard{flex-shrink:0;height:148px;aspect-ratio:410/580;border-radius:9px;cursor:pointer;position:relative;border:none;overflow:hidden;box-shadow:none;transition:opacity .18s;background:transparent}
+body.mob .hcard{height:calc(12.5*var(--dvh));min-height:68px;max-height:96px;background:transparent}
 .hcard:hover:not(.hc-dis){
   z-index:100;
   transform:translateY(-12px) scale(1.10);
@@ -351,10 +408,16 @@ body.mob .tuto-hl{border-radius:8px}
       <div id="pjl-pc">
         <div id="h-hwrap" class="heart-wrap" style="margin-top:4px">
           <svg class="heart-svg" viewBox="0 0 68 62" fill="none">
-            <defs><clipPath id="hclipH"><rect id="cpr-h" x="0" y="0" width="68" height="90"/></clipPath></defs>
-            <path d="M34 56C34 56 6 38 6 20C6 11 13 5 22 5C27 5 31 8 34 12C37 8 41 5 46 5C55 5 62 11 62 20C62 38 34 56 34 56Z" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.12)" stroke-width="1.5"/>
-            <path d="M34 56C34 56 6 38 6 20C6 11 13 5 22 5C27 5 31 8 34 12C37 8 41 5 46 5C55 5 62 11 62 20C62 38 34 56 34 56Z" fill="#e03040" clip-path="url(#hclipH)"/>
-            <path d="M33 14C28 17 23 25 22 33" stroke="rgba(255,255,255,.22)" stroke-width="3.5" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="hg-h" x1="34" y1="0" x2="34" y2="62" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#ffd700"/><stop offset="40%" stop-color="#f59200"/><stop offset="100%" stop-color="#cc3300"/>
+              </linearGradient>
+              <filter id="gf-ht"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <clipPath id="hclipH"><rect id="cpr-h" x="0" y="0" width="68" height="90"/></clipPath>
+            </defs>
+            <path d="M34 56C34 56 6 38 6 20C6 11 13 5 22 5C27 5 31 8 34 12C37 8 41 5 46 5C55 5 62 11 62 20C62 38 34 56 34 56Z" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.1)" stroke-width="1.5"/>
+            <path d="M34 56C34 56 6 38 6 20C6 11 13 5 22 5C27 5 31 8 34 12C37 8 41 5 46 5C55 5 62 11 62 20C62 38 34 56 34 56Z" fill="url(#hg-h)" filter="url(#gf-ht)" clip-path="url(#hclipH)"/>
+            <path d="M33 14C28 17 23 25 22 33" stroke="rgba(255,255,255,.28)" stroke-width="3.5" stroke-linecap="round"/>
           </svg>
           <span class="heart-txt" id="h-hpv">10</span>
         </div>
@@ -431,7 +494,7 @@ body.mob .tuto-hl{border-radius:8px}
   </div>
   <div class="actions">
     <button id="btn-atk" class="btn btn-gold" onclick="onHumanAttack()" disabled>⚔ Attaquer</button>
-    <button id="btn-pass" class="btn btn-red" onclick="onHumanPass()" disabled>⏭ Passer</button>
+    <button id="btn-pass" class="btn btn-red" onclick="onHumanPass()" disabled>⏭ Skip Sort</button>
   </div>
   <div class="hand-wrap" id="hand-wrap">
     <div class="hand-meta">
@@ -576,14 +639,27 @@ function applyDeviceLayout() {
   document.getElementById('pj-mob-player').style.display = mob?'flex':'none';
   document.getElementById('mob-hum-right').style.display = mob?'flex':'none';
   if (mob) {
+    // COL3 ROW1 : cœur bot
     const pr = document.getElementById('pjr-mob');
     pr.innerHTML = '';
     pr.appendChild(document.getElementById('b-hwrap'));
-    const bn = document.createElement('div'); bn.className='mob-pname'; bn.textContent='Bot'; pr.appendChild(bn);
+    // COL3 ROW2 : cœur joueur
     const mhr = document.getElementById('mob-hum-right');
     mhr.innerHTML = '';
     mhr.appendChild(document.getElementById('h-hwrap'));
-    const hn = document.createElement('div'); hn.className='mob-pname'; hn.textContent='Toi'; mhr.appendChild(hn);
+    // COL1 ROW1 : injecter stats bot dans pj-left (comme .centre mobile PVE)
+    const pjl = document.getElementById('pjl-mob');
+    pjl.innerHTML = '';
+    pjl.className = 'mob-stats-inj';
+    const bRar = document.createElement('div'); bRar.className='sp-rar'; bRar.id='mob-b-rar'; pjl.appendChild(bRar);
+    const bNm  = document.createElement('div'); bNm.className='sp-name';bNm.id='mob-b-name'; pjl.appendChild(bNm);
+    ['atq','def','prec'].forEach(k=>{
+      const row=document.createElement('div'); row.className='stat-row'; row.id=`mob-b-sr-${k}`;
+      const icons={atq:'⚔️',def:'🛡️',prec:'🎯'};
+      const lbls={atq:'Atq',def:'Déf',prec:'Prec'};
+      row.innerHTML=`<span class="sr-ico">${icons[k]}</span><span class="sr-lbl">${lbls[k]}</span><span class="sr-val" id="mob-b-${k}">—</span>`;
+      pjl.appendChild(row);
+    });
   }
 }
 
