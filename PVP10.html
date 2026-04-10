@@ -2714,9 +2714,11 @@ function renderDeckGrid(){
   if(!grid) return;
   grid.innerHTML='';
 
-  const selIds=_selected10.map(c=>c.id);
+  // Compter combien de fois chaque carte est dans _selected10
+  const selCount={};
+  _selected10.forEach(c=>{selCount[c.id]=(selCount[c.id]||0)+1;});
 
-  // Cartes disponibles dans la collection filtrées
+  // Construire la liste avec UN SLOT PAR EXEMPLAIRE (max 2 par carte)
   const available=[];
   for(const [cid, qty] of Object.entries(_playerCollection)){
     if(qty<1) continue;
@@ -2725,28 +2727,37 @@ function renderDeckGrid(){
     const g=supaToGame(raw);
     if(_sdFilter==='fighter' && g.ct!=='fighter') continue;
     if(_sdFilter==='sort' && g.ct!=='sort') continue;
-    available.push({g, qty, raw});
+    const maxCopies=Math.min(qty,2); // max 2 exemplaires par carte
+    for(let copy=0;copy<maxCopies;copy++){
+      available.push({g, copy, maxCopies});
+    }
   }
 
-  // Trier : sélectionnées d'abord, puis par rareté, puis par nom
+  // Trier : sélectionnées d'abord, puis par rareté, puis par nom, puis par copie
   const rarOrder={M:0,R:1,PC:2,C:3};
   available.sort((a,b)=>{
-    const aS=selIds.includes(a.g.id)?0:1;
-    const bS=selIds.includes(b.g.id)?0:1;
+    const aUsed=copy=>copy<(selCount[a.g.id]||0);
+    const bUsed=copy=>copy<(selCount[b.g.id]||0);
+    const aS=aUsed(a.copy)?0:1;
+    const bS=bUsed(b.copy)?0:1;
     if(aS!==bS) return aS-bS;
     const rA=rarOrder[a.g.rarete]??3, rB=rarOrder[b.g.rarete]??3;
     if(rA!==rB) return rA-rB;
-    return a.g.nom.localeCompare(b.g.nom);
+    const nameComp=a.g.nom.localeCompare(b.g.nom);
+    if(nameComp!==0) return nameComp;
+    return a.copy-b.copy;
   });
 
   const rarCols={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'};
 
-  available.forEach(({g, qty})=>{
-    const isSelected=selIds.includes(g.id);
+  available.forEach(({g, copy})=>{
+    // Cette copie est-elle sélectionnée ? (la copy-ième occurrence de cette carte)
+    const usedCount=selCount[g.id]||0;
+    const isSelected=copy<usedCount;
     const full=_selected10.length>=10 && !isSelected;
     const div=document.createElement('div');
     div.className='sd-card'+(isSelected?' selected':'')+(full?' disabled':'');
-    div.onclick=()=>toggleCardSelection(g);
+    div.onclick=()=>toggleCardSelectionCopy(g, copy);
 
     let imgHTML='';
     if(g.image_url){
@@ -2776,17 +2787,23 @@ function renderDeckGrid(){
   updatePlayButton();
 }
 
-// ── Sélection/désélection d'une carte ────────────────────────────────
-function toggleCardSelection(g){
-  const idx=_selected10.findIndex(c=>c.id===g.id);
-  if(idx>=0){
-    _selected10.splice(idx,1);
+// ── Sélection/désélection d'une carte (avec gestion des copies) ──────
+function toggleCardSelectionCopy(g, copy){
+  // Compter combien de fois cette carte est déjà sélectionnée
+  const usedCount=_selected10.filter(c=>c.id===g.id).length;
+  if(copy<usedCount){
+    // Cette copie est sélectionnée → on retire la dernière occurrence
+    const idx=_selected10.map(c=>c.id).lastIndexOf(g.id);
+    if(idx>=0) _selected10.splice(idx,1);
   } else {
+    // Cette copie n'est pas encore sélectionnée → on l'ajoute
     if(_selected10.length>=10) return;
-    _selected10.push({...g, hpCur:g.hp||g.hpCur, hpBase:g.hp||g.hpBase});
+    _selected10.push({...g, hpCur:g.hp||g.hpCur||10, hpBase:g.hp||g.hpBase||10});
   }
   renderDeckGrid();
 }
+// Alias pour compatibilité
+function toggleCardSelection(g){toggleCardSelectionCopy(g,0);}
 
 // ── Barre des cartes sélectionnées ────────────────────────────────────
 function renderSelectedBar(){
