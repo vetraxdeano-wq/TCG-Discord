@@ -2716,7 +2716,7 @@ function renderDeckGrid(){
 
   // Compter combien de fois chaque carte est dans _selected10
   const selCount={};
-  _selected10.forEach(c=>{selCount[c.id]=(selCount[c.id]||0)+1;});
+  _selected10.forEach(c=>{const k=String(c.id);selCount[k]=(selCount[k]||0)+1;});
 
   // Construire la liste : UNE CARTE PAR TYPE avec son quota
   const available=[];
@@ -2746,7 +2746,7 @@ function renderDeckGrid(){
   const totalSelected=_selected10.length;
 
   available.forEach(({g, maxCopies})=>{
-    const used=selCount[g.id]||0;
+    const used=selCount[String(g.id)]||0;
     const col=rarCols[g.rarete]||'#888';
     const canAdd=used<maxCopies && totalSelected<10;
     const canRemove=used>0;
@@ -2778,7 +2778,7 @@ function renderDeckGrid(){
     </div>`;
 
     div.innerHTML=imgHTML+badge+infoBar;
-    div.onclick=()=>cycleCard(`${g.id}`, used, maxCopies, totalSelected);
+    div.onclick=()=>cycleCard(`${g.id}`);
 
     // Contrôles SOUS la carte
     const ctrl=document.createElement('div');
@@ -2802,20 +2802,22 @@ function renderDeckGrid(){
 }
 
 // ── Ajuster la quantité d'une carte dans la sélection ────────────────
-function cycleCard(cardId, used, maxCopies, totalSelected){
+function cycleCard(cardId){
+  // Recalculer au moment du clic (pas de stale closure)
   const raw=_allCardsRaw.find(c=>c.id==cardId);
   if(!raw) return;
   const g=supaToGame(raw);
+  const maxCopies=Math.min(_playerCollection[cardId]||0,2);
+  const used=_selected10.filter(c=>c.id==cardId).length;
+  const total=_selected10.length;
   if(used===0){
-    // 0 → 1
-    if(totalSelected>=10) return;
-    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
-  } else if(used<maxCopies && totalSelected<10){
-    // 1 → 2 (si possible)
-    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
+    if(total>=10) return; // deck plein
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10}); // 0→1
+  } else if(used<maxCopies && total<10){
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10}); // 1→2
   } else {
-    // max ou deck plein → retirer une copie (cycle vers le bas)
-    const idx=_selected10.map(c=>c.id).lastIndexOf(cardId);
+    // 2→1 ou 1→0 : retirer une copie
+    const idx=_selected10.map(c=>String(c.id)).lastIndexOf(String(cardId));
     if(idx>=0) _selected10.splice(idx,1);
   }
   renderDeckGrid();
@@ -2827,14 +2829,14 @@ function adjustCard(cardId, delta, event){
   if(!raw) return;
   const g=supaToGame(raw);
   const maxCopies=Math.min(_playerCollection[cardId]||0,2);
-  const used=_selected10.filter(c=>c.id==cardId).length;
+  const used=_selected10.filter(c=>String(c.id)===String(cardId)).length;
 
   if(delta>0){
     if(used>=maxCopies) return;
     if(_selected10.length>=10) return;
     _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
   } else {
-    const idx=_selected10.map(c=>c.id).lastIndexOf(cardId);
+    const idx=_selected10.map(c=>String(c.id)).lastIndexOf(String(cardId));
     if(idx>=0) _selected10.splice(idx,1);
   }
   renderDeckGrid();
