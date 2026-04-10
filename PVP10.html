@@ -35,8 +35,8 @@ body.light .t-title{color:#8a6a00;}
 body.light .t-turn{color:#3a3630;background:var(--s3);border-color:var(--bdr3);}
 body.light .t-log{color:#4a4640;}
 body.light .t-log:hover{color:#1a1814;}
-body.light .auto-btn{color:#3a3630;border-color:var(--bdr3);}
-body.light .auto-btn.on{color:#1a6a30;background:rgba(26,138,90,.12);border-color:rgba(26,138,90,.5);}
+body.light 
+body.light 
 body.light .hand-card{border-color:var(--bdr3);background:var(--s2);}
 body.light .hand-card:hover{border-color:rgba(0,0,0,.35);}
 body.light .fc-ph{background:var(--s3);}
@@ -319,12 +319,12 @@ body.mobile .actions{
 body.mobile .btn{font-size:clamp(10px,3.2vw,13px);padding:clamp(5px,1.5vw,8px) clamp(10px,3.5vw,15px);border-radius:6px}
 body.mobile .btn-gold{padding:clamp(5px,1.5vw,8px) clamp(12px,4vw,18px);font-size:clamp(10px,3.2vw,13px)}
 body.mobile .btn-red{font-size:clamp(10px,3.2vw,13px);padding:clamp(5px,1.5vw,8px) clamp(10px,3.5vw,15px)}
-body.mobile .auto-btn{font-size:clamp(9px,2.8vw,12px);padding:clamp(4px,1.3vw,7px) clamp(8px,2.8vw,12px);border-radius:16px}
-body.mobile .auto-dot{width:6px;height:6px}
-body.mobile .chrono-ico{font-size:clamp(13px,4vw,18px)}
-body.mobile .chrono-num{font-size:clamp(11px,3.4vw,14px);min-width:16px}
-body.mobile .spd-btn{font-size:clamp(9px,2.6vw,11px);padding:2px 5px;border-radius:4px}
-body.mobile .auto-speed{gap:2px}
+body.mobile 
+body.mobile 
+
+
+body.mobile 
+body.mobile 
 
 /* ── Main ── hauteur dynamique basée sur dvh ── */
 body.mobile .hand-wrap{flex-shrink:0;overflow:visible;position:relative;z-index:20}
@@ -927,28 +927,14 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .chrono-ico{font-size:18px;line-height:1;transition:opacity .3s}
 .chrono-num{font-size:13px;min-width:22px;text-align:left}
 
-.auto-btn{
-  display:flex;align-items:center;gap:5px;
-  font-family:'DM Mono',monospace;font-weight:700;font-size:10px;
-  padding:5px 10px;border-radius:20px;cursor:pointer;border:1px solid var(--bdr3);
-  background:var(--s2);color:var(--sub);
-  transition:all .2s;letter-spacing:.04em;
-}
-.auto-btn.on{background:rgba(40,200,80,.12);border-color:rgba(40,220,80,.5);color:#3ddb6f}
-.auto-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .2s}
-.auto-btn.on .auto-dot{background:#3ddb6f;animation:pulse .9s infinite}
 
-.auto-speed{
-  display:none;align-items:center;gap:3px;
-  font-family:'DM Mono',monospace;font-size:9px;font-weight:700;color:var(--sub);
-}
-.auto-speed.visible{display:flex}
-.spd-btn{
-  background:var(--s3);border:1px solid var(--bdr2);color:var(--sub);
-  font-family:'DM Mono',monospace;font-size:9px;font-weight:700;
-  padding:2px 6px;border-radius:4px;cursor:pointer;transition:all .15s;
-}
-.spd-btn.active{background:rgba(61,219,111,.15);border-color:#3ddb6f;color:#3ddb6f}
+
+
+
+
+
+
+
 .btn{font-family:'DM Sans',sans-serif;font-weight:700;font-size:12px;padding:8px 20px;border:none;cursor:pointer;border-radius:6px;transition:all .15s}
 .btn:disabled{opacity:.22;cursor:not-allowed}
 .btn-gold{background:var(--gold);color:#000}.btn-gold:hover:not(:disabled){background:var(--gold2);transform:translateY(-1px)}
@@ -1315,12 +1301,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
     </div>
     <button class="btn btn-gold" id="btn-atk" onclick="humanAttack()" disabled>⚔ Attaquer</button>
     <button class="btn btn-red"  id="btn-pass" onclick="humanPassSort()" disabled>↷ Passer</button>
-    <button class="auto-btn" id="auto-btn" onclick="toggleAuto()"><div class="auto-dot"></div>AUTO BATTLE</button>
-    <div class="auto-speed" id="auto-speed">
-      <button class="spd-btn active" id="spd1" onclick="setSpeed(1)">×1</button>
-      <button class="spd-btn" id="spd2" onclick="setSpeed(2)">×2</button>
-      <button class="spd-btn" id="spd3" onclick="setSpeed(3)">×3</button>
-    </div>
+
   </div>
 </div>
 
@@ -1556,8 +1537,6 @@ function buildHumanPioche(){
   return shuf([...f,...s]);
 }
 let G={};
-let _autoSpeed=1;
-const SPEED_DELAYS={1:{atk:1800,auto:1200,deal:350},2:{atk:900,auto:500,deal:200},3:{atk:300,auto:150,deal:60}};
 function mkP(){return{hp:20,hpMax:20,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false,noSpellThisTurn:false};}
 function initGame(skipDeal){
   G={turn:1,phase:'choose_fighter',human:mkP(),bot:mkP(),ended:false,fp:Math.random()<.5?'human':'bot',
@@ -2273,8 +2252,7 @@ function renderHand(){
 
     if(G._newCardIdx===i){
       d.style.animation='cardDeal .35s cubic-bezier(.16,1,.3,1) both';
-      const spd=SPEED_DELAYS[_autoSpeed];
-      setTimeout(()=>d.style.animation='',spd.deal+400);
+      setTimeout(()=>d.style.animation='',750);
     }
 
     wrapper.appendChild(d);
@@ -2298,7 +2276,7 @@ function humanPlayCard(idx){
     if(!G.bot.fighter)botChooseFighter();
     if(G.fp==='bot'&&G.turn===1){G.phase='bot';render();setTimeout(()=>botTurn(),1400);}
     else{G.phase='sort';render();}
-    resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);
+    resetChrono();
     return;
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
@@ -2307,10 +2285,10 @@ function humanPlayCard(idx){
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
     G.phase='attack';render();
-    resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);
+    resetChrono();
   }
 }
-function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);}
+function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();resetChrono();}
 function humanAttack(){
   if(G.phase!=='attack')return;G.phase='bot';stopChrono();renderActions();
   if(!G.human.fighter||!G.bot.fighter){endTurn();return;}
@@ -2324,7 +2302,7 @@ function humanAttack(){
       G.stats.totalDmgH+=dmg;
       const cn=G.human.fighter.nom;G.stats.dmgByCard[cn]=(G.stats.dmgByCard[cn]||0)+dmg;
     }
-    if(checkKO(G.bot,'Bot'))return;render();setTimeout(()=>botTurn(),SPEED_DELAYS[_autoSpeed].atk);
+    if(checkKO(G.bot,'Bot'))return;render();setTimeout(()=>botTurn(),1800);
   });
 }
 function botChooseFighter(){
@@ -2358,8 +2336,8 @@ function endTurn(){
   G.human.sortJoue=false;G.bot.sortJoue=false;draw(G.human);draw(G.bot);G.turn++;G.stats.turns++;
   G.phase=G.human.fighter?'sort':'choose_fighter';
   addTourLog(G.turn);render();
-  if(_autoBattle)setTimeout(scheduleAutoStep,SPEED_DELAYS[_autoSpeed].auto);
-  else resetChrono();
+  
+  resetChrono();
 }
 function draw(p){
   if(p.pioche.length){
@@ -2386,7 +2364,7 @@ function checkKO(player,label){
     if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
     setInstr('ko');addLog('👆 Choisis ton prochain Héro !','sys');render();
     if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);if(fc2){fc2.style.position='relative';fc2.appendChild(koBubble);}}
-    if(_autoBattle)setTimeout(scheduleAutoStep,1600);
+    
     return true;
   } else {
     player.actives=surv;
@@ -2522,38 +2500,15 @@ function spellAnnounce(who, nom, desc, type){
   },3500);
 }
 
-/* ══ CHRONO + AUTO-BATTLE ══ */
+/* ══ CHRONO ══ */
 const CHRONO_SEC=45;
 let _chronoVal=CHRONO_SEC;
 let _chronoInterval=null;
-let _autoBattle=false;
 
-function setSpeed(s){
-  _autoSpeed=s;
-  [1,2,3].forEach(n=>{
-    const b=document.getElementById(`spd${n}`);
-    if(b)b.classList.toggle('active',n===s);
-  });
-}
-function toggleAuto(){
-  _autoBattle=!_autoBattle;
-  const btn=document.getElementById('auto-btn');
-  btn.classList.toggle('on',_autoBattle);
-  const sp=document.getElementById('auto-speed');
-  if(sp)sp.classList.toggle('visible',_autoBattle);
-  if(_autoBattle){
-    addLog('⚡ Auto-Battle activé','sys');
-    stopChrono();
-    if(G.phase!=='bot'&&!G.ended) runAutoStep();
-  } else {
-    addLog('⚡ Auto-Battle désactivé','sys');
-    startChrono();
-  }
-}
 
 function startChrono(){
   stopChrono();
-  if(G.ended||G.phase==='bot'||_autoBattle)return;
+  if(G.ended||G.phase==='bot')return;
   _chronoVal=CHRONO_SEC;
   updateChronoUI();
   _chronoInterval=setInterval(()=>{
@@ -2562,8 +2517,9 @@ function startChrono(){
     if(_chronoVal<=0){
       stopChrono();
 
-      addLog('⏱ Temps écoulé — auto','sys');
-      runAutoStep();
+      addLog('⏱ Temps écoulé','sys');
+      if(G.phase==='sort') humanPassSort();
+      else if(G.phase==='attack') humanAttack();
     }
   },1000);
 }
@@ -2586,37 +2542,12 @@ function updateChronoUI(){
   }
 }
 function resetChrono(){
-  if(_autoBattle){stopChrono();return;}
+  
   startChrono();
 }
 
-function runAutoStep(){
-  if(G.ended)return;
-  if(G.phase==='choose_fighter'){
-
-    while(!G.human.hand.some(c=>c.ct==='fighter')&&G.human.pioche.length){
-      G.human.hand.push(G.human.pioche.shift());
-    }
-    const fs=G.human.hand.filter(c=>c.ct==='fighter');
-    if(fs.length) humanPlayCard(G.human.hand.indexOf(fs[0]));
-    else if(_autoBattle) setTimeout(scheduleAutoStep,SPEED_DELAYS[_autoSpeed].auto); // pas de combattant, réessai
-  } else if(G.phase==='sort'){
-    const so=G.human.hand.filter(c=>c.ct==='sort');
-    if(so.length&&!G.human.sortJoue) humanPlayCard(G.human.hand.indexOf(so[0]));
-    else humanPassSort();
-  } else if(G.phase==='attack'){
-    humanAttack();
-  }
-}
-
-function scheduleAutoStep(){
-  if(!_autoBattle||G.ended)return;
-  if(G.phase==='bot'){setTimeout(scheduleAutoStep,SPEED_DELAYS[_autoSpeed].auto);return;}
-  setTimeout(()=>{runAutoStep();},SPEED_DELAYS[_autoSpeed].auto);
-}
 
 function resetIdle(){
-  if(_autoBattle)return;
   resetChrono();
 }
 
@@ -2632,7 +2563,6 @@ function showCoinToast(fp){
 function startGame(){
   document.getElementById('si').classList.remove('active');document.getElementById('sg').classList.add('active');
   document.getElementById('logp').classList.add('visible');
-  _autoBattle=false;document.getElementById('auto-btn').classList.remove('on');
   initGame();
   // Utiliser le deck du joueur pour le human, bot aléatoire sans mythique
   const hd=buildHumanPioche();
@@ -2641,7 +2571,7 @@ function startGame(){
   G.bot.hand=bd.slice(0,5);G.bot.pioche=bd.slice(5);
   addTourLog(1);showCoinToast(G.fp);render();
   if(G.fp==='bot'){stopChrono();setTimeout(()=>{botChooseFighter();render();},1800);}
-  else resetChrono();
+  resetChrono();
 }
 // restartGame défini dans le bloc Supabase 10v10 ci-dessous
 </script>
@@ -2904,9 +2834,6 @@ function launchGame10v10(){
   document.getElementById('sd').classList.remove('active');
   document.getElementById('sg').classList.add('active');
   document.getElementById('logp').classList.add('visible');
-  _autoBattle=false;
-  const autobtn=document.getElementById('auto-btn');
-  if(autobtn) autobtn.classList.remove('on');
 
   // Afficher le nom du joueur
   const uname=_currentUser?.user_metadata?.full_name||_currentUser?.user_metadata?.name||'Joueur';
