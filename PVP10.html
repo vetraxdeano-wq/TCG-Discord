@@ -1557,14 +1557,14 @@ function buildHumanPioche(){
 let G={};
 let _autoSpeed=1;
 const SPEED_DELAYS={1:{atk:1800,auto:1200,deal:350},2:{atk:900,auto:500,deal:200},3:{atk:300,auto:150,deal:60}};
-function mkP(){return{hp:60,hpMax:60,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false,noSpellThisTurn:false};}
+function mkP(){return{hp:20,hpMax:20,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false,noSpellThisTurn:false};}
 function initGame(){
   G={turn:1,phase:'choose_fighter',human:mkP(),bot:mkP(),ended:false,fp:Math.random()<.5?'human':'bot',
      stats:{dmgByCard:{},totalDmgH:0,totalDmgB:0,turns:0}};
   const hd=buildPioche(),bd=buildPioche();
   G.human.hand=hd.slice(0,5);G.human.pioche=hd.slice(5);
   G.bot.hand=bd.slice(0,5);G.bot.pioche=bd.slice(5);
-  updateHeart('h',75,75);updateHeart('b',75,75);
+  updateHeart('h',20,20);updateHeart('b',20,20);
 }
 function aEff(p){if(!p.fighter)return 0;let v=p.fighter.atq;p.actives.forEach(a=>{if(a.at==='ba')v+=a.val;if(a.at==='da')v-=a.val;});return Math.max(0,v);}
 function dEff(p){if(!p.fighter)return 0;let v=p.fighter.def;p.actives.forEach(a=>{if(a.at==='bd')v+=a.val;if(a.at==='dd')v-=a.val;});return Math.max(0,v);}
@@ -3018,7 +3018,7 @@ async function initSupabase(){
   AS = allCards.filter(c=>c.type==='Arcane'||c.type==='Ruse').map(supaToGame);
 
   // ── Charger la collection du joueur ──
-  const {data:colData, error:colErr}=await _db.from('collection')
+  const {data:colData, error:colErr}=await _db.from('player_cards')
     .select('card_id,quantity')
     .eq('player_id',_currentUser.id);
 
