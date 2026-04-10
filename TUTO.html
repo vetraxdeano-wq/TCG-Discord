@@ -78,19 +78,88 @@ body.mob .centre{display:none}
 body.mob .pj-left .pj-deck{display:none}
 body.mob .pj-right .pj-deck{display:none}
 
-/* CARDS */
-.field-card{flex:1;min-height:0;max-height:calc(100% - 24px);aspect-ratio:410/580;width:auto;max-width:83%;border-radius:11px;overflow:visible;position:relative;border:none;flex-shrink:1}
-body.mob .cz-human .field-card,body.mob .cz-bot .field-card{flex:1;min-height:0;width:100%;height:100%;max-height:none;max-width:none;aspect-ratio:unset;border-radius:8px}
-body.mob .cz-human .fc-img-wrap,body.mob .cz-bot .fc-img-wrap{flex:1;min-height:0;border-radius:8px;overflow:hidden}
-.fc-img-wrap{width:100%;height:100%;border-radius:11px;overflow:hidden;position:relative}
-.fc-ph{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--s3);border-radius:11px}
+/* CARDS — calqué sur PVE */
+.field-card{
+  flex:1;min-height:0;
+  max-height:calc(100% - 28px);
+  aspect-ratio:410/580;
+  width:auto;max-width:92%;
+  border-radius:11px;
+  overflow:visible;
+  position:relative;border:none;
+  box-shadow:none;
+  flex-shrink:1;
+  animation:cardIn .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+.fc-img-wrap{
+  width:100%;height:100%;
+  border-radius:11px;
+  overflow:hidden;
+  position:relative;
+  display:flex;align-items:stretch;
+  background:transparent;
+}
+.fc-img-wrap>img,.fc-img-wrap img{
+  width:100%!important;height:100%!important;
+  object-fit:contain!important;
+  object-position:center top;
+  display:block;border:none;flex:1;
+  background:transparent;
+}
+.fc-ph{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:var(--s3);border-radius:11px}
+.fc-ph .icon{font-size:36px;opacity:.2}
+.fc-ph .lbl{font-size:9px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.fc-hprow{display:flex;align-items:center;width:94%;margin:5px auto 0;gap:6px;flex-shrink:0}
+.fc-hplabel{font-family:'DM Mono',monospace;font-size:9px;font-weight:700;color:var(--txt);white-space:nowrap;letter-spacing:.04em;opacity:.9;text-shadow:0 1px 3px rgba(0,0,0,.6);flex-shrink:0}
+.fc-hpbar{flex:1;min-width:0;height:6px;background:rgba(0,0,0,.35);border-radius:3px;overflow:hidden;position:relative;box-shadow:inset 0 1px 3px rgba(0,0,0,.4)}
+.fc-hpfill{height:100%;transition:width .6s cubic-bezier(.4,0,.2,1),background .4s;border-radius:3px;box-shadow:inset 0 1px 2px rgba(255,255,255,.2)}
+
+/* ── MODE MOB : grille calquée sur PVE mobile ── */
+body.mob .field{
+  display:grid!important;
+  grid-template-columns:clamp(72px,22vw,90px) 1fr clamp(48px,14vw,66px);
+  grid-template-rows:1fr 1.18fr;
+  flex:1;min-height:0;overflow:hidden;
+}
+body.mob .cz-bot{
+  grid-column:2;grid-row:1;
+  display:flex!important;
+  flex-direction:column;align-items:center;justify-content:flex-end;
+  padding:2px 2px;border-bottom:1px solid var(--bdr2);overflow:visible;
+}
+body.mob .cz-human{
+  grid-column:2;grid-row:2;
+  display:flex!important;
+  flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:2px 2px;overflow:visible;
+}
+body.mob .cz-human .field-card,
+body.mob .cz-bot .field-card{
+  flex:none!important;
+  min-height:0!important;
+  width:100%!important;height:auto!important;
+  max-height:100%!important;max-width:100%!important;
+  aspect-ratio:2/3!important;
+  display:flex!important;flex-direction:column!important;
+  overflow:hidden!important;border-radius:8px!important;
+}
+body.mob .cz-human .fc-img-wrap,
+body.mob .cz-bot .fc-img-wrap{
+  flex:1;min-height:0;
+  border-radius:6px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  padding:0!important;background:transparent;
+}
+body.mob .cz-human .fc-img-wrap img,
+body.mob .cz-bot .fc-img-wrap img{
+  object-fit:contain!important;
+  width:100%!important;height:100%!important;
+  border-radius:6px;background:transparent;
+}
 body.mob .fc-ph{border-radius:8px}
-.fc-ph .icon{font-size:32px;opacity:.2}
-.fc-ph .lbl{font-size:8px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
-.fc-hprow{display:flex;align-items:center;gap:6px;margin:3px auto 0;width:90%;max-width:130px;flex-shrink:0}
-.fc-hplabel{font-family:'DM Mono',monospace;font-size:9px;color:var(--sub);white-space:nowrap;flex-shrink:0}
-.fc-hpbar{flex:1;height:4px;background:var(--s3);border-radius:3px;overflow:hidden}
-.fc-hpfill{height:100%;border-radius:3px;transition:width .4s}
+body.mob .fc-hprow{margin:2px auto 0;gap:3px}
+body.mob .fc-hplabel{font-size:clamp(6px,1.9vw,7.5px)}
+body.mob .fc-hpbar{height:3px}
 
 /* STATS */
 .pj-name{font-family:'Cinzel',serif;font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--txt)}
@@ -146,14 +215,27 @@ body.mob .hand-meta{padding:2px 10px 0}
 .hand-lbl{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--sub)}
 body.mob .hand-lbl{font-size:8px}
 .hand-count{font-family:'DM Mono',monospace;font-size:9px;color:var(--sub)}
-.hand-cards{display:flex;gap:8px;padding:4px 14px 8px;overflow-x:auto;align-items:flex-end}
-body.mob .hand-cards{height:calc(15*var(--dvh));min-height:78px;max-height:105px;gap:6px;padding:3px 10px 6px}
-.hcard{height:78px;min-width:52px;max-width:68px;flex:0 0 auto;border-radius:8px;border:1px solid var(--bdr2);background:var(--s2);cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
-body.mob .hcard{height:calc(13*var(--dvh));min-height:66px;max-height:92px}
-.hcard:hover:not(.hc-dis){border-color:var(--gold);transform:translateY(-5px);box-shadow:0 6px 20px rgba(240,192,64,.18)}
-.hcard.hc-dis{opacity:.28;cursor:not-allowed}
-.hcard.hc-playable{border-color:rgba(240,192,64,.6);box-shadow:0 0 12px rgba(240,192,64,.2);animation:cardGlow 1.6s ease-in-out infinite}
-@keyframes cardGlow{0%,100%{box-shadow:0 0 8px rgba(240,192,64,.12)}50%{box-shadow:0 0 22px rgba(240,192,64,.38)}}
+.hand-cards{display:flex;gap:9px;padding:8px 16px 10px;overflow-x:auto;overflow-y:visible;height:175px;align-items:flex-end}
+.hand-cards::-webkit-scrollbar{height:3px}
+.hand-cards::-webkit-scrollbar-thumb{background:var(--bdr3);border-radius:2px}
+body.mob .hand-cards{height:calc(14*var(--dvh));min-height:75px;max-height:105px;gap:4px;padding:2px 7px 4px}
+/* Cartes en main — style PVE */
+.hcard{flex-shrink:0;height:148px;aspect-ratio:410/580;border-radius:9px;cursor:pointer;position:relative;border:none;overflow:hidden;box-shadow:none;transition:opacity .18s}
+body.mob .hcard{height:calc(12.5*var(--dvh));min-height:68px;max-height:96px}
+.hcard:hover:not(.hc-dis){
+  z-index:100;
+  transform:translateY(-12px) scale(1.10);
+  box-shadow:0 16px 40px rgba(0,0,0,.65),0 4px 12px rgba(0,0,0,.4);
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .22s;
+}
+.hcard{transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .22s,opacity .18s}
+.hcard img{width:100%;height:100%;object-fit:contain;object-position:center top;display:block;border:none;border-radius:9px;background:transparent}
+.hcard.hc-dis{opacity:.16;pointer-events:all;cursor:default;filter:grayscale(.85)}
+.hcard.hc-playable{
+  box-shadow:0 0 0 2px rgba(240,192,64,.7),0 0 18px rgba(240,192,64,.35);
+  animation:cardGlow 1.6s ease-in-out infinite;
+}
+@keyframes cardGlow{0%,100%{box-shadow:0 0 0 2px rgba(240,192,64,.55),0 0 10px rgba(240,192,64,.18)}50%{box-shadow:0 0 0 2px rgba(240,192,64,.9),0 0 28px rgba(240,192,64,.45)}}
 
 /* TUTO OVERLAY */
 #tuto-overlay{position:fixed;inset:0;z-index:300;pointer-events:none;display:none}
@@ -517,7 +599,7 @@ const CARD_IMAGES = {
 function fighterCardHTML(f) {
   const img = CARD_IMAGES[f.id];
   if (img) {
-    return `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${f.nom}">`;
+    return `<img src="${img}" style="width:100%;height:100%;object-fit:contain;display:block;background:transparent;" alt="${f.nom}">`;
   }
   const pct = f.hpCur/f.hpBase*100;
   const hc  = pct>60?'#3ecf8e':pct>30?'#f0c040':'#ff4444';
@@ -601,7 +683,7 @@ function renderHand() {
     d.onclick = canPlay ? ()=>onPlayCard(i) : null;
     const cardImg = CARD_IMAGES[c.id];
     if(cardImg){
-      d.innerHTML=`<img src="${cardImg}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:7px;" alt="${c.nom}">`;
+      d.innerHTML=`<img src="${cardImg}" style="width:100%;height:100%;object-fit:contain;display:block;background:transparent;border-radius:8px;" alt="${c.nom}">`;
     } else if(isFig){
       d.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:5px 3px;text-align:center;gap:1px">
         <div style="font-family:'Cinzel',serif;font-size:6px;font-weight:900;color:#888;text-transform:uppercase">COMMUNE</div>
