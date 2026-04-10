@@ -11,6 +11,10 @@
 :root {
   --gold-bright: #f0c060;
   --gold-main: #c8953a;
+  --myth-red: #ef4444;
+  --myth-red-deep: #991b1b;
+  --myth-red-bright: #fca5a5;
+  --myth-red-glow: #dc262680;
   --gold-deep: #8a6520;
   --gold-subtle: #4a3510;
   --noir-deep: #050404;
@@ -36,11 +40,15 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 
 body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-repeat fixed;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;overflow:hidden;position:relative}
 .starfield{position:fixed;inset:0;z-index:0;pointer-events:none;background:transparent;transition:background 1.5s}
-.starfield.myth-active{background:radial-gradient(ellipse at center,rgba(61,34,0,.7) 0%,rgba(28,13,0,.5) 50%,transparent 100%)}
+.starfield.myth-active{background:radial-gradient(ellipse at center,rgba(80,0,0,.7) 0%,rgba(40,0,0,.5) 50%,transparent 100%)}
 .starfield.rare-active{background:radial-gradient(ellipse at center,rgba(26,10,46,.7) 0%,rgba(10,5,24,.5) 60%,transparent 100%)}
 .star{position:absolute;border-radius:50%;background:var(--gold-main);transition:background 1.5s,box-shadow 1.5s;animation:twinkle var(--d,3s) ease-in-out infinite var(--delay,0s)}
+@keyframes mythSeqPulse{
+  0%,100%{opacity:.88;text-shadow:0 0 30px #ef4444,0 0 60px #ef444440}
+  50%{opacity:1;text-shadow:0 0 60px #fca5a5,0 0 120px #ef444455}
+}
 @keyframes twinkle{0%,100%{opacity:0.05;transform:scale(1)}50%{opacity:.6;transform:scale(1.5)}}
-.starfield.myth-active .star{background:var(--gold-bright);box-shadow:0 0 5px var(--gold-bright)}
+.starfield.myth-active .star{background:#ef4444;box-shadow:0 0 5px #ef4444}
 .starfield.rare-active .star{background:#c0a0ff;box-shadow:0 0 3px #c0a0ff}
 
 /* Gold ornamental divider helper */
@@ -49,16 +57,48 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 
 .title{
   position:fixed;top:0;left:0;right:0;
-  display:flex;align-items:center;justify-content:center;
-  padding:14px 20px 12px;
-  font-family:'Cinzel',serif;font-size:.75rem;font-weight:700;
-  color:var(--gold-main);letter-spacing:.45em;
-  text-shadow:0 0 18px var(--gold-deep);
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:10px 20px 8px;
   z-index:100;white-space:nowrap;
-  background:linear-gradient(180deg,var(--noir-deep) 60%,transparent);
-  border-bottom:1px solid var(--gold-subtle);
+  background:transparent;
+  border-bottom:none;
+  pointer-events:none;
 }
-.title::before,.title::after{content:'◆';margin:0 10px;font-size:.5rem;opacity:.6}
+/* Suppression des diamants art-déco */
+.title::before,.title::after{content:none}
+/* Inner label style BD */
+.cmx-title-box{
+  display:inline-flex;align-items:center;gap:0;
+  background:#0e0c09;
+  border:2.5px solid #000;
+  box-shadow:3px 3px 0 #000;
+  position:relative;overflow:hidden;
+}
+.cmx-title-box::before{
+  content:'';position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(248,191,36,.12) 1px,transparent 1px);
+  background-size:5px 5px;pointer-events:none;
+}
+.cmx-title-main{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:.95rem;letter-spacing:.35em;
+  color:var(--gold-bright);
+  text-shadow:1px 1px 0 #000,-1px -1px 0 #000;
+  padding:6px 0;
+  position:relative;z-index:1;
+  opacity:.7;
+}
+.cmx-title-tag{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:.6rem;letter-spacing:.3em;
+  color:#000;
+  background:var(--gold-main);
+  padding:5px 10px;
+  border-left:2.5px solid #000;
+  position:relative;z-index:1;
+  line-height:1.4;
+  display:flex;align-items:center;
+}
 .stage{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;width:100vw;height:100vh}
 
 /* ===== BOOSTER ===== */
@@ -202,13 +242,13 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card[data-rarity="COMMUNE"] .card-foil{opacity:0;--foil-color1:#5cb87a40;--foil-color2:#86efac30}
 .card[data-rarity="PEU COMMMUNE"] .card-foil{--foil-color1:#60a5d050;--foil-color2:#93c5fd40}
 .card[data-rarity="RARE"] .card-foil{--foil-color1:#b890f860;--foil-color2:#d4b8ff50}
-.card[data-rarity="MYTHIQUE"] .card-foil{--foil-color1:#f0c06080;--foil-color2:#fde68a60}
+.card[data-rarity="MYTHIQUE"] .card-foil{--foil-color1:#ef444480;--foil-color2:#fca5a560}
 /* .card:hover .card-foil removed — foil only via hold-inspect JS */
 
 /* Rainbow foil for RARE */
 .card[data-rarity="RARE"] .card-foil::before{background:conic-gradient(from calc(var(--mx,50%) * 3.6deg) at var(--mx,50%) var(--my,50%),#ff000030,#ff7f0030,#ffff0030,#00ff0030,#0000ff30,#8b00ff30,#ff000030);opacity:1}
 /* Gold foil for MYTHIQUE */
-.card[data-rarity="MYTHIQUE"] .card-foil::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),#f0c06055 0%,#c8953a35 30%,transparent 70%);opacity:1}
+.card[data-rarity="MYTHIQUE"] .card-foil::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),#ef444455 0%,#b91c1c35 30%,transparent 70%);opacity:1}
 
 /* Tilt 3D */
 .tilt-card{transform-style:preserve-3d;transition:transform .1s linear,box-shadow .1s linear}
@@ -232,7 +272,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 @keyframes starPop{0%,100%{opacity:0;transform:scale(0) rotate(0)}40%{opacity:1;transform:scale(1) rotate(45deg)}80%{opacity:.5;transform:scale(.7) rotate(90deg)}}
 
 /* Mythique: golden flame wisps */
-.fx-flame{position:absolute;width:8px;height:20px;border-radius:50% 50% 30% 30%;background:linear-gradient(to top,#fbbf24aa,transparent);filter:blur(2px);animation:flameRise var(--fd,2s) ease-out infinite var(--fs,0s)}
+.fx-flame{position:absolute;width:8px;height:20px;border-radius:50% 50% 30% 30%;background:linear-gradient(to top,#ef4444aa,transparent);filter:blur(2px);animation:flameRise var(--fd,2s) ease-out infinite var(--fs,0s)}
 @keyframes flameRise{0%{transform:translateY(0) scaleX(1) rotate(0);opacity:.8}50%{transform:translateY(-30px) scaleX(.6) rotate(10deg);opacity:.6}100%{transform:translateY(-60px) scaleX(.2) rotate(-5deg);opacity:0}}
 
 /* ===== CARD LAYOUT ===== */
@@ -253,7 +293,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card[data-rarity="COMMUNE"] .card-name{color:#7dcea0}
 .card[data-rarity="PEU COMMMUNE"] .card-name{color:#7ec8e3}
 .card[data-rarity="RARE"] .card-name{color:#c4b5fd}
-.card[data-rarity="MYTHIQUE"] .card-name{color:var(--gold-bright)}
+.card[data-rarity="MYTHIQUE"] .card-name{color:var(--myth-red-bright)}
 .card-hp-badge{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#00000060;border:1px solid #ffffff12;border-radius:4px;padding:3px 7px;min-width:38px;flex-shrink:0}
 .card-hp-num{font-size:.95rem;font-weight:700;color:#fca5a5;line-height:1;font-family:'Bebas Neue',sans-serif}
 .card-hp-lbl{font-size:.38rem;color:#f8717166;letter-spacing:.15em;font-family:'Cormorant Garamond',serif}
@@ -266,7 +306,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card[data-rarity="COMMUNE"] .card-art{background:linear-gradient(160deg,#0e2e18,#163824);border:1px solid #2a5a3533}
 .card[data-rarity="PEU COMMMUNE"] .card-art{background:linear-gradient(160deg,#0a2a40,#123350);border:1px solid #1e5a7033}
 .card[data-rarity="RARE"] .card-art{background:linear-gradient(160deg,#1a1040,#241860);border:1px solid #3d2a8033}
-.card[data-rarity="MYTHIQUE"] .card-art{background:linear-gradient(160deg,#1c0e00,#2e1800);border:1px solid var(--gold-deep)}
+.card[data-rarity="MYTHIQUE"] .card-art{background:linear-gradient(160deg,#1a0000,#2e0000);border:1px solid #7f1d1d}
 .card-emoji-art{font-size:2rem;filter:drop-shadow(0 3px 6px #00000060);opacity:.7}
 .card-char-art{position:absolute;bottom:3px;right:6px;font-size:.48rem;color:#ffffff20;font-style:italic}
 .card-type-row{padding:4px 12px;display:flex;align-items:center;gap:6px;position:relative;z-index:4}
@@ -275,7 +315,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card[data-rarity="COMMUNE"] .card-type-badge{background:#0e2e1866;color:#7dcea0;border:1px solid #2a5a3544}
 .card[data-rarity="PEU COMMMUNE"] .card-type-badge{background:#0a2a4066;color:#7ec8e3;border:1px solid #1e5a7044}
 .card[data-rarity="RARE"] .card-type-badge{background:#1a104066;color:#b890f8;border:1px solid #3d2a8044}
-.card[data-rarity="MYTHIQUE"] .card-type-badge{background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep)}
+.card[data-rarity="MYTHIQUE"] .card-type-badge{background:#450a0a;color:#ef4444;border:1px solid #7f1d1d}
 .card-body{flex:1;padding:4px 12px 6px;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;min-height:0;position:relative;z-index:4}
 .card-stats{display:flex;gap:4px;background:#00000050;border:1px solid #ffffff08;border-radius:4px;padding:5px 6px}
 .stat{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px}
@@ -290,11 +330,11 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card[data-rarity="COMMUNE"] .rarity-stars,.card[data-rarity="COMMUNE"] .rarity-label{color:#9ca3af}
 .card[data-rarity="PEU COMMMUNE"] .rarity-stars,.card[data-rarity="PEU COMMMUNE"] .rarity-label{color:#60a5fa}
 .card[data-rarity="RARE"] .rarity-stars,.card[data-rarity="RARE"] .rarity-label{color:#a855f7}
-.card[data-rarity="MYTHIQUE"] .rarity-stars,.card[data-rarity="MYTHIQUE"] .rarity-label{color:#f0c060}
+.card[data-rarity="MYTHIQUE"] .rarity-stars,.card[data-rarity="MYTHIQUE"] .rarity-label{color:#ef4444}
 .card-bottom-external[data-rarity="COMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="COMMUNE"] .rarity-label{color:#9ca3af}
 .card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-stars,.card-bottom-external[data-rarity="PEU COMMMUNE"] .rarity-label{color:#60a5fa}
 .card-bottom-external[data-rarity="RARE"] .rarity-stars,.card-bottom-external[data-rarity="RARE"] .rarity-label{color:#a855f7}
-.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-stars,.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-label{color:#f0c060}
+.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-stars,.card-bottom-external[data-rarity="MYTHIQUE"] .rarity-label{color:#ef4444}
 .card-id{position:absolute;top:8px;right:8px;font-size:.4rem;color:#ffffff15;letter-spacing:.1em;z-index:4;font-family:'Bebas Neue',sans-serif}
 .card[data-rarity="RARE"]{
   background:transparent;
@@ -307,7 +347,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   box-shadow:none
 }
 .card[data-rarity="RARE"] .card-holo::after{background:linear-gradient(125deg,transparent 5%,#b890f825 28%,#9370f822 52%,#d4b8ff18 70%,transparent 88%);animation:holoShine 1.8s ease-in-out infinite}
-.card[data-rarity="MYTHIQUE"] .card-holo::after{background:conic-gradient(from 180deg at 50% 50%,#f0c06030,#c8953a22,#fde68a28,#f0c06030);animation:holoGold 2s linear infinite}
+.card[data-rarity="MYTHIQUE"] .card-holo::after{background:conic-gradient(from 180deg at 50% 50%,#ef444430,#b91c1c22,#fca5a528,#ef444430);animation:holoGold 2s linear infinite}
 .scanlines{position:absolute;inset:0;border-radius:12px;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,#00000010 3px,#00000010 4px);animation:scanMove 5s linear infinite;opacity:.2;z-index:5}
 @keyframes scanMove{0%{background-position:0 0}100%{background-position:0 40px}}
 
@@ -319,15 +359,15 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .fullscreen-reveal{position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .3s}
 .fullscreen-reveal.active{pointer-events:auto;opacity:1}
 .fullscreen-card{width:min(500px,97vw);height:min(710px,92vh);border-radius:18px;position:relative;display:flex;flex-direction:column;cursor:pointer;transform:scale(.1);opacity:0;transform-style:preserve-3d}
-.fullscreen-card.anim-rare{animation:fsRare .85s cubic-bezier(.34,1.5,.64,1) .1s forwards}
-@keyframes fsRare{0%{transform:scale(.06) rotateY(90deg) rotateX(15deg);opacity:0}45%{transform:scale(1.18) rotateY(-8deg) rotateX(-3deg);opacity:1}65%{transform:scale(.94) rotateY(4deg)}82%{transform:scale(1.05) rotateY(-2deg)}100%{transform:scale(1) rotateY(0);opacity:1}}
+.fullscreen-card.anim-rare{animation:fsRare 1.4s cubic-bezier(.22,.82,.16,1) .12s forwards}
+@keyframes fsRare{0%{transform:scale(.52) rotateY(22deg) translateY(30px);opacity:0}30%{opacity:.65}62%{transform:scale(1.05) rotateY(-3deg) translateY(-5px);opacity:1}80%{transform:scale(.982) rotateY(1.2deg)}100%{transform:scale(1) rotateY(0) translateY(0);opacity:1}}
 .fullscreen-card[data-rarity="RARE"]{background:transparent;border:none;box-shadow:none}
 .fullscreen-card[data-rarity="RARE"] .card-art::after{background:linear-gradient(105deg,transparent 20%,rgba(184,144,248,.6) 46%,rgba(212,184,255,.3) 52%,transparent 72%);border-radius:6px}
 .fullscreen-card[data-rarity="MYTHIQUE"]{background:transparent;border:none;box-shadow:none}
 .fullscreen-card .card-holo{border-radius:0}
 .fullscreen-card::before{content:none}
 .fullscreen-card[data-rarity="RARE"] .card-holo::after{background:linear-gradient(125deg,transparent 10%,#b890f820 30%,#9370f81a 55%,transparent 80%);animation:holoShine 2.2s ease-in-out infinite}
-.fullscreen-card[data-rarity="MYTHIQUE"] .card-holo::after{background:conic-gradient(from 180deg at 50% 50%,#f0c06025,#c8953a1a,#fde68a20,#f0c06025);animation:holoGold 2s linear infinite}
+.fullscreen-card[data-rarity="MYTHIQUE"] .card-holo::after{background:linear-gradient(135deg,transparent 30%,rgba(239,68,68,.08) 50%,transparent 70%);animation:none}
 .fullscreen-card .card-top{padding:14px 16px 8px}
 .fullscreen-card .card-name{font-size:.65rem;animation:nameReveal .9s ease-out .35s both}
 @keyframes nameReveal{0%{opacity:0;letter-spacing:.5em;filter:blur(5px)}100%{opacity:1;letter-spacing:normal;filter:blur(0)}}
@@ -348,18 +388,18 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .fullscreen-card .rarity-stars{font-size:.85rem;letter-spacing:4px}
 .fullscreen-card .rarity-label{font-size:.6rem}
 .fullscreen-card[data-rarity="RARE"] .card-name{color:#c4b5fd}
-.fullscreen-card[data-rarity="MYTHIQUE"] .card-name{color:var(--gold-bright)}
+.fullscreen-card[data-rarity="MYTHIQUE"] .card-name{color:#fca5a5}
 .fullscreen-card[data-rarity="RARE"] .card-art{background:linear-gradient(160deg,#1a1040,#241860);border:1px solid #3d2a8044}
-.fullscreen-card[data-rarity="MYTHIQUE"] .card-art{background:linear-gradient(160deg,#1c0e00,#2e1800);border:1px solid var(--gold-deep)}
+.fullscreen-card[data-rarity="MYTHIQUE"] .card-art{background:linear-gradient(160deg,#1a0000,#2e0000);border:1px solid #7f1d1d}
 .fullscreen-card[data-rarity="RARE"] .card-type-badge{background:#1a104066;color:#b890f8;border:1px solid #3d2a8044}
-.fullscreen-card[data-rarity="MYTHIQUE"] .card-type-badge{background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep)}
+.fullscreen-card[data-rarity="MYTHIQUE"] .card-type-badge{background:#450a0a;color:#ef4444;border:1px solid #7f1d1d}
 .fullscreen-card[data-rarity="RARE"] .rarity-stars,.fullscreen-card[data-rarity="RARE"] .rarity-label{color:#a855f7}
-.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-stars,.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-label{color:#f0c060}
+.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-stars,.fullscreen-card[data-rarity="MYTHIQUE"] .rarity-label{color:#ef4444}
 .fullscreen-card .card-foil{border-radius:16px}
 .fullscreen-card[data-rarity="RARE"] .card-foil{--foil-color1:#b890f860;--foil-color2:#d4b8ff50}
-.fullscreen-card[data-rarity="MYTHIQUE"] .card-foil{--foil-color1:#f0c06080;--foil-color2:#fde68a60}
+.fullscreen-card[data-rarity="MYTHIQUE"] .card-foil{--foil-color1:#ef444480;--foil-color2:#fca5a560}
 .fullscreen-card[data-rarity="RARE"] .card-foil::before{background:conic-gradient(from calc(var(--mx,50%) * 3.6deg) at var(--mx,50%) var(--my,50%),#ff000030,#ff7f0030,#ffff0030,#00ff0030,#0000ff30,#8b00ff30,#ff000030)}
-.fullscreen-card[data-rarity="MYTHIQUE"] .card-foil::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),#f0c06055 0%,#c8953a35 30%,transparent 70%)}
+.fullscreen-card[data-rarity="MYTHIQUE"] .card-foil::before{background:radial-gradient(ellipse at var(--mx,50%) var(--my,50%),#ef444455 0%,#b91c1c35 30%,transparent 70%)}
 /* .fullscreen-card:hover .card-foil removed — foil only via hold-inspect JS */
 .fs-hint{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);color:var(--text-muted);font-size:.72rem;letter-spacing:.3em;animation:pulse 2s infinite;z-index:302;pointer-events:none;font-family:'Bebas Neue',sans-serif}
 
@@ -368,20 +408,105 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .p3d{position:absolute;border-radius:50%;pointer-events:none;animation:p3dFly var(--dur,1.2s) ease-out forwards}
 @keyframes p3dFly{0%{transform:translate3d(0,0,0) scale(1);opacity:1}100%{transform:translate3d(var(--tx,0),var(--ty,-80px),var(--tz,200px)) scale(0);opacity:0}}
 
-/* ===== MYTHIQUE ZOOM ===== */
+/* ===== RARE PREMIUM FX ===== */
+.rare-prism-sweep{
+  position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:10;
+  overflow:hidden;
+}
+.rare-prism-sweep::before{
+  content:'';position:absolute;top:0;left:-120%;width:80%;height:100%;
+  background:linear-gradient(105deg,
+    transparent 0%,
+    rgba(184,144,248,.15) 20%,
+    rgba(255,100,255,.25) 30%,
+    rgba(100,200,255,.22) 40%,
+    rgba(100,255,180,.18) 50%,
+    rgba(255,220,100,.20) 60%,
+    rgba(255,100,100,.15) 70%,
+    transparent 85%
+  );
+  animation:rarePrismSweep 1.1s cubic-bezier(.22,1,.36,1) forwards;
+  transform:skewX(-15deg);
+}
+@keyframes rarePrismSweep{
+  0%{left:-120%}
+  100%{left:140%}
+}
+.rare-prism-sweep::after{
+  content:'';position:absolute;top:0;left:-120%;width:30%;height:100%;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.55) 50%,transparent);
+  animation:rarePrismSweep2 1.1s cubic-bezier(.22,1,.36,1) .25s forwards;
+  transform:skewX(-15deg);
+}
+@keyframes rarePrismSweep2{
+  0%{left:-120%}
+  100%{left:140%}
+}
+/* Border glow pulse rare */
+@keyframes rareBorderPulse{
+  0%{box-shadow:0 0 0 0 rgba(184,144,248,0),0 0 60px rgba(184,144,248,.3)}
+  30%{box-shadow:0 0 0 8px rgba(184,144,248,.35),0 0 120px rgba(184,144,248,.6)}
+  60%{box-shadow:0 0 0 4px rgba(184,144,248,.2),0 0 80px rgba(184,144,248,.4)}
+  100%{box-shadow:0 0 0 0 rgba(184,144,248,0),0 0 40px rgba(184,144,248,.2)}
+}
+.rare-border-pulse{animation:rareBorderPulse 1.4s ease-out forwards}
+/* Shockwave ring */
+.rare-shockwave{
+  position:fixed;border-radius:50%;pointer-events:none;z-index:290;
+  border:2px solid rgba(184,144,248,.8);
+  animation:rareShockwave .9s ease-out forwards;
+}
+@keyframes rareShockwave{
+  0%{transform:translate(-50%,-50%) scale(0);opacity:.9}
+  100%{transform:translate(-50%,-50%) scale(4);opacity:0}
+}
+.rare-shockwave2{
+  position:fixed;border-radius:50%;pointer-events:none;z-index:289;
+  border:1px solid rgba(200,180,255,.5);
+  animation:rareShockwave 1.2s ease-out .12s forwards;
+}
+/* Lens flare */
+.rare-flare{
+  position:absolute;width:60px;height:60px;border-radius:50%;pointer-events:none;z-index:12;
+  background:radial-gradient(circle,rgba(255,255,255,.9) 0%,rgba(184,144,248,.6) 30%,transparent 70%);
+  mix-blend-mode:screen;
+  animation:rareFlareMove 1.0s cubic-bezier(.22,1,.36,1) forwards;
+  top:50%;
+}
+@keyframes rareFlareMove{
+  0%{left:10%;opacity:0;transform:translateY(-50%) scale(.3)}
+  15%{opacity:1;transform:translateY(-50%) scale(1.2)}
+  100%{left:88%;opacity:0;transform:translateY(-50%) scale(.5)}
+}
+/* Electric crack lines */
+.rare-crack{
+  position:absolute;pointer-events:none;z-index:11;
+  background:rgba(200,160,255,.7);border-radius:2px;
+  animation:rareCrack .5s ease-out forwards;
+  transform-origin:left center;
+}
+@keyframes rareCrack{
+  0%{transform:scaleX(0);opacity:1}
+  60%{transform:scaleX(1);opacity:.8}
+  100%{transform:scaleX(1);opacity:0}
+}
 .myth-zoom-stage{position:fixed;inset:0;z-index:600;overflow:hidden;pointer-events:none;opacity:0;background:#000}
-.myth-zoom-stage.active{pointer-events:auto;opacity:1;cursor:pointer}
-.myth-zoom-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:18px;display:flex;flex-direction:column;clip-path:none}
+.myth-zoom-stage.active{pointer-events:auto;opacity:1;cursor:default}
+.myth-zoom-stage.ready{cursor:pointer}
+.myth-zoom-card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:18px;display:flex;flex-direction:column;clip-path:none;}
 .myth-spotlight{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 25% 25%,transparent 20%,#00000099 100%);transition:background 0.5s}
-.myth-zoom-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);color:var(--gold-deep);font-size:.75rem;letter-spacing:.3em;animation:pulse 2s infinite;white-space:nowrap;font-family:'Bebas Neue',sans-serif}
+.myth-zoom-hint{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);color:#b91c1c;font-size:.75rem;letter-spacing:.3em;animation:pulse 2s infinite;white-space:nowrap;font-family:'Bebas Neue',sans-serif}
+
+/* ===== MYTHIQUE ZONE REVEAL CANVAS ===== */
+.myth-zone-canvas{position:absolute;left:0;top:0;border-radius:inherit;z-index:20;pointer-events:auto;}
 
 /* ===== FX ===== */
 .myth-flash{position:fixed;inset:0;z-index:450;pointer-events:none;opacity:0}
 .myth-flash.active{animation:mythFlash 1.2s ease-out forwards}
-@keyframes mythFlash{0%{opacity:0;background:radial-gradient(circle,#c8953a70 0%,transparent 60%)}8%{opacity:1}25%{opacity:.45}55%{opacity:.65;background:radial-gradient(circle,#c8953a30 0%,transparent 80%)}100%{opacity:0}}
+@keyframes mythFlash{0%{opacity:0;background:radial-gradient(circle,#ef444460 0%,transparent 60%)}8%{opacity:1}25%{opacity:.45}55%{opacity:.65;background:radial-gradient(circle,#dc262630 0%,transparent 80%)}100%{opacity:0}}
 .lightning{position:fixed;inset:0;z-index:448;pointer-events:none;opacity:0}
 .lightning.active{animation:lightAnim .12s ease-out 4}
-@keyframes lightAnim{0%{opacity:0;background:#f0c06006}50%{opacity:1;background:#f0c06012}100%{opacity:0}}
+@keyframes lightAnim{0%{opacity:0;background:#ef444406}50%{opacity:1;background:#ef444412}100%{opacity:0}}
 
 /* ===== PARTICLES ===== */
 .particle-container{position:fixed;inset:0;pointer-events:none;z-index:700}
@@ -520,7 +645,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .recap-card[data-rarity="COMMUNE"]    {background:linear-gradient(160deg,#1c1c1f,#2a2a2f);border-color:#3a3a3f;}
 .recap-card[data-rarity="PEU COMMMUNE"]{background:linear-gradient(160deg,#0b1a30,#0f2440);border-color:#1e5a70;}
 .recap-card[data-rarity="RARE"]       {background:linear-gradient(160deg,#180a2e,#240e48);border-color:#6d28d9;}
-.recap-card[data-rarity="MYTHIQUE"]   {background:linear-gradient(160deg,#1c0e00,#2e1800);border-color:var(--gold-main);}
+.recap-card[data-rarity="MYTHIQUE"]   {background:linear-gradient(160deg,#1a0000,#2e0000);border-color:#ef4444;}
 
 /* Barre couleur rareté en haut */
 .recap-card::before{
@@ -719,7 +844,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .card.hold-inspect[data-rarity="COMMUNE"]{--rim:#7dcea040;animation:rimPulse 1.2s ease-in-out infinite}
 .card.hold-inspect[data-rarity="PEU COMMMUNE"]{--rim:#7ec8e350;animation:rimPulse 1s ease-in-out infinite}
 .card.hold-inspect[data-rarity="RARE"],.fullscreen-card.hold-inspect[data-rarity="RARE"]{--rim:#b890f860;animation:rimPulse .8s ease-in-out infinite}
-.card.hold-inspect[data-rarity="MYTHIQUE"],.fullscreen-card.hold-inspect[data-rarity="MYTHIQUE"],.myth-zoom-card.hold-inspect{--rim:#c8953a70;animation:rimPulse .6s ease-in-out infinite}
+.card.hold-inspect[data-rarity="MYTHIQUE"],.fullscreen-card.hold-inspect[data-rarity="MYTHIQUE"],.myth-zoom-card.hold-inspect{--rim:#ef444470;animation:rimPulse .6s ease-in-out infinite}
 @keyframes stackAppear{0%{transform:scale(0) rotate(-10deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
 .card-stack-wrap.appearing{animation:stackAppear .5s cubic-bezier(.34,1.56,.64,1) forwards}
 @keyframes cardSlideOff{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-75px) scale(.82);opacity:0}}
@@ -730,7 +855,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 /* ===== PACK AURA ===== */
 .pack-aura{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity 2s ease}
 .pack-aura.aura-rare{opacity:1;background:radial-gradient(ellipse 80% 55% at 50% 95%,#180a3080 0%,#2d1b5040 30%,transparent 70%)}
-.pack-aura.aura-myth{opacity:1;background:radial-gradient(ellipse 90% 60% at 50% 95%,#3a240090 0%,#c8953a40 25%,#1c1000 50%,transparent 70%)}
+.pack-aura.aura-myth{opacity:1;background:radial-gradient(ellipse 90% 60% at 50% 95%,#4a000090 0%,#dc262640 25%,#1a0000 50%,transparent 70%)}
 
 /* ===== FLIP CARD ===== */
 .flip-wrap{position:fixed;inset:0;z-index:190;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;pointer-events:none;opacity:0;background:#000000e0;backdrop-filter:blur(8px);transition:opacity .3s}
@@ -752,13 +877,13 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .flip-ptcl{position:absolute;border-radius:50%;pointer-events:none;animation:flipPtcl var(--fp-d,3s) ease-in-out infinite var(--fp-s,0s)}
 @keyframes flipHaloPeu{0%,100%{opacity:.5;transform:scale(.95)}50%{opacity:1;transform:scale(1.05)}}
 @keyframes flipHaloRare{0%,100%{opacity:.4;transform:scale(.92) rotate(-1deg)}50%{opacity:1;transform:scale(1.08) rotate(1deg)}}
-@keyframes flipHaloMyth{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+@keyframes flipHaloMyth{0%{opacity:.5;transform:scale(.95)}100%{opacity:1;transform:scale(1.05)}}
 @keyframes flipScanlines{0%{background-position:0 0}100%{background-position:0 40px}}
 @keyframes flipPtcl{0%{transform:translateY(0) translateX(0) scale(1);opacity:0}20%{opacity:.55}80%{opacity:.2}100%{transform:translateY(var(--fp-y,-60px)) translateX(var(--fp-x,0px)) scale(0);opacity:0}}
 /* Card tremble — scales with rarity */
 @keyframes tremblePeu{0%,100%{transform:rotate(0) translateX(0)}25%{transform:rotate(-.4deg) translateX(-1px)}75%{transform:rotate(.4deg) translateX(1px)}}
 @keyframes trembleRare{0%,100%{transform:rotate(0) translateX(0)}20%{transform:rotate(-.7deg) translateX(-2px) translateY(-1px)}50%{transform:rotate(.5deg) translateX(2px)}80%{transform:rotate(-.3deg) translateX(-1px) translateY(1px)}}
-@keyframes trembleMyth{0%,100%{transform:rotate(0) translateX(0)}15%{transform:rotate(-1.1deg) translateX(-3px) translateY(-1px)}35%{transform:rotate(.8deg) translateX(2px) translateY(1px)}55%{transform:rotate(-1deg) translateX(-2px)}75%{transform:rotate(.6deg) translateX(3px) translateY(-1px)}90%{transform:rotate(-.4deg) translateX(-1px)}}
+@keyframes trembleMyth{0%,100%{transform:rotate(0) translateX(0)}15%{transform:rotate(-.18deg) translateX(-.6px) translateY(-.2px)}35%{transform:rotate(.14deg) translateX(.4px) translateY(.2px)}55%{transform:rotate(-.16deg) translateX(-.4px)}75%{transform:rotate(.1deg) translateX(.6px) translateY(-.2px)}90%{transform:rotate(-.06deg) translateX(-.2px)}}
 .flip-inner.tremble-peu{animation:tremblePeu 2.8s ease-in-out infinite}
 .flip-inner.tremble-rare{animation:trembleRare 1.6s ease-in-out infinite}
 .flip-inner.tremble-myth{animation:trembleMyth 1s ease-in-out infinite}
@@ -804,9 +929,9 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .myth-art-zoom-inner.out{animation:artZoomOut .5s cubic-bezier(.4,0,.2,1) forwards}
 @keyframes artZoomIn{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
 @keyframes artZoomOut{0%{transform:scale(1);opacity:1}100%{transform:scale(1.18);opacity:0}}
-.myth-art-emoji{font-size:6rem;filter:drop-shadow(0 0 40px #c8953a70);animation:artEmojiPulse 1.8s ease-in-out infinite}
-@keyframes artEmojiPulse{0%,100%{filter:drop-shadow(0 0 30px #c8953a55) brightness(1)}50%{filter:drop-shadow(0 0 65px #f0c060aa) brightness(1.12)}}
-.myth-art-name{font-family:'Cinzel',serif;font-weight:700;font-size:.8rem;color:var(--gold-bright);letter-spacing:.28em;text-shadow:0 0 24px var(--gold-main);text-align:center;padding:0 28px;animation:nameReveal .8s ease-out .2s both}
+.myth-art-emoji{font-size:6rem;filter:drop-shadow(0 0 40px #ef444470);animation:artEmojiPulse 1.8s ease-in-out infinite}
+@keyframes artEmojiPulse{0%,100%{filter:drop-shadow(0 0 30px #ef444455) brightness(1)}50%{filter:drop-shadow(0 0 65px #fca5a5aa) brightness(1.12)}}
+.myth-art-name{font-family:'Cinzel',serif;font-weight:700;font-size:.8rem;color:#fca5a5;letter-spacing:.28em;text-shadow:0 0 24px #ef444490;text-align:center;padding:0 28px;animation:nameReveal .8s ease-out .2s both}
 .myth-art-vignette{position:fixed;inset:0;background:radial-gradient(ellipse 55% 55% at 50% 50%,transparent 35%,#000000bb 100%);pointer-events:none}
 
 /* ===== BOTTOM EXTERNAL RARITY (sous carte reveal) ===== */
@@ -1051,9 +1176,33 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 .yt-stop-btn:hover{color:var(--cream)}
 
 /* ===== CINEMATIC MYTH CAMERA ===== */
+/* ── Indicateur cinématique affiché pendant le pan ── */
+@keyframes cinIndPulse{
+  0%,100%{opacity:.5;transform:translateX(-50%) scale(1)}
+  50%{opacity:.9;transform:translateX(-50%) scale(1.015)}
+}
+@keyframes cinDotBlink{0%,100%{opacity:1}50%{opacity:.2}}
+.myth-cin-indicator{
+  position:absolute;top:20px;left:50%;transform:translateX(-50%);
+  z-index:20;pointer-events:none;white-space:nowrap;
+  display:flex;align-items:center;gap:9px;
+  padding:7px 20px;
+  background:rgba(0,0,0,.76);
+  border:1px solid rgba(239,68,68,.35);
+  font-family:'Bebas Neue',sans-serif;
+  font-size:.7rem;letter-spacing:.38em;color:#fca5a5;
+  animation:cinIndPulse 1.9s ease-in-out infinite;
+  transition:opacity .65s;
+}
+.myth-cin-indicator .cin-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#ef4444;flex-shrink:0;
+  animation:cinDotBlink 1.1s ease-in-out infinite;
+}
+
 /* Stage takes over fullscreen with a slow-panning viewport */
 .myth-zoom-stage.cinematic{
-  background:#000;
+  background:transparent;
   overflow:hidden;
 }
 /* The card inside will be much larger than viewport, camera pans */
@@ -1072,14 +1221,14 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   100%{transform:translate(0,0)     scale(1.0)}
 }
 .myth-cam-wrap.panning{
-  animation:mythCamPan 11s cubic-bezier(.4,0,.2,1) forwards;
+  animation:mythCamPan 6s cubic-bezier(.4,0,.2,1) forwards;
   transform-origin:center center;
 }
 
-/* Vignette that pulses and fades */
+/* Vignette légère — ne pas noircir trop les bords */
 .myth-vignette{
   position:absolute;inset:0;pointer-events:none;z-index:5;
-  background:radial-gradient(ellipse at center,transparent 30%,#000000cc 100%);
+  background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.45) 100%);
   transition:opacity 3s;
 }
 
@@ -1096,13 +1245,12 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   animation:mythScanline 4s ease-in-out infinite;
 }
 
-/* Slow glow pulses around card border */
-@keyframes mythBorderPulse{
-  0%,100%{box-shadow:0 0 0 1px var(--gold-deep),0 0 40px #c8953a30,inset 0 0 30px #00000060}
-  50%    {box-shadow:0 0 0 2px var(--gold-main),0 0 80px #c8953a60,inset 0 0 50px #00000090}
-}
+/* Pas de glow/border sur la carte pendant le pan — le PNG seul suffit */
 .myth-zoom-card.cinematic-card{
-  animation:mythBorderPulse 2.5s ease-in-out infinite;
+  animation:none;
+  box-shadow:none!important;
+  border:none!important;
+  outline:none!important;
 }
 
 /* "Cliquer pour continuer" only appears after pan ends */
@@ -1258,7 +1406,9 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 <div class="rare-flash" id="rareFlash"></div>
 <div class="lightning" id="lightning"></div>
 <div class="fullscreen-bg" id="fsBg"></div>
-<div class="title">BOOSTER NORMAL</div>
+<div class="title">
+  <span class="cmx-title-main">Booster Normal</span>
+</div>
 
 <!-- FLIP CARD -->
 <div class="flip-wrap" id="flipWrap">
@@ -1296,22 +1446,9 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
       <div class="sparkle" style="--sd:1.6s;--ss:.2s;top:10%;left:50%"></div>
     </div>
     <div class="click-hint">◆ CLIQUER POUR OUVRIR ◆</div>
-    <div style="position:absolute;bottom:-80px;left:50%;transform:translateX(-50%);white-space:nowrap;">
-      <button onclick="window.location.href='index.html'" style="background:none;border:1px solid var(--gold-subtle);color:var(--text-muted);font-family:'Bebas Neue',sans-serif;font-size:.65rem;letter-spacing:.25em;padding:6px 20px;border-radius:2px;cursor:pointer;transition:color .2s,border-color .2s;" onmouseenter="this.style.color='var(--gold-main)';this.style.borderColor='var(--gold-deep)'" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--gold-subtle)'">← RETOUR AU MENU</button>
-    </div>
   </div>
 
   <div class="card-stack-wrap" id="stackWrap">
-    <div id="back-to-menu-btn" style="position:absolute;top:16px;left:16px;z-index:20;">
-      <button onclick="window.location.href='index.html'" 
-        style="background:none;border:1px solid var(--gold-subtle);color:var(--text-muted);
-               font-family:'Bebas Neue',sans-serif;font-size:.65rem;letter-spacing:.25em;
-               padding:6px 20px;cursor:pointer;transition:color .2s,border-color .2s;"
-        onmouseenter="this.style.color='var(--gold-main)';this.style.borderColor='var(--gold-deep)'"
-        onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--gold-subtle)'">
-        ← RETOUR AU MENU
-      </button>
-    </div>
     <div id="stack-shake-wrap" style="position:relative;">
       <div class="stack-container" id="stackContainer">
         <div class="stack-card"><div class="stack-back"><img src="https://i.goopics.net/iic46c.png" alt="card back"/></div></div>
@@ -1323,7 +1460,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
         <div id="stack-fx" style="position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:6;"></div>
       </div>
       <div class="stack-count" id="stackCount">5 cartes restantes</div>
-      <div style="position:absolute;bottom:-68px;left:50%;transform:translateX(-50%);color:var(--gold-subtle);font-size:.6rem;letter-spacing:.2em;white-space:nowrap;font-family:'Bebas Neue',sans-serif;animation:pulse 3s ease-in-out infinite .5s" id="fanHint">↔ GLISSER POUR VOIR LES CARTES</div>
+      <div style="position:absolute;bottom:-68px;left:50%;transform:translateX(-50%);color:var(--gold-subtle);font-size:.6rem;letter-spacing:.2em;white-space:nowrap;font-family:'Bebas Neue',sans-serif;animation:pulse 3s ease-in-out infinite .5s" id="fanHint">◆ CLIQUER POUR VOIR LES CARTES ◆</div>
     </div>
   </div>
 </div>
@@ -1376,14 +1513,14 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 <div class="myth-zoom-stage" id="mythZoomStage" onclick="mythZoomClick()">
   <div class="myth-spotlight" id="mythSpotlight"></div>
   <div class="myth-zoom-card" id="mythZoomCard"></div>
-  <div class="myth-zoom-hint" id="mythZoomHint" style="opacity:0">CLIQUER POUR CONTINUER</div>
+  <div class="myth-zoom-hint" id="mythZoomHint" style="opacity:0">ANIMATION EN COURS…</div>
 </div>
 
 <!-- RUNETERRA ART ZOOM -->
 <div class="myth-art-zoom" id="mythArtZoom">
   <div class="myth-art-vignette"></div>
   <div class="myth-art-zoom-inner" id="mythArtInner">
-    <div class="myth-art-emoji" id="mythArtEmoji">⚔️</div>
+    <div class="myth-art-emoji" id="mythArtEmoji" style="font-family:'Cinzel',serif;font-size:clamp(.8rem,3vw,1.3rem);letter-spacing:.2em;color:#ef4444;text-shadow:0 0 40px #ef444480,0 0 80px #ef444440;font-weight:700;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:clip;">MYTHIQUE</div>
     <div class="myth-art-name" id="mythArtName"></div>
   </div>
 </div>
@@ -1391,7 +1528,7 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 <!-- YOUTUBE MINI BAR (music indicator) -->
 <div id="ytMiniBar">
   <span class="yt-mini-icon">♪</span>
-  <span id="ytMiniTitle">Mythique</span>
+  <span id="ytMiniTitle"></span>
   <button class="yt-stop-btn" onclick="stopYT()">■</button>
 </div>
 <div id="ytPlayerContainer"></div>
@@ -1425,12 +1562,12 @@ const RARITY_MAP = {
   'mythic':   'MYTHIQUE',
 };
 
-// % de drop (tous boosters) : Commune 87%, Peu Commune 11.9%, Rare 1%, Mythique 0.1%
+// % de drop TEST INVERSÉ : Mythique 87%, Rare 11.9%, Peu Commune 1%, Commune 0.1%
 const DROP_WEIGHTS = {
   'COMMUNE':      87,
   'PEU COMMMUNE': 11.9,
-  'RARE':          1,
-  'MYTHIQUE':      0.1,
+  'RARE':         1,
+  'MYTHIQUE':     0.1,
 };
 
 let ALL_CARDS = [];
@@ -1438,10 +1575,10 @@ let _dbReady = false;
 
 function rollRarity() {
   const r = Math.random() * 100;
-  if (r < 0.1)  return 'MYTHIQUE';
-  if (r < 1.1)  return 'RARE';
-  if (r < 13.0) return 'PEU COMMMUNE';
-  return 'COMMUNE';
+  if (r < 87)   return 'COMMUNE';
+  if (r < 98.9) return 'PEU COMMMUNE';
+  if (r < 99.9) return 'RARE';
+  return 'MYTHIQUE';
 }
 
 function pickWeightedCards(n) {
@@ -1683,15 +1820,35 @@ function sndPeuCommune(){
   setTimeout(()=>playTone(2093,'sine',.06,.005,.12,.3),90);
 }
 function sndRare(){
-  // Hearthstone rare — arpeggiated crystal cascade + resonant shimmer
   resumeAC();
-  const notes=[659,784,988,1318,1568];
-  notes.forEach((f,i)=>setTimeout(()=>{
-    playTone(f,'sine',.13,.005,.25,.55);
-    if(i===0) playNoise(.04,.3,3500);
-  },i*55));
-  setTimeout(()=>playTone(2637,'sine',.09,.01,.3,.7),320);
-  setTimeout(()=>playTone(3136,'sine',.05,.01,.2,.5),430);
+  // ── Impact sourd initial ──
+  playNoise(.35, .08, 200);
+  setTimeout(()=>playNoise(.18, .12, 350), 60);
+
+  // ── Crystal shatter burst — 7 éclats à fréquences croissantes ──
+  const shatter = [523,659,784,880,1047,1319,1568];
+  shatter.forEach((f,i)=>setTimeout(()=>{
+    playTone(f, 'sine', .14 - i*.012, .002, .15, .4);
+    // Harmonique haute légère
+    playTone(f*2, 'sine', .04, .001, .08, .2);
+  }, i*38));
+
+  // ── Montée shimmer prismatique ──
+  setTimeout(()=>{
+    for(let i=0;i<8;i++) setTimeout(()=>
+      playTone(1200+i*280, 'sine', .055, .003, .12, .28), i*48);
+  }, 200);
+
+  // ── Note finale résonante ──
+  setTimeout(()=>{
+    playTone(2637,'sine',.1,.01,.5,.9);
+    playTone(3322,'sine',.05,.01,.3,.6);
+  }, 480);
+
+  // ── Reverb-like tail : 3 echos décroissants ──
+  [600,750,900].forEach((d,i)=>
+    setTimeout(()=>playTone(1047*Math.pow(1.25,i),'sine',.04-.01*i,.005,.2,.4), d)
+  );
 }
 function sndMythique(){
   resumeAC();
@@ -1878,22 +2035,69 @@ function fillCard(ids,card){
 // ===== OWNERSHIP BADGE ON REVEAL =====
 function showOwnershipBadge(card) {
   const owned = window._ownedMap && card.dbId && window._ownedMap[card.dbId];
+  if (!owned) sndNewCard();
+
+  // Pour mythique : injecter sous la carte dans le stage
+  const mythStage = document.getElementById('mythZoomStage');
+  const isMythActive = mythStage && mythStage.classList.contains('active');
+
+  if (isMythActive) {
+    // Supprimer badge existant si déjà là
+    mythStage.querySelectorAll('._own_badge').forEach(e=>e.remove());
+    const badge = document.createElement('div');
+    badge.className = '_own_badge';
+    badge.style.cssText = `
+      position:absolute;bottom:72px;left:50%;transform:translateX(-50%);
+      z-index:650;padding:6px 18px;
+      font-family:'Bebas Neue',sans-serif;font-size:.75rem;letter-spacing:.2em;
+      pointer-events:none;transition:opacity .5s;opacity:0;white-space:nowrap;
+      ${owned
+        ? 'color:#fca5a5;border:1px solid rgba(239,68,68,.4);background:rgba(127,29,29,.7);'
+        : 'color:#4ade80;border:1px solid rgba(74,222,128,.4);background:rgba(10,26,10,.7);'}
+    `;
+    badge.textContent = owned ? `◆ DÉJÀ POSSÉDÉE ×${owned}` : '✦ NOUVELLE CARTE !';
+    mythStage.appendChild(badge);
+    setTimeout(() => badge.style.opacity = '1', 60);
+    setTimeout(() => { badge.style.opacity = '0'; setTimeout(() => badge.remove(), 500); }, 3500);
+    return;
+  }
+
+  // Pour rare / autres : sous la carte fullscreen
+  const fsReveal = document.getElementById('fsReveal');
+  const isFsActive = fsReveal && fsReveal.classList.contains('active');
+  if (isFsActive) {
+    fsReveal.querySelectorAll('._own_badge').forEach(e=>e.remove());
+    const badge = document.createElement('div');
+    badge.className = '_own_badge';
+    badge.style.cssText = `
+      position:absolute;bottom:52px;left:50%;transform:translateX(-50%);
+      z-index:650;padding:6px 18px;
+      font-family:'Bebas Neue',sans-serif;font-size:.72rem;letter-spacing:.2em;
+      pointer-events:none;transition:opacity .5s;opacity:0;white-space:nowrap;
+      ${owned
+        ? 'color:#c4b5fd;border:1px solid rgba(168,85,247,.4);background:rgba(24,10,46,.7);'
+        : 'color:#4ade80;border:1px solid rgba(74,222,128,.4);background:rgba(10,26,10,.7);'}
+    `;
+    badge.textContent = owned ? `◆ DÉJÀ POSSÉDÉE ×${owned}` : '✦ NOUVELLE CARTE !';
+    fsReveal.appendChild(badge);
+    setTimeout(() => badge.style.opacity = '1', 60);
+    setTimeout(() => { badge.style.opacity = '0'; setTimeout(() => badge.remove(), 500); }, 3500);
+    return;
+  }
+
+  // Fallback : badge flottant centré
   const badge = document.createElement('div');
   badge.style.cssText = `
     position:fixed;top:50%;left:50%;transform:translate(-50%,calc(-50% - 130px));
-    z-index:600;padding:7px 18px;border-radius:99px;
+    z-index:600;padding:7px 18px;
     font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:.2em;
-    pointer-events:none;transition:opacity .4s;
+    pointer-events:none;transition:opacity .4s;white-space:nowrap;
     ${owned
       ? 'background:#1a1208cc;color:#c8953a;border:1px solid #c8953a55;'
       : 'background:#0a1a0acc;color:#4ade80;border:1px solid #4ade8055;'}
   `;
-  badge.textContent = owned
-    ? `◆ DÉJÀ POSSÉDÉE ×${owned}`
-    : '✦ NOUVELLE CARTE !';
+  badge.textContent = owned ? `◆ DÉJÀ POSSÉDÉE ×${owned}` : '✦ NOUVELLE CARTE !';
   document.body.appendChild(badge);
-  // Play sound for new card
-  if (!owned) sndNewCard();
   setTimeout(() => { badge.style.opacity = '0'; setTimeout(() => badge.remove(), 400); }, 2200);
 }
 
@@ -1938,19 +2142,17 @@ function spawnCardFx(fxLayerId, rarity){
 function attachTilt(cardEl, foilId, baseTransform){
   const foil = foilId ? document.getElementById(foilId) : null;
   let holdActive = false;
-
-  // Wraps the card in a perspective container so transform doesn't fight CSS animations
-  // We use a separate style property approach: pause animation on hold, restore on release
+  let holdTimer = null;   // hold ne s'active qu'après 220ms — les clicks simples passent librement
   let savedAnimation = '';
 
-  function startHold(){
+  function activateHold(px, py){
     if(holdActive) return;
     holdActive = true;
     cardEl.classList.add('hold-inspect');
-    // Pause any running CSS animation so it doesn't override our transform
     savedAnimation = cardEl.style.animationPlayState;
     cardEl.style.animationPlayState = 'paused';
     if(foil){ foil.style.transition='opacity .1s'; foil.style.opacity='1'; }
+    applyTilt(px, py);
   }
 
   function applyTilt(px, py){
@@ -1963,7 +2165,6 @@ function attachTilt(cardEl, foilId, baseTransform){
     const my = ((y / rect.height) * 100).toFixed(1) + '%';
     const rx = ((y - cy) / cy) * -22;
     const ry = ((x - cx) / cx) * 22;
-    // Apply tilt — perspective on parent to avoid fighting CSS transforms
     cardEl.style.transition = 'transform .05s linear';
     cardEl.style.transform = `perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg) scale(1.06)`;
     if(foil){
@@ -1973,6 +2174,7 @@ function attachTilt(cardEl, foilId, baseTransform){
   }
 
   function endHold(){
+    clearTimeout(holdTimer); holdTimer = null;
     if(!holdActive) return;
     holdActive = false;
     cardEl.classList.remove('hold-inspect');
@@ -1982,31 +2184,32 @@ function attachTilt(cardEl, foilId, baseTransform){
     if(foil){ foil.style.transition='opacity .3s'; foil.style.opacity='0'; }
   }
 
-  // ── MOUSE : clic maintenu = tilt ──
+  // ── MOUSE : appui long (>220ms) = tilt, click rapide = propagation libre ──
+  let _mouseDownX = 0, _mouseDownY = 0;
   cardEl.addEventListener('mousedown', e => {
     if(e.button !== 0) return;
-    e.stopPropagation(); // empêche dismiss immédiat
-    startHold();
-    applyTilt(e.clientX, e.clientY);
+    _mouseDownX = e.clientX; _mouseDownY = e.clientY;
+    // Démarrer le hold seulement si le bouton reste appuyé > 220ms
+    holdTimer = setTimeout(() => activateHold(e.clientX, e.clientY), 220);
+    // NE PAS stopPropagation ici — le click simple doit pouvoir remonter au stage
   });
   cardEl.addEventListener('mousemove', e => {
+    if(!holdActive) return;
     applyTilt(e.clientX, e.clientY);
   });
-  let _justHeld = false;
   cardEl.addEventListener('mouseup', e => {
+    clearTimeout(holdTimer); holdTimer = null;
     if(holdActive){
       endHold();
-      _justHeld = true;
-      // Empêcher le dismiss si on était en tilt
+      // Le hold était actif → bloquer uniquement le click qui suit ce mouseup
       e.stopPropagation();
-      // Bloquer l'événement click qui suit le mouseup
-      setTimeout(()=>{ _justHeld = false; }, 50);
+      const stopper = ev => { ev.stopPropagation(); cardEl.removeEventListener('click', stopper, true); };
+      cardEl.addEventListener('click', stopper, true);
     }
+    // Si holdActive était false (click rapide) → rien à bloquer, le click remonte normalement
   });
-  cardEl.addEventListener('click', e => {
-    if(_justHeld){ e.stopPropagation(); _justHeld=false; }
-  }, true); // capture phase pour attraper avant onclick de l'ancestor
   cardEl.addEventListener('mouseleave', () => {
+    clearTimeout(holdTimer); holdTimer = null;
     if(holdActive) endHold();
   });
 
@@ -2283,9 +2486,9 @@ const TIER_CFG = {
   // 2 rares: 5 éclairs côté + 2 sur pack, 4 diamants, tremble 3
   'double-rare': {boltUrl:'https://i.goopics.net/i3tf5v.png', perSide:5, onPack:2, diamonds:4,  tremble:3, boltOp:.82},
   // myth:    5 éclairs côté + 2 sur pack, 5 diamants, tremble 4
-  'myth':        {boltUrl:'https://i.goopics.net/e2mn7c.png', perSide:5, onPack:2, diamonds:5,  tremble:4, boltOp:.88},
+  'myth':        {boltUrl:'https://i.goopics.net/e2mn7c.png', perSide:5, onPack:2, diamonds:5,  tremble:2, boltOp:.88},
   // 2 myth:  10 éclairs côté + 3 sur pack, 10 diamants, tremble 4 max
-  'double-myth': {boltUrl:'https://i.goopics.net/e2mn7c.png', perSide:10,onPack:3, diamonds:10, tremble:4, boltOp:.95},
+  'double-myth': {boltUrl:'https://i.goopics.net/e2mn7c.png', perSide:10,onPack:3, diamonds:10, tremble:2, boltOp:.95},
 };
 
 function stopStackFx(){
@@ -2561,23 +2764,6 @@ function openFan(){
 
 function closeFan(){
   fanOpen=false;
-  const overlay=document.getElementById('fanOverlay');
-  const container=document.getElementById('fanCards');
-  // Collapse to center
-  container.querySelectorAll('.fan-card').forEach((fc,i)=>{
-    fc.style.transition=`transform .3s cubic-bezier(.4,0,.6,1) ${i*.03}s`;
-    fc.style.transform='rotate(0deg) translateY(0px) scale(.9)';
-  });
-  setTimeout(()=>{
-    overlay.classList.remove('active');
-    container.innerHTML='';
-    overlay.style.opacity='';
-    container.style.transform='';
-  },320);
-}
-
-function closeFan(){
-  fanOpen=false;
   stopFanAuras();
   const overlay=document.getElementById('fanOverlay');
   const container=document.getElementById('fanCards');
@@ -2733,7 +2919,7 @@ function playMythMusic(){
       }
     });
     document.getElementById('ytMiniBar').classList.add('visible');
-    document.getElementById('ytMiniTitle').textContent='♪ Mythique';
+    document.getElementById('ytMiniTitle').textContent='';
   }
   if(ytReady) doPlay();
   else{ const t=setInterval(()=>{if(ytReady){clearInterval(t);doPlay();}},100); }
@@ -2798,8 +2984,6 @@ function removeLpRing(){
   function onMouseUp(e){
     const dx=e.clientX-mouseDownX, dy=e.clientY-mouseDownY;
     if(Math.hypot(dx,dy)<10){
-      const backBtn=document.getElementById('back-to-menu-btn');
-      if(backBtn) backBtn.style.display='none';
       dealCard();
     }
   }
@@ -2898,10 +3082,11 @@ function showFlip(card){
     sl.style.cssText='position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(184,144,248,.04) 3px,rgba(184,144,248,.04) 4px);pointer-events:none;z-index:1;border-radius:inherit;animation:flipScanlines 8s linear infinite;';
     const sc3=document.getElementById('flipScene');sc3.appendChild(sl);
   } else if(R==='MYTHIQUE'){
-    bf.style.borderColor='var(--gold-subtle)';
-    bf.style.boxShadow='inset 0 0 40px #ffffff08';
+    bf.style.borderColor='#3a0a0a';
+    bf.style.boxShadow='inset 0 0 40px #1a000008';
+    // Halo rouge sombre — sobre, compatible DA rouge
     const h=document.createElement('div');h.className='flip-rarity-halo';
-    h.style.cssText='position:absolute;inset:0;background:conic-gradient(from 0deg at 50% 50%,rgba(240,192,96,.18),rgba(200,149,58,.1),rgba(240,192,96,.22),rgba(200,149,58,.08),rgba(240,192,96,.18));animation:flipHaloMyth .8s linear infinite;pointer-events:none;z-index:0;border-radius:inherit;';
+    h.style.cssText='position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,rgba(160,20,20,.18) 0%,rgba(100,10,10,.10) 40%,transparent 70%);animation:flipHaloMyth 2.4s ease-in-out infinite alternate;pointer-events:none;z-index:0;border-radius:inherit;';
     const sc2=document.getElementById('flipScene');sc2.appendChild(h);
   }
   // Particle layer — very few, very faint
@@ -3001,7 +3186,9 @@ function playScratchSound(intensity){
 
 
 function updateStackCount(){
-  const r=5-currentIdx;
+  const total=boosterCards.length||5;
+  const r=total-currentIdx;
+  if(r<=0){ document.getElementById('stackCount').textContent='0 carte restante'; return; }
   document.getElementById('stackCount').textContent=r===1?'1 carte restante':`${r} cartes restantes`;
 }
 
@@ -3097,192 +3284,287 @@ function showFullscreen(card){
   spawnCardFx('fsFxLayer',R);
   fsBg.className='fullscreen-bg active rare-bg';
   fsR.classList.add('active');
-  // Suspense: flash then pause before card appears
+
+  // ── Flash initial ──
   const rf=document.getElementById('rareFlash');
   rf.classList.add('active');setTimeout(()=>rf.classList.remove('active'),900);
+
+  // ── Son premium RARE ──
   sndRare(); haptic(HAPTIC.rare);
+
+  // ── Shockwave rings depuis le centre ──
+  const W=window.innerWidth, H=window.innerHeight;
+  const makeShockwave=(cls,sz)=>{
+    const sw=document.createElement('div'); sw.className=cls;
+    sw.style.cssText=`left:${W/2}px;top:${H/2}px;width:${sz}px;height:${sz}px`;
+    document.body.appendChild(sw);
+    setTimeout(()=>sw.remove(), 1400);
+  };
+  setTimeout(()=>{ makeShockwave('rare-shockwave',100); makeShockwave('rare-shockwave2',100); }, 80);
+
+  // ── Crack lines électriques autour de la carte ──
+  function spawnCracks(containerEl){
+    const angles=[0,45,90,135,180,225,270,315];
+    const pick=(a)=>a[Math.floor(Math.random()*a.length)];
+    angles.forEach((ang, i)=>{
+      setTimeout(()=>{
+        const cr=document.createElement('div');
+        cr.className='rare-crack';
+        const len=30+Math.random()*60;
+        cr.style.cssText=`
+          width:${len}px;height:${1+Math.random()}px;
+          top:${30+Math.random()*80}%;
+          left:${Math.random()<.5?`${2+Math.random()*12}%`:`${82+Math.random()*12}%`};
+          transform:rotate(${ang+(-20+Math.random()*40)}deg);
+          animation-delay:${Math.random()*.1}s;
+        `;
+        containerEl.appendChild(cr);
+        setTimeout(()=>cr.remove(), 600);
+      }, i * 30);
+    });
+  }
+
   setTimeout(()=>{
     void fc.offsetWidth;
     fc.classList.add('anim-rare');
     attachTilt(fc,'fsFoil');
     const color=RC[R];
     showOwnershipBadge(card);
-    setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,color,40),150);
-    setTimeout(()=>spawn3DParticles(window.innerWidth/2,window.innerHeight/2,color,20),150);
-    setTimeout(()=>spawnParticles(window.innerWidth/2,window.innerHeight/2,RC2[R],22),350);
-    // Art shine (delayed to match card entrance)
-    setTimeout(()=>{const art=fc.querySelector('.card-art');if(art){art.classList.remove('shine');void art.offsetWidth;art.classList.add('shine');}},420);
-    // Rareté + étoiles sous la carte
+
+    // Border pulse sur la carte
+    fc.classList.add('rare-border-pulse');
+    setTimeout(()=>fc.classList.remove('rare-border-pulse'), 1500);
+
+    // Cracks électriques
+    spawnCracks(fsR);
+
+    // Prism sweep overlay
+    const sweep=document.createElement('div');
+    sweep.className='rare-prism-sweep';
+    fc.appendChild(sweep);
+    setTimeout(()=>sweep.remove(), 1300);
+
+    // Lens flare sur la carte
+    const flare=document.createElement('div');
+    flare.className='rare-flare';
+    fc.appendChild(flare);
+    setTimeout(()=>flare.remove(), 1100);
+
+    // Particules étalées sur la durée de l'entrée (plus de burst brutal)
+    setTimeout(()=>{ spawnParticles(W/2,H/2,color,20); spawn3DParticles(W/2,H/2,color,10); }, 300);
+    setTimeout(()=>spawnParticles(W/2,H/2,RC2[R],16), 600);
+    setTimeout(()=>{ spawnParticles(W/2+(-70+Math.random()*140),H/2+(-70+Math.random()*140),color,12); }, 900);
+    setTimeout(()=>{ spawnParticles(W/2,H/2,'#fff',10); spawnParticles(W/2,H/2,color,10); }, 1150);
+
+    // Art shine après que la carte est bien posée
+    setTimeout(()=>{const art=fc.querySelector('.card-art');if(art){art.classList.remove('shine');void art.offsetWidth;art.classList.add('shine');}},980);
+
+    // Rareté + étoiles sous la carte — après l'entrée complète
     const fsBotExt=document.getElementById('fsBottomExternal');
-    if(fsBotExt){ fsBotExt.setAttribute('data-rarity',R); fsBotExt.style.display='flex'; }
-  },550);
+    if(fsBotExt){ setTimeout(()=>{ fsBotExt.setAttribute('data-rarity',R); fsBotExt.style.display='flex'; }, 1200); }
+  },600);
 }
 
-// ===== MYTHIQUE SCRATCH REVEAL =====
-let scratchCanvas=null, scratchPhase=0;
+// ===== MYTHIQUE ZONE REVEAL — révélation zone par zone automatique =====
+// Le PNG est déjà visible sous le canvas noir — on l'éclaire zone par zone
+let zoneRevealCanvas = null, zoneRevealAnimId = null;
 
-function buildScratchSurface(parentEl,w,h){
-  const canvas=document.createElement('canvas');
-  canvas.width=w;canvas.height=h;
-  canvas.style.cssText=`position:absolute;left:0;top:0;width:${w}px;height:${h}px;border-radius:22px;z-index:20;touch-action:none;cursor:crosshair`;
-  const ctx=canvas.getContext('2d');
+function buildZoneReveal(parentEl, w, h, onComplete) {
+  // Canvas noir positionné exactement sur le PNG
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  canvas.style.cssText = `position:absolute;left:0;top:0;width:${w}px;height:${h}px;border-radius:inherit;z-index:20;pointer-events:auto;cursor:pointer`;
+  canvas.className = 'myth-zone-canvas';
+  const ctx = canvas.getContext('2d');
 
-  // ── Fond grattable : gradient or sombre ──
-  const grad=ctx.createLinearGradient(0,0,w,h);
-  grad.addColorStop(0,'#3a1800');grad.addColorStop(.3,'#6b2e00');
-  grad.addColorStop(.6,'#4e2400');grad.addColorStop(1,'#2a1200');
-  ctx.fillStyle=grad;
-  ctx.beginPath();
-  if(ctx.roundRect) ctx.roundRect(0,0,w,h,22); else ctx.rect(0,0,w,h);
-  ctx.fill();
+  // ── Fond initial : noir total ──
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
 
-  // Lignes texture fines
-  ctx.save();ctx.globalAlpha=.1;ctx.strokeStyle='#f0c060';ctx.lineWidth=1;
-  for(let i=0;i<60;i++){ctx.beginPath();ctx.moveTo(Math.random()*w,Math.random()*h);ctx.lineTo(Math.random()*w,Math.random()*h);ctx.stroke();}
+  // Texture + texte d'indication
+  ctx.save();
+  const grad = ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.max(w,h)*.65);
+  grad.addColorStop(0,'rgba(80,40,0,.55)');
+  grad.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
   ctx.restore();
 
-  // Texte central
-  ctx.fillStyle='rgba(240,192,96,.85)';
-  ctx.font=`bold 15px 'Cinzel',serif`;
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('✦ MYTHIQUE ✦',w/2,h/2-16);
-  ctx.fillStyle='rgba(200,149,58,.65)';
-  ctx.font=`600 11px 'Bebas Neue',sans-serif`;
-  ctx.fillText('GRATTER POUR RÉVÉLER',w/2,h/2+10);
+  // Shimmer continu sur le canvas
+  let shimX = -w;
+  function drawShimmer(){
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.globalAlpha = 0.04;
+    const sg = ctx.createLinearGradient(shimX,0,shimX+w*.5,h);
+    sg.addColorStop(0,'transparent'); sg.addColorStop(.5,'#f0c060'); sg.addColorStop(1,'transparent');
+    ctx.fillStyle=sg; ctx.fillRect(0,0,w,h);
+    ctx.restore();
+    shimX += 3.5; if(shimX > w*1.5) shimX = -w*.4;
+  }
+
+  // ── Grille de zones ──
+  const COLS = 4, ROWS = 7; // 28 zones
+  const ZW = w / COLS, ZH = h / ROWS;
+  // Tableau booléen : zone révélée ou non
+  const revealed = Array(COLS * ROWS).fill(false);
+  const totalZones = COLS * ROWS;
+  let revealedCount = 0;
+  let completed = false;
+  let autoTimer = null;
+
+  // ── Dessin d'une zone révélée (efface le noir) ──
+  function revealZone(col, row, instant = false) {
+    const zIdx = row * COLS + col;
+    if (revealed[zIdx]) return;
+    revealed[zIdx] = true;
+    revealedCount++;
+
+    const x = col * ZW, y = row * ZH;
+
+    if (instant) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.fillRect(x, y, ZW, ZH);
+      ctx.restore();
+    } else {
+      // Glow de bord doré puis effacement progressif
+      let alpha = 0;
+      const STEPS = 18;
+      let step = 0;
+      function animStep() {
+        step++;
+        alpha = step / STEPS;
+        // Efface progressivement la zone
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.globalAlpha = alpha * 1.1;
+        ctx.fillStyle = 'rgba(0,0,0,1)';
+        ctx.fillRect(x+1, y+1, ZW-2, ZH-2);
+        ctx.restore();
+        // Glow doré sur le bord (source-over, reste visible)
+        if(step < STEPS * .6){
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = (1 - step / (STEPS*.6)) * .8;
+          ctx.strokeStyle = '#f0c060';
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(x+1.5, y+1.5, ZW-3, ZH-3);
+          ctx.restore();
+        }
+        if(step < STEPS) requestAnimationFrame(animStep);
+      }
+      requestAnimationFrame(animStep);
+    }
+
+    // Son : tone cristallin court par zone
+    if (!instant) {
+      const baseFreqs = [880,988,1047,1109,1175,1245,1319];
+      const freq = baseFreqs[Math.floor(Math.random()*baseFreqs.length)];
+      playTone(freq, 'sine', .07, .003, .08, .18);
+      if(Math.random()<.3) setTimeout(()=>playTone(freq*1.5,'sine',.04,.002,.05,.12), 40);
+    }
+
+    if (revealedCount >= totalZones && !completed) finishReveal();
+  }
+
+  // ── Révélation automatique par vagues ──
+  // Ordre : légèrement aléatoire mais avec une progression générale haut→bas
+  function buildRevealOrder() {
+    const order = [];
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) order.push({col:c,row:r});
+    // Mélange par couches : chaque rangée se révèle globalement après la précédente
+    // Avec un peu de shuffle par zone pour l'effet organique
+    order.sort((a,b)=> (a.row*1.2 + Math.random()*.8) - (b.row*1.2 + Math.random()*.8));
+    return order;
+  }
+
+  const revealOrder = buildRevealOrder();
+  let orderIdx = 0;
+
+  const BASE_INTERVAL = 85; // ms entre chaque zone (28 zones × 85ms ≈ 2.4s total)
+
+  function scheduleNext() {
+    if(completed || orderIdx >= revealOrder.length) return;
+    const {col, row} = revealOrder[orderIdx++];
+    revealZone(col, row, false);
+    // Petite variation du timing pour effet organique
+    const jitter = Math.random() * 40 - 15;
+    autoTimer = setTimeout(scheduleNext, BASE_INTERVAL + jitter);
+  }
+
+  // Démarrer la révélation après 0.3s (temps que le canvas soit bien affiché)
+  setTimeout(scheduleNext, 300);
+
+  function finishReveal() {
+    if(completed) return;
+    completed = true;
+    if(autoTimer) clearTimeout(autoTimer);
+    if(zoneRevealAnimId) cancelAnimationFrame(zoneRevealAnimId);
+    // Fade final du canvas
+    let a = 1;
+    function fadeOut(){
+      a -= 0.08;
+      ctx.save(); ctx.globalCompositeOperation='destination-out'; ctx.globalAlpha=.15;
+      ctx.fillStyle='rgba(0,0,0,1)'; ctx.fillRect(0,0,w,h); ctx.restore();
+      if(a > 0) requestAnimationFrame(fadeOut);
+      else {
+        canvas.style.transition='opacity .25s';
+        canvas.style.opacity='0';
+        setTimeout(()=>{ canvas.remove(); zoneRevealCanvas=null; onComplete(); }, 260);
+      }
+    }
+    fadeOut();
+    // Son final : accord ascendant
+    [523,659,784,988,1318].forEach((f,i)=>
+      setTimeout(()=>playTone(f,'sine',.1-.015*i,.04,.5,1.0+i*.08), i*70)
+    );
+  }
+
+  // ── Shimmer animation loop ──
+  function shimmerLoop() {
+    drawShimmer();
+    zoneRevealAnimId = requestAnimationFrame(shimmerLoop);
+  }
+  zoneRevealAnimId = requestAnimationFrame(shimmerLoop);
+
+  // ── Click = skip direct (révèle tout instantanément) ──
+  canvas.addEventListener('click', e => {
+    e.stopPropagation();
+    if(completed) return;
+    completed = true;
+    if(autoTimer) clearTimeout(autoTimer);
+    if(zoneRevealAnimId) cancelAnimationFrame(zoneRevealAnimId);
+    // Effacer tout d'un coup
+    ctx.save(); ctx.globalCompositeOperation='destination-out';
+    ctx.fillStyle='rgba(0,0,0,1)'; ctx.fillRect(0,0,w,h); ctx.restore();
+    canvas.style.transition='opacity .2s'; canvas.style.opacity='0';
+    setTimeout(()=>{ canvas.remove(); zoneRevealCanvas=null; onComplete(); }, 220);
+    // Son de skip
+    [784,988,1318].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',.08,.003,.3,.6),i*50));
+  });
 
   parentEl.appendChild(canvas);
-
-  // ── Animation pulsante sur le canvas (shimmer qui traverse) ──
-  let shimX=-w;
-  let animId;
-  function animateShimmer(){
-    // draw shimmer band over existing pixels (source-atop = only where pixels exist)
-    ctx.save();
-    ctx.globalCompositeOperation='source-atop';
-    ctx.globalAlpha=0.06;
-    const sg=ctx.createLinearGradient(shimX,0,shimX+w*.4,h);
-    sg.addColorStop(0,'transparent');
-    sg.addColorStop(.5,'#f0c060');
-    sg.addColorStop(1,'transparent');
-    ctx.fillStyle=sg;
-    ctx.fillRect(0,0,w,h);
-    ctx.restore();
-    shimX+=4;
-    if(shimX>w*1.5) shimX=-w*.4;
-    animId=requestAnimationFrame(animateShimmer);
-  }
-  animId=requestAnimationFrame(animateShimmer);
-  canvas._animId=animId;
-
-  // ── Petites étincelles qui s'échappent du canvas ──
-  const sparkInterval=setInterval(()=>{
-    if(!canvas.isConnected){clearInterval(sparkInterval);return;}
-    const r=canvas.getBoundingClientRect();
-    const sx=r.left+Math.random()*r.width;
-    const sy=r.top+Math.random()*r.height;
-    const p=document.createElement('div');
-    const sz=Math.random()*4+2;
-    p.style.cssText=`
-      position:fixed;border-radius:50%;pointer-events:none;z-index:701;
-      width:${sz}px;height:${sz}px;
-      background:#f0c060;box-shadow:0 0 ${sz*2}px #c8953a;
-      left:${sx}px;top:${sy}px;
-      animation:particleFly ${.5+Math.random()*.5}s ease-out forwards;
-      --px:${-20+Math.random()*40}px;
-      --py:${-25-Math.random()*35}px;
-    `;
-    document.body.appendChild(p);
-    setTimeout(()=>p.remove(),1200);
-  },200);
-  canvas._sparkInterval=sparkInterval;
-
-  // ── Grattage manuel ──
-  let isDown=false, lastPos=null, lastSndTime=0;
-  let scratchedPixels=0;
-  const TOTAL_PIXELS=w*h;
-  const REVEAL_THRESHOLD=0.52; // 52% grattés → révèle
-  let completed=false;
-
-  function getPos(e,rect){
-    const src=e.touches?e.touches[0]:e;
-    const scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
-    return {x:(src.clientX-rect.left)*scaleX, y:(src.clientY-rect.top)*scaleY};
-  }
-
-  function doScratch(pos,prev){
-    if(!prev||completed) return;
-    const r2=20;
-    scratchLine(ctx,prev.x,prev.y,pos.x,pos.y,r2);
-    // Approx pixels scratched
-    const dist=Math.hypot(pos.x-prev.x,pos.y-prev.y)+r2*2;
-    scratchedPixels+=dist*r2*2;
-    const dist2=Math.hypot(pos.x-prev.x,pos.y-prev.y);
-    const now=performance.now();
-    if(dist2>4&&now-lastSndTime>55){lastSndTime=now;playScratchSound(Math.min(dist2/35,.9));}
-    // Check threshold
-    if(!completed&&scratchedPixels/TOTAL_PIXELS>=REVEAL_THRESHOLD){
-      completed=true;
-      clearInterval(sparkInterval);
-      cancelAnimationFrame(animId);
-      // Final sweep fade
-      finalFade(()=>{ canvas.remove(); scratchCanvas=null; onScratchComplete(); });
-    }
-  }
-
-  function finalFade(cb){
-    // Sweep clear then fade out
-    for(let row=0;row<h;row+=18) scratchLine(ctx,0,row,w,row+6,12);
-    let a=1;
-    function fade(){
-      ctx.save();ctx.globalCompositeOperation='destination-out';ctx.globalAlpha=.15;
-      ctx.fillStyle='rgba(0,0,0,1)';ctx.beginPath();
-      if(ctx.roundRect) ctx.roundRect(0,0,w,h,22); else ctx.rect(0,0,w,h);
-      ctx.fill();ctx.restore();
-      a-=.08;
-      if(a>0) requestAnimationFrame(fade);
-      else{canvas.style.transition='opacity .25s';canvas.style.opacity='0';setTimeout(cb,260);}
-    }
-    fade();
-  }
-
-  canvas.addEventListener('mousedown',e=>{isDown=true;const r=canvas.getBoundingClientRect();lastPos=getPos(e,r);e.stopPropagation();},{passive:false});
-  canvas.addEventListener('mousemove',e=>{if(!isDown)return;const r=canvas.getBoundingClientRect();const p=getPos(e,r);doScratch(p,lastPos);lastPos=p;});
-  canvas.addEventListener('mouseup',()=>isDown=false);
-  canvas.addEventListener('touchstart',e=>{isDown=true;const r=canvas.getBoundingClientRect();lastPos=getPos(e,r);e.stopPropagation();},{passive:false});
-  canvas.addEventListener('touchmove',e=>{if(!isDown)return;const r=canvas.getBoundingClientRect();const p=getPos(e,r);doScratch(p,lastPos);lastPos=p;e.preventDefault();},{passive:false});
-  canvas.addEventListener('touchend',()=>isDown=false);
+  zoneRevealCanvas = canvas;
   return canvas;
 }
 
-function scratchLine(ctx,x1,y1,x2,y2,r){
-  ctx.save();
-  ctx.globalCompositeOperation='destination-out';
-  ctx.strokeStyle='rgba(0,0,0,1)';
-  ctx.lineWidth=r*2;ctx.lineCap='round';ctx.lineJoin='round';
-  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
-  ctx.restore();
+function clearZoneRevealNow() {
+  if (!zoneRevealCanvas) return;
+  if (zoneRevealAnimId) cancelAnimationFrame(zoneRevealAnimId);
+  zoneRevealCanvas.style.transition = 'opacity .18s';
+  zoneRevealCanvas.style.opacity = '0';
+  setTimeout(() => { if(zoneRevealCanvas){ zoneRevealCanvas.remove(); zoneRevealCanvas=null; } }, 200);
 }
 
-function clearScratchNow(){
-  if(!scratchCanvas) return;
-  if(scratchCanvas._animId) cancelAnimationFrame(scratchCanvas._animId);
-  if(scratchCanvas._sparkInterval) clearInterval(scratchCanvas._sparkInterval);
-  const ctx=scratchCanvas.getContext('2d');
-  ctx.save();ctx.globalCompositeOperation='destination-out';ctx.fillStyle='rgba(0,0,0,1)';
-  ctx.beginPath();
-  if(ctx.roundRect) ctx.roundRect(0,0,scratchCanvas.width,scratchCanvas.height,22);
-  else ctx.rect(0,0,scratchCanvas.width,scratchCanvas.height);
-  ctx.fill();ctx.restore();
-  scratchCanvas.style.transition='opacity .18s';scratchCanvas.style.opacity='0';
-  setTimeout(()=>{if(scratchCanvas){scratchCanvas.remove();scratchCanvas=null;}},200);
-}
 
 // ===== MYTHIQUE ZOOM REVEAL =====
 function buildMythZoomCard(card,CW,CH){
   CW=CW||340;CH=CH||490;
   const el=document.getElementById('mythZoomCard');
   el.setAttribute('data-rarity','MYTHIQUE');
-  el.style.cssText=`width:${CW}px;height:${CH}px;position:absolute;clip-path:none;background:linear-gradient(160deg,#2d1700 0%,#5c3100 30%,#2d1700 60%,#4a2800 100%);border:3px solid #fbbf24bb;box-shadow:0 0 120px #fbbf2460,0 0 300px #fbbf2422;border-radius:22px;display:flex;flex-direction:column;`;
+  // DA : pas de cadre (le PNG définit ses propres contours visuels)
+  el.style.cssText=`width:${CW}px;height:${CH}px;position:absolute;clip-path:none;background:transparent;border:none;box-shadow:none;border-radius:0;display:flex;flex-direction:column;`;
   const HP=card.hp!=='x'?`<div style="display:flex;flex-direction:column;align-items:center;background:#00000050;border-radius:6px;padding:4px 8px;min-width:46px;flex-shrink:0"><div style="font-size:1.15rem;font-weight:700;color:#fca5a5;line-height:1">${card.hp}</div><div style="font-size:.4rem;color:#f8717188;letter-spacing:.1em">HP</div></div>`:'';
   let statsH='';
   if(card.hp!=='x'){
@@ -3293,11 +3575,39 @@ function buildMythZoomCard(card,CW,CH){
   }
   // Si image PNG Supabase : juste le PNG plein cadre + effets holographiques
   if(card.image_url){
+    // Préparer les données pour le reveal progressif
+    const HP2 = card.hp !== 'x' ? card.hp : null;
+    const statsTxt = card.hp !== 'x'
+      ? `ATQ ${card.atk||'—'} · DEF ${card.def||'—'} · PREC ${card.precision||'—'}`
+      : [card.text,card.atk].filter(Boolean).join(' — ').slice(0,80);
+
     el.innerHTML=`
-    <img src="${card.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;border-radius:inherit;" />
-    <div style="position:absolute;inset:0;border-radius:20px;overflow:hidden;pointer-events:none;z-index:1">
-      <div style="position:absolute;inset:0;background:conic-gradient(from 180deg at 50% 50%,#fbbf2428,#f59e0b20,#fde68a25,#fbbf2428);animation:holoGold 2s linear infinite;transform:scale(2.5);transform-origin:center"></div>
-      <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,#00000012 3px,#00000012 4px);animation:scanMove 5s linear infinite;opacity:.25"></div>
+    <!-- PNG flouté pendant le pan cinématique, puis révélé progressivement -->
+    <img id="mythRevealImg" src="${card.image_url}"
+      style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;z-index:0;border-radius:0;
+             filter:blur(18px) brightness(.55) saturate(1.8);opacity:1;transition:filter 0s,opacity 0s;background:transparent;border:none;box-shadow:none;" />
+
+    <!-- Overlay holo — transparent, sans fond rectangulaire -->
+    <div id="mythHoloLayer" style="display:none;"></div>
+
+    <!-- Panel de révélation progressive (stats → description → titre → PNG) -->
+    <div id="mythRevealPanel" style="position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;padding:28px 24px;background:transparent;opacity:1;transition:opacity .6s;pointer-events:none;">
+
+      <!-- Stats -->
+      <div id="mythPanelStats" style="opacity:0;transition:opacity .5s;text-align:center;">
+        ${HP2 ? `<div style="font-size:1.6rem;font-weight:900;color:#fca5a5;font-family:'Bebas Neue',sans-serif;letter-spacing:.05em;text-shadow:0 0 16px #ef444480;">${HP2} <span style="font-size:.65rem;opacity:.6">HP</span></div>` : ''}
+        <div style="font-size:.75rem;color:rgba(255,255,255,.6);letter-spacing:.12em;margin-top:6px;">${statsTxt}</div>
+      </div>
+
+      <!-- Séparateur -->
+      <div id="mythPanelSep" style="width:60%;height:1px;background:linear-gradient(90deg,transparent,#ef4444,transparent);opacity:0;transition:opacity .5s;"></div>
+
+      <!-- Nom -->
+      <div id="mythPanelName" style="opacity:0;transition:opacity .5s;text-align:center;">
+        <div style="font-family:'Cinzel Decorative',cursive;font-size:clamp(.85rem,3.5vw,1.2rem);color:#fca5a5;text-shadow:0 0 20px #ef444480,0 2px 4px #000;line-height:1.3;letter-spacing:.05em;">${card.name}</div>
+        <div style="font-size:.55rem;letter-spacing:.4em;color:#ef4444;margin-top:6px;text-shadow:0 0 12px #ef444460;">— MYTHIQUE —</div>
+      </div>
+
     </div>`;
     return;
   }
@@ -3311,25 +3621,21 @@ function buildMythZoomCard(card,CW,CH){
       <div style="font-family:'Cinzel Decorative',cursive;font-size:.65rem;line-height:1.35;flex:1;color:#fde68a;text-shadow:0 1px 4px #000;animation:nameReveal .9s ease-out .35s both">${card.name}</div>
       ${HP}
     </div>
-    <div style="margin:0 14px;height:130px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:linear-gradient(160deg,#78350f,#92400e);border:1px solid #d9770677;z-index:4">
+    <div style="margin:0 14px;height:130px;border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:linear-gradient(160deg,#0a0800,#141000);border:1px solid #c8953a33;z-index:4">
       <div style="font-size:3.2rem;opacity:.6">${TE[card.type]||'🎴'}</div>
       <div style="position:absolute;bottom:3px;right:6px;font-size:.5rem;color:#ffffff28;font-style:italic">${card.character}</div>
     </div>
     <div style="padding:6px 16px;display:flex;align-items:center;gap:6px;z-index:4;position:relative">
-      <div style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#78350f66;color:#fbbf24;border:1px solid #d9770677">${TE[card.type]||''} ${card.type}</div>
+      <div style="display:inline-block;padding:3px 10px;border-radius:4px;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#1a140066;color:#c8953a;border:1px solid #c8953a44">${TE[card.type]||''} ${card.type}</div>
       <div style="flex:1;height:1px;background:#fbbf2422"></div>
     </div>
     <div style="flex:1;padding:5px 16px 8px;display:flex;flex-direction:column;justify-content:flex-end;gap:5px;min-height:0;z-index:4;position:relative;animation:bodyReveal .6s ease-out .55s both">${statsH}</div>
     <div style="padding:7px 16px 12px;display:flex;align-items:center;justify-content:center;gap:6px;z-index:4;position:relative">
-      <span style="font-size:.85rem;letter-spacing:4px;color:#fbbf24">★★★★</span>
-      <span style="font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:#fbbf24">MYTHIQUE</span>
+      <span style="font-size:.85rem;letter-spacing:4px;color:#ef4444">★★★★</span>
+      <span style="font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:#ef4444">MYTHIQUE</span>
     </div>`;
-  for(let i=0;i<12;i++){
-    const f=document.createElement('div');f.className='fx-flame';
-    f.style.cssText=`left:${5+Math.random()*88}%;bottom:${Math.random()*25}%;--fd:${1.5+Math.random()*2}s;--fs:${Math.random()*2}s;z-index:5;position:absolute`;
-    el.appendChild(f);
-  }
 }
+
 
 function startMythZoom(card){
   window._pendingMythCard = card;
@@ -3339,6 +3645,9 @@ function startMythZoom(card){
   const W=window.innerWidth,H=window.innerHeight;
   const CW=Math.min(340,Math.floor(W*0.88));
   const CH=Math.round(CW*(490/340));
+  // Taille finale agrandie (appliquée après le reveal)
+  const CW_FINAL=Math.min(420,Math.floor(W*0.94));
+  const CH_FINAL=Math.round(CW_FINAL*(490/340));
 
   // Build card HTML & visual styles first
   buildMythZoomCard(card,CW,CH);
@@ -3357,10 +3666,11 @@ function startMythZoom(card){
   zCard.style.opacity='0';
   zCard.style.transition='opacity .8s';
   zCard.style.willChange='transform,opacity';
-  zCard.style.borderRadius='18px';
+  zCard.style.borderRadius='0';
 
   // Cinematic class
   stage.style.overflow='visible';
+  stage.style.background='transparent';
   stage.classList.add('active','cinematic');
   zCard.classList.add('cinematic-card');
 
@@ -3393,20 +3703,48 @@ function startMythZoom(card){
   playMythMusic();
 
   // Initial particle burst
-  spawnParticles(W/2,H/2,'#f0c060',65);
-  spawn3DParticles(W/2,H/2,'#c8953a',28);
+  spawnParticles(W/2,H/2,'#ef4444',65);
+  spawn3DParticles(W/2,H/2,'#b91c1c',28);
   setTimeout(()=>spawnParticles(W/2,H/2,'#fff',30),200);
-  setTimeout(()=>spawnParticles(W/2,H/2,'#f0c060',25),120);
+  setTimeout(()=>spawnParticles(W/2,H/2,'#fca5a5',25),120);
 
   // Cinematic pan steps [delay_ms, transform]
   const panSteps=[
     [0,    'scale(1.72) translate(-9%,-12%)'],
-    [1800, 'scale(1.68) translate(9%,-14%)'],
-    [3800, 'scale(1.75) translate(10%,11%)'],
-    [5600, 'scale(1.70) translate(-8%,13%)'],
-    [7400, 'scale(1.65) translate(0%,0%)'],
-    [9200, 'scale(1.0)  translate(0%,0%)'],
+    [900,  'scale(1.68) translate(9%,-14%)'],
+    [1900, 'scale(1.75) translate(10%,11%)'],
+    [2800, 'scale(1.70) translate(-8%,13%)'],
+    [3700, 'scale(1.65) translate(0%,0%)'],
+    [4600, 'scale(1.0)  translate(0%,0%)'],
   ];
+
+  // Indicateur visible pendant le pan — évite que les joueurs pensent à un bug
+  (()=>{
+    stage.querySelectorAll('._myth_cin_ind').forEach(e=>e.remove());
+    const ind = document.createElement('div');
+    ind.className = 'myth-cin-indicator _myth_cin_ind';
+    ind.innerHTML = '<div class="cin-dot"></div>SÉQUENCE CINÉMATIQUE<div class="cin-dot"></div>';
+    stage.appendChild(ind);
+  })();
+
+  // Fond flou du PNG dès le début — on voit qu'il y a une carte sans l'identifier
+  (()=>{
+    const _revImgPan = document.getElementById('mythRevealImg');
+    if(_revImgPan){
+      stage.querySelectorAll('._myth_pan_bg').forEach(e=>e.remove());
+      const panBg = document.createElement('div');
+      panBg.className = '_myth_pan_bg';
+      panBg.style.cssText = 'position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;';
+      const panImg = document.createElement('img');
+      panImg.src = _revImgPan.src;
+      // Très flouté dès le départ — silhouette visible, rien d'identifiable
+      panImg.style.cssText = 'position:absolute;inset:-15%;width:130%;height:130%;object-fit:cover;filter:blur(38px) brightness(.28) saturate(2.2);opacity:1;transition:none;';
+      panBg.appendChild(panImg);
+      stage.insertBefore(panBg, stage.firstChild);
+      // Le stage lui-même n'est plus noir pur
+      stage.style.background = 'transparent';
+    }
+  })();
 
   // Fade in
   setTimeout(()=>{
@@ -3416,7 +3754,7 @@ function startMythZoom(card){
     setTimeout(()=>{
       panSteps.forEach(([delay, tf])=>{
         setTimeout(()=>{
-          zCard.style.transition='transform 2.2s cubic-bezier(.45,0,.35,1), opacity .8s';
+          zCard.style.transition='transform 1.1s cubic-bezier(.45,0,.35,1), opacity .8s';
           zCard.style.transform=tf;
         }, delay);
       });
@@ -3426,114 +3764,280 @@ function startMythZoom(card){
       const panInterval=setInterval(()=>{
         panTick++;
         spawnParticles(W/2+(-100+Math.random()*200),H/2+(-120+Math.random()*240),'#c8953a',3);
-        if(panTick%4===0) spawnParticles(W/2,H/2,'#f0c060',6);
-        if(panTick>22) clearInterval(panInterval);
-      },500);
+        if(panTick%4===0) spawnParticles(W/2,H/2,'#ef4444',6);
+        if(panTick>11) clearInterval(panInterval);
+      },300);
 
-      // Pan ends at ~9200+2200 = 11400ms
+      // Pan ends at ~4600+1100 = 5700ms
       setTimeout(()=>{
         zCard.style.transition='none';
         zCard.style.transform='scale(1)';
         zCard.style.clipPath='none';
         scanline.remove();
         stage.style.overflow='hidden';
+        // Retirer l'indicateur cinématique
+        stage.querySelectorAll('._myth_cin_ind').forEach(e=>{ e.style.opacity='0'; setTimeout(()=>e.remove(),680); });
+
+        // Retirer le fond flou du pan (la séquence cinématique prend le relais)
+        stage.querySelectorAll('._myth_pan_bg').forEach(e=>{ e.style.transition='opacity .5s'; e.style.opacity='0'; setTimeout(()=>e.remove(),520); });
 
         // Burst
         spawnParticles(W/2,H/2,'#f0c060',55);
         spawn3DParticles(W/2,H/2,'#c8953a',28);
         setTimeout(()=>spawnParticles(W/2,H/2,'#fff',20),200);
 
-        // Show "gratter" hint
-        hint.style.transition='opacity 1s';
-        setTimeout(()=>{ hint.textContent='✦ GRATTER POUR RÉVÉLER ✦'; hint.style.opacity='1'; }, 300);
-
-        // Build scratch OVER the visible card — must be opaque enough to hide it
-        setTimeout(()=>{
-          scratchCanvas=buildScratchSurface(zCard,CW,CH);
-          scratchPhase=1;
-          // Grattage manuel uniquement — onScratchComplete() déclenché depuis buildScratchSurface
-        },800);
-      }, 11600);
+        // Pan terminé → déclencher directement la révélation finale
+        // (pas de zone reveal — le PNG est le PNG, on ne rajoute rien dessus)
+        scratchPhase=1;
+        onZoneRevealComplete(); // immédiatement, pas de fenêtre vulnérable
+      }, 5800);
     }, 500);
   }, 200);
 }
 
-function onScratchComplete(){
-  // Rareté + étoiles sous la carte mythique
-  const _mBot=document.getElementById('fsBottomExternal');
-  if(_mBot){ _mBot.setAttribute('data-rarity','MYTHIQUE'); _mBot.style.display='flex'; }
-  scratchPhase=3;
+function onZoneRevealComplete(){
+  scratchPhase=2; // bloqué jusqu'à la fin du reveal complet
   const W=window.innerWidth,H=window.innerHeight;
+  const card=window._pendingMythCard||{};
   const zCard=document.getElementById('mythZoomCard');
-  const emoji=zCard.querySelector('[style*="font-size:3.2rem"]');
-  const nameEl=zCard.querySelectorAll('[style*="Cinzel Decorative"]')[0];
-  const emojiText=emoji?emoji.textContent:'⚔️';
-  const nameText=nameEl?nameEl.textContent:'';
-  // Step 1: fade card, explode into art zoom
-  zCard.style.transition='opacity .4s';zCard.style.opacity='0';
-  const artZoom=document.getElementById('mythArtZoom');
-  const artInner=document.getElementById('mythArtInner');
-  document.getElementById('mythArtEmoji').textContent=emojiText;
-  document.getElementById('mythArtName').textContent=nameText;
-  artInner.className='myth-art-zoom-inner';
-  setTimeout(()=>{
-    artZoom.classList.add('active');
-    void artInner.offsetWidth;
-    artInner.classList.add('in');
-    spawnParticles(W/2,H/2,'#f0c060',55);
-    spawn3DParticles(W/2,H/2,'#c8953a',28);
-    setTimeout(()=>spawnParticles(W/2,H/2,'#fff',20),150);
-    // Ascending chord — warm, majestic
-    [523,659,784,988,1318].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',.09-.01*i,.05,.6,1.2+i*.1),i*90));
-    // Step 2: 2.2s hold, then dramatic card reveal
-    setTimeout(()=>{
-      artInner.className='myth-art-zoom-inner out';
+  const stage=document.getElementById('mythZoomStage');
+
+  // ── Overlay plein écran pour la séquence cinématique ──────────────────
+  let ov=document.getElementById('_myth_seq_ov');
+  if(ov) ov.remove();
+  ov=document.createElement('div');
+  ov.id='_myth_seq_ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:620;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;background:#000;';
+  stage.appendChild(ov);
+
+  // Masquer la carte pendant la séquence
+  zCard.style.opacity='0';
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function showBlock(html, holdMs, fadeInMs){
+    return new Promise(res=>{
+      const b=document.createElement('div');
+      b.style.cssText='opacity:0;transition:opacity '+fadeInMs+'ms ease;text-align:center;padding:0 24px;width:100%;';
+      b.innerHTML=html;
+      ov.innerHTML=''; ov.appendChild(b);
+      setTimeout(()=>b.style.opacity='1', 30);
       setTimeout(()=>{
-        artZoom.classList.remove('active');
-        artInner.className='myth-art-zoom-inner';
-        zCard.style.transition='opacity .5s,transform .65s cubic-bezier(.34,1.4,.64,1)';
-        zCard.style.opacity='1';
-        zCard.style.transform='scale(1.08)';
-        setTimeout(()=>zCard.style.transform='scale(1)',250);
-        spawnParticles(W/2,H/2,'#f0c060',80);spawn3DParticles(W/2,H/2,'#c8953a',40);
-        spawnParticles(W/2,H/2,'#fff',40);spawnParticles(W/2,H/2,'#f0c060',45);
-        setTimeout(()=>spawnParticles(W/2,H/2,'#fff',30),220);
-        if(window._pendingMythCard) setTimeout(()=>showOwnershipBadge(window._pendingMythCard),600);
-        attachTilt(zCard,null,'scale(1)');
-        const mArt=zCard.querySelector('[style*="height:130px"]');
-        if(mArt){setTimeout(()=>{mArt.classList&&mArt.classList.add('shine');},350);}
-        const hint=document.getElementById('mythZoomHint');
-        setTimeout(()=>{hint.style.opacity='1';hint.style.transition='opacity .5s';},900);
-      },560);
-    },2200);
-  },400);
+        b.style.transition='opacity 420ms ease';
+        b.style.opacity='0';
+        setTimeout(res, 450);
+      }, 30+fadeInMs+holdMs);
+    });
+  }
+
+  function typewrite(el, text, speedMs){
+    return new Promise(res=>{
+      let i=0; el.textContent='';
+      const iv=setInterval(()=>{
+        if(i>=text.length){ clearInterval(iv); setTimeout(res,280); return; }
+        el.textContent+=text[i++];
+        playTone(1100+Math.random()*600,'sine',.016,.001,.045,.07);
+      }, speedMs);
+    });
+  }
+
+  // Données carte
+  const hasStats = card.hp && card.hp!=='x';
+  const statsTxt = hasStats
+    ? 'ATQ '+( card.atk||'—')+' · DEF '+(card.def||'—')+' · PRÉC '+(card.precision||'—')
+    : '';
+  const descTxt  = card.text||'';
+  const nameTxt  = card.name||'';
+
+  // Son d'entrée
+  [330,415,494,660].forEach((f,i)=>setTimeout(()=>playTone(f,'sawtooth',.06,.03,.4,.7),i*70));
+  spawnParticles(W/2,H/2,'#f0c060',30); spawn3DParticles(W/2,H/2,'#c8953a',14);
+
+  (async()=>{
+    // ── 1. MYTHIQUE ───────────────────────────────────────────────────
+    await showBlock(
+      '<div style="font-family:\'Cinzel Decorative\',cursive;font-size:min(7vw,3.6rem);'+
+      'color:#ef4444;letter-spacing:min(.22em,1.5vw);text-shadow:0 0 45px #dc2626,0 0 90px #dc262650;'+
+      'animation:mythSeqPulse 1.1s ease-in-out infinite;white-space:nowrap;">✦ MYTHIQUE ✦</div>',
+      1100, 380
+    );
+    // Son ascendant après le bloc MYTHIQUE
+    [523,659,784].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',.07,.03,.4,.8),i*80));
+
+    // ── 2. Stats (typewriter) ─────────────────────────────────────────
+    if(statsTxt){
+      const wrap=document.createElement('div');
+      wrap.style.cssText='opacity:0;transition:opacity 350ms ease;text-align:center;width:100%;padding:0 24px;';
+      ov.innerHTML=''; ov.appendChild(wrap);
+      const inner=document.createElement('div');
+      inner.style.cssText='font-family:"Bebas Neue",sans-serif;font-size:clamp(1.1rem,4.5vw,1.8rem);'+
+        'color:#fca5a5;letter-spacing:.16em;';
+      wrap.appendChild(inner);
+      setTimeout(()=>wrap.style.opacity='1', 30);
+      await typewrite(inner, statsTxt, 52);
+      await new Promise(r=>setTimeout(r,550));
+      wrap.style.transition='opacity 380ms ease'; wrap.style.opacity='0';
+      await new Promise(r=>setTimeout(r,420));
+    }
+
+    // ── 3. Description (typewriter) ───────────────────────────────────
+    if(descTxt){
+      const wrap=document.createElement('div');
+      wrap.style.cssText='opacity:0;transition:opacity 350ms ease;text-align:center;width:100%;padding:0 28px;';
+      ov.innerHTML=''; ov.appendChild(wrap);
+      const inner=document.createElement('div');
+      inner.style.cssText='font-family:"Cormorant Garamond",serif;font-size:clamp(.9rem,3.4vw,1.3rem);'+
+        'color:#f5e8cc;line-height:1.55;font-style:italic;max-width:500px;margin:0 auto;';
+      wrap.appendChild(inner);
+      setTimeout(()=>wrap.style.opacity='1', 30);
+      await typewrite(inner, descTxt, 36);
+      await new Promise(r=>setTimeout(r,600));
+      wrap.style.transition='opacity 380ms ease'; wrap.style.opacity='0';
+      await new Promise(r=>setTimeout(r,420));
+    }
+
+    // ── 4. Titre de la carte ─────────────────────────────────────────
+    [784,988,1318].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',.09,.04,.55,1.1),i*90));
+    spawnParticles(W/2,H/2,'#f0c060',35); spawn3DParticles(W/2,H/2,'#c8953a',18);
+    await showBlock(
+      '<div style="font-family:\'Cinzel Decorative\',cursive;font-size:clamp(1.3rem,6vw,2.4rem);'+
+      'color:#fca5a5;letter-spacing:.18em;text-shadow:0 0 32px #dc2626,0 0 65px #dc262640;'+
+      'animation:mythSeqPulse 1.1s ease-in-out infinite;">'+nameTxt+'</div>',
+      1000, 340
+    );
+
+    // ── 5. Pop du PNG ─────────────────────────────────────────────────
+    ov.style.transition='opacity .5s'; ov.style.opacity='0';
+    setTimeout(()=>ov.remove(), 540);
+
+    // Nettoyer le panel HTML intermédiaire (plus utile)
+    const panel=document.getElementById('mythRevealPanel');
+    if(panel){ panel.style.transition='opacity .3s'; panel.style.opacity='0'; setTimeout(()=>panel.remove(),320); }
+
+    const revImg=document.getElementById('mythRevealImg');
+    const holoL=document.getElementById('mythHoloLayer');
+
+    // PNG : part de l'état flouté du pan → progressivement net
+    if(revImg){
+      revImg.style.opacity='1';
+      revImg.style.filter='blur(18px) brightness(.55) saturate(1.8)';
+      revImg.style.transition='none';
+    }
+    zCard.style.cssText = zCard.style.cssText +
+      ';background:transparent!important;border:none!important;box-shadow:none!important;outline:none!important;';
+
+    // Burst de particules au pop
+    spawnParticles(W/2,H/2,'#ef4444',80); spawn3DParticles(W/2,H/2,'#b91c1c',42);
+    spawnParticles(W/2,H/2,'#fff',38);
+    setTimeout(()=>spawnParticles(W/2,H/2,'#fca5a5',32),200);
+
+    // Fade-in progressif du PNG (flouté coloré → moins flou → net)
+    setTimeout(()=>{
+      if(revImg){
+        revImg.style.transition='filter 1.1s cubic-bezier(.25,.46,.45,.94)';
+        revImg.style.filter='brightness(.7) blur(8px) saturate(1.4)';
+      }
+    }, 80);
+    setTimeout(()=>{
+      if(revImg){
+        revImg.style.transition='filter 1.4s cubic-bezier(.25,.46,.45,.94)';
+        revImg.style.filter='brightness(.9) blur(3px)';
+      }
+    }, 600);
+    setTimeout(()=>{
+      if(revImg){
+        revImg.style.transition='filter 1.1s ease';
+        revImg.style.filter='brightness(1) blur(0px)';
+      }
+      if(holoL){ holoL.style.background='transparent'; holoL.style.transition='opacity 1.2s ease .3s'; holoL.style.opacity='1'; }
+    }, 1200);
+
+    // Feux d'artifice finaux
+    setTimeout(()=>{
+      [[W*.2,H*.25],[W*.8,H*.2],[W*.5,H*.15],[W*.15,H*.6],[W*.85,H*.55],[W*.5,H*.5]]
+        .forEach(([x,y],i)=>setTimeout(()=>{
+          spawnParticles(x,y,'#ef4444',22); spawn3DParticles(x,y,'#b91c1c',10);
+        },i*110));
+      spawnParticles(W/2,H/2,'#fff',45);
+    }, 1400);
+
+    // Rareté + étoiles sous la carte
+    setTimeout(()=>{
+      const _mBot=document.getElementById('fsBottomExternal');
+      if(_mBot){ _mBot.setAttribute('data-rarity','MYTHIQUE'); _mBot.style.display='flex'; }
+    }, 1800);
+
+    // Taille finale = même que fullscreen-card (min(500px,97vw) × min(710px,92vh))
+    const _vw = window.innerWidth;
+    const _vh = window.innerHeight;
+    const _finalW = Math.min(500, Math.floor(_vw * 0.97));
+    const _finalH = Math.min(710, Math.floor(_vh * 0.92));
+    // Lever les contraintes CSS pour atteindre la bonne taille
+    zCard.style.maxWidth  = 'none';
+    zCard.style.maxHeight = 'none';
+    zCard.style.transition='width .7s cubic-bezier(.34,1.2,.64,1),height .7s cubic-bezier(.34,1.2,.64,1),left .7s,top .7s,transform .7s';
+    zCard.style.width  = _finalW+'px';
+    zCard.style.height = _finalH+'px';
+    // Centrage via transform — plus fiable que les marges négatives
+    zCard.style.left   = '50%';
+    zCard.style.top    = '50%';
+    zCard.style.marginLeft = '0';
+    zCard.style.marginTop  = '0';
+    zCard.style.transform  = 'translate(-50%,-50%)';
+    zCard.style.opacity='1';
+    // Étoiles + rareté sous le PNG mythique (dans le stage)
+    setTimeout(()=>{
+      const stage=document.getElementById('mythZoomStage');
+      stage.querySelectorAll('._myth_rar_bot').forEach(e=>e.remove());
+      const rarBot=document.createElement('div');
+      rarBot.className='_myth_rar_bot';
+      rarBot.style.cssText='position:absolute;bottom:108px;left:50%;transform:translateX(-50%);z-index:650;display:flex;align-items:center;gap:8px;opacity:0;transition:opacity .5s;pointer-events:none;white-space:nowrap;';
+      rarBot.innerHTML='<span style="font-size:.85rem;letter-spacing:4px;color:#ef4444;text-shadow:0 0 10px #ef444480;">★★★★</span><span style="font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;color:#ef4444;font-family:\'Cinzel\',serif;font-weight:700;">MYTHIQUE</span>';
+      stage.appendChild(rarBot);
+      setTimeout(()=>rarBot.style.opacity='1',60);
+    }, 1800);
+    if(window._pendingMythCard) setTimeout(()=>showOwnershipBadge(window._pendingMythCard),2100);
+    // Pas de tilt sur la carte mythique après reveal — seul le clic simple est autorisé
+    // Bloquer tout mouvement/glissement sur le stage pour éviter de déplacer le PNG
+    const _ms = document.getElementById('mythZoomStage');
+    if(_ms && !_ms._mythMoveBlocked){
+      _ms._mythMoveBlocked = true;
+      ['mousemove','touchmove','pointermove','dragstart','drag'].forEach(ev=>{
+        _ms.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); }, {passive:false, capture:true});
+      });
+    }
+    // Fixer le transform de la carte — ne jamais le laisser changer après le reveal
+    zCard.style.transition = 'none';
+    zCard.style.transform  = 'translate(-50%,-50%)';
+    zCard.style.willChange = 'auto';
+    const hint=document.getElementById('mythZoomHint');
+    setTimeout(()=>{
+      scratchPhase=3; // carte officiellement révélée — clic autorisé
+      hint.textContent='CLIQUER POUR CONTINUER';
+      hint.style.opacity='1'; hint.style.transition='opacity .5s';
+      const _stage=document.getElementById('mythZoomStage');
+      if(_stage) _stage.classList.add('ready');
+    }, 2600);
+  })();
 }
 
-function advanceMythZoom(){/* replaced by scratch system */}
+function advanceMythZoom(){/* replaced by zone reveal system */}
 
 function mythZoomClick(){
-  if(scratchPhase===0) return; // cinematic pan in progress, no skip
-  if(scratchPhase===1||scratchPhase===2){
-    scratchPhase=3;
-    clearScratchNow();
-    const zCard=document.getElementById('mythZoomCard');
-    document.getElementById('mythArtZoom').classList.remove('active');
-    zCard.style.transition='opacity .3s';zCard.style.opacity='1';
-    const W=window.innerWidth,H=window.innerHeight;
-    spawnParticles(W/2,H/2,'#f0c060',40);spawn3DParticles(W/2,H/2,'#c8953a',18);
-    attachTilt(zCard,null,'');
-    const hint=document.getElementById('mythZoomHint');
-    hint.style.transition='opacity .4s';hint.style.opacity='1';
-    return;
-  }
+  // Bloquer tout skip pendant le pan cinématique ET pendant la séquence de révélation
+  if(scratchPhase===0) return; // pan en cours — impossible de skipper
+  if(scratchPhase===1||scratchPhase===2) return; // séquence révélation — impossible de skipper
   if(scratchPhase<3) return;
   const stage=document.getElementById('mythZoomStage');
   stage.style.opacity='0';stage.style.transition='opacity .4s';
   setTimeout(()=>{
     stage.classList.remove('active','cinematic');
     stage.style.opacity='';stage.style.transition='';stage.style.overflow='';
+    stage._mythMoveBlocked = false;
+    stage.querySelectorAll('._myth_cin_ind').forEach(e=>e.remove());
     const hint=document.getElementById('mythZoomHint');
     hint.style.opacity='0';hint.className='myth-zoom-hint';hint.style.transition='';
+    const _dBot=document.getElementById('fsBottomExternal');
+    if(_dBot) _dBot.style.display='none';
     const zCard=document.getElementById('mythZoomCard');
     zCard.classList.remove('cinematic-card');
     zCard.style.cssText='clip-path:none';  // keep clip-path reset, avoid CSS class re-applying it
@@ -3577,18 +4081,28 @@ function dismissFullscreen(){
 
 function afterDismiss(){  _dealLocked=false;
   clearTypeBg();
-  revealed.push(boosterCards[currentIdx]);
+  if(currentIdx < boosterCards.length){
+    revealed.push(boosterCards[currentIdx]);
+  }
   currentIdx++;
-  // Refresh aura — stops if the revealed card was the last rare/myth
+  // Refresh aura
   refreshStackAura();
+  const total=boosterCards.length||5;
   const stackCards=document.querySelectorAll('.stack-card');
-  const toFade=stackCards[5-currentIdx];
+  const toFade=stackCards[total-currentIdx];
   if(toFade)toFade.style.opacity='0';
-  if(currentIdx>=5){
+  if(currentIdx>=total){
     stopStackAura();
     document.getElementById('stackCount').textContent='0 carte restante';
     document.getElementById('stackContainer').style.pointerEvents='none';
-    setTimeout(showDone,420);
+    // S'assurer qu'on a bien des cartes à afficher avant le récap
+    if(revealed.length>0){
+      setTimeout(showDone,420);
+    } else {
+      // Fallback : si revealed est vide (bug état), recharger
+      console.warn('[Booster] revealed vide au recap — état corrompu, reload');
+      window.location.reload();
+    }
   } else {
     updateStackCount();
   }
