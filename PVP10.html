@@ -2748,44 +2748,48 @@ function renderDeckGrid(){
   available.forEach(({g, maxCopies})=>{
     const used=selCount[g.id]||0;
     const col=rarCols[g.rarete]||'#888';
+    const canAdd=used<maxCopies && totalSelected<10;
+    const canRemove=used>0;
 
+    // Wrapper vertical : carte + contrôles dessous
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;';
+
+    // La carte elle-même
     const div=document.createElement('div');
     div.className='sd-card'+(used>0?' selected':'');
-    div.style.position='relative';
-    div.style.overflow='visible'; // pour que les boutons +/- dépassent
+    div.style.cssText='position:relative;overflow:hidden;flex-shrink:0;';
 
-    // Image ou placeholder
     let imgHTML='';
     if(g.image_url){
-      imgHTML=`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:5px;" />`;
+      imgHTML=`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
     } else {
-      imgHTML=`<div style="width:100%;height:100%;background:var(--s3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;border-radius:5px;">
+      imgHTML=`<div style="width:100%;height:100%;background:var(--s3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;">
         <div style="font-size:20px;">${g.ct==='fighter'?'⚡':'✨'}</div>
         <div style="font-family:'Cinzel',serif;font-size:6px;font-weight:700;color:${col};text-align:center;word-break:break-word;line-height:1.2;">${g.nom}</div>
       </div>`;
     }
 
-    // Badge quantité (si >0 sélectionnée)
     const badge=used>0?`<div class="sd-sel-badge" style="font-size:8px;min-width:16px;text-align:center;">×${used}</div>`:'';
 
-    // Nom + stats en bas
-    const infoBar=`<div style="position:absolute;bottom:18px;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:3px 3px 2px;border-radius:0 0 5px 5px;pointer-events:none;">
+    const infoBar=`<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:3px 3px 2px;pointer-events:none;">
       <div style="font-family:'Cinzel',serif;font-size:5px;font-weight:700;color:${col};overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${g.nom}</div>
       ${g.ct==='fighter'?`<div style="font-family:'DM Mono',monospace;font-size:5px;color:#aaa;">❤${g.hp} ⚔${g.atq} 🛡${g.def}</div>`:`<div style="font-size:5px;color:#aaa;">${g.type}</div>`}
     </div>`;
 
-    // Boutons +/- en bas
-    const canAdd=used<maxCopies && totalSelected<10;
-    const canRemove=used>0;
+    div.innerHTML=imgHTML+badge+infoBar;
 
-    const controls=`<div style="position:absolute;bottom:0;left:0;right:0;display:flex;height:18px;border-radius:0 0 5px 5px;overflow:hidden;">
-      <button onclick="adjustCard('${g.id}',-1,event)" style="flex:1;background:${canRemove?'rgba(240,64,80,.7)':'rgba(0,0,0,.35)'};border:none;color:${canRemove?'#fff':'#555'};font-size:11px;font-weight:900;cursor:${canRemove?'pointer':'default'};line-height:1;" ${canRemove?'':' disabled'}>−</button>
-      <div style="flex:1;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:${used>0?'var(--gold)':'#555'};">${used}/${maxCopies}</div>
-      <button onclick="adjustCard('${g.id}',+1,event)" style="flex:1;background:${canAdd?'rgba(62,207,142,.7)':'rgba(0,0,0,.35)'};border:none;color:${canAdd?'#fff':'#555'};font-size:11px;font-weight:900;cursor:${canAdd?'pointer':'default'};line-height:1;" ${canAdd?'':' disabled'}>+</button>
-    </div>`;
+    // Contrôles SOUS la carte
+    const ctrl=document.createElement('div');
+    ctrl.style.cssText='display:flex;align-items:center;gap:4px;';
+    ctrl.innerHTML=`
+      <button onclick="adjustCard('${g.id}',-1,event)" style="width:22px;height:22px;border-radius:50%;background:${canRemove?'rgba(240,64,80,.85)':'var(--s3)'};border:1px solid ${canRemove?'var(--red)':'var(--bdr2)'};color:${canRemove?'#fff':'#444'};font-size:14px;font-weight:900;cursor:${canRemove?'pointer':'default'};display:flex;align-items:center;justify-content:center;line-height:1;" ${canRemove?'':' disabled'}>−</button>
+      <span style="font-family:'DM Mono',monospace;font-size:10px;font-weight:700;color:${used>0?'var(--gold)':'var(--dim)'};min-width:24px;text-align:center;">${used}/${maxCopies}</span>
+      <button onclick="adjustCard('${g.id}',+1,event)" style="width:22px;height:22px;border-radius:50%;background:${canAdd?'rgba(62,207,142,.85)':'var(--s3)'};border:1px solid ${canAdd?'var(--grn)':'var(--bdr2)'};color:${canAdd?'#fff':'#444'};font-size:14px;font-weight:900;cursor:${canAdd?'pointer':'default'};display:flex;align-items:center;justify-content:center;line-height:1;" ${canAdd?'':' disabled'}>+</button>`;
 
-    div.innerHTML=imgHTML+badge+infoBar+controls;
-    grid.appendChild(div);
+    wrap.appendChild(div);
+    wrap.appendChild(ctrl);
+    grid.appendChild(wrap);
   });
 
   if(available.length===0){
@@ -3060,4 +3064,3 @@ async function initSupabase(){
 })();
 
 </script></body></html>
-
