@@ -1128,6 +1128,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
         <button onclick="sdFilter('fighter')" id="sf-fighter" class="sf-btn">⚡ Héros</button>
         <button onclick="sdFilter('sort')" id="sf-sort" class="sf-btn">✨ Sorts</button>
       </div>
+      <button onclick="autoPick10()" style="background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.5);color:var(--pur);padding:4px 14px;border-radius:20px;cursor:pointer;font-size:10px;font-family:'DM Mono',monospace;transition:all .2s;" title="Sélectionne 10 cartes au hasard">🎲 Auto</button>
       <div id="sd-count" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--sub);font-weight:700;">0 / 10 cartes</div>
     </div>
     <div id="sd-grid" style="display:flex;flex-wrap:wrap;gap:7px;overflow-y:auto;flex:1;min-height:0;align-content:flex-start;padding:4px 2px;justify-content:flex-start;width:100%;"></div>
@@ -2824,6 +2825,31 @@ function updatePlayButton(){
       n>0?`Encore ${10-n} carte${10-n>1?'s':''} à sélectionner`:
       'Sélectionne 10 cartes';
   }
+}
+
+// ── Sélection automatique de 10 cartes au hasard ─────────────────────
+function autoPick10(){
+  // Réinitialiser la sélection
+  _selected10 = [];
+  // Collecter toutes les cartes disponibles dans la collection
+  const available = [];
+  for(const [cid, qty] of Object.entries(_playerCollection)){
+    if(qty < 1) continue;
+    const raw = _allCardsRaw.find(c => c.id == cid);
+    if(!raw) continue;
+    available.push(supaToGame(raw));
+  }
+  // Mélanger aléatoirement
+  for(let i = available.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+  // Prendre les 10 premières
+  const picked = available.slice(0, Math.min(10, available.length));
+  picked.forEach(g => {
+    _selected10.push({...g, hpCur: g.hp || g.hpCur || 10, hpBase: g.hp || g.hpBase || 10});
+  });
+  renderDeckGrid();
 }
 
 // ── Lancer la partie avec les 10 cartes ──────────────────────────────
