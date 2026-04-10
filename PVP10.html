@@ -2718,7 +2718,7 @@ function renderDeckGrid(){
   const selCount={};
   _selected10.forEach(c=>{selCount[c.id]=(selCount[c.id]||0)+1;});
 
-  // Construire la liste avec UN SLOT PAR EXEMPLAIRE (max 2 par carte)
+  // Construire la liste : UNE CARTE PAR TYPE avec son quota
   const available=[];
   for(const [cid, qty] of Object.entries(_playerCollection)){
     if(qty<1) continue;
@@ -2727,55 +2727,64 @@ function renderDeckGrid(){
     const g=supaToGame(raw);
     if(_sdFilter==='fighter' && g.ct!=='fighter') continue;
     if(_sdFilter==='sort' && g.ct!=='sort') continue;
-    const maxCopies=Math.min(qty,2); // max 2 exemplaires par carte
-    for(let copy=0;copy<maxCopies;copy++){
-      available.push({g, copy, maxCopies});
-    }
+    const maxCopies=Math.min(qty,2);
+    available.push({g, maxCopies});
   }
 
-  // Trier : sélectionnées d'abord, puis par rareté, puis par nom, puis par copie
+  // Trier : sélectionnées d'abord, puis rareté, puis nom
   const rarOrder={M:0,R:1,PC:2,C:3};
   available.sort((a,b)=>{
-    const aUsed=copy=>copy<(selCount[a.g.id]||0);
-    const bUsed=copy=>copy<(selCount[b.g.id]||0);
-    const aS=aUsed(a.copy)?0:1;
-    const bS=bUsed(b.copy)?0:1;
+    const aS=(selCount[a.g.id]||0)>0?0:1;
+    const bS=(selCount[b.g.id]||0)>0?0:1;
     if(aS!==bS) return aS-bS;
     const rA=rarOrder[a.g.rarete]??3, rB=rarOrder[b.g.rarete]??3;
     if(rA!==rB) return rA-rB;
-    const nameComp=a.g.nom.localeCompare(b.g.nom);
-    if(nameComp!==0) return nameComp;
-    return a.copy-b.copy;
+    return a.g.nom.localeCompare(b.g.nom);
   });
 
   const rarCols={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'};
+  const totalSelected=_selected10.length;
 
-  available.forEach(({g, copy})=>{
-    // Cette copie est-elle sélectionnée ? (la copy-ième occurrence de cette carte)
-    const usedCount=selCount[g.id]||0;
-    const isSelected=copy<usedCount;
-    const full=_selected10.length>=10 && !isSelected;
+  available.forEach(({g, maxCopies})=>{
+    const used=selCount[g.id]||0;
+    const col=rarCols[g.rarete]||'#888';
+
     const div=document.createElement('div');
-    div.className='sd-card'+(isSelected?' selected':'')+(full?' disabled':'');
-    div.onclick=()=>toggleCardSelectionCopy(g, copy);
+    div.className='sd-card'+(used>0?' selected':'');
+    div.style.position='relative';
+    div.style.overflow='visible'; // pour que les boutons +/- dépassent
 
+    // Image ou placeholder
     let imgHTML='';
     if(g.image_url){
-      imgHTML=`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`;
+      imgHTML=`<img src="${g.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:5px;" />`;
     } else {
-      const col=rarCols[g.rarete]||'#888';
-      imgHTML=`<div style="width:100%;height:100%;background:var(--s3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;">
+      imgHTML=`<div style="width:100%;height:100%;background:var(--s3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;border-radius:5px;">
         <div style="font-size:20px;">${g.ct==='fighter'?'⚡':'✨'}</div>
         <div style="font-family:'Cinzel',serif;font-size:6px;font-weight:700;color:${col};text-align:center;word-break:break-word;line-height:1.2;">${g.nom}</div>
       </div>`;
     }
-    const col=rarCols[g.rarete]||'#888';
-    div.innerHTML=imgHTML
-      +(isSelected?`<div class="sd-sel-badge">✓</div>`:'')
-      +`<div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.8));padding:3px 3px 2px;border-radius:0 0 5px 5px;">
-          <div style="font-family:'Cinzel',serif;font-size:5px;font-weight:700;color:${col};letter-spacing:.04em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${g.nom}</div>
-          ${g.ct==='fighter'?`<div style="font-family:'DM Mono',monospace;font-size:5px;color:#aaa;">❤${g.hp} ⚔${g.atq} 🛡${g.def}</div>`:`<div style="font-size:5px;color:#aaa;">${g.type}</div>`}
-        </div>`;
+
+    // Badge quantité (si >0 sélectionnée)
+    const badge=used>0?`<div class="sd-sel-badge" style="font-size:8px;min-width:16px;text-align:center;">×${used}</div>`:'';
+
+    // Nom + stats en bas
+    const infoBar=`<div style="position:absolute;bottom:18px;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.85));padding:3px 3px 2px;border-radius:0 0 5px 5px;pointer-events:none;">
+      <div style="font-family:'Cinzel',serif;font-size:5px;font-weight:700;color:${col};overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${g.nom}</div>
+      ${g.ct==='fighter'?`<div style="font-family:'DM Mono',monospace;font-size:5px;color:#aaa;">❤${g.hp} ⚔${g.atq} 🛡${g.def}</div>`:`<div style="font-size:5px;color:#aaa;">${g.type}</div>`}
+    </div>`;
+
+    // Boutons +/- en bas
+    const canAdd=used<maxCopies && totalSelected<10;
+    const canRemove=used>0;
+
+    const controls=`<div style="position:absolute;bottom:0;left:0;right:0;display:flex;height:18px;border-radius:0 0 5px 5px;overflow:hidden;">
+      <button onclick="adjustCard('${g.id}',-1,event)" style="flex:1;background:${canRemove?'rgba(240,64,80,.7)':'rgba(0,0,0,.35)'};border:none;color:${canRemove?'#fff':'#555'};font-size:11px;font-weight:900;cursor:${canRemove?'pointer':'default'};line-height:1;" ${canRemove?'':' disabled'}>−</button>
+      <div style="flex:1;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:8px;font-weight:700;color:${used>0?'var(--gold)':'#555'};">${used}/${maxCopies}</div>
+      <button onclick="adjustCard('${g.id}',+1,event)" style="flex:1;background:${canAdd?'rgba(62,207,142,.7)':'rgba(0,0,0,.35)'};border:none;color:${canAdd?'#fff':'#555'};font-size:11px;font-weight:900;cursor:${canAdd?'pointer':'default'};line-height:1;" ${canAdd?'':' disabled'}>+</button>
+    </div>`;
+
+    div.innerHTML=imgHTML+badge+infoBar+controls;
     grid.appendChild(div);
   });
 
@@ -2787,23 +2796,38 @@ function renderDeckGrid(){
   updatePlayButton();
 }
 
-// ── Sélection/désélection d'une carte (avec gestion des copies) ──────
-function toggleCardSelectionCopy(g, copy){
-  // Compter combien de fois cette carte est déjà sélectionnée
-  const usedCount=_selected10.filter(c=>c.id===g.id).length;
-  if(copy<usedCount){
-    // Cette copie est sélectionnée → on retire la dernière occurrence
-    const idx=_selected10.map(c=>c.id).lastIndexOf(g.id);
-    if(idx>=0) _selected10.splice(idx,1);
-  } else {
-    // Cette copie n'est pas encore sélectionnée → on l'ajoute
+// ── Ajuster la quantité d'une carte dans la sélection ────────────────
+function adjustCard(cardId, delta, event){
+  if(event) event.stopPropagation();
+  const raw=_allCardsRaw.find(c=>c.id==cardId);
+  if(!raw) return;
+  const g=supaToGame(raw);
+  const maxCopies=Math.min(_playerCollection[cardId]||0,2);
+  const used=_selected10.filter(c=>c.id==cardId).length;
+
+  if(delta>0){
+    if(used>=maxCopies) return;
     if(_selected10.length>=10) return;
-    _selected10.push({...g, hpCur:g.hp||g.hpCur||10, hpBase:g.hp||g.hpBase||10});
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
+  } else {
+    const idx=_selected10.map(c=>c.id).lastIndexOf(cardId);
+    if(idx>=0) _selected10.splice(idx,1);
   }
   renderDeckGrid();
 }
-// Alias pour compatibilité
-function toggleCardSelection(g){toggleCardSelectionCopy(g,0);}
+
+// Alias pour compatibilité avec autoPick10
+function toggleCardSelection(g){
+  const used=_selected10.filter(c=>c.id===g.id).length;
+  const max=Math.min(_playerCollection[g.id]||0,2);
+  if(used<max && _selected10.length<10){
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
+  } else if(used>0){
+    const idx=_selected10.map(c=>c.id).lastIndexOf(g.id);
+    if(idx>=0) _selected10.splice(idx,1);
+  }
+  renderDeckGrid();
+}
 
 // ── Barre des cartes sélectionnées ────────────────────────────────────
 function renderSelectedBar(){
