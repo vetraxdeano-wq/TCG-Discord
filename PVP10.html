@@ -1922,7 +1922,6 @@ function applySort(s,cas,cib){
       break;
   }
 }
-}
 function tickActives(p){p.actives=p.actives.map(a=>({...a,turns:a.turns-1})).filter(a=>a.turns>0);p.skipAtq=false;p.noSpellThisTurn=false;}
 
 function updateHeart(id,hp,hpMax){
