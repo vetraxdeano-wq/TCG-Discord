@@ -2675,7 +2675,7 @@ function endGame(w){
     ?`Tu remportes la victoire avec ${G.human.hp} PV restants !`
     :`Le bot l'emporte avec ${G.bot.hp} PV restants.`;
 
-  const coins=isWin?150:75, xp=isWin?25:10;
+  const coins=isWin?75:35, xp=isWin?12:5;
   const rw=document.getElementById('ov-rewards');
   if(rw) rw.innerHTML=`
     <div class="ov-reward-pill coins">🪙 +${coins} coins</div>
@@ -3294,8 +3294,8 @@ const _origEndGame=endGame;
 endGame=function(w){
   _origEndGame(w);
   const isWin=w==='human';
-  const coins=isWin?150:75;
-  const xp   =isWin?25:10;
+  const coins=isWin?75:35;
+  const xp   =isWin?12:5;
   saveGameResult(isWin,coins,xp);
 };
 
@@ -3377,17 +3377,6 @@ async function initSupabase(){
     return;
   } else {
     colData.forEach(e=>{ _playerCollection[String(e.card_id)]=e.quantity; });
-  }
-
-  // ── Vérifier l'accès au mode 10v10 ──
-  // Accès interdit si le joueur peut déjà construire un deck 30 cartes valide
-  if(canBuildStandardDeck(_playerCollection, allCards)){
-    showFatalError(
-      '🚫 Mode 10 vs 10 non disponible.<br><br>' +
-      'Ta collection est suffisante pour construire un deck complet de 30 cartes.<br>' +
-      'Utilise le mode classique depuis le menu principal.'
-    );
-    return;
   }
 
   // ── Afficher le nom du joueur ──
