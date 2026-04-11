@@ -1615,7 +1615,7 @@ function closeEffectPick(){
   document.getElementById('effect-pick-overlay').classList.remove('open');
 }
 
-function applySort(s,cas,cib){
+function applySort(s,cas,cib,onDone){
   // Gestion LOVE & PEACE : combo permanent
   if(s.effet==='love_peace'){
     // Vérifier si l'autre est déjà active
@@ -1678,18 +1678,18 @@ function applySort(s,cas,cib){
       break;
     case'remove_ruse':
       {
-        // Retire 1 Ruse active sur son propre héros (malus subis) — avec choix
         const ruseItems = cas.actives
           .map((a,i)=>({...a,_idx:i}))
           .filter(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
         if(ruseItems.length === 0){
           addLog('🧹 Aucune Ruse active à retirer','sm');
+          // pas de modale, continuer normalement (onDone appelé après le switch)
         } else if(ruseItems.length === 1){
           cas.actives.splice(cas.actives.findIndex(a=>a===ruseItems[0]),1);
           addLog(`🧹 Ruse "${ruseItems[0].nom}" retirée`,'sm');
           render();
+          // pas de modale, continuer normalement
         } else {
-          // Arrêter le chrono pendant le choix
           stopChrono();
           openEffectPick(
             '🧹 Retirer une Ruse',
@@ -1699,15 +1699,16 @@ function applySort(s,cas,cib){
               const target = ruseItems[pickedIdx];
               const realIdx = cas.actives.findIndex(a=>a===target);
               if(realIdx >= 0){ cas.actives.splice(realIdx,1); addLog(`🧹 Ruse "${target.nom}" retirée`,'sm'); }
-              render(); resetChrono();
+              render();
+              if(onDone) onDone(); // continuer le jeu APRÈS le choix
             }
           );
+          return; // bloquer le onDone global — il sera appelé par la modale
         }
       }
       break;
     case'remove_arcane':
       {
-        // Retire 1 Arcane adverse (buff), sauf LOVE & PEACE — avec choix
         const arcItems = cib.actives
           .map((a,i)=>({...a,_idx:i}))
           .filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
@@ -1727,11 +1728,77 @@ function applySort(s,cas,cib){
               const target = arcItems[pickedIdx];
               const realIdx = cib.actives.findIndex(a=>a===target);
               if(realIdx >= 0){ cib.actives.splice(realIdx,1); addLog(`🧲 Arcane "${target.nom}" annulée`,'sp'); }
-              render(); resetChrono();
+              render();
+              if(onDone) onDone(); // continuer le jeu APRÈS le choix
             }
           );
+          return; // bloquer le onDone global
         }
       }
+      break;
+    // Nouveaux effets
+    case'buff_atqprec':
+      // ATQ + Précision en même temps (ex: Nathan la lumière)
+      cas.actives.push({nom:s.nom+' ATQ',at:'ba',val:s.val,turns:s.dur,su:s.survit});
+      cas.actives.push({nom:s.nom+' Prec',at:'bp',val:s.val2||10,turns:s.dur,su:s.survit});
+      break;
+    case'debuff_hp_joueur':
+      // Malus HP direct au joueur adverse (pas au héro)
+      cib.hp=Math.max(0,cib.hp-(s.val||3));
+      addLog(`💔 ${s.val||3} PV joueur perdus`,'sp');
+      updateHeart(cas===G.human?'b':'h', cib.hp, cib.hpMax);
+      if(cib.hp<=0){ endGame(cas===G.human?'human':'bot'); return; }
+      break;
+    case'remove_all_ruse':
+      // Retire TOUTES les Ruses actives sur son propre héros
+      { const before=cas.actives.length;
+        cas.actives=cas.actives.filter(a=>a.at!=='da'&&a.at!=='dd'&&a.at!=='dp');
+        const removed=before-cas.actives.length;
+        addLog(`🧹 ${removed} Ruse(s) retirée(s)`,'sm'); render(); }
+      break;
+    case'remove_any_spell':
+      // Retire 1 Arcane OU Ruse adverse au choix (peut cibler LOVE & PEACE)
+      {
+        const anyItems = cib.actives
+          .map((a,i)=>({...a,_idx:i}))
+          .filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp');
+        if(anyItems.length === 0){
+          addLog('🗑️ Aucun effet adverse à annuler','sp');
+        } else if(anyItems.length === 1){
+          cib.actives.splice(cib.actives.findIndex(a=>a===anyItems[0]),1);
+          addLog(`🗑️ "${anyItems[0].nom}" annulé`,'sp'); render();
+        } else {
+          stopChrono();
+          openEffectPick(
+            '🗑️ Annuler un effet adverse',
+            "Choisis l'effet à supprimer (Arcane ou Ruse)",
+            anyItems.map(a=>({...a, isArcane:a.at==='ba'||a.at==='bd'||a.at==='bp'})),
+            (pickedIdx) => {
+              const target=anyItems[pickedIdx];
+              const realIdx=cib.actives.findIndex(a=>a===target);
+              if(realIdx>=0){ cib.actives.splice(realIdx,1); addLog(`🗑️ "${target.nom}" annulé`,'sp'); }
+              render(); if(onDone) onDone();
+            }
+          );
+          return;
+        }
+      }
+      break;
+    case'remove_all_opponent':
+      // Annule TOUS les effets adverses actifs (dont LOVE & PEACE)
+      { const before=cib.actives.length;
+        cib.actives=[];
+        addLog(`💥 ${before} effet(s) adverses annulés !`,'sp'); render(); }
+      break;
+    case'skip_all':
+      // L'adversaire ne peut ni attaquer ni jouer de sort ce tour
+      cib.skipAtq=true; cib.noSpellThisTurn=true;
+      addLog('⏸️ Adversaire bloqué (attaque + sort)','sp');
+      break;
+    case'trade_actives':
+      // Échange toutes les Arcanes/Ruses actives entre les deux joueurs
+      { const tmp=[...cas.actives]; cas.actives=[...cib.actives]; cib.actives=tmp;
+        addLog('🔄 Échange des effets actifs !','sm'); render(); }
       break;
     // Anciens effets conservés
     case'cancel_magie':
@@ -1742,6 +1809,8 @@ function applySort(s,cas,cib){
       cib.skipAtq=true;
       break;
   }
+  // Cas synchrones : appel immédiat du callback
+  if(onDone) onDone();
 }
 function tickActives(p){p.actives=p.actives.map(a=>({...a,turns:a.turns-1})).filter(a=>a.turns>0);p.skipAtq=false;p.noSpellThisTurn=false;}
 
@@ -2393,11 +2462,14 @@ function humanPlayCard(idx){
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
     if(G.human.noSpellThisTurn){addLog('🚫 Sorts bloqués ce tour !','sys','JOUEUR');return;}
-    G.human.hand.splice(idx,1);G.human.sortJoue=true;applySort(c,G.human,G.bot);
+    G.human.hand.splice(idx,1);G.human.sortJoue=true;
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
-    G.phase='attack';render();
-    resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);
+    // applySort peut être async (modale de choix) — on lui passe un callback pour continuer
+    applySort(c,G.human,G.bot,()=>{
+      G.phase='attack';render();
+      resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);
+    });
   }
 }
 function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);}
@@ -2804,20 +2876,29 @@ function spellToEffet(name_spell_1, name_spell_2, val1, val2){
   const v2=parseVal(val2);
 
   if(s1==='spell_p&l1atq' || s1==='spell_p&l1def') return {effet:'love_peace',val1:v1||4,val2:v2||4};
+  // ATQ + DEF combo
   if(s1==='spell_atq+' && s2==='spell_def+') return {effet:'buff_atqdef',val:v1,val2:v2};
+  // ATQ + Précision combo (ex: Nathan la lumière)
+  if(s1==='spell_atq+' && s2==='spell_pré+') return {effet:'buff_atqprec',val:v1,val2:v2};
   if(s1==='spell_atq+') return {effet:'buff_atq',val:v1};
   if(s1==='spell_def+') return {effet:'buff_def',val:v1};
   if(s1==='spell_pré+') return {effet:'buff_prec',val:v1};
   if(s1==='spell_hp_héro+' || s1==='spell_hp+' || s1==='spell_hp héro+') return {effet:'buff_hp',val:v1||5};
+  if(s1==='spell_hpjoueur+') return {effet:'buff_hp',val:v1||4};
+  if(s1==='spell_hpjoueur-') return {effet:'debuff_hp_joueur',val:v1||3};
   if(s1==='spell_atqordef+') return {effet:'buff_atq_or_def',val:v1};
-  if(s1==='spell_1ruse+') return {effet:'remove_ruse',val:0};
+  if(s1==='spell_1ruse+' || s1==='spell_cleanruse+') return {effet: s1==='spell_cleanruse+' ? 'remove_all_ruse' : 'remove_ruse', val:0};
   if(s1==='spell_atq-' && s2==='spell_def-') return {effet:'debuff_atqdef',val:v1,val2:v2};
   if(s1==='spell_atq-') return {effet:'debuff_atq',val:v1};
   if(s1==='spell_def-') return {effet:'debuff_def',val:v1};
   if(s1==='spell_pré-') return {effet:'debuff_prec',val:v1};
   if(s1==='spell_noatq') return {effet:'skip_atq',val:0};
   if(s1==='spell_1arcane-') return {effet:'remove_arcane',val:0};
+  if(s1==='spell_1spell-') return {effet:'remove_any_spell',val:0};
+  if(s1==='spell_cleanall-') return {effet:'remove_all_opponent',val:0};
   if(s1==='spell_nospell') return {effet:'no_spell',val:0};
+  if(s1==='spell_pass') return {effet:'skip_all',val:0};
+  if(s1==='spell_trade') return {effet:'trade_actives',val:0};
   if(s1.toLowerCase().includes('hp')) return {effet:'buff_hp',val:v1||4};
   return {effet:'buff_atq',val:v1||2}; // fallback
 }
