@@ -257,6 +257,13 @@ button{font-family:inherit;cursor:pointer;}
 .fade-in{animation:fadeIn .25s ease both;}
 .count-up{animation:countUp .3s ease both;}
 
+/* iOS safe-area : garantir que le header est TOUJOURS au-dessus de la barre de statut iOS */
+@supports (-webkit-touch-callout: none) {
+  #app-header-bar {
+    padding-top: max(env(safe-area-inset-top, 20px), 8px) !important;
+  }
+}
+
 /* Comics ink borders - applied globally to all panels/buttons */
 .cmx-panel{border:3px solid #000 !important;box-shadow:4px 4px 0 #000 !important;border-radius:0 !important;}
 .cmx-btn{border:2.5px solid #000 !important;box-shadow:2px 2px 0 #000 !important;border-radius:0 !important;}
@@ -445,8 +452,11 @@ window.onYouTubeIframeAPIReady = function(){
       },
       onStateChange: function(e){
         // Relancer si stoppé/mis en pause alors qu'on veut jouer
+        // Ne pas relancer si l'user a coupé (audioPlaying=false) — évite le rallumage depuis une autre appli
         if(audioPlaying && (e.data === YT.PlayerState.ENDED || e.data === YT.PlayerState.PAUSED)){
-          setTimeout(()=>{ try{ _ytPlayer.playVideo(); }catch(ex){} }, 200);
+          // Vérifier que c'est bien notre propre pause et non une pause externe (autre appli audio)
+          // On utilise un délai court : si audioPlaying est encore true après 300ms, on relance
+          setTimeout(()=>{ if(audioPlaying){ try{ _ytPlayer.playVideo(); }catch(ex){} } }, 300);
         }
       },
       onError: function(){
@@ -521,6 +531,16 @@ window._setMusicVolume = function(val) {
   document.addEventListener('touchstart', unlock, {once:true, passive:true});
   document.addEventListener('click', unlock, {once:true});
 })();
+
+// Détection de pause externe (autre appli audio iOS/Android) via Page Visibility API
+// Si la page redevient visible et que audioPlaying est true, on vérifie l'état réel
+// MAIS si le joueur a manuellement coupé (audioPlaying=false), on ne relance JAMAIS
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && audioPlaying && _ytPlayer) {
+    // On laisse YT gérer — on ne force pas playVideo() ici pour ne pas interférer avec d'autres applis audio
+    // Le polling _ensurePlay() gère déjà ce cas si nécessaire
+  }
+});
 
 // ─── STATE ────────────────────────────────────────────────────────
 let state = {
@@ -851,7 +871,7 @@ function renderGame(th){
   <div style="display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background:transparent;">
 
     <!-- ═══ HEADER ═══ -->
-    <div style="display:flex;align-items:center;padding:${isMobile?'5px 8px':'8px 14px'};${_isIos?'padding-top:max(env(safe-area-inset-top,44px),' + (isMobile?'5px':'8px') + ');':''};background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:${isMobile?'4px':'10px'};position:relative;z-index:10;overflow:hidden;box-sizing:border-box;">
+    <div id="app-header-bar" style="display:flex;align-items:center;padding:${isMobile?'5px 8px':'8px 14px'};${_isIos?'padding-top:max(env(safe-area-inset-top,44px),' + (isMobile?'5px':'8px') + ');':''};background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:${isMobile?'4px':'10px'};position:relative;z-index:10;overflow:hidden;box-sizing:border-box;">
 
       <!-- Logo -->
       <div style="display:flex;align-items:center;gap:${isMobile?'5px':'9px'};flex-shrink:0;">
@@ -887,8 +907,8 @@ function renderGame(th){
           ${SVG.bell}
           ${NOTIF_COUNT>0?`<div style="position:absolute;top:-3px;right:-3px;width:13px;height:13px;background:${th.red};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;border:1px solid ${th.bgSecondary};">${NOTIF_COUNT}</div>`:''}
         </button>
-        <!-- Music — masqué sur mobile pour libérer de la place -->
-        ${isMobile?'':`<button id="btn-music" style="height:32px;padding:0 8px;gap:5px;background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}<span style="font-size:8px;font-weight:700;opacity:.7;">${state.musicVolume??25}%</span></button>`}
+        <!-- Music — visible sur tous les appareils -->
+        <button id="btn-music" style="height:${isMobile?'26px':'32px'};padding:0 ${isMobile?'6px':'8px'};gap:${isMobile?'3px':'5px'};background:${state.musicOn?th.accent+'14':'transparent'};border:1px solid ${state.musicOn?th.accent+'35':th.border};color:${state.musicOn?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${state.musicOn?SVG.musicOn:SVG.musicOff}${isMobile?'':`<span style="font-size:8px;font-weight:700;opacity:.7;">${state.musicVolume??25}%</span>`}</button>
         <!-- Avatar -->
         <button id="btn-profile" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
           ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:12px;">👤</span>'}
@@ -1674,7 +1694,7 @@ function renderTabPlay(th){
           : `⚡ Booster Légendaire`;
       const rewardColor = nextReward.type === 'coins' ? '#fbbf24' : nextReward.type === 'booster_prestige' ? '#fee75c' : '#eb459e';
       if(isMobile){
-        return `<div id="xp-bar-wrap" style="margin:5px 10px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:9px 12px;position:relative;overflow:hidden;cursor:pointer;">
+        return `<div id="xp-bar-wrap" style="margin:5px 10px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:9px 12px;position:relative;overflow:visible;cursor:pointer;">
           <!-- Gradient top accent -->
           <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${lvlColor},#818cf8,${lvlColor});background-size:200% 100%;animation:shimmer 2.5s linear infinite;"></div>
           <!-- Subtle grid bg -->
@@ -1691,7 +1711,7 @@ function renderTabPlay(th){
               <div style="font-size:9px;color:${rewardColor};font-weight:900;">${rewardHtml}</div>
             </div>
           </div>
-          <!-- Row 2 : barre de progression -->
+          <!-- Row 2 : barre de progression avec overflow hidden local -->
           <div style="position:relative;height:8px;background:${th.bg};overflow:hidden;margin-bottom:4px;box-shadow:inset 0 1px 3px rgba(0,0,0,.4);">
             <div style="position:absolute;inset:0;background:linear-gradient(90deg,${lvlColor},#818cf8);width:${pct}%;transition:width .8s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px ${lvlColor}90;"></div>
             <!-- Shine sweep -->
@@ -1704,7 +1724,7 @@ function renderTabPlay(th){
           </div>
         </div>`;
       }
-      return `<div id="xp-bar-wrap" style="margin:8px 14px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:10px 14px;position:relative;overflow:hidden;cursor:pointer;" title="Cliquez pour voir la récompense du prochain niveau">
+      return `<div id="xp-bar-wrap" style="margin:8px 14px 0;flex-shrink:0;background:${th.bgSecondary};border:2px solid #000;padding:10px 14px;position:relative;overflow:visible;cursor:pointer;" title="Cliquez pour voir la récompense du prochain niveau">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${lvlColor},#818cf8);"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
           <div style="display:flex;align-items:center;gap:8px;">
@@ -2582,8 +2602,11 @@ function renderMessagesModal(th){
 
   return `
   <div id="messages-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div class="slide-up" style="width:100%;max-width:420px;height:93%;background:${th.bgSecondary};padding:12px 16px 24px;box-shadow:0 -24px 80px rgba(0,0,0,.7);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
-      <div style="width:40px;height:4px;background:rgba(255,255,255,.12);margin:0 auto 14px;flex-shrink:0;"></div>
+    <div class="slide-up" style="width:100%;max-width:420px;height:93%;background:${th.bgSecondary};padding:12px 16px;padding-bottom:max(env(safe-area-inset-bottom,0px),24px);box-shadow:0 -24px 80px rgba(0,0,0,.7);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
+      <!-- Pull handle — swipe down pour fermer -->
+      <div id="msg-pull-handle" style="display:flex;justify-content:center;padding:0 0 10px;cursor:pointer;flex-shrink:0;touch-action:manipulation;" onclick="setState({showMessages:false,activeConvId:null});_activeConvFriendId=null;">
+        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
+      </div>
       ${innerContent}
     </div>
   </div>`;
@@ -2693,7 +2716,7 @@ function renderNotifModal(th){
             <div style="font-size:11px;font-weight:900;color:${th.green};letter-spacing:.5px;">CADEAU DE BIENVENUE</div>
             <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">Un Booster Normal offert ! Ouvre tes premières cartes gratuitement.</div>
           </div>
-          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n,showNotif:false});sessionStorage.setItem('booster_free','1');window.location.href='booster1.html';})()" style="padding:7px 12px;font-size:9px;font-weight:900;background:${th.green};color:#000;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">OUVRIR</button>
+          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n,showNotif:false});try{localStorage.setItem('starter_claimed_'+(state.currentUser?.id||''),'1');}catch(e){}sessionStorage.setItem('booster_free','1');window.location.href='booster1.html';})()" style="padding:7px 12px;font-size:9px;font-weight:900;background:${th.green};color:#000;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">OUVRIR</button>
           <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n});})()" style="padding:7px 8px;font-size:10px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;flex-shrink:0;">✕</button>
         </div>`;
         return '';
@@ -3406,9 +3429,18 @@ function bindGame(){
     });
   });
 
-  // Messages : retour liste
+  // Messages : retour liste — robuste sur iOS (utilise touchend + click)
   const msgBack = document.getElementById('msg-back');
-  if(msgBack) msgBack.addEventListener('click',()=>{ _activeConvFriendId=null; setState({activeConvId:null}); });
+  if(msgBack) {
+    const handleMsgBack = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      _activeConvFriendId = null;
+      setState({activeConvId:null});
+    };
+    msgBack.addEventListener('click', handleMsgBack);
+    msgBack.addEventListener('touchend', handleMsgBack, {passive:false});
+  }
 
   // Messages : envoi
   const msgSend = document.getElementById('msg-send');
@@ -4986,6 +5018,24 @@ function enterGame(user, coins) {
         showNotif: true,
       });
     }, 1800); // délai pour laisser le jeu charger
+  } else {
+    // ── RÉTROACTIF : vérifier si le booster de bienvenue a été manqué ──
+    // On vérifie dans localStorage si le joueur a déjà réclamé le starter pack
+    const _starterKey = 'starter_claimed_' + user.id;
+    const _starterClaimed = localStorage.getItem(_starterKey);
+    if (!_starterClaimed) {
+      // Vérifier si le joueur a ouvert des boosters (indicateur de 1ère connexion ancienne)
+      // On remet la notif starter_pack si pas encore réclamée
+      setTimeout(() => {
+        const currentNotifs = state.welcomeNotifs || [];
+        const hasStarter = currentNotifs.some(n => n.type === 'starter_pack');
+        if (!hasStarter) {
+          setState({
+            welcomeNotifs: [...currentNotifs, { id: 'starter', type: 'starter_pack' }],
+          });
+        }
+      }, 2500);
+    }
   }
   const s = document.getElementById('splash');
   if (s) s.style.opacity = '0';
@@ -5157,6 +5207,29 @@ async function loadPlayerXp(userId) {
   const xp = data?.xp ?? 0;
   const { level } = computeLevel(xp);
   setState({ playerXp: xp, playerLevel: level });
+
+  // ── RÉTROACTIF : charger les notifs de récompense de niveau non lues ──
+  // subscribeNotifications s'en charge déjà, mais on force un refresh ici
+  // pour que les récompenses apparaissent même si subscribeNotifications n'a pas encore tourné
+  try {
+    const { data: lvlNotifs } = await db.from('notifications')
+      .select('id, text, meta, created_at')
+      .eq('user_id', userId).eq('type', 'level_reward_booster').eq('read', false);
+    if (lvlNotifs && lvlNotifs.length > 0) {
+      const pendingRewards = lvlNotifs.map(n => {
+        let meta = {};
+        try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+        return { notifId: n.id, level: meta.level, type: meta.rewardType || 'booster_prestige', label: n.text };
+      });
+      // Fusionner avec les pending déjà dans le state sans doublons
+      const existing = state.pendingLevelRewards || [];
+      const existingIds = new Set(existing.map(r => r.notifId));
+      const newOnes = pendingRewards.filter(r => !existingIds.has(r.notifId));
+      if (newOnes.length > 0) {
+        setState({ pendingLevelRewards: [...existing, ...newOnes] });
+      }
+    }
+  } catch(e) { /* silencieux */ }
 }
 window.grantXp = grantXp;
 window.loadPlayerXp = loadPlayerXp;
