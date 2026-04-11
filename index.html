@@ -4930,31 +4930,40 @@ async function loadLeaderboard(period){
   if(!db){ setState({leaderboardLoading:false,leaderboardData:[]}); return; }
 
   try {
+    // Récupérer tous les joueurs triés par wins (pas de filtre date en base — updated_at non fiable)
     let query = db.from('players')
-      .select('id, discord_username, avatar_url, wins, losses, coins')
+      .select('id, discord_username, avatar_url, wins, losses, coins, updated_at, created_at')
       .order('wins', {ascending:false})
-      .limit(50); // récupérer plus pour calculer le rang
-
-    if(period === 'week'){
-      const d = new Date(); d.setDate(d.getDate()-7);
-      query = query.gte('updated_at', d.toISOString());
-    } else if(period === 'month'){
-      const d = new Date(); d.setMonth(d.getMonth()-1);
-      query = query.gte('updated_at', d.toISOString());
-    }
+      .limit(200); // large pour pouvoir filtrer ensuite
 
     const { data, error } = await query;
     if(error || !data){ setState({leaderboardLoading:false, leaderboardData:[]}); return; }
 
-    // Calculer le rang du joueur connecté
+    // Filtrer côté JS pour week/month selon updated_at
+    let filtered = data;
+    if(period === 'week'){
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
+      const withDate = data.filter(p => p.updated_at && new Date(p.updated_at) >= cutoff);
+      // Fallback : si moins de 3 joueurs actifs cette semaine, on affiche tous
+      filtered = withDate.length >= 3 ? withDate : data;
+    } else if(period === 'month'){
+      const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth()-1);
+      const withDate = data.filter(p => p.updated_at && new Date(p.updated_at) >= cutoff);
+      filtered = withDate.length >= 3 ? withDate : data;
+    }
+
+    // Re-trier par wins après filtrage
+    filtered.sort((a,b) => (b.wins||0) - (a.wins||0));
+
+    // Calculer le rang du joueur connecté dans ce classement
     const myId = state.currentUser?.id;
     let playerRank = null;
     if(myId){
-      const idx = data.findIndex(r => r.id === myId);
+      const idx = filtered.findIndex(r => r.id === myId);
       if(idx !== -1) playerRank = idx + 1;
     }
 
-    setState({leaderboardLoading:false, leaderboardData: data.slice(0,20), playerRank});
+    setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,20), playerRank});
   } catch(e){
     console.error('[loadLeaderboard]', e);
     setState({leaderboardLoading:false, leaderboardData:[]});
@@ -5250,7 +5259,8 @@ async function grantXp(userId, amount, reason) {
   const after  = computeLevel(newXp);
   setState({ playerXp: newXp, playerLevel: after.level });
   if (after.level > before.level) {
-    showXpLevelUpToast(after.level);
+    const reward = typeof getLevelReward === 'function' ? getLevelReward(after.level) : null;
+    showXpLevelUpToast(after.level, reward);
     // Accorder la récompense pour chaque niveau passé
     for (let l = before.level + 1; l <= after.level; l++) {
       await grantLevelReward(userId, l);
@@ -5267,14 +5277,89 @@ function showXpToast(amount, reason) {
   setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(-12px)'; setTimeout(()=>el.remove(),400); }, 2800);
 }
 
-function showXpLevelUpToast(newLevel) {
+function showXpLevelUpToast(newLevel, reward) {
+  // Son level up via Web Audio
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const notes = [523, 659, 784, 1047]; // do mi sol do
+    notes.forEach((freq, i) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = 'sine'; o.frequency.value = freq;
+      const t = ac.currentTime + i * 0.12;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.18, t + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      o.start(t); o.stop(t + 0.36);
+    });
+  } catch(e) {}
+
+  // Libellé récompense
+  let rewardHtml = '';
+  if (reward) {
+    if (reward.type === 'coins') rewardHtml = `<div style="margin-top:10px;font-size:11px;color:#fbbf24;font-weight:700;">🪙 +${reward.amount} Coins</div>`;
+    else if (reward.type === 'booster_legendaire') rewardHtml = `<div style="margin-top:10px;font-size:11px;color:#f0c060;font-weight:700;">🎁 Booster Légendaire !</div>`;
+    else if (reward.type === 'booster_prestige') rewardHtml = `<div style="margin-top:10px;font-size:11px;color:#c084fc;font-weight:700;">🎁 Booster Prestige !</div>`;
+  }
+
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);background:linear-gradient(135deg,#1a1825,#221f2e);color:#fffbeb;padding:28px 36px;font-size:14px;font-weight:900;z-index:10000;text-align:center;box-shadow:0 0 0 3px #000,6px 6px 0 #000,0 0 60px rgba(167,139,250,.3);transition:opacity .5s,transform .5s;opacity:0;border:2px solid rgba(167,139,250,.5);';
-  el.innerHTML = `<div style="font-size:40px;margin-bottom:10px;">🎉</div><div style="font-size:11px;color:#a78bfa;letter-spacing:3px;margin-bottom:6px;">NIVEAU ATTEINT</div><div style="font-family:'Bangers',cursive;font-size:52px;color:#c4b5fd;line-height:1;">LVL ${newLevel}</div>`;
+  el.innerHTML = `<div style="font-size:40px;margin-bottom:10px;">🎉</div><div style="font-size:11px;color:#a78bfa;letter-spacing:3px;margin-bottom:6px;">NIVEAU ATTEINT</div><div style="font-family:'Bangers',cursive;font-size:52px;color:#c4b5fd;line-height:1;">LVL ${newLevel}</div>${rewardHtml}`;
   document.body.appendChild(el);
   requestAnimationFrame(()=>{ el.style.opacity='1'; el.style.transform='translate(-50%,-50%) scale(1)'; });
-  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translate(-50%,-50%) scale(1.06)'; setTimeout(()=>el.remove(),500); }, 3000);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translate(-50%,-50%) scale(1.06)'; setTimeout(()=>el.remove(),500); }, 3500);
 }
+
+// ── Détection de level up au retour sur la page (depuis un mode de jeu) ──
+(function() {
+  const LEVEL_KEY = 'tcg_player_level_before';
+
+  // Sauvegarder le niveau courant quand on quitte la page
+  window.addEventListener('pagehide', () => {
+    const lvl = state.playerLevel || 1;
+    try { sessionStorage.setItem(LEVEL_KEY, String(lvl)); } catch(e) {}
+  });
+
+  // Vérifier au retour sur la page
+  async function checkLevelUpOnReturn() {
+    if (state.screen !== 'game') return; // seulement si on est sur l'écran principal
+    const userId = state.currentUser?.id;
+    if (!userId || !window.db) return;
+
+    const storedLevel = parseInt(sessionStorage.getItem(LEVEL_KEY) || '0');
+    if (!storedLevel) return;
+
+    // Recharger le XP depuis Supabase
+    const { data } = await window.db.from('players').select('xp').eq('id', userId).single();
+    const xp = data?.xp ?? 0;
+    const { level: currentLevel } = computeLevel(xp);
+
+    if (currentLevel > storedLevel) {
+      // Level up détecté — afficher popup pour chaque niveau
+      for (let l = storedLevel + 1; l <= currentLevel; l++) {
+        const reward = typeof getLevelReward === 'function' ? getLevelReward(l) : null;
+        setTimeout(() => showXpLevelUpToast(l, reward), (l - storedLevel - 1) * 4000);
+      }
+      setState({ playerXp: xp, playerLevel: currentLevel });
+    }
+    try { sessionStorage.removeItem(LEVEL_KEY); } catch(e) {}
+  }
+
+  // Au retour via visibilitychange (tab redevenu visible)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      setTimeout(checkLevelUpOnReturn, 800);
+    }
+  });
+
+  // Au retour via pageshow (back/forward cache, retour depuis booster.html etc.)
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted || performance.navigation?.type === 2) {
+      setTimeout(checkLevelUpOnReturn, 800);
+    }
+  });
+})();
 
 async function loadPlayerXp(userId) {
   const db = window.db;
