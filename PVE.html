@@ -1055,6 +1055,47 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   pointer-events:none;z-index:10;white-space:nowrap;
   animation:pvLoss 1.2s cubic-bezier(.2,0,.8,1) both;
 }
+
+/* ── Modale choix retrait d'effet ── */
+.effect-pick-overlay{
+  display:none;position:fixed;inset:0;z-index:700;
+  background:rgba(0,0,0,.78);backdrop-filter:blur(10px);
+  align-items:center;justify-content:center;
+}
+.effect-pick-overlay.open{display:flex}
+.effect-pick-box{
+  background:var(--s2);border:1px solid var(--bdr3);
+  border-radius:16px;padding:24px 20px;
+  width:92%;max-width:380px;
+  animation:slideUp .22s cubic-bezier(.34,1.56,.64,1) both;
+}
+.effect-pick-title{
+  font-family:'Cinzel',serif;font-weight:900;font-size:14px;
+  color:var(--gold);letter-spacing:.08em;text-transform:uppercase;
+  margin-bottom:4px;text-align:center;
+}
+.effect-pick-sub{
+  font-size:11px;color:var(--sub);text-align:center;margin-bottom:14px;
+}
+.effect-pick-list{display:flex;flex-direction:column;gap:7px;margin-bottom:14px;}
+.effect-pick-btn{
+  display:flex;align-items:center;gap:10px;
+  background:var(--s3);border:1px solid var(--bdr2);
+  border-radius:9px;padding:10px 14px;cursor:pointer;
+  transition:all .15s;text-align:left;width:100%;
+}
+.effect-pick-btn:hover{border-color:var(--red);background:rgba(240,64,80,.08);}
+.effect-pick-btn.arcane:hover{border-color:var(--blue);background:rgba(91,156,246,.08);}
+.effect-pick-ico{font-size:18px;flex-shrink:0}
+.effect-pick-nom{font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;color:var(--txt)}
+.effect-pick-detail{font-size:10px;color:var(--sub);margin-top:1px;}
+.effect-pick-cancel{
+  width:100%;background:transparent;border:1px solid var(--bdr2);
+  color:var(--sub);border-radius:8px;padding:8px;cursor:pointer;
+  font-size:12px;font-family:'DM Sans',sans-serif;font-weight:600;
+  transition:all .15s;
+}
+.effect-pick-cancel:hover{color:var(--txt);border-color:var(--bdr3);}
 </style>
 <script>
 /* Met à jour --dvh à chaque resize pour iOS/Android (barre URL rétractable) */
@@ -1311,6 +1352,17 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   <button class="btn btn-gold" onclick="restartGame()">Rejouer</button>
   <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="margin-top:8px;">← Menu principal</button>
 </div></div>
+
+<!-- Modale choix retrait effet -->
+<div class="effect-pick-overlay" id="effect-pick-overlay">
+  <div class="effect-pick-box">
+    <div class="effect-pick-title" id="effect-pick-title">Choisir un effet</div>
+    <div class="effect-pick-sub" id="effect-pick-sub">Sélectionne l'effet à retirer</div>
+    <div class="effect-pick-list" id="effect-pick-list"></div>
+    <button class="effect-pick-cancel" onclick="closeEffectPick()">Annuler</button>
+  </div>
+</div>
+
 <div class="coin-ov" id="coin-ov" style="display:none"><div class="coin-box" id="coin-box"><span class="coin-emoji" id="coin-emoji">🪙</span><div class="coin-who" id="coin-who">—</div><div class="coin-detail" id="coin-detail">—</div></div></div>
 <div class="toast" id="toast"></div>
 
@@ -1530,6 +1582,39 @@ function pEff(p){
   });
   return Math.max(0.05,Math.min(1,v));
 }
+
+/* ── Modale sélection d'effet à retirer ── */
+function openEffectPick(title, sub, items, onPick){
+  document.getElementById('effect-pick-title').textContent = title;
+  document.getElementById('effect-pick-sub').textContent = sub;
+  const list = document.getElementById('effect-pick-list');
+  list.innerHTML = '';
+  items.forEach((item, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'effect-pick-btn' + (item.isArcane ? ' arcane' : '');
+    const ico = item.isArcane ? '✨' : '🪤';
+    const typeLabel = item.isArcane ? 'Arcane' : 'Ruse';
+    const valLabel = item.at === 'ba' ? `+${item.val} ATQ` :
+                     item.at === 'bd' ? `+${item.val} DEF` :
+                     item.at === 'bp' ? `+${item.val}% Prec` :
+                     item.at === 'da' ? `-${item.val} ATQ` :
+                     item.at === 'dd' ? `-${item.val} DEF` :
+                     item.at === 'dp' ? `-${item.val}% Prec` : '';
+    const durLabel = item.turns >= 9999 ? '∞' : `${item.turns} tour${item.turns > 1 ? 's' : ''} restant${item.turns > 1 ? 's' : ''}`;
+    btn.innerHTML = `<span class="effect-pick-ico">${ico}</span>
+      <div>
+        <div class="effect-pick-nom">${item.nom}</div>
+        <div class="effect-pick-detail">${typeLabel} · ${valLabel} · ${durLabel}</div>
+      </div>`;
+    btn.onclick = () => { closeEffectPick(); onPick(idx); };
+    list.appendChild(btn);
+  });
+  document.getElementById('effect-pick-overlay').classList.add('open');
+}
+function closeEffectPick(){
+  document.getElementById('effect-pick-overlay').classList.remove('open');
+}
+
 function applySort(s,cas,cib){
   // Gestion LOVE & PEACE : combo permanent
   if(s.effet==='love_peace'){
@@ -1592,14 +1677,61 @@ function applySort(s,cas,cib){
       cib.skipAtq=true;
       break;
     case'remove_ruse':
-      // Retire 1 Ruse active sur son propre héros (malus subis)
-      const ruseIdx=cas.actives.findIndex(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
-      if(ruseIdx>=0){cas.actives.splice(ruseIdx,1);addLog('🧹 1 Ruse retirée','sm');}
+      {
+        // Retire 1 Ruse active sur son propre héros (malus subis) — avec choix
+        const ruseItems = cas.actives
+          .map((a,i)=>({...a,_idx:i}))
+          .filter(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
+        if(ruseItems.length === 0){
+          addLog('🧹 Aucune Ruse active à retirer','sm');
+        } else if(ruseItems.length === 1){
+          cas.actives.splice(cas.actives.findIndex(a=>a===ruseItems[0]),1);
+          addLog(`🧹 Ruse "${ruseItems[0].nom}" retirée`,'sm');
+          render();
+        } else {
+          // Arrêter le chrono pendant le choix
+          stopChrono();
+          openEffectPick(
+            '🧹 Retirer une Ruse',
+            'Choisis la Ruse active sur ton héro à supprimer',
+            ruseItems.map(a=>({...a, isArcane:false})),
+            (pickedIdx) => {
+              const target = ruseItems[pickedIdx];
+              const realIdx = cas.actives.findIndex(a=>a===target);
+              if(realIdx >= 0){ cas.actives.splice(realIdx,1); addLog(`🧹 Ruse "${target.nom}" retirée`,'sm'); }
+              render(); resetChrono();
+            }
+          );
+        }
+      }
       break;
     case'remove_arcane':
-      // Retire 1 Arcane adverse (buff), sauf LOVE & PEACE
-      const arcIdx=cib.actives.findIndex(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
-      if(arcIdx>=0){cib.actives.splice(arcIdx,1);addLog('🧲 1 Arcane adverse annulée','sp');}
+      {
+        // Retire 1 Arcane adverse (buff), sauf LOVE & PEACE — avec choix
+        const arcItems = cib.actives
+          .map((a,i)=>({...a,_idx:i}))
+          .filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
+        if(arcItems.length === 0){
+          addLog('🧲 Aucune Arcane adverse à annuler','sp');
+        } else if(arcItems.length === 1){
+          cib.actives.splice(cib.actives.findIndex(a=>a===arcItems[0]),1);
+          addLog(`🧲 Arcane "${arcItems[0].nom}" annulée`,'sp');
+          render();
+        } else {
+          stopChrono();
+          openEffectPick(
+            '🧲 Annuler une Arcane',
+            "Choisis l'Arcane adverse à annuler",
+            arcItems.map(a=>({...a, isArcane:true})),
+            (pickedIdx) => {
+              const target = arcItems[pickedIdx];
+              const realIdx = cib.actives.findIndex(a=>a===target);
+              if(realIdx >= 0){ cib.actives.splice(realIdx,1); addLog(`🧲 Arcane "${target.nom}" annulée`,'sp'); }
+              render(); resetChrono();
+            }
+          );
+        }
+      }
       break;
     // Anciens effets conservés
     case'cancel_magie':
@@ -2367,7 +2499,16 @@ function endGame(w){
   const _xp=_isWin?25:10;
   const rewardEl=document.getElementById('ov-reward');
   if(rewardEl){
-    rewardEl.innerHTML=`<span style="color:var(--gold);font-size:22px;font-weight:800;font-family:'DM Mono',monospace;">🪙 +${_coins} coins</span><span style="color:var(--pur);font-size:22px;font-weight:800;font-family:'DM Mono',monospace;margin-left:18px;">⭐ +${_xp} XP</span>`;
+    rewardEl.innerHTML=`
+      <div style="display:inline-flex;align-items:center;gap:8px;background:var(--s3);border:1px solid var(--bdr2);border-radius:100px;padding:6px 16px;">
+        <span style="font-size:15px;">🪙</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--gold);">+\${_coins}</span>
+        <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">coins</span>
+        <span style="width:1px;height:14px;background:var(--bdr3);display:inline-block;margin:0 2px;"></span>
+        <span style="font-size:15px;">⭐</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--pur);">+\${_xp}</span>
+        <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">xp</span>
+      </div>`;
   }
   const dm=G.stats.dmgByCard;
   let mvpNom='—',mvpVal=0;
