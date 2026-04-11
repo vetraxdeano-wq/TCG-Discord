@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>PWL TCG</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=DM+Sans:wght@400;600;700&family=DM+Mono:wght@500&family=Bangers&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
 <style>
@@ -1096,6 +1096,25 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   transition:all .15s;
 }
 .effect-pick-cancel:hover{color:var(--txt);border-color:var(--bdr3);}
+
+/* ══ iOS : décalage pour la barre de statut (Dynamic Island / notch) ══ */
+html.ios .topbar{
+  padding-top: env(safe-area-inset-top, 44px);
+  height: calc(38px + env(safe-area-inset-top, 44px));
+  box-sizing: border-box;
+}
+html.ios body.mobile .topbar{
+  padding-top: env(safe-area-inset-top, 44px);
+  height: calc(36px + env(safe-area-inset-top, 44px));
+  box-sizing: border-box;
+}
+/* Aussi pousser le bas pour éviter la barre home sur iPhone */
+html.ios #sg{
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html.ios .mob-card-modal{
+  padding-bottom: calc(env(safe-area-inset-bottom, 12px) + 8px);
+}
 </style>
 <script>
 /* Met à jour --dvh à chaque resize pour iOS/Android (barre URL rétractable) */
@@ -1104,6 +1123,14 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   setDvh();
   window.addEventListener('resize',setDvh);
   window.addEventListener('orientationchange',function(){setTimeout(setDvh,150);});
+})();
+
+/* Détection iOS — ajoute la classe "ios" sur <body> si l'appareil est iOS */
+(function(){
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  // Fallback : iPad OS 13+ se comporte comme macOS mais a un maxTouchPoints > 1
+  if(!isIOS && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) isIOS = true;
+  if(isIOS) document.documentElement.classList.add('ios');
 })();
 </script>
 <script>
