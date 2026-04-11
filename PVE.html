@@ -1584,7 +1584,8 @@ function pEff(p){
 }
 
 /* ── Modale sélection d'effet à retirer ── */
-function openEffectPick(title, sub, items, onPick){
+let _effectPickCancelFn = null;
+function openEffectPick(title, sub, items, onPick, onCancel){
   document.getElementById('effect-pick-title').textContent = title;
   document.getElementById('effect-pick-sub').textContent = sub;
   const list = document.getElementById('effect-pick-list');
@@ -1606,16 +1607,24 @@ function openEffectPick(title, sub, items, onPick){
         <div class="effect-pick-nom">${item.nom}</div>
         <div class="effect-pick-detail">${typeLabel} · ${valLabel} · ${durLabel}</div>
       </div>`;
-    btn.onclick = () => { closeEffectPick(); onPick(idx); };
+    btn.onclick = () => { closeEffectPickNoCancel(); onPick(idx); };
     list.appendChild(btn);
   });
+  _effectPickCancelFn = onCancel || null;
   document.getElementById('effect-pick-overlay').classList.add('open');
 }
-function closeEffectPick(){
+function closeEffectPickNoCancel(){
   document.getElementById('effect-pick-overlay').classList.remove('open');
+  _effectPickCancelFn = null;
+}
+function closeEffectPick(){
+  const fn = _effectPickCancelFn;
+  _effectPickCancelFn = null;
+  document.getElementById('effect-pick-overlay').classList.remove('open');
+  if(fn) fn();
 }
 
-function applySort(s,cas,cib,onDone){
+function applySort(s,cas,cib,onDone,onCancel){
   // Gestion LOVE & PEACE : combo permanent
   if(s.effet==='love_peace'){
     // Vérifier si l'autre est déjà active
@@ -1684,11 +1693,6 @@ function applySort(s,cas,cib,onDone){
         if(ruseItems.length === 0){
           addLog('🧹 Aucune Ruse active à retirer','sm');
           // pas de modale, continuer normalement (onDone appelé après le switch)
-        } else if(ruseItems.length === 1){
-          cas.actives.splice(ruseItems[0]._idx,1);
-          addLog(`🧹 Ruse "${ruseItems[0].nom}" retirée`,'sm');
-          render();
-          // pas de modale, continuer normalement
         } else {
           stopChrono();
           openEffectPick(
@@ -1700,10 +1704,11 @@ function applySort(s,cas,cib,onDone){
               const realIdx = target._idx;
               if(realIdx >= 0){ cas.actives.splice(realIdx,1); addLog(`🧹 Ruse "${target.nom}" retirée`,'sm'); }
               render();
-              if(onDone) onDone(); // continuer le jeu APRÈS le choix
-            }
+              if(onDone) onDone();
+            },
+            onCancel
           );
-          return; // bloquer le onDone global — il sera appelé par la modale
+          return;
         }
       }
       break;
@@ -1714,10 +1719,6 @@ function applySort(s,cas,cib,onDone){
           .filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
         if(arcItems.length === 0){
           addLog('🧲 Aucune Arcane adverse à annuler','sp');
-        } else if(arcItems.length === 1){
-          cib.actives.splice(arcItems[0]._idx,1);
-          addLog(`🧲 Arcane "${arcItems[0].nom}" annulée`,'sp');
-          render();
         } else {
           stopChrono();
           openEffectPick(
@@ -1729,10 +1730,11 @@ function applySort(s,cas,cib,onDone){
               const realIdx = target._idx;
               if(realIdx >= 0){ cib.actives.splice(realIdx,1); addLog(`🧲 Arcane "${target.nom}" annulée`,'sp'); }
               render();
-              if(onDone) onDone(); // continuer le jeu APRÈS le choix
-            }
+              if(onDone) onDone();
+            },
+            onCancel
           );
-          return; // bloquer le onDone global
+          return;
         }
       }
       break;
@@ -1764,9 +1766,6 @@ function applySort(s,cas,cib,onDone){
           .filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp');
         if(anyItems.length === 0){
           addLog('🗑️ Aucun effet adverse à annuler','sp');
-        } else if(anyItems.length === 1){
-          cib.actives.splice(anyItems[0]._idx,1);
-          addLog(`🗑️ "${anyItems[0].nom}" annulé`,'sp'); render();
         } else {
           stopChrono();
           openEffectPick(
@@ -1778,7 +1777,8 @@ function applySort(s,cas,cib,onDone){
               const realIdx=target._idx;
               if(realIdx>=0){ cib.actives.splice(realIdx,1); addLog(`🗑️ "${target.nom}" annulé`,'sp'); }
               render(); if(onDone) onDone();
-            }
+            },
+            onCancel
           );
           return;
         }
@@ -2469,10 +2469,17 @@ function humanPlayCard(idx){
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
     // applySort peut être async (modale de choix) — on lui passe un callback pour continuer
+    // onCancel : remet la carte en main et annule le coup joué
+    const onCancel=()=>{
+      G.human.hand.splice(idx,0,c);
+      G.human.sortJoue=false;
+      startChrono();
+      render();
+    };
     applySort(c,G.human,G.bot,()=>{
       G.phase='attack';render();
       resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);
-    });
+    }, onCancel);
   }
 }
 function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);}
@@ -2550,7 +2557,7 @@ function checkKO(player,label){
   if(player.hp<=0){player.fighter=null;endGame(player===G.human?'bot':'human');return true;}
   const surv=player.actives.filter(a=>a.su);
   if(player===G.human){
-    player.fighter=null;player.actives=surv;G.phase='choose_fighter';
+    player.fighter=null;player.actives=surv;player.sortJoue=false;G.phase='choose_fighter';
     while(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
     if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
     setInstr('ko');addLog('👆 Choisis ton prochain Héro !','sys');render();
