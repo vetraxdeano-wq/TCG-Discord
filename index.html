@@ -333,13 +333,44 @@ function setDailyData(userId, patch){
   localStorage.setItem(_dailyKey(userId), JSON.stringify({...cur, ...patch}));
 }
 
-// Pioche : 1x/jour
-function canPiocheToday(userId){
-  const d = getDailyData(userId);
-  return d.piocheDate !== _todayStr();
+// Pioche : 1x/jour — géré via Supabase (cross-device)
+// Cache local pour éviter les requêtes répétées dans la même session
+let _piocheDateCache = null; // { userId, date } — date = 'YYYY-MM-DD' ou null
+
+async function canPiocheToday(userId){
+  if(!userId) return false;
+  // Si le cache correspond à cet utilisateur, l'utiliser
+  if(_piocheDateCache && _piocheDateCache.userId === userId){
+    return _piocheDateCache.date !== _todayStr();
+  }
+  // Sinon charger depuis Supabase
+  try{
+    const db = window.db;
+    if(!db) return true; // fallback si db pas encore prête
+    const { data } = await db.from('players').select('last_pioche_date').eq('id', userId).single();
+    const date = data?.last_pioche_date || null;
+    _piocheDateCache = { userId, date };
+    return date !== _todayStr();
+  }catch(e){ return true; }
 }
-function markPiocheUsed(userId){
-  setDailyData(userId, { piocheDate: _todayStr() });
+
+// Version synchrone basée sur le cache — pour l'affichage UI
+function canPiocheTodaySync(userId){
+  if(!userId) return false;
+  if(_piocheDateCache && _piocheDateCache.userId === userId){
+    return _piocheDateCache.date !== _todayStr();
+  }
+  return true; // pas encore chargé = on suppose disponible (sera vérifié async au clic)
+}
+
+async function markPiocheUsed(userId){
+  const today = _todayStr();
+  _piocheDateCache = { userId, date: today }; // màj cache immédiat
+  try{
+    const db = window.db;
+    if(!db) return;
+    await db.from('players').update({ last_pioche_date: today }).eq('id', userId);
+  }catch(e){ console.error('markPiocheUsed error', e); }
 }
 
 // Boosters : Prestige 2x/j, Légendaire 1x/j
@@ -595,6 +626,7 @@ let state = {
   piocheFlipped: {},
   piocheChosen: null,
   piocheResult: null,
+  piocheConsumed: false, // true dès qu'une carte est retournée — bloque la réouverture via croix
   // Deck Builder
   showDeckBuilder: false,
   decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
@@ -2316,7 +2348,7 @@ function renderTabBoosters(th){
     <!-- Pioche compacte -->
     ${(()=>{
       const _pUid = state.currentUser?.id || '';
-      const _pUsed = !canPiocheToday(_pUid);
+      const _pUsed = !canPiocheTodaySync(_pUid);
       const _pColor = _pUsed ? '#ef4444' : th.green;
       return `<div id="btn-pioche"
         style="margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'8px'};flex-shrink:0;
@@ -2660,12 +2692,15 @@ function renderPiocheMechanic(th){
     </div>`:''}
     ${state.piocheResult?`
     <div class="fade-up" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-      <div style="width:110px;aspect-ratio:2/3;background:linear-gradient(160deg,${state.piocheResult.color}30,#2b2d31);border:2px solid ${state.piocheResult.color}80;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px ${state.piocheResult.color}50;">
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:36px;background:linear-gradient(135deg,${state.piocheResult.color}30,${state.piocheResult.color}10);">🃏</div>
-        <div style="padding:6px 8px;background:#2b2d31;">
-          <div style="font-family:'Bangers',cursive;font-size:9px;font-weight:700;color:#f2f3f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.piocheResult.name}</div>
-          <div style="font-size:8px;color:${RARITY_COLOR[state.piocheResult.rarity]};margin-top:2px;">◆ ${RARITY_LABEL[state.piocheResult.rarity]}</div>
-        </div>
+      <div style="width:110px;aspect-ratio:2/3;background:linear-gradient(160deg,${state.piocheResult.color}30,#2b2d31);border:2px solid ${state.piocheResult.color||RARITY_COLOR[state.piocheResult.rarity]}80;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px ${state.piocheResult.color||RARITY_COLOR[state.piocheResult.rarity]}50;">
+        ${state.piocheResult.image_url
+          ? `<img src="${state.piocheResult.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+          : `<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:36px;background:linear-gradient(135deg,${RARITY_COLOR[state.piocheResult.rarity]}30,${RARITY_COLOR[state.piocheResult.rarity]}10);">🃏</div>
+             <div style="padding:6px 8px;background:#2b2d31;">
+               <div style="font-family:'Bangers',cursive;font-size:9px;font-weight:700;color:#f2f3f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.piocheResult.name}</div>
+               <div style="font-size:8px;color:${RARITY_COLOR[state.piocheResult.rarity]};margin-top:2px;">◆ ${RARITY_LABEL[state.piocheResult.rarity]}</div>
+             </div>`
+        }
       </div>
       <!-- Badge : nouvelle ou déjà possédée -->
       <div style="display:flex;align-items:center;gap:6px;padding:6px 16px;background:${state.piocheResult.owned?'rgba(251,191,36,.12)':'rgba(34,197,94,.12)'};border:1.5px solid ${state.piocheResult.owned?'rgba(251,191,36,.4)':'rgba(34,197,94,.4)'};">
@@ -4597,13 +4632,14 @@ function bindGame(){
   }
 
   const btnPioche = document.getElementById('btn-pioche');
-  if(btnPioche) btnPioche.addEventListener('click',()=>{
+  if(btnPioche) btnPioche.addEventListener('click', async ()=>{
     const _uid = state.currentUser?.id || '';
-    if(!canPiocheToday(_uid)){
+    const canDraw = await canPiocheToday(_uid);
+    if(!canDraw){
       showToast('Pioche déjà utilisée aujourd\'hui ! ⏳ ' + timeUntilMidnight(), '🎴');
       return;
     }
-    setState({showPioche:true,piocheFlipped:{},piocheChosen:null,piocheResult:null});
+    setState({showPioche:true,piocheFlipped:{},piocheChosen:null,piocheResult:null,piocheConsumed:false});
   });
 
   // Booster hover
@@ -4627,15 +4663,25 @@ function bindGame(){
 
   // Pioche
   const piocheClose = document.getElementById('pioche-close');
-  if(piocheClose) piocheClose.addEventListener('click',()=>setState({showPioche:false}));
+  if(piocheClose) piocheClose.addEventListener('click',()=>{
+    // Si un tirage a eu lieu, forcer le re-render du bouton pioche (état = épuisé)
+    setState({showPioche:false});
+  });
 
   document.querySelectorAll('.pioche-card').forEach(el=>{
-    el.addEventListener('click',()=>{
+    el.addEventListener('click', async ()=>{
       if(state.piocheChosen!==null)return;
+      if(state.piocheConsumed)return; // sécurité anti-double-clic
       const idx=parseInt(el.dataset.idx);
       const newFlipped={...state.piocheFlipped,[idx]:true};
-      setState({piocheChosen:idx,piocheFlipped:newFlipped});
-      setTimeout(()=>{
+      setState({piocheChosen:idx,piocheFlipped:newFlipped,piocheConsumed:true});
+
+      // ── Marquer la pioche comme utilisée DÈS LE TIRAGE (cross-device) ──
+      const myId = state.currentUser?.id;
+      await markPiocheUsed(myId);
+      startDailyTicker();
+
+      setTimeout(async ()=>{
         // Tirage pondéré par rareté : Mythique 0.1%, Rare 1%, Peu Commune 11.9%, Commune 87%
         const roll = Math.random() * 100;
         let targetRarity;
@@ -4648,6 +4694,23 @@ function bindGame(){
         // Fallback si le pool est vide pour cette rareté
         const finalPool = pool.length > 0 ? pool : ALL_CARDS;
         const drawn = finalPool[Math.floor(Math.random() * finalPool.length)];
+
+        // ── Ajouter la carte en BDD IMMÉDIATEMENT (avant que le joueur clique collect) ──
+        const db = window.db;
+        if(db && myId && drawn){
+          const cardIdNum = parseInt(drawn.id, 10);
+          const { data: existing } = await db.from('player_cards')
+            .select('id, quantity').eq('player_id', myId).eq('card_id', cardIdNum).single();
+          if(existing){
+            await db.from('player_cards').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
+          } else {
+            await db.from('player_cards').insert({ player_id: myId, card_id: cardIdNum, quantity: 1 });
+          }
+          if(window.loadCollection) window.loadCollection();
+          // Vérifier si déjà possédée (avant insert)
+          drawn.owned = !!existing;
+        }
+
         setState({piocheResult: drawn});
       },700);
     });
@@ -4656,32 +4719,8 @@ function bindGame(){
   const piocheCollect = document.getElementById('pioche-collect');
   if(piocheCollect) piocheCollect.addEventListener('click', async ()=>{
     const card = state.piocheResult;
-    if (card) {
-      // Ajouter la carte en base Supabase
-      const db = window.db;
-      const myId = state.currentUser?.id;
-      if (db && myId) {
-        const cardIdNum = parseInt(card.id, 10);
-        // Vérifier si le joueur a déjà cette carte
-        const { data: existing } = await db.from('player_cards')
-          .select('id, quantity')
-          .eq('player_id', myId)
-          .eq('card_id', cardIdNum)
-          .single();
-        if (existing) {
-          await db.from('player_cards')
-            .update({ quantity: existing.quantity + 1 })
-            .eq('id', existing.id);
-        } else {
-          await db.from('player_cards')
-            .insert({ player_id: myId, card_id: cardIdNum, quantity: 1 });
-        }
-        // Recharger la collection
-        if (window.loadCollection) window.loadCollection();
-        markPiocheUsed(myId);
-        startDailyTicker();
-        showToast(`${card.name} ajoutée à la collection !`, '✓');
-      }
+    if(card){
+      showToast(`${card.name} ajoutée à la collection !`, '✓');
     }
     setState({showPioche:false});
   });
@@ -5073,6 +5112,8 @@ function enterGame(user, coins) {
     if (_musicWasOn) audioPlay();
     loadCollection();
     startDailyTicker();
+    // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
+    canPiocheToday(user.id).then(()=>{ setState({}); }); // force re-render après chargement
     if (window.subscribeNotifications) window.subscribeNotifications();
     if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
     // Souscrire aux messages en realtime dès l'entrée (pas seulement à l'ouverture d'une conv)
