@@ -2722,7 +2722,7 @@ function renderNotifModal(th){
             <div style="font-size:11px;font-weight:900;color:${th.green};letter-spacing:.5px;">CADEAU DE BIENVENUE</div>
             <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">Un Booster Normal offert ! Ouvre tes premières cartes gratuitement.</div>
           </div>
-          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n,showNotif:false});try{localStorage.setItem('starter_claimed_'+(state.currentUser?.id||''),'1');}catch(e){}sessionStorage.setItem('booster_free','1');window.location.href='booster1.html';})()" style="padding:7px 12px;font-size:9px;font-weight:900;background:${th.green};color:#000;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">OUVRIR</button>
+          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n,showNotif:false});try{localStorage.setItem('starter_claimed_'+(state.currentUser?.id||''),'1');}catch(e){}window.setBoosterFree();window.location.href='booster1.html';})()" style="padding:7px 12px;font-size:9px;font-weight:900;background:${th.green};color:#000;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">OUVRIR</button>
           <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n});})()" style="padding:7px 8px;font-size:10px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;flex-shrink:0;">✕</button>
         </div>`;
         return '';
@@ -3699,7 +3699,7 @@ function bindGame(){
       } else {
         // Booster : stocker le flag bypass puis rediriger
         setState({ showNotif: false, pendingLevelRewards: remaining });
-        try { sessionStorage.setItem('booster_free', '1'); } catch(e) {}
+        try { window.setBoosterFree(); } catch(e) {}
         setTimeout(()=>{
           if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
           else window.location.href = 'booster2.html';
@@ -5290,12 +5290,31 @@ window.xpToNextLevel = xpToNextLevel;
 window.getLevelReward = getLevelReward;
 
 // Helper pour les pages booster externes — bypass la vérification de coins si récompense gratuite
+// Poser le flag booster gratuit dans sessionStorage ET localStorage (TTL 5 min)
+window.setBoosterFree = function() {
+  try {
+    window.setBoosterFree();
+    localStorage.setItem('booster_free', JSON.stringify({ v: '1', t: Date.now() }));
+  } catch(e) {}
+};
+
 window.isBoosterFree = function() {
   try {
-    const free = sessionStorage.getItem('booster_free');
-    if(free === '1') {
-      sessionStorage.removeItem('booster_free'); // consommé une seule fois
+    const ss = sessionStorage.getItem('booster_free');
+    if(ss === '1') {
+      sessionStorage.removeItem('booster_free');
+      try { localStorage.removeItem('booster_free'); } catch(e) {}
       return true;
+    }
+    // Fallback localStorage (TTL 5 min)
+    const ls = localStorage.getItem('booster_free');
+    if(ls) {
+      const obj = JSON.parse(ls);
+      if(obj.v === '1' && (Date.now() - obj.t) < 5 * 60 * 1000) {
+        localStorage.removeItem('booster_free');
+        return true;
+      }
+      localStorage.removeItem('booster_free');
     }
   } catch(e) {}
   return false;
