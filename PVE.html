@@ -1773,10 +1773,13 @@ function applySort(s,cas,cib,onDone,onCancel){
       break;
     case'debuff_hp_joueur':
       // Malus HP direct au joueur adverse (pas au héro)
-      cib.hp=Math.max(0,cib.hp-(s.val||3));
-      addLog(`💔 ${s.val||3} PV joueur perdus`,'sp');
-      updateHeart(cas===G.human?'b':'h', cib.hp, cib.hpMax);
-      if(cib.hp<=0){ endGame(cas===G.human?'human':'bot'); return; }
+      { const dmgJoueur=s.val||3;
+        cib.hp=Math.max(0,cib.hp-dmgJoueur);
+        addLog(`💔 -${dmgJoueur} HP joueur adverse !`,'sp');
+        heartDamage(cas===G.human?'b':'h', dmgJoueur);
+        updateHeart(cas===G.human?'b':'h', cib.hp, cib.hpMax);
+        if(cib.hp<=0){ endGame(cas===G.human?'human':'bot'); return; }
+      }
       break;
     case'remove_all_ruse':
       // Retire TOUTES les Ruses actives sur son propre héros
