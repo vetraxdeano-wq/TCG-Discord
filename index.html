@@ -4930,32 +4930,39 @@ async function loadLeaderboard(period){
   if(!db){ setState({leaderboardLoading:false,leaderboardData:[]}); return; }
 
   try {
-    // Récupérer tous les joueurs triés par wins (pas de filtre date en base — updated_at non fiable)
-    let query = db.from('players')
+    // Charger TOUS les joueurs — sans filtre en base car updated_at/wins peuvent être null
+    const { data, error } = await db.from('players')
       .select('id, discord_username, avatar_url, wins, losses, coins, updated_at, created_at')
-      .order('wins', {ascending:false})
-      .limit(200); // large pour pouvoir filtrer ensuite
+      .limit(500);
 
-    const { data, error } = await query;
-    if(error || !data){ setState({leaderboardLoading:false, leaderboardData:[]}); return; }
+    if(error){ setState({leaderboardLoading:false, leaderboardData:[]}); return; }
 
-    // Filtrer côté JS pour week/month selon updated_at
-    let filtered = data;
+    // Normaliser : wins/losses null → 0
+    const all = (data||[]).map(p => ({
+      ...p,
+      wins:   p.wins   ?? 0,
+      losses: p.losses ?? 0,
+      coins:  p.coins  ?? 0,
+    }));
+
+    // Filtrer par période selon created_at (plus fiable qu'updated_at)
+    let filtered = all;
     if(period === 'week'){
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
-      const withDate = data.filter(p => p.updated_at && new Date(p.updated_at) >= cutoff);
-      // Fallback : si moins de 3 joueurs actifs cette semaine, on affiche tous
-      filtered = withDate.length >= 3 ? withDate : data;
+      const inPeriod = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
+      // Afficher les joueurs de la période ; si aucun, afficher tous
+      filtered = inPeriod.length > 0 ? inPeriod : all;
     } else if(period === 'month'){
       const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth()-1);
-      const withDate = data.filter(p => p.updated_at && new Date(p.updated_at) >= cutoff);
-      filtered = withDate.length >= 3 ? withDate : data;
+      const inPeriod = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
+      filtered = inPeriod.length > 0 ? inPeriod : all;
     }
+    // 'all' → tous les joueurs
 
-    // Re-trier par wins après filtrage
-    filtered.sort((a,b) => (b.wins||0) - (a.wins||0));
+    // Trier : d'abord par wins desc, ensuite par coins desc pour départager les ex-aequo à 0
+    filtered.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins));
 
-    // Calculer le rang du joueur connecté dans ce classement
+    // Rang du joueur connecté dans ce classement
     const myId = state.currentUser?.id;
     let playerRank = null;
     if(myId){
