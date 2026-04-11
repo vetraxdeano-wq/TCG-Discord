@@ -490,9 +490,14 @@ function _ensurePlay(){
   setTimeout(()=>{ if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; } }, 15000);
 }
 
+// ─── PERSISTANCE PRÉFÉRENCE MUSIQUE ──────────────────────────────
+function _saveMusicPref(on){ try{ localStorage.setItem('music_on', on ? '1' : '0'); }catch(e){} }
+function _loadMusicPref(){ try{ var v=localStorage.getItem('music_on'); return v===null ? true : v==='1'; }catch(e){ return true; } }
+
 function audioPlay(){
   if(audioPlaying) return;
   audioPlaying = true;
+  _saveMusicPref(true);
   if(!_ytReady || !_ytPlayer){ _ytPendingPlay = true; return; }
   _doPlay();
   _ensurePlay();
@@ -500,6 +505,7 @@ function audioPlay(){
 function audioStop(){
   audioPlaying = false;
   _ytPendingPlay = false;
+  _saveMusicPref(false);
   if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; }
   if(_ytPlayer){ try{ _ytPlayer.pauseVideo(); } catch(e){} }
 }
@@ -5062,8 +5068,9 @@ function enterGame(user, coins) {
   const s = document.getElementById('splash');
   if (s) s.style.opacity = '0';
   setTimeout(() => {
-    setState({ screen: 'game', musicOn: true, currentUser: user, coins: coins });
-    audioPlay();
+    const _musicWasOn = _loadMusicPref();
+    setState({ screen: "game", musicOn: _musicWasOn, currentUser: user, coins: coins });
+    if (_musicWasOn) audioPlay();
     loadCollection();
     startDailyTicker();
     if (window.subscribeNotifications) window.subscribeNotifications();
