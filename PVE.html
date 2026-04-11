@@ -1613,6 +1613,19 @@ function pEff(p){
 /* ── Modale sélection d'effet à retirer ── */
 let _effectPickCancelFn = null;
 function openEffectPick(title, sub, items, onPick, onCancel){
+  // En Auto-Battle : choisir automatiquement le meilleur effet sans ouvrir la modale
+  if(_autoBattle && items.length > 0){
+    // Stratégie : choisir l'effet avec la valeur la plus élevée (le plus impactant)
+    let bestIdx = 0;
+    let bestScore = -Infinity;
+    items.forEach((item, idx) => {
+      const score = (item.val || 0) + (item.turns >= 9999 ? 1000 : (item.turns || 0) * 10);
+      if(score > bestScore){ bestScore = score; bestIdx = idx; }
+    });
+    addLog(`🤖 Auto-choix : "${items[bestIdx].nom}"`, 'sys');
+    onPick(bestIdx);
+    return;
+  }
   document.getElementById('effect-pick-title').textContent = title;
   document.getElementById('effect-pick-sub').textContent = sub;
   const list = document.getElementById('effect-pick-list');
