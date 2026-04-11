@@ -1112,6 +1112,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
     <div class="logo-sub">Collectez · Combattez · Dominez</div>
     <div class="si-divider"></div>
     <button class="start-btn" onclick="startGame()">Jouer</button>
+    <button onclick="window.location.href='index.html'" style="margin-top:14px;background:transparent;border:1px solid var(--bdr3);color:var(--sub);padding:9px 24px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;transition:all .2s;" onmouseover="this.style.color='var(--txt)';this.style.borderColor='var(--bdr2)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='var(--bdr3)'">← Retour au menu</button>
   </div>
   <div class="si-cards">
     <div class="si-card-ph"></div>
@@ -2205,8 +2206,29 @@ function renderHand(){
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
       if(document.body.classList.contains('mobile')){
-        e.preventDefault();
-        showCardModal(c, i, dis, ttHTML, rarCol);
+        // Maintien long (>220ms) = scroll, tap court = ouvre la modale
+        const _touchStart=Date.now();
+        let _longPress=false;
+        let _moved=false;
+        const _startX=e.touches[0].clientX;
+        const _startY=e.touches[0].clientY;
+        function _onTouchMove(ev){
+          const dx=Math.abs(ev.touches[0].clientX-_startX);
+          const dy=Math.abs(ev.touches[0].clientY-_startY);
+          if(dx>6||dy>6) _moved=true;
+        }
+        function _onTouchEnd(){
+          d.removeEventListener('touchmove',_onTouchMove);
+          d.removeEventListener('touchend',_onTouchEnd);
+          if(!_moved && !_longPress){
+            // Tap court → ouvrir la modale
+            showCardModal(c, i, dis, ttHTML, rarCol);
+          }
+        }
+        d.addEventListener('touchmove',_onTouchMove,{passive:true});
+        d.addEventListener('touchend',_onTouchEnd,{passive:true});
+        // Long press (220ms sans mouvement) → on laisse le scroll se faire naturellement
+        setTimeout(()=>{ if(!_moved) _longPress=true; },220);
       } else {
         if(TT.style.display==='flex'&&TT._srcCard===d){hideTT();TT._srcCard=null;}
         else{
@@ -2215,7 +2237,7 @@ function renderHand(){
           TT._srcCard=d;
         }
       }
-    },{passive:false});
+    },{passive:true});
 
     if(G._newCardIdx===i){
       d.style.animation='cardDeal .35s cubic-bezier(.16,1,.3,1) both';
@@ -2353,12 +2375,17 @@ function endGame(w){
   const dm=G.stats.dmgByCard;
   let mvpNom='—',mvpVal=0;
   Object.entries(dm).forEach(([k,v])=>{if(v>mvpVal){mvpVal=v;mvpNom=k;}});
+  const _isWin=w==='human';
+  const _coins=_isWin?150:75;
+  const _xp=_isWin?25:10;
   const stats=document.getElementById('ov-stats');
   stats.innerHTML=`
     <div class="ov-stat"><span class="ov-stat-lbl">⏱ Tours joués</span><span class="ov-stat-val gold">${G.turn}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">⚔ Dégâts infligés (toi)</span><span class="ov-stat-val">${G.stats.totalDmgH}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">💀 Dégâts reçus</span><span class="ov-stat-val">${G.stats.totalDmgB}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">🏆 Carte MVP</span><span class="ov-stat-val mvp">${mvpNom} (${mvpVal} dmg)</span></div>
+    <div class="ov-stat" style="border-top:1px solid var(--bdr2);margin-top:4px;padding-top:6px"><span class="ov-stat-lbl">🪙 Coins gagnés</span><span class="ov-stat-val" style="color:var(--gold)">+${_coins}</span></div>
+    <div class="ov-stat"><span class="ov-stat-lbl">⭐ XP gagnée</span><span class="ov-stat-val" style="color:var(--pur)">+${_xp} XP</span></div>
   `;
   document.getElementById('ov-end').classList.add('active');
 }
@@ -2581,8 +2608,12 @@ function startGame(){
   _autoBattle=false;document.getElementById('auto-btn').classList.remove('on');
   initGame();
   // Utiliser le deck du joueur pour le human, bot aléatoire sans mythique
-  const hd=buildHumanPioche();
-  const bd=buildPioche(true);
+  // Construire les mains de départ, remélanger jusqu'à avoir au moins 1 héro
+  let hd, bd;
+  let hdTries=0;
+  do { hd=buildHumanPioche(); hdTries++; } while(!hd.slice(0,5).some(c=>c.ct==='fighter') && hdTries<20);
+  let bdTries=0;
+  do { bd=buildPioche(true); bdTries++; } while(!bd.slice(0,5).some(c=>c.ct==='fighter') && bdTries<20);
   G.human.hand=hd.slice(0,5);G.human.pioche=hd.slice(5);
   G.bot.hand=bd.slice(0,5);G.bot.pioche=bd.slice(5);
   addTourLog(1);showCoinToast(G.fp);render();
@@ -2593,7 +2624,13 @@ function restartGame(){
   document.getElementById('ov-end').classList.remove('active');document.getElementById('loge').innerHTML='';
   document.getElementById('logp').classList.add('visible');
   _autoBattle=false;document.getElementById('auto-btn').classList.remove('on');
-  stopChrono();initGame();addTourLog(1);showCoinToast(G.fp);render();
+  stopChrono();initGame();
+  let hd2, bd2, t1=0, t2=0;
+  do { hd2=buildHumanPioche(); t1++; } while(!hd2.slice(0,5).some(c=>c.ct==='fighter') && t1<20);
+  do { bd2=buildPioche(true); t2++; } while(!bd2.slice(0,5).some(c=>c.ct==='fighter') && t2<20);
+  G.human.hand=hd2.slice(0,5);G.human.pioche=hd2.slice(5);
+  G.bot.hand=bd2.slice(0,5);G.bot.pioche=bd2.slice(5);
+  addTourLog(1);showCoinToast(G.fp);render();
   if(G.fp==='bot'){setTimeout(()=>{botChooseFighter();render();},1800);}
   else resetChrono();
 }
@@ -2639,7 +2676,7 @@ function spellToEffet(name_spell_1, name_spell_2, val1, val2){
   if(s1==='spell_atq+') return {effet:'buff_atq',val:v1};
   if(s1==='spell_def+') return {effet:'buff_def',val:v1};
   if(s1==='spell_pré+') return {effet:'buff_prec',val:v1};
-  if(s1==='spell_hp_héro+') return {effet:'buff_hp',val:v1||5};
+  if(s1==='spell_hp_héro+' || s1==='spell_hp+' || s1==='spell_hp héro+') return {effet:'buff_hp',val:v1||5};
   if(s1==='spell_atqordef+') return {effet:'buff_atq_or_def',val:v1};
   if(s1==='spell_1ruse+') return {effet:'remove_ruse',val:0};
   if(s1==='spell_atq-' && s2==='spell_def-') return {effet:'debuff_atqdef',val:v1,val2:v2};
@@ -2649,6 +2686,8 @@ function spellToEffet(name_spell_1, name_spell_2, val1, val2){
   if(s1==='spell_noatq') return {effet:'skip_atq',val:0};
   if(s1==='spell_1arcane-') return {effet:'remove_arcane',val:0};
   if(s1==='spell_nospell') return {effet:'no_spell',val:0};
+  // Fallback : si le nom de spell contient "hp", on donne un buff_hp ; sinon buff_atq
+  if(s1.toLowerCase().includes('hp')) return {effet:'buff_hp',val:v1||4};
   return {effet:'buff_atq',val:v1||2}; // fallback
 }
 
