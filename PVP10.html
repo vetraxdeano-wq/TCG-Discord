@@ -1636,121 +1636,75 @@ function pEff(p){
   });
   return Math.max(0.05,Math.min(1,v));
 }
-function showRemoveAnyChoice(target){
-  // Modale pour choisir N'IMPORTE quel effet adverse à annuler (dont LOVE & PEACE)
+/* ── Modale unifiée de sélection d'effet ── */
+// Ouvre TOUJOURS la modale (0 effets = message vide + Annuler, 1 = 1 bouton, N = N boutons)
+// onCancel : appelé si le joueur clique "Annuler" — la carte est rendue en main, rien ne se consume
+function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel}){
   const existing=document.getElementById('remove-choice-modal');
   if(existing) existing.remove();
 
-  const effects=target.actives.filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp'||a.isLovePeace);
-  if(!effects.length) return;
+  const overlay=document.createElement('div');
+  overlay.id='remove-choice-modal';
+  overlay.style.cssText='position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;';
+
+  const box=document.createElement('div');
+  box.style.cssText=`background:var(--s2);border:1px solid ${color};border-radius:16px;padding:24px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(0,0,0,.8);`;
 
   const atLabels={da:'−ATQ',dd:'−DEF',dp:'−PRÉ',ba:'+ATQ',bd:'+DEF',bp:'+PRÉ',love_peace_pending:'LOVE/PEACE'};
-  const color='var(--pur)';
-
-  const overlay=document.createElement('div');
-  overlay.id='remove-choice-modal';
-  overlay.style.cssText='position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;';
-
-  const box=document.createElement('div');
-  box.style.cssText=`background:var(--s2);border:1px solid ${color};border-radius:16px;padding:24px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(0,0,0,.8);`;
-
-  let html=`<div style="font-family:'Cinzel',serif;font-size:15px;color:var(--txt);margin-bottom:6px;">🧲 Annuler un effet adverse</div>
-    <div style="font-size:11px;color:var(--sub);margin-bottom:18px;">Choisis l'effet à annuler (Arcane, Ruse ou LOVE & PEACE) :</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">`;
-
-  effects.forEach((eff,idx)=>{
-    const lbl=atLabels[eff.at]||eff.at;
-    html+=`<button onclick="confirmRemoveAny(${idx})" style="background:var(--s3);border:1px solid ${color};color:var(--txt);padding:10px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .15s;" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='var(--s3)'">
-      <span style="font-weight:700">${eff.nom}</span>
-      <span style="color:${color};font-family:'DM Mono',monospace;font-size:10px;">${lbl} · ${eff.turns>500?'∞':eff.turns+'t'}</span>
-    </button>`;
-  });
-
-  html+=`</div><button onclick="document.getElementById('remove-choice-modal').remove()" style="margin-top:14px;background:none;border:1px solid var(--bdr2);color:var(--sub);padding:7px 20px;border-radius:8px;cursor:pointer;font-size:11px;">Annuler</button>`;
-  box.innerHTML=html;
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
-
-  window._removeAnyContext={target,effects};
-}
-
-function confirmRemoveAny(idx){
-  const ctx=window._removeAnyContext;
-  if(!ctx) return;
-  const eff=ctx.effects[idx];
-  const realIdx=ctx.target.actives.findIndex(a=>a===eff);
-  if(realIdx>=0){
-    ctx.target.actives.splice(realIdx,1);
-    addLog(`🧲 "${eff.nom}" annulé !`,'sp');
-  }
-  const modal=document.getElementById('remove-choice-modal');
-  if(modal) modal.remove();
-  window._removeAnyContext=null;
-  render();
-}
-
-function showRemoveChoice(type, target){
-  // Crée une modale pour choisir quel effet retirer
-  const existing=document.getElementById('remove-choice-modal');
-  if(existing) existing.remove();
-
-  let effects;
-  if(type==='ruse'){
-    effects=target.actives.filter(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
-  } else {
-    effects=target.actives.filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
-  }
-  if(!effects.length) return;
-
-  const atLabels={da:'−ATQ',dd:'−DEF',dp:'−PRÉ',ba:'+ATQ',bd:'+DEF',bp:'+PRÉ'};
-  const title=type==='ruse'?'🧹 Retirer une Ruse':'🧲 Annuler un Arcane';
-  const color=type==='ruse'?'#f472b6':'var(--blue)';
-
-  const overlay=document.createElement('div');
-  overlay.id='remove-choice-modal';
-  overlay.style.cssText='position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;';
-
-  const box=document.createElement('div');
-  box.style.cssText=`background:var(--s2);border:1px solid ${color};border-radius:16px;padding:24px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(0,0,0,.8);`;
 
   let html=`<div style="font-family:'Cinzel',serif;font-size:15px;color:var(--txt);margin-bottom:6px;">${title}</div>
-    <div style="font-size:11px;color:var(--sub);margin-bottom:18px;">Choisis l'effet à ${type==='ruse'?'retirer de ton héros':'annuler sur l\'adversaire'} :</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:18px;">${sub}</div>
     <div style="display:flex;flex-direction:column;gap:8px;">`;
 
-  effects.forEach((eff,idx)=>{
-    const lbl=atLabels[eff.at]||eff.at;
-    html+=`<button onclick="confirmRemoveChoice('${type}',${idx})" style="background:var(--s3);border:1px solid ${color};color:var(--txt);padding:10px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .15s;" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='var(--s3)'">
-      <span style="font-weight:700">${eff.nom}</span>
-      <span style="color:${color};font-family:'DM Mono',monospace;font-size:10px;">${lbl} · ${eff.turns>500?'∞':eff.turns+'t'}</span>
-    </button>`;
-  });
+  if(effects.length===0){
+    html+=`<div style="font-size:12px;color:var(--dim);padding:12px 0;">${emptyMsg}</div>`;
+  } else {
+    effects.forEach((eff,idx)=>{
+      const lbl=atLabels[eff.at]||eff.at;
+      html+=`<button data-pick="${idx}" style="background:var(--s3);border:1px solid ${color};color:var(--txt);padding:10px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:background .15s;" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='var(--s3)'">
+        <span style="font-weight:700">${eff.nom}</span>
+        <span style="color:${color};font-family:'DM Mono',monospace;font-size:10px;">${lbl} · ${eff.turns>500?'∞':eff.turns+'t'}</span>
+      </button>`;
+    });
+  }
 
-  html+=`</div><button onclick="document.getElementById('remove-choice-modal').remove()" style="margin-top:14px;background:none;border:1px solid var(--bdr2);color:var(--sub);padding:7px 20px;border-radius:8px;cursor:pointer;font-size:11px;">Annuler</button>`;
+  html+=`</div><button id="pick-cancel-btn" style="margin-top:14px;background:none;border:1px solid var(--bdr2);color:var(--sub);padding:7px 20px;border-radius:8px;cursor:pointer;font-size:11px;">Annuler</button>`;
   box.innerHTML=html;
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 
-  // Stocker pour la callback
-  window._removeChoiceContext={type,target,effects};
+  // Stocker contexte
+  window._pickModalContext={effects, onPick, onCancel};
+
+  // Bind boutons choix
+  box.querySelectorAll('[data-pick]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const idx=parseInt(btn.getAttribute('data-pick'));
+      const modal=document.getElementById('remove-choice-modal');
+      if(modal) modal.remove();
+      window._pickModalContext=null;
+      onPick(idx);
+      render();
+    });
+  });
+
+  // Bind bouton Annuler
+  box.querySelector('#pick-cancel-btn').addEventListener('click',()=>{
+    const modal=document.getElementById('remove-choice-modal');
+    if(modal) modal.remove();
+    const ctx=window._pickModalContext;
+    window._pickModalContext=null;
+    if(ctx && ctx.onCancel) ctx.onCancel();
+  });
 }
 
-function confirmRemoveChoice(type, idx){
-  const ctx=window._removeChoiceContext;
-  if(!ctx) return;
-  const eff=ctx.effects[idx];
-  const realIdx=ctx.target.actives.findIndex(a=>a===eff);
-  if(realIdx>=0){
-    ctx.target.actives.splice(realIdx,1);
-    if(type==='ruse') addLog(`🧹 Ruse "${eff.nom}" retirée !`,'sm');
-    else addLog(`🧲 Arcane "${eff.nom}" annulée !`,'sp');
-  }
-  const modal=document.getElementById('remove-choice-modal');
-  if(modal) modal.remove();
-  window._removeChoiceContext=null;
-  render();
-}
+// Compat stubs (gardés pour ne rien casser si appelés ailleurs)
+function showRemoveAnyChoice(target){ /* remplacé par openPickModal */ }
+function confirmRemoveAny(idx){ /* remplacé */ }
+function showRemoveChoice(type, target){ /* remplacé par openPickModal */ }
+function confirmRemoveChoice(type, idx){ /* remplacé */ }
 
-function applySort(s,cas,cib){
+function applySort(s,cas,cib,onCancel){
   // Gestion LOVE & PEACE : combo permanent
   if(s.effet==='love_peace'){
     // Vérifier si l'autre est déjà active
@@ -1812,41 +1766,62 @@ function applySort(s,cas,cib){
       cib.skipAtq=true;
       break;
     case'remove_ruse':
-      // Retire 1 Ruse active sur son propre héros (malus subis)
+      // Retire 1 Ruse active sur son propre héros — toujours modale si humain, auto si bot
       {
         const ruseEffects=cas.actives.filter(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
-        if(ruseEffects.length===0){
-          addLog('🧹 Aucune Ruse active à retirer','sm');
-        } else if(ruseEffects.length===1){
-          const ri=cas.actives.findIndex(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
-          if(ri>=0){cas.actives.splice(ri,1);addLog(`🧹 Ruse "${ruseEffects[0].nom}" retirée !`,'sm');}
+        if(cas===G.human){
+          openPickModal({
+            title:'🧹 Retirer une Ruse',
+            sub:'Choisis la Ruse active sur ton héros à supprimer',
+            color:'#f472b6',
+            emptyMsg:'Aucune Ruse active sur ton héros.',
+            effects:ruseEffects,
+            onPick:(idx)=>{
+              const eff=ruseEffects[idx];
+              const ri=cas.actives.findIndex(a=>a===eff);
+              if(ri>=0){cas.actives.splice(ri,1);addLog(`🧹 Ruse "${eff.nom}" retirée !`,'sm');}
+              G.phase='attack';render();resetChrono();
+            },
+            onCancel
+          });
+          return; // phase avancée par onPick ou onCancel
         } else {
-          // Plusieurs ruses : laisser le joueur choisir (ou bot = auto)
-          if(cas===G.human){
-            showRemoveChoice('ruse', cas);
-          } else {
+          // Bot : auto, retire la première ruse trouvée
+          if(ruseEffects.length>0){
             const ri=cas.actives.findIndex(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
-            if(ri>=0){cas.actives.splice(ri,1);addLog(`🧹 Ruse "${cas.actives[ri]?.nom||'effet'}" retirée !`,'sm');}
+            if(ri>=0){const nm=cas.actives[ri].nom;cas.actives.splice(ri,1);addLog(`🧹 Ruse "${nm}" retirée !`,'sm');}
+          } else {
+            addLog('🧹 Aucune Ruse active à retirer','sm');
           }
         }
       }
       break;
     case'remove_arcane':
-      // Retire 1 Arcane adverse (buff), sauf LOVE & PEACE
+      // Retire 1 Arcane adverse (buff), sauf LOVE & PEACE — toujours modale si humain
       {
         const arcEffects=cib.actives.filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
-        if(arcEffects.length===0){
-          addLog('🧲 Aucun Arcane adverse à annuler','sp');
-        } else if(arcEffects.length===1){
-          const ai=cib.actives.findIndex(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
-          if(ai>=0){const nm=cib.actives[ai].nom;cib.actives.splice(ai,1);addLog(`🧲 Arcane "${nm}" annulée !`,'sp');}
+        if(cas===G.human){
+          openPickModal({
+            title:'🧲 Annuler une Arcane',
+            sub:"Choisis l'Arcane adverse à annuler (LOVE & PEACE non ciblable)",
+            color:'var(--blue)',
+            emptyMsg:'Aucune Arcane adverse active (hors LOVE & PEACE).',
+            effects:arcEffects,
+            onPick:(idx)=>{
+              const eff=arcEffects[idx];
+              const ai=cib.actives.findIndex(a=>a===eff);
+              if(ai>=0){cib.actives.splice(ai,1);addLog(`🧲 Arcane "${eff.nom}" annulée !`,'sp');}
+              G.phase='attack';render();resetChrono();
+            },
+            onCancel
+          });
+          return;
         } else {
-          // Plusieurs arcanes : si humain joue cette carte, proposer le choix
-          if(cas===G.human){
-            showRemoveChoice('arcane', cib);
-          } else {
+          if(arcEffects.length>0){
             const ai=cib.actives.findIndex(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
             if(ai>=0){const nm=cib.actives[ai].nom;cib.actives.splice(ai,1);addLog(`🧲 Arcane "${nm}" annulée !`,'sp');}
+          } else {
+            addLog('🧲 Aucun Arcane adverse à annuler','sp');
           }
         }
       }
@@ -1868,18 +1843,19 @@ function applySort(s,cas,cib){
       break;
     case'buff_hpjoueur':
       // +HP joueur immédiat (carte 141)
-      G[cas===G.human?'human':'bot'].pv=Math.min((G[cas===G.human?'human':'bot'].pv||75)+(s.val||4),75);
-      updateHeart(cas===G.human?'h':'b', G[cas===G.human?'human':'bot'].pv, 75);
-      addLog(`💊 +${s.val||4} PV joueur !`,'sm');
+      {const pk=cas===G.human?'human':'bot';
+      G[pk].hp=Math.min(G[pk].hp+(s.val||4),G[pk].hpMax);
+      updateHeart(cas===G.human?'h':'b', G[pk].hp, G[pk].hpMax);
+      addLog(`💊 +${s.val||4} PV joueur !`,'sm');}
       break;
     case'debuff_hpjoueur':
       // Adversaire perd des HP joueur (carte 143)
-      {const eid=cib===G.human?'h':'b';
-      G[cib===G.human?'human':'bot'].pv=Math.max(0,(G[cib===G.human?'human':'bot'].pv||75)-(s.val||3));
-      updateHeart(eid, G[cib===G.human?'human':'bot'].pv, 75);
+      {const eid=cib===G.human?'h':'b';const ck=cib===G.human?'human':'bot';
+      G[ck].hp=Math.max(0,G[ck].hp-(s.val||3));
+      updateHeart(eid, G[ck].hp, G[ck].hpMax);
       heartDamage(eid, s.val||3);
       addLog(`💔 Adversaire perd ${s.val||3} PV joueur !`,'sp');
-      if(G[cib===G.human?'human':'bot'].pv<=0) endGame(cas===G.human?'human':'bot');}
+      if(G[ck].hp<=0) endGame(cas===G.human?'human':'bot');}
       break;
     case'clean_ruse':
       // Retire TOUTES les ruses actives sur son héros (carte 131)
@@ -1895,18 +1871,33 @@ function applySort(s,cas,cib){
       break;
     case'remove_any':
       // Annule 1 Arcane OU 1 Ruse adverse au choix, dont LOVE & PEACE (cartes 130, 132)
-      {const anyEffects=cib.actives.filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp'||a.isLovePeace);
-      if(anyEffects.length===0){
-        addLog('🧲 Aucun effet adverse à annuler','sp');
-      } else if(anyEffects.length===1){
-        const ri=cib.actives.findIndex(a=>a===anyEffects[0]);
-        if(ri>=0){const nm=cib.actives[ri].nom;cib.actives.splice(ri,1);addLog(`🧲 "${nm}" annulé !`,'sp');}
-      } else if(cas===G.human){
-        showRemoveAnyChoice(cib);
-      } else {
-        const ri=cib.actives.findIndex(a=>a===anyEffects[0]);
-        if(ri>=0){const nm=cib.actives[ri].nom;cib.actives.splice(ri,1);addLog(`🧲 "${nm}" annulé !`,'sp');}
-      }}
+      {
+        const anyEffects=cib.actives.filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp'||a.isLovePeace);
+        if(cas===G.human){
+          openPickModal({
+            title:'🗑️ Annuler un effet adverse',
+            sub:"Choisis l'effet à supprimer (Arcane, Ruse ou LOVE & PEACE)",
+            color:'var(--pur)',
+            emptyMsg:'Aucun effet adverse actif à annuler.',
+            effects:anyEffects,
+            onPick:(idx)=>{
+              const eff=anyEffects[idx];
+              const ri=cib.actives.findIndex(a=>a===eff);
+              if(ri>=0){cib.actives.splice(ri,1);addLog(`🗑️ "${eff.nom}" annulé !`,'sp');}
+              G.phase='attack';render();resetChrono();
+            },
+            onCancel
+          });
+          return;
+        } else {
+          if(anyEffects.length>0){
+            const ri=cib.actives.findIndex(a=>a===anyEffects[0]);
+            if(ri>=0){const nm=cib.actives[ri].nom;cib.actives.splice(ri,1);addLog(`🗑️ "${nm}" annulé !`,'sp');}
+          } else {
+            addLog('🗑️ Aucun effet adverse à annuler','sp');
+          }
+        }
+      }
       break;
     case'trade_effects':
       // Échange TOUS les effets actifs entre les deux joueurs (carte 144)
@@ -2574,11 +2565,22 @@ function humanPlayCard(idx){
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
     if(G.human.noSpellThisTurn){addLog('🚫 Sorts bloqués ce tour !','sys','JOUEUR');return;}
-    G.human.hand.splice(idx,1);G.human.sortJoue=true;applySort(c,G.human,G.bot);
+    G.human.hand.splice(idx,1);G.human.sortJoue=true;
+    // onCancel : remet la carte en main et annule le coup joué
+    const onCancel=()=>{
+      G.human.hand.splice(idx,0,c);
+      G.human.sortJoue=false;
+      render();
+    };
+    applySort(c,G.human,G.bot,onCancel);
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
-    G.phase='attack';render();
-    resetChrono();
+    // Si applySort a ouvert une modale (sort interactif), ne pas avancer la phase ici
+    // La phase avancera après confirmation ou restera en 'sort' après annulation
+    if(!document.getElementById('remove-choice-modal')){
+      G.phase='attack';render();
+      resetChrono();
+    }
   }
 }
 function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();resetChrono();}
@@ -2916,7 +2918,7 @@ function spellToEffet(name_spell_1, name_spell_2, val1, val2){
   if(s1==='spell_atq+') return {effet:'buff_atq',val:v1};
   if(s1==='spell_def+') return {effet:'buff_def',val:v1};
   if(s1==='spell_pré+') return {effet:'buff_prec',val:v1};
-  if(s1==='spell_hp_héro+') return {effet:'buff_hp',val:v1||5};
+  if(s1==='spell_hp_héro+'||s1==='spell_hp+'||s1==='spell_hp héro+') return {effet:'buff_hp',val:v1||5};
   if(s1==='spell_atqordef+') return {effet:'buff_atq_or_def',val:v1};
   if(s1==='spell_1ruse+') return {effet:'remove_ruse',val:0};
   if(s1==='spell_hpjoueur+') return {effet:'buff_hpjoueur',val:v1||4}; // carte 141
