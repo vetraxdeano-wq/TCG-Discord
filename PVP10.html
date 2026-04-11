@@ -2588,11 +2588,14 @@ function endGame(w){
     ?`Tu remportes la victoire avec ${G.human.hp} PV restants !`
     :`Le bot l'emporte avec ${G.bot.hp} PV restants.`;
 
-  const coins=isWin?75:35, xp=isWin?12:5;
+  const coins=isWin?50:25, xp=isWin?8:3;
   const rw=document.getElementById('ov-rewards');
   if(rw) rw.innerHTML=`
     <div class="ov-reward-pill coins">🪙 +${coins} coins</div>
-    <div class="ov-reward-pill xp">⭐ +${xp} XP</div>`;
+    <div class="ov-reward-pill xp">⭐ +${xp} XP</div>
+    <div style="font-size:10px;color:var(--sub);margin-top:6px;text-align:center;letter-spacing:.04em;">
+      ${isWin ? '🏆 Victoire : <b style="color:var(--gold)">+50 coins</b> · <b style="color:var(--pur)">+8 XP</b>' : '💀 Défaite : <b style="color:var(--gold)">+25 coins</b> · <b style="color:var(--pur)">+3 XP</b>'}
+    </div>`;
 
   const dm=G.stats.dmgByCard;
   let mvpNom='—',mvpVal=0;
@@ -3209,8 +3212,8 @@ const _origEndGame=endGame;
 endGame=function(w){
   _origEndGame(w);
   const isWin=w==='human';
-  const coins=isWin?75:35;
-  const xp   =isWin?12:5;
+  const coins=isWin?50:25;
+  const xp   =isWin?8:3;
   saveGameResult(isWin,coins,xp);
 };
 
