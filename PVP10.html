@@ -1609,7 +1609,7 @@ function buildHumanPioche(){
   let s=[..._humanDeckSpells];
   while(s.length<8 && s.length>0) s.push({...s[Math.floor(Math.random()*s.length)]});
   s=shuf(s).slice(0,8);
-  return shuf([...f,...s]);
+  return shuf([...f.map(x=>({...x,hpCur:x.hpCur||x.hp||10,hpBase:x.hpBase||x.hp||10})),...s.map(x=>({...x}))]);
 }
 let G={};
 function mkP(){return{hp:20,hpMax:20,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false,noSpellThisTurn:false};}
@@ -1637,8 +1637,6 @@ function pEff(p){
   return Math.max(0.05,Math.min(1,v));
 }
 /* ── Modale unifiée de sélection d'effet ── */
-// Ouvre TOUJOURS la modale (0 effets = message vide + Annuler, 1 = 1 bouton, N = N boutons)
-// onCancel : appelé si le joueur clique "Annuler" — la carte est rendue en main, rien ne se consume
 function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel}){
   const existing=document.getElementById('remove-choice-modal');
   if(existing) existing.remove();
@@ -1673,10 +1671,8 @@ function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel})
   overlay.appendChild(box);
   document.body.appendChild(overlay);
 
-  // Stocker contexte
   window._pickModalContext={effects, onPick, onCancel};
 
-  // Bind boutons choix
   box.querySelectorAll('[data-pick]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const idx=parseInt(btn.getAttribute('data-pick'));
@@ -1688,7 +1684,6 @@ function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel})
     });
   });
 
-  // Bind bouton Annuler
   box.querySelector('#pick-cancel-btn').addEventListener('click',()=>{
     const modal=document.getElementById('remove-choice-modal');
     if(modal) modal.remove();
@@ -1698,7 +1693,6 @@ function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel})
   });
 }
 
-// Compat stubs (gardés pour ne rien casser si appelés ailleurs)
 function showRemoveAnyChoice(target){ /* remplacé par openPickModal */ }
 function confirmRemoveAny(idx){ /* remplacé */ }
 function showRemoveChoice(type, target){ /* remplacé par openPickModal */ }
@@ -1766,7 +1760,6 @@ function applySort(s,cas,cib,onCancel){
       cib.skipAtq=true;
       break;
     case'remove_ruse':
-      // Retire 1 Ruse active sur son propre héros — toujours modale si humain, auto si bot
       {
         const ruseEffects=cas.actives.filter(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
         if(cas===G.human){
@@ -1784,20 +1777,16 @@ function applySort(s,cas,cib,onCancel){
             },
             onCancel
           });
-          return; // phase avancée par onPick ou onCancel
+          return;
         } else {
-          // Bot : auto, retire la première ruse trouvée
           if(ruseEffects.length>0){
             const ri=cas.actives.findIndex(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
             if(ri>=0){const nm=cas.actives[ri].nom;cas.actives.splice(ri,1);addLog(`🧹 Ruse "${nm}" retirée !`,'sm');}
-          } else {
-            addLog('🧹 Aucune Ruse active à retirer','sm');
-          }
+          } else { addLog('🧹 Aucune Ruse active à retirer','sm'); }
         }
       }
       break;
     case'remove_arcane':
-      // Retire 1 Arcane adverse (buff), sauf LOVE & PEACE — toujours modale si humain
       {
         const arcEffects=cib.actives.filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
         if(cas===G.human){
@@ -1820,9 +1809,7 @@ function applySort(s,cas,cib,onCancel){
           if(arcEffects.length>0){
             const ai=cib.actives.findIndex(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
             if(ai>=0){const nm=cib.actives[ai].nom;cib.actives.splice(ai,1);addLog(`🧲 Arcane "${nm}" annulée !`,'sp');}
-          } else {
-            addLog('🧲 Aucun Arcane adverse à annuler','sp');
-          }
+          } else { addLog('🧲 Aucun Arcane adverse à annuler','sp'); }
         }
       }
       break;
@@ -1870,7 +1857,6 @@ function applySort(s,cas,cib,onCancel){
       addLog(`🧲 Toutes les Arcanes/Ruses adverses annulées (${before}) !`,'sp');}
       break;
     case'remove_any':
-      // Annule 1 Arcane OU 1 Ruse adverse au choix, dont LOVE & PEACE (cartes 130, 132)
       {
         const anyEffects=cib.actives.filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp'||a.isLovePeace);
         if(cas===G.human){
@@ -1893,9 +1879,7 @@ function applySort(s,cas,cib,onCancel){
           if(anyEffects.length>0){
             const ri=cib.actives.findIndex(a=>a===anyEffects[0]);
             if(ri>=0){const nm=cib.actives[ri].nom;cib.actives.splice(ri,1);addLog(`🗑️ "${nm}" annulé !`,'sp');}
-          } else {
-            addLog('🗑️ Aucun effet adverse à annuler','sp');
-          }
+          } else { addLog('🗑️ Aucun effet adverse à annuler','sp'); }
         }
       }
       break;
@@ -2566,7 +2550,6 @@ function humanPlayCard(idx){
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
     if(G.human.noSpellThisTurn){addLog('🚫 Sorts bloqués ce tour !','sys','JOUEUR');return;}
     G.human.hand.splice(idx,1);G.human.sortJoue=true;
-    // onCancel : remet la carte en main et annule le coup joué
     const onCancel=()=>{
       G.human.hand.splice(idx,0,c);
       G.human.sortJoue=false;
@@ -2575,8 +2558,6 @@ function humanPlayCard(idx){
     applySort(c,G.human,G.bot,onCancel);
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
-    // Si applySort a ouvert une modale (sort interactif), ne pas avancer la phase ici
-    // La phase avancera après confirmation ou restera en 'sort' après annulation
     if(!document.getElementById('remove-choice-modal')){
       G.phase='attack';render();
       resetChrono();
