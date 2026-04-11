@@ -1609,7 +1609,7 @@ function buildHumanPioche(){
   let s=[..._humanDeckSpells];
   while(s.length<8 && s.length>0) s.push({...s[Math.floor(Math.random()*s.length)]});
   s=shuf(s).slice(0,8);
-  return shuf([...f.map(x=>({...x,hpCur:x.hpCur||x.hp||10,hpBase:x.hpBase||x.hp||10})),...s.map(x=>({...x}))]);
+  return shuf([...f,...s]);
 }
 let G={};
 function mkP(){return{hp:20,hpMax:20,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false,noSpellThisTurn:false};}
@@ -1636,24 +1636,18 @@ function pEff(p){
   });
   return Math.max(0.05,Math.min(1,v));
 }
-/* ── Modale unifiée de sélection d'effet ── */
 function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel}){
   const existing=document.getElementById('remove-choice-modal');
   if(existing) existing.remove();
-
   const overlay=document.createElement('div');
   overlay.id='remove-choice-modal';
   overlay.style.cssText='position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;';
-
   const box=document.createElement('div');
   box.style.cssText=`background:var(--s2);border:1px solid ${color};border-radius:16px;padding:24px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(0,0,0,.8);`;
-
   const atLabels={da:'−ATQ',dd:'−DEF',dp:'−PRÉ',ba:'+ATQ',bd:'+DEF',bp:'+PRÉ',love_peace_pending:'LOVE/PEACE'};
-
   let html=`<div style="font-family:'Cinzel',serif;font-size:15px;color:var(--txt);margin-bottom:6px;">${title}</div>
     <div style="font-size:11px;color:var(--sub);margin-bottom:18px;">${sub}</div>
     <div style="display:flex;flex-direction:column;gap:8px;">`;
-
   if(effects.length===0){
     html+=`<div style="font-size:12px;color:var(--dim);padding:12px 0;">${emptyMsg}</div>`;
   } else {
@@ -1665,39 +1659,30 @@ function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel})
       </button>`;
     });
   }
-
   html+=`</div><button id="pick-cancel-btn" style="margin-top:14px;background:none;border:1px solid var(--bdr2);color:var(--sub);padding:7px 20px;border-radius:8px;cursor:pointer;font-size:11px;">Annuler</button>`;
   box.innerHTML=html;
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-
   window._pickModalContext={effects, onPick, onCancel};
-
   box.querySelectorAll('[data-pick]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const idx=parseInt(btn.getAttribute('data-pick'));
-      const modal=document.getElementById('remove-choice-modal');
-      if(modal) modal.remove();
+      document.getElementById('remove-choice-modal')?.remove();
       window._pickModalContext=null;
-      onPick(idx);
-      render();
+      onPick(idx);render();
     });
   });
-
   box.querySelector('#pick-cancel-btn').addEventListener('click',()=>{
-    const modal=document.getElementById('remove-choice-modal');
-    if(modal) modal.remove();
+    document.getElementById('remove-choice-modal')?.remove();
     const ctx=window._pickModalContext;
     window._pickModalContext=null;
-    if(ctx && ctx.onCancel) ctx.onCancel();
+    if(ctx&&ctx.onCancel) ctx.onCancel();
   });
 }
-
-function showRemoveAnyChoice(target){ /* remplacé par openPickModal */ }
-function confirmRemoveAny(idx){ /* remplacé */ }
-function showRemoveChoice(type, target){ /* remplacé par openPickModal */ }
-function confirmRemoveChoice(type, idx){ /* remplacé */ }
-
+function showRemoveAnyChoice(target){}
+function confirmRemoveAny(idx){}
+function showRemoveChoice(type,target){}
+function confirmRemoveChoice(type,idx){}
 function applySort(s,cas,cib,onCancel){
   // Gestion LOVE & PEACE : combo permanent
   if(s.effet==='love_peace'){
@@ -1763,26 +1748,11 @@ function applySort(s,cas,cib,onCancel){
       {
         const ruseEffects=cas.actives.filter(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
         if(cas===G.human){
-          openPickModal({
-            title:'🧹 Retirer une Ruse',
-            sub:'Choisis la Ruse active sur ton héros à supprimer',
-            color:'#f472b6',
-            emptyMsg:'Aucune Ruse active sur ton héros.',
-            effects:ruseEffects,
-            onPick:(idx)=>{
-              const eff=ruseEffects[idx];
-              const ri=cas.actives.findIndex(a=>a===eff);
-              if(ri>=0){cas.actives.splice(ri,1);addLog(`🧹 Ruse "${eff.nom}" retirée !`,'sm');}
-              G.phase='attack';render();resetChrono();
-            },
-            onCancel
-          });
-          return;
+          openPickModal({title:'🧹 Retirer une Ruse',sub:'Choisis la Ruse active sur ton héros à supprimer',color:'#f472b6',emptyMsg:'Aucune Ruse active sur ton héros.',effects:ruseEffects,
+            onPick:(idx)=>{const eff=ruseEffects[idx];const ri=cas.actives.findIndex(a=>a===eff);if(ri>=0){cas.actives.splice(ri,1);addLog(`🧹 Ruse "${eff.nom}" retirée !`,'sm');}G.phase='attack';render();resetChrono();},onCancel});return;
         } else {
-          if(ruseEffects.length>0){
-            const ri=cas.actives.findIndex(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
-            if(ri>=0){const nm=cas.actives[ri].nom;cas.actives.splice(ri,1);addLog(`🧹 Ruse "${nm}" retirée !`,'sm');}
-          } else { addLog('🧹 Aucune Ruse active à retirer','sm'); }
+          if(ruseEffects.length>0){const ri=cas.actives.findIndex(a=>a.at==='da'||a.at==='dd'||a.at==='dp');if(ri>=0){const nm=cas.actives[ri].nom;cas.actives.splice(ri,1);addLog(`🧹 Ruse "${nm}" retirée !`,'sm');}}
+          else{addLog('🧹 Aucune Ruse active à retirer','sm');}
         }
       }
       break;
@@ -1790,26 +1760,11 @@ function applySort(s,cas,cib,onCancel){
       {
         const arcEffects=cib.actives.filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
         if(cas===G.human){
-          openPickModal({
-            title:'🧲 Annuler une Arcane',
-            sub:"Choisis l'Arcane adverse à annuler (LOVE & PEACE non ciblable)",
-            color:'var(--blue)',
-            emptyMsg:'Aucune Arcane adverse active (hors LOVE & PEACE).',
-            effects:arcEffects,
-            onPick:(idx)=>{
-              const eff=arcEffects[idx];
-              const ai=cib.actives.findIndex(a=>a===eff);
-              if(ai>=0){cib.actives.splice(ai,1);addLog(`🧲 Arcane "${eff.nom}" annulée !`,'sp');}
-              G.phase='attack';render();resetChrono();
-            },
-            onCancel
-          });
-          return;
+          openPickModal({title:'🧲 Annuler une Arcane',sub:"Choisis l'Arcane adverse à annuler (LOVE & PEACE non ciblable)",color:'var(--blue)',emptyMsg:'Aucune Arcane adverse active (hors LOVE & PEACE).',effects:arcEffects,
+            onPick:(idx)=>{const eff=arcEffects[idx];const ai=cib.actives.findIndex(a=>a===eff);if(ai>=0){cib.actives.splice(ai,1);addLog(`🧲 Arcane "${eff.nom}" annulée !`,'sp');}G.phase='attack';render();resetChrono();},onCancel});return;
         } else {
-          if(arcEffects.length>0){
-            const ai=cib.actives.findIndex(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
-            if(ai>=0){const nm=cib.actives[ai].nom;cib.actives.splice(ai,1);addLog(`🧲 Arcane "${nm}" annulée !`,'sp');}
-          } else { addLog('🧲 Aucun Arcane adverse à annuler','sp'); }
+          if(arcEffects.length>0){const ai=cib.actives.findIndex(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);if(ai>=0){const nm=cib.actives[ai].nom;cib.actives.splice(ai,1);addLog(`🧲 Arcane "${nm}" annulée !`,'sp');}}
+          else{addLog('🧲 Aucun Arcane adverse à annuler','sp');}
         }
       }
       break;
@@ -1829,14 +1784,12 @@ function applySort(s,cas,cib,onCancel){
       cas.actives.push({nom:s.nom+' PRÉ',at:'bp',val:s.val2,turns:s.dur,su:s.survit});
       break;
     case'buff_hpjoueur':
-      // +HP joueur immédiat (carte 141)
       {const pk=cas===G.human?'human':'bot';
       G[pk].hp=Math.min(G[pk].hp+(s.val||4),G[pk].hpMax);
       updateHeart(cas===G.human?'h':'b', G[pk].hp, G[pk].hpMax);
       addLog(`💊 +${s.val||4} PV joueur !`,'sm');}
       break;
     case'debuff_hpjoueur':
-      // Adversaire perd des HP joueur (carte 143)
       {const eid=cib===G.human?'h':'b';const ck=cib===G.human?'human':'bot';
       G[ck].hp=Math.max(0,G[ck].hp-(s.val||3));
       updateHeart(eid, G[ck].hp, G[ck].hpMax);
@@ -1860,26 +1813,11 @@ function applySort(s,cas,cib,onCancel){
       {
         const anyEffects=cib.actives.filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp'||a.isLovePeace);
         if(cas===G.human){
-          openPickModal({
-            title:'🗑️ Annuler un effet adverse',
-            sub:"Choisis l'effet à supprimer (Arcane, Ruse ou LOVE & PEACE)",
-            color:'var(--pur)',
-            emptyMsg:'Aucun effet adverse actif à annuler.',
-            effects:anyEffects,
-            onPick:(idx)=>{
-              const eff=anyEffects[idx];
-              const ri=cib.actives.findIndex(a=>a===eff);
-              if(ri>=0){cib.actives.splice(ri,1);addLog(`🗑️ "${eff.nom}" annulé !`,'sp');}
-              G.phase='attack';render();resetChrono();
-            },
-            onCancel
-          });
-          return;
+          openPickModal({title:'🗑️ Annuler un effet adverse',sub:"Choisis l'effet à supprimer (Arcane, Ruse ou LOVE & PEACE)",color:'var(--pur)',emptyMsg:'Aucun effet adverse actif à annuler.',effects:anyEffects,
+            onPick:(idx)=>{const eff=anyEffects[idx];const ri=cib.actives.findIndex(a=>a===eff);if(ri>=0){cib.actives.splice(ri,1);addLog(`🗑️ "${eff.nom}" annulé !`,'sp');}G.phase='attack';render();resetChrono();},onCancel});return;
         } else {
-          if(anyEffects.length>0){
-            const ri=cib.actives.findIndex(a=>a===anyEffects[0]);
-            if(ri>=0){const nm=cib.actives[ri].nom;cib.actives.splice(ri,1);addLog(`🗑️ "${nm}" annulé !`,'sp');}
-          } else { addLog('🗑️ Aucun effet adverse à annuler','sp'); }
+          if(anyEffects.length>0){const ri=cib.actives.findIndex(a=>a===anyEffects[0]);if(ri>=0){const nm=cib.actives[ri].nom;cib.actives.splice(ri,1);addLog(`🗑️ "${nm}" annulé !`,'sp');}}
+          else{addLog('🗑️ Aucun effet adverse à annuler','sp');}
         }
       }
       break;
@@ -2544,24 +2482,16 @@ function humanPlayCard(idx){
     if(!G.bot.fighter)botChooseFighter();
     if(G.fp==='bot'&&G.turn===1){G.phase='bot';render();setTimeout(()=>botTurn(),1400);}
     else{G.phase='sort';render();}
-    resetChrono();
-    return;
+    resetChrono();return;
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
     if(G.human.noSpellThisTurn){addLog('🚫 Sorts bloqués ce tour !','sys','JOUEUR');return;}
     G.human.hand.splice(idx,1);G.human.sortJoue=true;
-    const onCancel=()=>{
-      G.human.hand.splice(idx,0,c);
-      G.human.sortJoue=false;
-      render();
-    };
+    const onCancel=()=>{G.human.hand.splice(idx,0,c);G.human.sortJoue=false;render();};
     applySort(c,G.human,G.bot,onCancel);
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
-    if(!document.getElementById('remove-choice-modal')){
-      G.phase='attack';render();
-      resetChrono();
-    }
+    if(!document.getElementById('remove-choice-modal')){G.phase='attack';render();resetChrono();}
   }
 }
 function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();resetChrono();}
@@ -3246,14 +3176,16 @@ function launchGame10v10(){
     return {hand, pioche: pioche.slice(3)};
   }
 
-  const cardsTemplate = _selected10.map(c=>({
-    ...c,
-    hpCur: c.ct==='fighter'?(c.hp||c.hpCur||10):(c.hpCur||0),
-    hpBase: c.ct==='fighter'?(c.hp||c.hpBase||10):(c.hpBase||0),
-  }));
+  // Chaque joueur reçoit sa propre copie fraîche des cartes (objets indépendants)
+  function freshCards(cards){
+    return cards.map(c=>({...c,
+      hpCur: c.ct==='fighter'?(c.hp||c.hpCur||10):(c.hpCur||0),
+      hpBase: c.ct==='fighter'?(c.hp||c.hpBase||10):(c.hpBase||0),
+    }));
+  }
 
-  const humanDeal = dealWithHero(cardsTemplate);
-  const botDeal = dealWithHero(cardsTemplate);
+  const humanDeal = dealWithHero(freshCards(_selected10));
+  const botDeal   = dealWithHero(freshCards(_selected10));
 
   G.human.hand=humanDeal.hand;
   G.human.pioche=humanDeal.pioche;
