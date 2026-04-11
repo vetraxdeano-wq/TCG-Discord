@@ -2452,7 +2452,10 @@ function renderActions(){
 function humanPlayCard(idx){
   const c=G.human.hand[idx];if(!c)return;
   if(c.ct==='fighter'&&G.phase==='choose_fighter'){
-    G.human.hand.splice(idx,1);G.human.fighter=c;
+    G.human.hand.splice(idx,1);
+    // Réinitialiser hpCur si corrompue (sécurité contre valeur négative ou NaN)
+    if(!c.hpCur||c.hpCur<=0)c.hpCur=c.hpBase||c.hp||10;
+    G.human.fighter=c;
     addLog(`▶ ${c.nom}`,'sys','JOUEUR');
     if(!G.bot.fighter)botChooseFighter();
     if(G.fp==='bot'&&G.turn===1){G.phase='bot';render();setTimeout(()=>botTurn(),1400);}
@@ -2525,7 +2528,11 @@ function endTurn(){
 }
 function draw(p){
   if(p.pioche.length){
-    const c=p.pioche.shift();p.hand.push(c);
+    const raw=p.pioche.shift();
+    // Copie fraîche pour éviter de muter la pioche (important pour hpCur)
+    const c={...raw};
+    if(c.ct==='fighter'&&(!c.hpCur||c.hpCur<=0))c.hpCur=c.hpBase||c.hp||10;
+    p.hand.push(c);
     if(p===G.human)G._newCardIdx=p.hand.length-1;
   }
 }
@@ -2574,11 +2581,11 @@ function endGame(w){
     rewardEl.innerHTML=`
       <div style="display:inline-flex;align-items:center;gap:8px;background:var(--s3);border:1px solid var(--bdr2);border-radius:100px;padding:6px 16px;">
         <span style="font-size:15px;">🪙</span>
-        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--gold);">+\${_coins}</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--gold);">+${_coins}</span>
         <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">coins</span>
         <span style="width:1px;height:14px;background:var(--bdr3);display:inline-block;margin:0 2px;"></span>
         <span style="font-size:15px;">⭐</span>
-        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--pur);">+\${_xp}</span>
+        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--pur);">+${_xp}</span>
         <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">xp</span>
       </div>`;
   }
