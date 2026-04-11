@@ -1685,7 +1685,7 @@ function applySort(s,cas,cib,onDone){
           addLog('🧹 Aucune Ruse active à retirer','sm');
           // pas de modale, continuer normalement (onDone appelé après le switch)
         } else if(ruseItems.length === 1){
-          cas.actives.splice(cas.actives.findIndex(a=>a===ruseItems[0]),1);
+          cas.actives.splice(ruseItems[0]._idx,1);
           addLog(`🧹 Ruse "${ruseItems[0].nom}" retirée`,'sm');
           render();
           // pas de modale, continuer normalement
@@ -1697,7 +1697,7 @@ function applySort(s,cas,cib,onDone){
             ruseItems.map(a=>({...a, isArcane:false})),
             (pickedIdx) => {
               const target = ruseItems[pickedIdx];
-              const realIdx = cas.actives.findIndex(a=>a===target);
+              const realIdx = target._idx;
               if(realIdx >= 0){ cas.actives.splice(realIdx,1); addLog(`🧹 Ruse "${target.nom}" retirée`,'sm'); }
               render();
               if(onDone) onDone(); // continuer le jeu APRÈS le choix
@@ -1715,7 +1715,7 @@ function applySort(s,cas,cib,onDone){
         if(arcItems.length === 0){
           addLog('🧲 Aucune Arcane adverse à annuler','sp');
         } else if(arcItems.length === 1){
-          cib.actives.splice(cib.actives.findIndex(a=>a===arcItems[0]),1);
+          cib.actives.splice(arcItems[0]._idx,1);
           addLog(`🧲 Arcane "${arcItems[0].nom}" annulée`,'sp');
           render();
         } else {
@@ -1726,7 +1726,7 @@ function applySort(s,cas,cib,onDone){
             arcItems.map(a=>({...a, isArcane:true})),
             (pickedIdx) => {
               const target = arcItems[pickedIdx];
-              const realIdx = cib.actives.findIndex(a=>a===target);
+              const realIdx = target._idx;
               if(realIdx >= 0){ cib.actives.splice(realIdx,1); addLog(`🧲 Arcane "${target.nom}" annulée`,'sp'); }
               render();
               if(onDone) onDone(); // continuer le jeu APRÈS le choix
@@ -1765,7 +1765,7 @@ function applySort(s,cas,cib,onDone){
         if(anyItems.length === 0){
           addLog('🗑️ Aucun effet adverse à annuler','sp');
         } else if(anyItems.length === 1){
-          cib.actives.splice(cib.actives.findIndex(a=>a===anyItems[0]),1);
+          cib.actives.splice(anyItems[0]._idx,1);
           addLog(`🗑️ "${anyItems[0].nom}" annulé`,'sp'); render();
         } else {
           stopChrono();
@@ -1775,7 +1775,7 @@ function applySort(s,cas,cib,onDone){
             anyItems.map(a=>({...a, isArcane:a.at==='ba'||a.at==='bd'||a.at==='bp'})),
             (pickedIdx) => {
               const target=anyItems[pickedIdx];
-              const realIdx=cib.actives.findIndex(a=>a===target);
+              const realIdx=target._idx;
               if(realIdx>=0){ cib.actives.splice(realIdx,1); addLog(`🗑️ "${target.nom}" annulé`,'sp'); }
               render(); if(onDone) onDone();
             }
