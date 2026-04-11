@@ -2206,29 +2206,19 @@ function renderHand(){
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
       if(document.body.classList.contains('mobile')){
-        // Maintien long (>220ms) = scroll, tap court = ouvre la modale
-        const _touchStart=Date.now();
-        let _longPress=false;
+        const _touchStartX=e.touches[0].clientX;
+        const _touchStartY=e.touches[0].clientY;
         let _moved=false;
-        const _startX=e.touches[0].clientX;
-        const _startY=e.touches[0].clientY;
-        function _onTouchMove(ev){
-          const dx=Math.abs(ev.touches[0].clientX-_startX);
-          const dy=Math.abs(ev.touches[0].clientY-_startY);
-          if(dx>6||dy>6) _moved=true;
+        function _onMove(ev){
+          if(Math.abs(ev.touches[0].clientX-_touchStartX)>6||Math.abs(ev.touches[0].clientY-_touchStartY)>6) _moved=true;
         }
-        function _onTouchEnd(){
-          d.removeEventListener('touchmove',_onTouchMove);
-          d.removeEventListener('touchend',_onTouchEnd);
-          if(!_moved && !_longPress){
-            // Tap court → ouvrir la modale
-            showCardModal(c, i, dis, ttHTML, rarCol);
-          }
+        function _onEnd(){
+          d.removeEventListener('touchmove',_onMove);
+          d.removeEventListener('touchend',_onEnd);
+          if(!_moved) showCardModal(c, i, dis, ttHTML, rarCol);
         }
-        d.addEventListener('touchmove',_onTouchMove,{passive:true});
-        d.addEventListener('touchend',_onTouchEnd,{passive:true});
-        // Long press (220ms sans mouvement) → on laisse le scroll se faire naturellement
-        setTimeout(()=>{ if(!_moved) _longPress=true; },220);
+        d.addEventListener('touchmove',_onMove,{passive:true});
+        d.addEventListener('touchend',_onEnd,{passive:true});
       } else {
         if(TT.style.display==='flex'&&TT._srcCard===d){hideTT();TT._srcCard=null;}
         else{
@@ -2372,20 +2362,22 @@ function endGame(w){
     ?`Tu remportes la victoire avec ${G.human.hp} PV restants !`
     :`Le bot l'emporte avec ${G.bot.hp} PV restants.`;
 
-  const dm=G.stats.dmgByCard;
-  let mvpNom='—',mvpVal=0;
-  Object.entries(dm).forEach(([k,v])=>{if(v>mvpVal){mvpVal=v;mvpNom=k;}});
   const _isWin=w==='human';
   const _coins=_isWin?150:75;
   const _xp=_isWin?25:10;
+  const rewardEl=document.getElementById('ov-reward');
+  if(rewardEl){
+    rewardEl.innerHTML=`<span style="color:var(--gold);font-size:22px;font-weight:800;font-family:'DM Mono',monospace;">🪙 +${_coins} coins</span><span style="color:var(--pur);font-size:22px;font-weight:800;font-family:'DM Mono',monospace;margin-left:18px;">⭐ +${_xp} XP</span>`;
+  }
+  const dm=G.stats.dmgByCard;
+  let mvpNom='—',mvpVal=0;
+  Object.entries(dm).forEach(([k,v])=>{if(v>mvpVal){mvpVal=v;mvpNom=k;}});
   const stats=document.getElementById('ov-stats');
   stats.innerHTML=`
     <div class="ov-stat"><span class="ov-stat-lbl">⏱ Tours joués</span><span class="ov-stat-val gold">${G.turn}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">⚔ Dégâts infligés (toi)</span><span class="ov-stat-val">${G.stats.totalDmgH}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">💀 Dégâts reçus</span><span class="ov-stat-val">${G.stats.totalDmgB}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">🏆 Carte MVP</span><span class="ov-stat-val mvp">${mvpNom} (${mvpVal} dmg)</span></div>
-    <div class="ov-stat" style="border-top:1px solid var(--bdr2);margin-top:4px;padding-top:6px"><span class="ov-stat-lbl">🪙 Coins gagnés</span><span class="ov-stat-val" style="color:var(--gold)">+${_coins}</span></div>
-    <div class="ov-stat"><span class="ov-stat-lbl">⭐ XP gagnée</span><span class="ov-stat-val" style="color:var(--pur)">+${_xp} XP</span></div>
   `;
   document.getElementById('ov-end').classList.add('active');
 }
@@ -2608,7 +2600,6 @@ function startGame(){
   _autoBattle=false;document.getElementById('auto-btn').classList.remove('on');
   initGame();
   // Utiliser le deck du joueur pour le human, bot aléatoire sans mythique
-  // Construire les mains de départ, remélanger jusqu'à avoir au moins 1 héro
   let hd, bd;
   let hdTries=0;
   do { hd=buildHumanPioche(); hdTries++; } while(!hd.slice(0,5).some(c=>c.ct==='fighter') && hdTries<20);
@@ -2686,7 +2677,6 @@ function spellToEffet(name_spell_1, name_spell_2, val1, val2){
   if(s1==='spell_noatq') return {effet:'skip_atq',val:0};
   if(s1==='spell_1arcane-') return {effet:'remove_arcane',val:0};
   if(s1==='spell_nospell') return {effet:'no_spell',val:0};
-  // Fallback : si le nom de spell contient "hp", on donne un buff_hp ; sinon buff_atq
   if(s1.toLowerCase().includes('hp')) return {effet:'buff_hp',val:v1||4};
   return {effet:'buff_atq',val:v1||2}; // fallback
 }
