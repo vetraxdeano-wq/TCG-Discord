@@ -4930,12 +4930,29 @@ async function loadLeaderboard(period){
   if(!db){ setState({leaderboardLoading:false,leaderboardData:[]}); return; }
 
   try {
-    // Charger TOUS les joueurs — sans filtre en base car updated_at/wins peuvent être null
+    // Charger TOUS les joueurs
     const { data, error } = await db.from('players')
       .select('id, discord_username, avatar_url, wins, losses, coins, updated_at, created_at')
       .limit(500);
 
-    if(error){ setState({leaderboardLoading:false, leaderboardData:[]}); return; }
+    console.log('[Leaderboard] data:', data?.length, 'error:', error?.message);
+
+    // Si erreur RLS ou autre, afficher au moins le joueur connecté
+    if(error || !data || data.length === 0){
+      const myId = state.currentUser?.id;
+      if(myId){
+        const { data: me } = await db.from('players')
+          .select('id, discord_username, avatar_url, wins, losses, coins, created_at')
+          .eq('id', myId).single();
+        if(me){
+          const row = {...me, wins:me.wins??0, losses:me.losses??0, coins:me.coins??0};
+          setState({leaderboardLoading:false, leaderboardData:[row], playerRank:1});
+          return;
+        }
+      }
+      setState({leaderboardLoading:false, leaderboardData:[]});
+      return;
+    }
 
     // Normaliser : wins/losses null → 0
     const all = (data||[]).map(p => ({
