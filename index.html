@@ -851,7 +851,7 @@ function renderGame(th){
   <div style="display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background:transparent;">
 
     <!-- ═══ HEADER ═══ -->
-    <div style="display:flex;align-items:center;padding:${isMobile?'5px 8px':'8px 14px'};background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:${isMobile?'4px':'10px'};position:relative;z-index:10;overflow:hidden;">
+    <div style="display:flex;align-items:center;padding:${isMobile?'5px 8px':'8px 14px'};${_isIos?'padding-top:max(env(safe-area-inset-top,44px),' + (isMobile?'5px':'8px') + ');':''};background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;gap:${isMobile?'4px':'10px'};position:relative;z-index:10;overflow:hidden;box-sizing:border-box;">
 
       <!-- Logo -->
       <div style="display:flex;align-items:center;gap:${isMobile?'5px':'9px'};flex-shrink:0;">
