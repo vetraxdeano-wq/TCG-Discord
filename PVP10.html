@@ -1122,6 +1122,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .sd-mini{width:38px;height:54px;border-radius:5px;border:1.5px solid var(--gold);overflow:hidden;flex-shrink:0;position:relative;}
 .sd-mini img{width:100%;height:100%;object-fit:cover;}
 .sd-mini-ph{width:100%;height:100%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:16px;}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
 <script>
 /* Met à jour --dvh à chaque resize pour iOS/Android (barre URL rétractable) */
@@ -2885,9 +2886,10 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let _db = null;
 let _currentUser = null;
 let _allCardsRaw = []; // toutes les cartes brutes Supabase
-let _playerCollection = {}; // { card_id: quantity } — collection du joueur
+let _playerCollection = {}; // { card_id_string: quantity } — collection du joueur
 let _selected10 = []; // cartes game-format sélectionnées pour le mode 10v10
 let _sdFilter = 'all'; // filtre actuel
+let _dataReady = false; // true une fois initSupabase() terminé avec succès
 
 // ── Mapping rareté ──────────────────────────────────────────────────
 const RARITY_MAP = { common:'C', uncommon:'PC', rare:'R', mythic:'M' };
@@ -2965,10 +2967,10 @@ function supaToGame(c){
 // Règles : max 2 exemplaires par carte, max 2 mythiques au total, total >= 30
 function canBuildStandardDeck(collection, allCardsRaw){
   const cardMap={};
-  allCardsRaw.forEach(c=>{cardMap[c.id]=c;});
+  allCardsRaw.forEach(c=>{ cardMap[String(c.id)]=c; });
   let total=0, mythicCount=0;
   for(const [cid, qty] of Object.entries(collection)){
-    const raw=cardMap[cid];
+    const raw=cardMap[String(cid)];
     if(!raw) continue;
     const effective=Math.min(qty,2); // max 2 ex par carte
     const rarete=RARITY_MAP[raw.rarity]||'C';
@@ -3020,6 +3022,12 @@ function renderDeckGrid(){
   if(!grid) return;
   grid.innerHTML='';
 
+  // Données pas encore chargées (init Supabase en cours) → afficher un loader
+  if(!_dataReady){
+    grid.innerHTML=`<div style="color:var(--dim);font-size:12px;text-align:center;width:100%;padding:20px;display:flex;flex-direction:column;align-items:center;gap:8px;"><div style="font-size:22px;animation:spin 1s linear infinite;display:inline-block;">⟳</div>Chargement de ta collection…</div>`;
+    return;
+  }
+
   // Compter combien de fois chaque carte est dans _selected10
   const selCount={};
   _selected10.forEach(c=>{const k=String(c.id);selCount[k]=(selCount[k]||0)+1;});
@@ -3028,7 +3036,8 @@ function renderDeckGrid(){
   const available=[];
   for(const [cid, qty] of Object.entries(_playerCollection)){
     if(qty<1) continue;
-    const raw=_allCardsRaw.find(c=>c.id==cid);
+    const cidStr = String(cid);
+    const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
     if(!raw) continue;
     const g=supaToGame(raw);
     if(_sdFilter==='fighter' && g.ct!=='fighter') continue;
@@ -3109,21 +3118,20 @@ function renderDeckGrid(){
 
 // ── Ajuster la quantité d'une carte dans la sélection ────────────────
 function cycleCard(cardId){
-  // Recalculer au moment du clic (pas de stale closure)
-  const raw=_allCardsRaw.find(c=>c.id==cardId);
+  const cidStr = String(cardId);
+  const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
   if(!raw) return;
   const g=supaToGame(raw);
-  const maxCopies=Math.min(_playerCollection[cardId]||0,2);
-  const used=_selected10.filter(c=>c.id==cardId).length;
+  const maxCopies=Math.min(_playerCollection[cidStr]||0,2);
+  const used=_selected10.filter(c=>String(c.id)===cidStr).length;
   const total=_selected10.length;
   if(used===0){
-    if(total>=10) return; // deck plein
-    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10}); // 0→1
+    if(total>=10) return;
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
   } else if(used<maxCopies && total<10){
-    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10}); // 1→2
+    _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
   } else {
-    // 2→1 ou 1→0 : retirer une copie
-    const idx=_selected10.map(c=>String(c.id)).lastIndexOf(String(cardId));
+    const idx=_selected10.map(c=>String(c.id)).lastIndexOf(cidStr);
     if(idx>=0) _selected10.splice(idx,1);
   }
   renderDeckGrid();
@@ -3131,18 +3139,19 @@ function cycleCard(cardId){
 
 function adjustCard(cardId, delta, event){
   if(event) event.stopPropagation();
-  const raw=_allCardsRaw.find(c=>c.id==cardId);
+  const cidStr = String(cardId);
+  const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
   if(!raw) return;
   const g=supaToGame(raw);
-  const maxCopies=Math.min(_playerCollection[cardId]||0,2);
-  const used=_selected10.filter(c=>String(c.id)===String(cardId)).length;
+  const maxCopies=Math.min(_playerCollection[cidStr]||0,2);
+  const used=_selected10.filter(c=>String(c.id)===cidStr).length;
 
   if(delta>0){
     if(used>=maxCopies) return;
     if(_selected10.length>=10) return;
     _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
   } else {
-    const idx=_selected10.map(c=>String(c.id)).lastIndexOf(String(cardId));
+    const idx=_selected10.map(c=>String(c.id)).lastIndexOf(cidStr);
     if(idx>=0) _selected10.splice(idx,1);
   }
   renderDeckGrid();
@@ -3150,12 +3159,13 @@ function adjustCard(cardId, delta, event){
 
 // Alias pour compatibilité avec autoPick10
 function toggleCardSelection(g){
-  const used=_selected10.filter(c=>c.id===g.id).length;
-  const max=Math.min(_playerCollection[g.id]||0,2);
+  const cidStr = String(g.id);
+  const used=_selected10.filter(c=>String(c.id)===cidStr).length;
+  const max=Math.min(_playerCollection[cidStr]||0,2);
   if(used<max && _selected10.length<10){
     _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
   } else if(used>0){
-    const idx=_selected10.map(c=>c.id).lastIndexOf(g.id);
+    const idx=_selected10.map(c=>String(c.id)).lastIndexOf(cidStr);
     if(idx>=0) _selected10.splice(idx,1);
   }
   renderDeckGrid();
@@ -3208,7 +3218,8 @@ function autoPick10(){
   const available = [];
   for(const [cid, qty] of Object.entries(_playerCollection)){
     if(qty < 1) continue;
-    const raw = _allCardsRaw.find(c => c.id == cid);
+    const cidStr = String(cid);
+    const raw = _allCardsRaw.find(c => String(c.id)===cidStr);
     if(!raw) continue;
     available.push(supaToGame(raw));
   }
@@ -3361,12 +3372,12 @@ async function initSupabase(){
   if(colErr){
     // Pas de table collection → fallback : toutes les cartes disponibles
     console.warn('[10v10] Table collection introuvable, fallback toutes cartes');
-    allCards.forEach(c=>{_playerCollection[c.id]=2;});
+    allCards.forEach(c=>{ _playerCollection[String(c.id)]=2; });
   } else if(!colData||colData.length===0){
     showFatalError('Ta collection est vide.<br>Obtiens des cartes dans le menu principal avant de jouer.');
     return;
   } else {
-    colData.forEach(e=>{_playerCollection[e.card_id]=e.quantity;});
+    colData.forEach(e=>{ _playerCollection[String(e.card_id)]=e.quantity; });
   }
 
   // ── Vérifier l'accès au mode 10v10 ──
@@ -3386,6 +3397,9 @@ async function initSupabase(){
   if(pjNames[0]) pjNames[0].textContent=uname;
 
   console.log(`[10v10] Prêt — Collection: ${Object.keys(_playerCollection).length} cartes distinctes`);
+
+  // Données prêtes — autoriser le rendu de la grille
+  _dataReady = true;
 
   // ── Afficher la grille de sélection ──
   renderDeckGrid();
