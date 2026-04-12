@@ -264,6 +264,20 @@ button{font-family:inherit;cursor:pointer;}
   }
 }
 
+/* Safe-area universelle iOS pour tous les overlays plein écran */
+@supports (padding-top: env(safe-area-inset-top)) {
+  #pwa-install-btn {
+    top: max(env(safe-area-inset-top, 12px), 12px) !important;
+  }
+  /* Tous les overlays fixes qui ont un bouton ✕ en haut */
+  #card-modal-bg > div:first-child,
+  #pioche-overlay > div:nth-child(2),
+  #deckbuilder-bg > div:first-child,
+  #trade-bg > div:first-child {
+    padding-top: max(env(safe-area-inset-top, 12px), 12px) !important;
+  }
+}
+
 /* Comics ink borders - applied globally to all panels/buttons */
 .cmx-panel{border:3px solid #000 !important;box-shadow:4px 4px 0 #000 !important;border-radius:0 !important;}
 .cmx-btn{border:2.5px solid #000 !important;box-shadow:2px 2px 0 #000 !important;border-radius:0 !important;}
@@ -1137,8 +1151,8 @@ function renderDeckList(th){
   return `
   <div id="deckbuilder-bg" style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
     <!-- Header -->
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
-      <button id="db-close" style="width:32px;height:32px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;padding-top:max(env(safe-area-inset-top,12px),12px);background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="db-close" style="width:44px;height:44px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
       <div style="flex:1;">
         <div style="font-family:'Bangers',cursive;font-size:14px;font-weight:700;color:${th.text};letter-spacing:1px;">Deck Builder</div>
         <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${decks.length} deck${decks.length>1?'s':''} · max 30 cartes</div>
@@ -1236,8 +1250,8 @@ function renderDeckEdit(th){
 
   return `
   <div id="deckbuilder-bg" style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
-    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px 12px;background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
-      <button id="db-back" style="width:32px;height:32px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0;">←</button>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px 12px;padding-top:max(env(safe-area-inset-top,12px),12px);background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="db-back" style="width:44px;height:44px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;flex-shrink:0;">←</button>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:6px;">
           <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.5px;">${deck.name}</div>
@@ -1574,9 +1588,9 @@ function renderTradeModal(th){
   return `
   <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);display:flex;flex-direction:column;align-items:center;">
     <!-- Header fixe -->
-    <div style="width:100%;max-width:680px;flex-shrink:0;padding:${_PAD}px ${_PAD}px 8px;display:flex;flex-direction:column;gap:8px;">
+    <div style="width:100%;max-width:680px;flex-shrink:0;padding:${_PAD}px ${_PAD}px 8px;padding-top:max(env(safe-area-inset-top,${_PAD}px),${_PAD}px);display:flex;flex-direction:column;gap:8px;">
       <div style="display:flex;align-items:center;gap:10px;">
-        <button id="trade-close" style="width:32px;height:32px;background:${th.surface};border:2px solid #000;color:${th.textMuted};font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
+        <button id="trade-close" style="width:44px;height:44px;background:${th.surface};border:2px solid #000;color:${th.textMuted};font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:${th.text};letter-spacing:.5px;">Proposer un échange</div>
           <div style="font-size:9px;color:${th.textMuted};">avec ${friendName} · même rareté · 1 contre 1</div>
@@ -2098,8 +2112,8 @@ function renderCardDetailModal(card,th){
     <div id="card-modal-bg" style="position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;background:rgba(0,0,0,0.94);backdrop-filter:blur(14px);">
 
       <!-- Barre top : close -->
-      <div style="display:flex;justify-content:flex-end;padding:10px 12px 0;flex-shrink:0;">
-        <button id="card-modal-close" style="width:32px;height:32px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
+      <div style="display:flex;justify-content:flex-end;padding:10px 12px 0;padding-top:max(env(safe-area-inset-top,10px),10px);flex-shrink:0;">
+        <button id="card-modal-close" style="width:44px;height:44px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
       </div>
 
       <!-- Image — grande, centrée -->
@@ -2661,15 +2675,15 @@ function renderPiocheMechanic(th){
   let CW=Math.floor((availW-GAP*(COLS-1))/COLS);
   const CH=Math.round(CW*1.43);
   return `
-  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(4,8,18,.97);backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:${PAD}px;overflow:hidden;">
+  <div id="pioche-overlay" style="position:absolute;inset:0;z-index:200;background:rgba(4,8,18,.97);backdrop-filter:blur(12px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:${PAD}px;padding-top:max(env(safe-area-inset-top,${PAD}px),${PAD}px);overflow:hidden;">
     <!-- Barre accent violette -->
     <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#a78bfa,#818cf8,#6366f1);flex-shrink:0;z-index:1;"></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:680px;flex-shrink:0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:680px;flex-shrink:0;padding-top:max(env(safe-area-inset-top,0px),0px);">
       <div style="display:flex;align-items:center;gap:8px;">
         <div style="font-family:'Bangers',cursive;font-size:13px;font-weight:700;color:#e8f4ff;letter-spacing:2px;text-transform:uppercase;">Pioche Classique</div>
         <span style="font-size:7px;font-weight:900;color:#a78bfa;background:#a78bfa14;border:1px solid #a78bfa35;padding:2px 7px;letter-spacing:.6px;">1× PAR JOUR</span>
       </div>
-      <button id="pioche-close" style="width:32px;height:32px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#5e7d9a;display:flex;align-items:center;justify-content:center;cursor:pointer;">${SVG.x}</button>
+      <button id="pioche-close" style="width:44px;height:44px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#5e7d9a;display:flex;align-items:center;justify-content:center;cursor:pointer;">${SVG.x}</button>
     </div>
     <div style="font-size:10px;color:#5e7d9a;text-align:center;letter-spacing:1px;flex-shrink:0;">${state.piocheChosen===null?"✦ Choisissez une carte face cachée ✦":"Retournement en cours…"}</div>
     ${!state.piocheResult?`
@@ -3732,31 +3746,13 @@ function bindGame(){
           setState({ pendingLevelRewards: remaining, showNotif: false });
         }
       } else {
-        // Booster : ouvrir inline avec animation (comme le cadeau de bienvenue)
+        // Booster : stocker le flag bypass puis rediriger
         setState({ showNotif: false, pendingLevelRewards: remaining });
-
-        // Déterminer quel booster ouvrir (1=Normal, 2=Prestige, 3=Légendaire)
-        const boosterIndex = rewardType === 'booster_legendaire' ? 2 : 1;
-        const boosterDef = BOOSTERS[boosterIndex];
-
-        // Stocker le flag bypass pour permettre l'ouverture gratuite
-        try { window.setBoosterFree && window.setBoosterFree(); } catch(e) {}
-
-        // Petit délai pour laisser la notif se fermer, puis lancer l'animation d'ouverture
-        setTimeout(() => {
-          // Naviguer vers l'onglet Boosters
-          setState({ tab: 2, boosterSelectedIdx: boosterIndex });
-          // Puis déclencher l'ouverture
-          setTimeout(() => {
-            if (typeof openBoosterAnimation === 'function') {
-              openBoosterAnimation(boosterDef.id);
-            } else {
-              // Fallback : redirection
-              if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
-              else window.location.href = 'booster2.html';
-            }
-          }, 350);
-        }, 250);
+        try { window.setBoosterFree(); } catch(e) {}
+        setTimeout(()=>{
+          if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
+          else window.location.href = 'booster2.html';
+        }, 200);
       }
     });
   });
@@ -5277,17 +5273,15 @@ async function grantLevelReward(userId, level) {
     showRewardToast(`Niveau ${level} atteint !`, reward.amount, '🪙');
   } else {
     // Booster prestige ou légendaire — notif avec bouton Réclamer
-    let notifId = null;
     try {
-      const { data: notifData } = await db.from('notifications').insert({
+      await db.from('notifications').insert({
         user_id: userId, type: 'level_reward_booster', from_id: userId,
         text: `Niveau ${level} atteint ! Récompense : ${reward.label}`,
         read: false,
         meta: JSON.stringify({ rewardType: reward.type, level }),
-      }).select('id').single();
-      notifId = notifData?.id || null;
+      }).then(()=>{}).catch(()=>{});
     } catch(e) {}
-    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { notifId, level, ...reward }] });
+    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { level, ...reward }] });
     showRewardToast(`Niveau ${level} atteint !`, 0, reward.type === 'booster_legendaire' ? '⚡' : '📦');
   }
 }
@@ -5380,12 +5374,10 @@ function showXpLevelUpToast(newLevel, reward) {
     const { level: currentLevel } = computeLevel(xp);
 
     if (currentLevel > storedLevel) {
-      // Level up détecté — afficher popup pour chaque niveau ET accorder les récompenses
+      // Level up détecté — afficher popup pour chaque niveau
       for (let l = storedLevel + 1; l <= currentLevel; l++) {
         const reward = typeof getLevelReward === 'function' ? getLevelReward(l) : null;
         setTimeout(() => showXpLevelUpToast(l, reward), (l - storedLevel - 1) * 4000);
-        // Accorder la récompense (crée la notif DB + l'ajoute au pending)
-        await grantLevelReward(userId, l);
       }
       setState({ playerXp: xp, playerLevel: currentLevel });
     }
@@ -6046,32 +6038,17 @@ async function subscribeNotifications() {
   const msgNotifs = allMsgNotifs.filter(n => !activeConv || n.from_id !== activeConv);
   setState({ msgNotifCount: msgNotifs.length, pendingMsgNotifs: msgNotifs });
 
-  // Charger TOUTES les récompenses de niveau non réclamées (coins + boosters) — rétroactif
+  // Charger les récompenses de niveau booster non réclamées
   const { data: lvlBoosterNotifs } = await db.from('notifications')
     .select('id, text, meta, created_at')
     .eq('user_id', myId).eq('type', 'level_reward_booster').eq('read', false);
-
-  const { data: lvlCoinsNotifs } = await db.from('notifications')
-    .select('id, text, meta, created_at')
-    .eq('user_id', myId).eq('type', 'level_reward').eq('read', false);
-
-  const pendingBoosterRewards = (lvlBoosterNotifs || []).map(n => {
-    let meta = {};
-    try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
-    return { notifId: n.id, level: meta.level, type: meta.rewardType || 'booster_prestige', label: n.text };
-  });
-
-  const pendingCoinsRewards = (lvlCoinsNotifs || []).map(n => {
-    let meta = {};
-    try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
-    return { notifId: n.id, level: meta.level || 0, type: 'coins', amount: meta.amount || 300, label: n.text };
-  });
-
-  const allPendingRewards = [...pendingBoosterRewards, ...pendingCoinsRewards]
-    .sort((a, b) => (a.level || 0) - (b.level || 0));
-
-  if (allPendingRewards.length > 0) {
-    setState({ pendingLevelRewards: allPendingRewards });
+  if (lvlBoosterNotifs && lvlBoosterNotifs.length > 0) {
+    const pendingRewards = lvlBoosterNotifs.map(n => {
+      let meta = {};
+      try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+      return { notifId: n.id, level: meta.level, type: meta.rewardType || 'booster_prestige', label: n.text };
+    });
+    setState({ pendingLevelRewards: pendingRewards });
   }
 
   // Realtime : écouter les nouvelles notifications
@@ -6127,24 +6104,6 @@ async function subscribeNotifications() {
       }
       if (n.type === 'combat_declined') {
         showToast('Ton défi a été refusé.', '✗');
-        return;
-      }
-      if (n.type === 'level_reward' || n.type === 'level_reward_booster') {
-        // Récompense de niveau reçue en temps réel (depuis un autre onglet ou une session externe)
-        let meta = {};
-        try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
-        const reward = {
-          notifId: n.id,
-          level: meta.level || 0,
-          type: meta.rewardType || (n.type === 'level_reward' ? 'coins' : 'booster_prestige'),
-          amount: meta.amount || 300,
-          label: n.text,
-        };
-        const prev = state.pendingLevelRewards || [];
-        // Éviter les doublons
-        if (!prev.some(r => r.notifId === n.id)) {
-          setState({ pendingLevelRewards: [...prev, reward] });
-        }
         return;
       }
       const prev = state.pendingMsgNotifs || [];
@@ -7090,8 +7049,8 @@ function openCard3DViewer(card) {
       </div>
     </div>
     <div style="margin-top:18px;font-family:'Bangers',cursive;font-size:13px;letter-spacing:2px;color:rgba(255,255,255,.35);">MAINTENIR APPUYÉ · BOUGER POUR PIVOTER</div>
-    <div style="position:absolute;top:16px;right:16px;">
-      <button id="c3d-close" style="width:36px;height:36px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    <div style="position:absolute;top:max(env(safe-area-inset-top,16px),16px);right:16px;">
+      <button id="c3d-close" style="width:44px;height:44px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
   `;
 
@@ -7205,7 +7164,12 @@ function openCard3DViewer(card) {
   if(document.getElementById('card3d-styles')) return;
   const s = document.createElement('style');
   s.id = 'card3d-styles';
-  s.textContent = `@keyframes fadeOut{from{opacity:1}to{opacity:0}}`;
+  s.textContent = `
+    @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+    #card-3d-viewer > div:last-child {
+      top: max(env(safe-area-inset-top, 16px), 16px) !important;
+    }
+  `;
   document.head.appendChild(s);
 })();
 </script>
