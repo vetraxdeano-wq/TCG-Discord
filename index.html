@@ -3715,59 +3715,50 @@ function bindGame(){
   // Réclamer booster récompense niveau (notif)
   document.querySelectorAll('.notif-claim-booster').forEach(btn=>{
     btn.addEventListener('click', async () => {
-      const notifId = btn.dataset.notifid;
+      const notifId = btn.dataset.notifid || '';  // peut être string vide
       const rewardType = btn.dataset.rewardtype;
       const amount = parseInt(btn.dataset.amount) || 0;
       const level = parseInt(btn.dataset.level) || 0;
       const db = window.db;
       const myId = state.currentUser?.id;
 
-      // Désactiver le bouton pour éviter les double-clics
+      // Désactiver le bouton immédiatement (anti double-clic)
       btn.disabled = true;
       btn.textContent = '…';
 
-      // Marquer la notif comme lue en DB
-      if(notifId && db) {
-        await db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
+      // ── Retirer du state par level (fiable même si notifId est vide) ──
+      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+
+      // ── Marquer toutes les notifs de ce niveau comme lues en DB ──
+      if(db && myId && level) {
+        try {
+          const { data: lvlNotifs } = await db.from('notifications')
+            .select('id, meta')
+            .eq('user_id', myId)
+            .in('type', ['level_reward', 'level_reward_booster'])
+            .eq('read', false);
+          const toMark = (lvlNotifs||[]).filter(n => {
+            try { return JSON.parse(n.meta||'{}').level === level; } catch(e){ return false; }
+          });
+          for(const n of toMark) {
+            await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
+          }
+        } catch(e) {}
       }
 
-      // Retirer du pending state
-      const remaining = (state.pendingLevelRewards||[]).filter(r=>r.notifId!==notifId);
-
       if(rewardType === 'coins') {
-        // Récompense coins : créditer directement
         if(myId && db && amount > 0) {
           const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
           const current = playerData?.coins ?? 0;
           await db.from('players').update({ coins: current + amount }).eq('id', myId);
-          // Sécurité : si pas de notifId (notif créée sans id), chercher par level et marquer lue
-          if(!notifId && level && db) {
-            const { data: lvlNotifs } = await db.from('notifications')
-              .select('id, meta').eq('user_id', myId).in('type', ['level_reward', 'level_reward_booster']).eq('read', false);
-            const match = (lvlNotifs||[]).find(n => { try { return JSON.parse(n.meta||'{}').level === level; } catch(e){return false;} });
-            if(match) await db.from('notifications').update({ read: true }).eq('id', match.id).catch(()=>{});
-          }
           setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
           showRewardToast(`Niveau ${level} — Récompense reçue !`, amount, '🪙');
         } else {
           setState({ pendingLevelRewards: remaining, showNotif: false });
         }
       } else {
-        // Booster : stocker le flag bypass + flag du niveau pour marquer réclamé, puis rediriger
         setState({ showNotif: false, pendingLevelRewards: remaining });
         try { window.setBoosterFree(); } catch(e) {}
-        // Marquer la notif comme lue (par id ou par recherche niveau)
-        if(db && myId) {
-          if(notifId) {
-            db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
-          } else if(level) {
-            db.from('notifications').select('id, meta').eq('user_id', myId).in('type', ['level_reward', 'level_reward_booster']).eq('read', false)
-              .then(({ data: lvlNotifs }) => {
-                const match = (lvlNotifs||[]).find(n => { try { return JSON.parse(n.meta||'{}').level === level; } catch(e){return false;} });
-                if(match) db.from('notifications').update({ read: true }).eq('id', match.id).catch(()=>{});
-              });
-          }
-        }
         setTimeout(()=>{
           if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
           else window.location.href = 'booster2.html';
@@ -5463,8 +5454,8 @@ async function loadPlayerXp(userId) {
     (allLvlNotifs || []).forEach(n => {
       let meta = {};
       try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
-      const lvl = meta.level;
-      if (lvl) levelsWithNotif.add(lvl);
+      const lvl = typeof meta.level === 'number' ? meta.level : parseInt(meta.level);
+      if (lvl && !isNaN(lvl)) levelsWithNotif.add(lvl);
 
       // Si non lue → à afficher dans les notifs
       if (!n.read && lvl) {
@@ -5508,7 +5499,7 @@ window.getLevelReward = getLevelReward;
 // Poser le flag booster gratuit dans sessionStorage ET localStorage (TTL 5 min)
 window.setBoosterFree = function() {
   try {
-    window.setBoosterFree();
+    sessionStorage.setItem('booster_free', '1');
     localStorage.setItem('booster_free', JSON.stringify({ v: '1', t: Date.now() }));
   } catch(e) {}
 };
