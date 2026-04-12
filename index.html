@@ -3741,7 +3741,10 @@ function bindGame(){
             try { return JSON.parse(n.meta||'{}').level === level; } catch(e){ return false; }
           });
           for(const n of toMark) {
-            await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
+            let updatedMeta = {};
+            try { updatedMeta = JSON.parse(n.meta || '{}'); } catch(e) {}
+            updatedMeta.claimed = true;
+            await db.from('notifications').update({ read: true, meta: JSON.stringify(updatedMeta) }).eq('id', n.id).catch(()=>{});
           }
         } catch(e) {}
       }
@@ -5457,9 +5460,9 @@ async function loadPlayerXp(userId) {
       const lvl = typeof meta.level === 'number' ? meta.level : parseInt(meta.level);
       if (lvl && !isNaN(lvl)) levelsWithNotif.add(lvl);
 
-      // Si non lue → à afficher dans les notifs
-      if (!n.read && lvl) {
-        const reward = getLevelReward(lvl);
+      // Si non lue ET non réclamée → à afficher dans les notifs
+      const isClaimed = meta.claimed === true || n.read === true;
+      if (!isClaimed && lvl) {
         if (n.type === 'level_reward') {
           const match = (n.meta || '').match(/"amount":(\d+)/);
           const amount = match ? parseInt(match[1]) : 300;
@@ -6094,6 +6097,7 @@ async function subscribeNotifications() {
       if (existingIds.has(n.id)) return;
       let meta = {};
       try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+      if (meta.claimed === true) return; // déjà réclamée
       const lvl = meta.level || 0;
       if (n.type === 'level_reward') {
         const amount = meta.amount || 300;
@@ -6278,6 +6282,7 @@ async function pollNotificationsAndTrades() {
       if (existingIds.has(n.id)) return;
       let meta = {};
       try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+      if (meta.claimed === true) return; // déjà réclamée
       const lvl = meta.level || 0;
       if (n.type === 'level_reward') {
         newOnes.push({ notifId: n.id, level: lvl, type: 'coins', amount: meta.amount || 300 });
