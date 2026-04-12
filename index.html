@@ -466,6 +466,35 @@ let _ytPendingPlay = false;
 let _ytPlayRetryTimer = null;
 let audioPlaying = false;
 
+// ── Singleton audio cross-pages via BroadcastChannel ──────────────
+// Évite que deux pages jouent en même temps
+const _musicChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('tcg_music') : null;
+const _musicTabId = Math.random().toString(36).slice(2);
+let _musicMaster = false; // cette tab est-elle la maîtresse du son ?
+
+if(_musicChannel){
+  _musicChannel.onmessage = function(ev){
+    const msg = ev.data;
+    if(!msg) return;
+    // Une autre tab démarre → on se met en pause si on jouait
+    if(msg.type === 'playing' && msg.tabId !== _musicTabId){
+      if(_ytPlayer && audioPlaying){
+        try { _ytPlayer.pauseVideo(); } catch(e) {}
+        // On ne change pas audioPlaying — si cette tab reprend le focus on relancera
+      }
+    }
+    // Une autre tab s'arrête → on peut reprendre si on était maître
+    if(msg.type === 'stopped' && msg.tabId !== _musicTabId){
+      if(audioPlaying && _ytPlayer){
+        setTimeout(()=>{ if(audioPlaying) _doPlay(); }, 200);
+      }
+    }
+  };
+}
+
+function _broadcastPlaying(){ if(_musicChannel) _musicChannel.postMessage({type:'playing', tabId:_musicTabId}); }
+function _broadcastStopped(){ if(_musicChannel) _musicChannel.postMessage({type:'stopped', tabId:_musicTabId}); }
+
 (function loadYTApi(){
   if(window.YT && window.YT.Player){ _ytReady = true; return; }
   const tag = document.createElement('script');
@@ -482,7 +511,7 @@ window.onYouTubeIframeAPIReady = function(){
     playerVars:{
       autoplay: 0,
       controls: 0,
-      loop: 1,
+      loop: 0, // géré manuellement pour éviter relance non désirée
       playlist: YT_VIDEO_ID,
       start: YT_START_SEC,
       modestbranding: 1,
@@ -492,17 +521,21 @@ window.onYouTubeIframeAPIReady = function(){
     },
     events:{
       onReady: function(e){
-        // Restaurer le volume sauvegardé
         const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
         e.target.setVolume(savedVol);
-        // Restaurer la position sauvegardée
-        const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
-        if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
-        if(_ytPendingPlay){ _ytPendingPlay = false; _doPlay(); }
+        // Restaurer la position seulement si on doit jouer
+        if(audioPlaying){
+          const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
+          if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
+          if(_ytPendingPlay){ _ytPendingPlay = false; _doPlay(); }
+        } else {
+          // Musique désactivée → rester en pause, ne pas restaurer position
+          _ytPendingPlay = false;
+        }
         // Sauvegarder la position toutes les 5s
         setInterval(()=>{
           try{
-            if(_ytPlayer && _ytPlayer.getCurrentTime){
+            if(_ytPlayer && _ytPlayer.getCurrentTime && audioPlaying){
               const t = _ytPlayer.getCurrentTime();
               if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
             }
@@ -510,16 +543,17 @@ window.onYouTubeIframeAPIReady = function(){
         }, 5000);
       },
       onStateChange: function(e){
-        // Relancer si stoppé/mis en pause alors qu'on veut jouer
-        // Ne pas relancer si l'user a coupé (audioPlaying=false) — évite le rallumage depuis une autre appli
-        if(audioPlaying && (e.data === YT.PlayerState.ENDED || e.data === YT.PlayerState.PAUSED)){
-          // Vérifier que c'est bien notre propre pause et non une pause externe (autre appli audio)
-          // On utilise un délai court : si audioPlaying est encore true après 300ms, on relance
+        if(!audioPlaying) return; // mute actif → ignorer tous les états
+        if(e.data === YT.PlayerState.ENDED){
+          // Fin de la vidéo → reprendre depuis le début
+          try{ _ytPlayer.seekTo(0, true); _ytPlayer.playVideo(); }catch(ex){}
+          localStorage.removeItem('music_pos');
+        } else if(e.data === YT.PlayerState.PAUSED){
+          // Pause involontaire (navigateur, tab masquée) → relancer après 300ms
           setTimeout(()=>{ if(audioPlaying){ try{ _ytPlayer.playVideo(); }catch(ex){} } }, 300);
         }
       },
       onError: function(){
-        // Retry après erreur réseau
         if(audioPlaying) setTimeout(_doPlay, 2000);
       },
     }
@@ -530,22 +564,20 @@ function _doPlay(){
   if(!_ytPlayer) return;
   try{
     const s = _ytPlayer.getPlayerState ? _ytPlayer.getPlayerState() : -1;
-    // -1=unstarted, 1=playing, 2=paused, 3=buffering, 5=video cued
-    if(s === 1) return; // déjà en train de jouer
+    if(s === 1) return;
     _ytPlayer.playVideo();
+    _broadcastPlaying();
   }catch(e){}
 }
 
 function _ensurePlay(){
-  // Polling léger : reessaie toutes les 800ms si pas encore en lecture
   if(_ytPlayRetryTimer) return;
   _ytPlayRetryTimer = setInterval(()=>{
     if(!audioPlaying){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; return; }
     const s = _ytPlayer ? (_ytPlayer.getPlayerState ? _ytPlayer.getPlayerState() : -1) : -1;
-    if(s === 1){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; return; } // joue, ok
+    if(s === 1){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; return; }
     _doPlay();
   }, 800);
-  // Arrêter le polling après 15s max (éviter boucle infinie)
   setTimeout(()=>{ if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; } }, 15000);
 }
 
@@ -567,6 +599,9 @@ function audioStop(){
   _saveMusicPref(false);
   if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; }
   if(_ytPlayer){ try{ _ytPlayer.pauseVideo(); } catch(e){} }
+  _broadcastStopped();
+  // Réinitialiser la position sauvegardée pour que la prochaine lecture reparte du début
+  try{ localStorage.removeItem('music_pos'); }catch(e){}
 }
 function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
 
@@ -590,11 +625,12 @@ window._setMusicVolume = function(val) {
 // Sauvegarder la position avant de quitter la page
 window.addEventListener('beforeunload', ()=>{
   try{
-    if(_ytPlayer && _ytPlayer.getCurrentTime){
+    // Toujours sauvegarder l'état exact au moment du départ
+    localStorage.setItem('music_on', audioPlaying ? '1' : '0');
+    if(audioPlaying && _ytPlayer && _ytPlayer.getCurrentTime){
       const t = _ytPlayer.getCurrentTime();
       if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
     }
-    localStorage.setItem('music_on', audioPlaying ? '1' : '0');
   }catch(e){}
 });
 
@@ -614,8 +650,16 @@ window.addEventListener('beforeunload', ()=>{
 // MAIS si le joueur a manuellement coupé (audioPlaying=false), on ne relance JAMAIS
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'visible' && audioPlaying && _ytPlayer) {
-    // On laisse YT gérer — on ne force pas playVideo() ici pour ne pas interférer avec d'autres applis audio
-    // Le polling _ensurePlay() gère déjà ce cas si nécessaire
+    // Reprendre la lecture seulement si on était maître et pas muté
+    setTimeout(()=>{
+      if(audioPlaying) _doPlay(); // _doPlay broadcast à nouveau aux autres tabs
+    }, 200);
+  } else if(document.visibilityState === 'hidden' && _ytPlayer && audioPlaying){
+    // Sauvegarder la position quand on masque la page
+    try{
+      const t = _ytPlayer.getCurrentTime ? _ytPlayer.getCurrentTime() : 0;
+      if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
+    }catch(e){}
   }
 });
 
