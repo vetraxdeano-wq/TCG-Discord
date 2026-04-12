@@ -3740,6 +3740,13 @@ function bindGame(){
           const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
           const current = playerData?.coins ?? 0;
           await db.from('players').update({ coins: current + amount }).eq('id', myId);
+          // Sécurité : si pas de notifId (notif créée sans id), chercher par level et marquer lue
+          if(!notifId && level && db) {
+            const { data: lvlNotifs } = await db.from('notifications')
+              .select('id, meta').eq('user_id', myId).in('type', ['level_reward', 'level_reward_booster']).eq('read', false);
+            const match = (lvlNotifs||[]).find(n => { try { return JSON.parse(n.meta||'{}').level === level; } catch(e){return false;} });
+            if(match) await db.from('notifications').update({ read: true }).eq('id', match.id).catch(()=>{});
+          }
           setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
           showRewardToast(`Niveau ${level} — Récompense reçue !`, amount, '🪙');
         } else {
@@ -3749,9 +3756,17 @@ function bindGame(){
         // Booster : stocker le flag bypass + flag du niveau pour marquer réclamé, puis rediriger
         setState({ showNotif: false, pendingLevelRewards: remaining });
         try { window.setBoosterFree(); } catch(e) {}
-        // Marquer aussi la notif comme lue si elle ne l'était pas encore
-        if(notifId && db) {
-          db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
+        // Marquer la notif comme lue (par id ou par recherche niveau)
+        if(db && myId) {
+          if(notifId) {
+            db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
+          } else if(level) {
+            db.from('notifications').select('id, meta').eq('user_id', myId).in('type', ['level_reward', 'level_reward_booster']).eq('read', false)
+              .then(({ data: lvlNotifs }) => {
+                const match = (lvlNotifs||[]).find(n => { try { return JSON.parse(n.meta||'{}').level === level; } catch(e){return false;} });
+                if(match) db.from('notifications').update({ read: true }).eq('id', match.id).catch(()=>{});
+              });
+          }
         }
         setTimeout(()=>{
           if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
@@ -5259,16 +5274,20 @@ async function grantLevelReward(userId, level) {
   if (!db || !userId) return;
   const reward = getLevelReward(level);
 
-  // ── Guard anti-doublon : vérifier si une notif (lue ou non) existe déjà pour ce niveau ──
+  // ── Guard anti-doublon fiable : charger toutes les notifs du type, filtrer en JS ──
   try {
-    const { data: existing } = await db.from('notifications')
-      .select('id, read')
+    const { data: allNotifs } = await db.from('notifications')
+      .select('id, read, meta')
       .eq('user_id', userId)
-      .in('type', ['level_reward', 'level_reward_booster'])
-      .ilike('meta', `%"level":${level}%`);
-    if (existing && existing.length > 0) {
-      // Notif déjà créée — si non lue, l'ajouter au pending state sans recréer
-      const unread = existing.find(n => !n.read);
+      .in('type', ['level_reward', 'level_reward_booster']);
+
+    const existingForLevel = (allNotifs || []).filter(n => {
+      try { return JSON.parse(n.meta || '{}').level === level; } catch(e) { return false; }
+    });
+
+    if (existingForLevel.length > 0) {
+      // Notif déjà existante (lue ou non) pour ce niveau → ne pas recréer
+      const unread = existingForLevel.find(n => !n.read);
       if (unread) {
         const alreadyPending = (state.pendingLevelRewards||[]).some(r => r.notifId === unread.id);
         if (!alreadyPending) {
@@ -5277,7 +5296,7 @@ async function grantLevelReward(userId, level) {
       }
       return; // Ne pas recréer
     }
-  } catch(e) {}
+  } catch(e) { console.warn('grantLevelReward guard error', e); }
 
   if (reward.type === 'coins') {
     let notifId = null;
