@@ -458,7 +458,7 @@ function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeStrin
 // ─── AMBIENT MUSIC ────────────────────────────────────────────────
 // ─── YOUTUBE AUDIO PLAYER ─────────────────────────────────────────
 // Musique : https://www.youtube.com/watch?v=niReTZnphks
-const YT_VIDEO_ID = 'niReTZnphks';
+const YT_VIDEO_ID = 'WZH17pU1XeA';
 const YT_START_SEC = 0;
 let _ytPlayer = null;
 let _ytReady = false;
@@ -492,8 +492,22 @@ window.onYouTubeIframeAPIReady = function(){
     },
     events:{
       onReady: function(e){
-        e.target.setVolume(25);
+        // Restaurer le volume sauvegardé
+        const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
+        e.target.setVolume(savedVol);
+        // Restaurer la position sauvegardée
+        const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
+        if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
         if(_ytPendingPlay){ _ytPendingPlay = false; _doPlay(); }
+        // Sauvegarder la position toutes les 5s
+        setInterval(()=>{
+          try{
+            if(_ytPlayer && _ytPlayer.getCurrentTime){
+              const t = _ytPlayer.getCurrentTime();
+              if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
+            }
+          }catch(ex){}
+        }, 5000);
       },
       onStateChange: function(e){
         // Relancer si stoppé/mis en pause alors qu'on veut jouer
@@ -562,6 +576,7 @@ window._setMusicVolume = function(val) {
   if (_ytPlayer && _ytPlayer.setVolume) {
     try { _ytPlayer.setVolume(v); } catch(e) {}
   }
+  try { localStorage.setItem('music_volume', v); } catch(e) {}
   // Mettre à jour l'affichage du % sans re-render complet
   const span = document.querySelector('#music-volume-slider + span, span:has(+ #music-volume-slider)');
   // Mettre à jour le label à côté du slider
@@ -571,6 +586,17 @@ window._setMusicVolume = function(val) {
     if (label) label.textContent = v + '%';
   }
 };
+
+// Sauvegarder la position avant de quitter la page
+window.addEventListener('beforeunload', ()=>{
+  try{
+    if(_ytPlayer && _ytPlayer.getCurrentTime){
+      const t = _ytPlayer.getCurrentTime();
+      if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
+    }
+    localStorage.setItem('music_on', audioPlaying ? '1' : '0');
+  }catch(e){}
+});
 
 // Unlock audio dès la première interaction utilisateur (contourne la politique autoplay)
 (function(){
