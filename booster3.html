@@ -4224,6 +4224,26 @@ function showCoinsDeductedPopup(amount) {
 }
 
 async function deductBoosterCost() {
+  // Booster gratuit (récompense de niveau) → bypass total, aucune déduction
+  try {
+    const free = sessionStorage.getItem('booster_free');
+    if (free === '1') {
+      sessionStorage.removeItem('booster_free');
+      try { localStorage.removeItem('booster_free'); } catch(e) {}
+      return true;
+    }
+    // Fallback localStorage (TTL 5 min)
+    const ls = localStorage.getItem('booster_free');
+    if (ls) {
+      const obj = JSON.parse(ls);
+      if (obj.v === '1' && (Date.now() - obj.t) < 5 * 60 * 1000) {
+        localStorage.removeItem('booster_free');
+        return true;
+      }
+      localStorage.removeItem('booster_free');
+    }
+  } catch(e) {}
+
   const db = window._db;
   const myId = window._currentUserId;
   if (!db || !myId) return true; // pas connecté → laisser ouvrir
@@ -4231,13 +4251,12 @@ async function deductBoosterCost() {
   const { data: p } = await db.from('players').select('coins').eq('id', myId).single();
   const currentCoins = p ? p.coins : 0;
   window._playerCoins = currentCoins;
-  if (currentCoins < 1000) return false;
+  if (currentCoins < 2000) return false;
   // Déduire
   await db.from('players').update({ coins: currentCoins - 2000 }).eq('id', myId);
   window._playerCoins = currentCoins - 2000;
   return true;
 }
-
 function showInsufficientCoins() {
   const msg = document.createElement('div');
   msg.style.cssText = `
