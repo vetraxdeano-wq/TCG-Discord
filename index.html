@@ -3732,13 +3732,31 @@ function bindGame(){
           setState({ pendingLevelRewards: remaining, showNotif: false });
         }
       } else {
-        // Booster : stocker le flag bypass puis rediriger
+        // Booster : ouvrir inline avec animation (comme le cadeau de bienvenue)
         setState({ showNotif: false, pendingLevelRewards: remaining });
-        try { window.setBoosterFree(); } catch(e) {}
-        setTimeout(()=>{
-          if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
-          else window.location.href = 'booster2.html';
-        }, 200);
+
+        // Déterminer quel booster ouvrir (1=Normal, 2=Prestige, 3=Légendaire)
+        const boosterIndex = rewardType === 'booster_legendaire' ? 2 : 1;
+        const boosterDef = BOOSTERS[boosterIndex];
+
+        // Stocker le flag bypass pour permettre l'ouverture gratuite
+        try { window.setBoosterFree && window.setBoosterFree(); } catch(e) {}
+
+        // Petit délai pour laisser la notif se fermer, puis lancer l'animation d'ouverture
+        setTimeout(() => {
+          // Naviguer vers l'onglet Boosters
+          setState({ tab: 2, boosterSelectedIdx: boosterIndex });
+          // Puis déclencher l'ouverture
+          setTimeout(() => {
+            if (typeof openBoosterAnimation === 'function') {
+              openBoosterAnimation(boosterDef.id);
+            } else {
+              // Fallback : redirection
+              if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
+              else window.location.href = 'booster2.html';
+            }
+          }, 350);
+        }, 250);
       }
     });
   });
@@ -5259,15 +5277,17 @@ async function grantLevelReward(userId, level) {
     showRewardToast(`Niveau ${level} atteint !`, reward.amount, '🪙');
   } else {
     // Booster prestige ou légendaire — notif avec bouton Réclamer
+    let notifId = null;
     try {
-      await db.from('notifications').insert({
+      const { data: notifData } = await db.from('notifications').insert({
         user_id: userId, type: 'level_reward_booster', from_id: userId,
         text: `Niveau ${level} atteint ! Récompense : ${reward.label}`,
         read: false,
         meta: JSON.stringify({ rewardType: reward.type, level }),
-      }).then(()=>{}).catch(()=>{});
+      }).select('id').single();
+      notifId = notifData?.id || null;
     } catch(e) {}
-    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { level, ...reward }] });
+    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { notifId, level, ...reward }] });
     showRewardToast(`Niveau ${level} atteint !`, 0, reward.type === 'booster_legendaire' ? '⚡' : '📦');
   }
 }
@@ -5360,10 +5380,12 @@ function showXpLevelUpToast(newLevel, reward) {
     const { level: currentLevel } = computeLevel(xp);
 
     if (currentLevel > storedLevel) {
-      // Level up détecté — afficher popup pour chaque niveau
+      // Level up détecté — afficher popup pour chaque niveau ET accorder les récompenses
       for (let l = storedLevel + 1; l <= currentLevel; l++) {
         const reward = typeof getLevelReward === 'function' ? getLevelReward(l) : null;
         setTimeout(() => showXpLevelUpToast(l, reward), (l - storedLevel - 1) * 4000);
+        // Accorder la récompense (crée la notif DB + l'ajoute au pending)
+        await grantLevelReward(userId, l);
       }
       setState({ playerXp: xp, playerLevel: currentLevel });
     }
@@ -6024,17 +6046,32 @@ async function subscribeNotifications() {
   const msgNotifs = allMsgNotifs.filter(n => !activeConv || n.from_id !== activeConv);
   setState({ msgNotifCount: msgNotifs.length, pendingMsgNotifs: msgNotifs });
 
-  // Charger les récompenses de niveau booster non réclamées
+  // Charger TOUTES les récompenses de niveau non réclamées (coins + boosters) — rétroactif
   const { data: lvlBoosterNotifs } = await db.from('notifications')
     .select('id, text, meta, created_at')
     .eq('user_id', myId).eq('type', 'level_reward_booster').eq('read', false);
-  if (lvlBoosterNotifs && lvlBoosterNotifs.length > 0) {
-    const pendingRewards = lvlBoosterNotifs.map(n => {
-      let meta = {};
-      try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
-      return { notifId: n.id, level: meta.level, type: meta.rewardType || 'booster_prestige', label: n.text };
-    });
-    setState({ pendingLevelRewards: pendingRewards });
+
+  const { data: lvlCoinsNotifs } = await db.from('notifications')
+    .select('id, text, meta, created_at')
+    .eq('user_id', myId).eq('type', 'level_reward').eq('read', false);
+
+  const pendingBoosterRewards = (lvlBoosterNotifs || []).map(n => {
+    let meta = {};
+    try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+    return { notifId: n.id, level: meta.level, type: meta.rewardType || 'booster_prestige', label: n.text };
+  });
+
+  const pendingCoinsRewards = (lvlCoinsNotifs || []).map(n => {
+    let meta = {};
+    try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+    return { notifId: n.id, level: meta.level || 0, type: 'coins', amount: meta.amount || 300, label: n.text };
+  });
+
+  const allPendingRewards = [...pendingBoosterRewards, ...pendingCoinsRewards]
+    .sort((a, b) => (a.level || 0) - (b.level || 0));
+
+  if (allPendingRewards.length > 0) {
+    setState({ pendingLevelRewards: allPendingRewards });
   }
 
   // Realtime : écouter les nouvelles notifications
@@ -6090,6 +6127,24 @@ async function subscribeNotifications() {
       }
       if (n.type === 'combat_declined') {
         showToast('Ton défi a été refusé.', '✗');
+        return;
+      }
+      if (n.type === 'level_reward' || n.type === 'level_reward_booster') {
+        // Récompense de niveau reçue en temps réel (depuis un autre onglet ou une session externe)
+        let meta = {};
+        try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+        const reward = {
+          notifId: n.id,
+          level: meta.level || 0,
+          type: meta.rewardType || (n.type === 'level_reward' ? 'coins' : 'booster_prestige'),
+          amount: meta.amount || 300,
+          label: n.text,
+        };
+        const prev = state.pendingLevelRewards || [];
+        // Éviter les doublons
+        if (!prev.some(r => r.notifId === n.id)) {
+          setState({ pendingLevelRewards: [...prev, reward] });
+        }
         return;
       }
       const prev = state.pendingMsgNotifs || [];
