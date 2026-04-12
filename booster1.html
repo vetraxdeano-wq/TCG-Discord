@@ -66,6 +66,34 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 }
 /* Suppression des diamants art-déco */
 .title::before,.title::after{content:none}
+/* Permettre les clics sur le bouton musique dans la barre */
+.title{pointer-events:none !important;}
+.music-btn-wrap{pointer-events:auto;}
+
+/* Bouton musique ambiance — coins BD */
+#bg-music-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:5px 10px;
+  background:#0e0c09;
+  border:2.5px solid #000;
+  box-shadow:2px 2px 0 #000;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:.58rem;letter-spacing:.3em;
+  color:var(--gold-main);
+  cursor:pointer;
+  transition:color .2s,background .2s;
+  white-space:nowrap;
+  position:relative;z-index:1;
+  flex-shrink:0;
+}
+#bg-music-btn.is-playing{color:var(--gold-bright);}
+#bg-music-btn.is-playing .bg-music-dot{background:var(--gold-bright);animation:ytPulse .9s ease-in-out infinite;}
+.bg-music-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--text-muted);flex-shrink:0;
+  transition:background .2s;
+}
+#bg-audio-player{position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;opacity:0;}
 /* Inner label style BD */
 .cmx-title-box{
   display:inline-flex;align-items:center;gap:0;
@@ -1406,9 +1434,19 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 <div class="rare-flash" id="rareFlash"></div>
 <div class="lightning" id="lightning"></div>
 <div class="fullscreen-bg" id="fsBg"></div>
-<div class="title">
-  <span class="cmx-title-main">Booster Normal</span>
+<div class="title" style="justify-content:space-between;align-items:center;">
+  <div style="width:80px;"></div><!-- spacer gauche -->
+  <div class="cmx-title-box">
+    <span class="cmx-title-main">Booster Normal</span>
+  </div>
+  <div class="music-btn-wrap" style="width:80px;display:flex;justify-content:flex-end;">
+    <button id="bg-music-btn" onclick="bgAudioToggle()" title="Musique de fond">
+      <div class="bg-music-dot"></div>
+      <span id="bg-music-label">MUSIQUE</span>
+    </button>
+  </div>
 </div>
+<div id="bg-audio-player"></div>
 
 <!-- FLIP CARD -->
 <div class="flip-wrap" id="flipWrap">
@@ -2878,6 +2916,119 @@ function dealFanCard(cardEl, card, idx){
   }, 220);
 }
 
+// ===== MUSIQUE D'AMBIANCE (continuité depuis index.html) =====
+const BG_YT_ID = 'WZH17pU1XeA';
+let _bgPlayer = null;
+let _bgPlaying = false;
+let _bgPendingPlay = false;
+let _bgRetryTimer = null;
+
+// Lire les préférences sauvegardées par index.html
+function _bgLoadPref(){
+  try{ return localStorage.getItem('music_on') !== '0'; }catch(e){ return true; }
+}
+function _bgLoadVol(){
+  try{ return parseInt(localStorage.getItem('music_volume')||'25'); }catch(e){ return 25; }
+}
+function _bgLoadPos(){
+  try{ return parseFloat(localStorage.getItem('music_pos')||'0'); }catch(e){ return 0; }
+}
+function _bgSavePref(on){
+  try{ localStorage.setItem('music_on', on?'1':'0'); }catch(e){}
+}
+function _bgSavePos(){
+  try{
+    if(_bgPlayer && _bgPlayer.getCurrentTime){
+      const t=_bgPlayer.getCurrentTime();
+      if(t>0) localStorage.setItem('music_pos', t.toFixed(1));
+    }
+  }catch(e){}
+}
+
+function _bgDoPlay(){
+  if(!_bgPlayer) return;
+  try{
+    const s=_bgPlayer.getPlayerState?_bgPlayer.getPlayerState():-1;
+    if(s===1) return;
+    _bgPlayer.playVideo();
+  }catch(e){}
+}
+function _bgEnsurePlay(){
+  if(_bgRetryTimer) return;
+  _bgRetryTimer=setInterval(()=>{
+    if(!_bgPlaying){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; return; }
+    const s=_bgPlayer?(_bgPlayer.getPlayerState?_bgPlayer.getPlayerState():-1):-1;
+    if(s===1){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; return; }
+    _bgDoPlay();
+  },800);
+  setTimeout(()=>{ if(_bgRetryTimer){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; } },15000);
+}
+
+function bgAudioPlay(){
+  if(_bgPlaying) return;
+  _bgPlaying=true;
+  _bgSavePref(true);
+  _bgUpdateBtn();
+  if(!_bgPlayer){ _bgPendingPlay=true; return; }
+  _bgDoPlay();
+  _bgEnsurePlay();
+}
+function bgAudioStop(){
+  _bgPlaying=false;
+  _bgPendingPlay=false;
+  _bgSavePref(false);
+  _bgSavePos();
+  if(_bgRetryTimer){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; }
+  if(_bgPlayer){ try{_bgPlayer.pauseVideo();}catch(e){} }
+  _bgUpdateBtn();
+}
+function bgAudioToggle(){ if(_bgPlaying) bgAudioStop(); else bgAudioPlay(); }
+
+function _bgUpdateBtn(){
+  const btn=document.getElementById('bg-music-btn');
+  const lbl=document.getElementById('bg-music-label');
+  if(!btn) return;
+  if(_bgPlaying){
+    btn.classList.add('is-playing');
+    if(lbl) lbl.textContent='EN LECTURE';
+  } else {
+    btn.classList.remove('is-playing');
+    if(lbl) lbl.textContent='MUSIQUE';
+  }
+}
+
+function _bgInitPlayer(){
+  const container=document.getElementById('bg-audio-player');
+  if(!container||container._bgInit) return;
+  container._bgInit=true;
+  const frame=document.createElement('div');
+  frame.id='_bgYtFrame';
+  container.appendChild(frame);
+  const savedPos=_bgLoadPos();
+  _bgPlayer=new YT.Player('_bgYtFrame',{
+    videoId:BG_YT_ID,
+    playerVars:{autoplay:0,controls:0,loop:1,playlist:BG_YT_ID,start:Math.floor(savedPos)||0,modestbranding:1,rel:0,playsinline:1,mute:0},
+    events:{
+      onReady:function(e){
+        e.target.setVolume(_bgLoadVol());
+        const pos=_bgLoadPos();
+        if(pos>2){ try{e.target.seekTo(pos,true);}catch(ex){} }
+        if(_bgPendingPlay){ _bgPendingPlay=false; _bgDoPlay(); _bgEnsurePlay(); }
+        // Sauvegarder position toutes les 5s
+        setInterval(()=>{ _bgSavePos(); },5000);
+      },
+      onStateChange:function(e){
+        if(_bgPlaying&&(e.data===YT.PlayerState.ENDED||e.data===YT.PlayerState.PAUSED)){
+          setTimeout(()=>{ if(_bgPlaying){ try{_bgPlayer.playVideo();}catch(ex){} } },300);
+        }
+      },
+      onError:function(){
+        if(_bgPlaying) setTimeout(_bgDoPlay,2000);
+      }
+    }
+  });
+}
+
 // ===== YOUTUBE MUSIC PLAYER =====
 // ── Hardcode your mythique music URL here ──
 const MYTH_MUSIC_URL = 'https://www.youtube.com/watch?v=_TcXaAcbQ5Q&list=RD_TcXaAcbQ5Q&start_radio=1';
@@ -2893,8 +3044,27 @@ function loadYTApi(){
 }
 window.onYouTubeIframeAPIReady=function(){
   ytReady=true;
+  // Initialiser aussi le player de musique d'ambiance
+  _bgInitPlayer();
 };
 loadYTApi();
+
+// Démarrer la musique d'ambiance si elle était active dans l'index
+window.addEventListener('DOMContentLoaded',()=>{
+  const shouldPlay=_bgLoadPref();
+  _bgUpdateBtn();
+  if(shouldPlay){
+    _bgPlaying=true;
+    _bgPendingPlay=true; // le player n'est pas encore prêt
+    _bgUpdateBtn();
+  }
+});
+
+// Sauvegarder position + état avant de quitter
+window.addEventListener('beforeunload',()=>{
+  _bgSavePos();
+  try{ localStorage.setItem('music_on',_bgPlaying?'1':'0'); }catch(e){}
+});
 
 function extractYTId(url){
   const m=url.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/);
@@ -2904,6 +3074,8 @@ function extractYTId(url){
 function playMythMusic(){
   if(ytMythStarted||!MYTH_MUSIC_URL) return;
   ytMythStarted=true;
+  // Baisser la musique d'ambiance pendant la séquence mythique
+  if(_bgPlayer&&_bgPlayer.setVolume){ try{_bgPlayer.setVolume(0);}catch(e){} }
   const id=extractYTId(MYTH_MUSIC_URL);
   if(!id) return;
   function doPlay(){
@@ -2928,6 +3100,8 @@ function playMythMusic(){
 function stopYT(){
   if(ytPlayer&&ytPlayer.stopVideo) ytPlayer.stopVideo();
   document.getElementById('ytMiniBar').classList.remove('visible');
+  // Restaurer le volume de la musique d'ambiance
+  if(_bgPlayer&&_bgPlayer.setVolume){ try{_bgPlayer.setVolume(_bgLoadVol());}catch(e){} }
 }
 function haptic(pattern){
   if(navigator.vibrate) navigator.vibrate(pattern);
