@@ -5297,10 +5297,10 @@ async function grantXp(userId, amount, reason) {
   const after  = computeLevel(newXp);
   setState({ playerXp: newXp, playerLevel: after.level });
   if (after.level > before.level) {
-    const reward = typeof getLevelReward === 'function' ? getLevelReward(after.level) : null;
-    showXpLevelUpToast(after.level, reward);
-    // Accorder la récompense pour chaque niveau passé
+    // Toast + récompense pour CHAQUE niveau passé
     for (let l = before.level + 1; l <= after.level; l++) {
+      const reward = typeof getLevelReward === 'function' ? getLevelReward(l) : null;
+      setTimeout(() => showXpLevelUpToast(l, reward), (l - before.level - 1) * 4000);
       await grantLevelReward(userId, l);
     }
   }
@@ -5374,10 +5374,11 @@ function showXpLevelUpToast(newLevel, reward) {
     const { level: currentLevel } = computeLevel(xp);
 
     if (currentLevel > storedLevel) {
-      // Level up détecté — afficher popup pour chaque niveau
+      // Level up détecté — afficher popup et accorder récompense pour chaque niveau
       for (let l = storedLevel + 1; l <= currentLevel; l++) {
         const reward = typeof getLevelReward === 'function' ? getLevelReward(l) : null;
         setTimeout(() => showXpLevelUpToast(l, reward), (l - storedLevel - 1) * 4000);
+        await grantLevelReward(userId, l); // ✅ accorder la récompense
       }
       setState({ playerXp: xp, playerLevel: currentLevel });
     }
