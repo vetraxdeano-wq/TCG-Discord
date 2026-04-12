@@ -1636,7 +1636,20 @@ function pEff(p){
   });
   return Math.max(0.05,Math.min(1,v));
 }
+let _botIsPlaying = false; // true quand c'est le bot qui joue un sort
 function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel}){
+  // Si c'est le tour du bot : choix automatique sans ouvrir la modale
+  if(_botIsPlaying){
+    if(effects.length > 0){
+      let bestIdx=0,bestScore=-Infinity;
+      effects.forEach((eff,idx)=>{
+        const score=(eff.val||0)+(eff.turns>=9999?1000:(eff.turns||0)*10);
+        if(score>bestScore){bestScore=score;bestIdx=idx;}
+      });
+      onPick(bestIdx);
+    }
+    return;
+  }
   const existing=document.getElementById('remove-choice-modal');
   if(existing) existing.remove();
   const overlay=document.createElement('div');
@@ -2521,9 +2534,10 @@ function botTurn(){
   if(G.ended)return;if(!G.bot.fighter){endTurn();return;}
   const so=G.bot.hand.filter(c=>c.ct==='sort');
   if(so.length&&!G.bot.sortJoue&&!G.bot.noSpellThisTurn){
-    const s=so[0];G.bot.hand=G.bot.hand.filter(c=>c!==s);G.bot.sortJoue=true;applySort(s,G.bot,G.human);
+    const s=so[0];G.bot.hand=G.bot.hand.filter(c=>c!==s);G.bot.sortJoue=true;
     addLog(`🃏 ${s.nom} — ${s.desc}`,s.type==='Magie'?'sm':'sp','BOT');
     spellAnnounce('Bot',s.nom,s.desc,s.type);
+    _botIsPlaying=true;applySort(s,G.bot,G.human);_botIsPlaying=false;
   }
   if(!G.bot.skipAtq&&G.human.fighter){
     const ms=Math.random()>=pEff(G.bot),dmg=ms?0:Math.max(0,aEff(G.bot)-dEff(G.human));
