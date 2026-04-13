@@ -5145,85 +5145,81 @@ async function loadPlayerRankOnly(userId) {
 
 // ─── LOAD LEADERBOARD ─────────────────────────────────────────────
 async function loadLeaderboard(period){
-  const db = window.db;
-  if(!db){ setState({leaderboardLoading:false,leaderboardData:[]}); return; }
+  setState({leaderboardLoading:true});
 
   try {
-    // ── 1. Récupérer TOUS les joueurs sans filtre utilisateur ──
-    // On utilise .select() simple sans .eq() pour récupérer tous les joueurs.
-    // RLS est disabled sur la table players côté Supabase.
-    const { data, error } = await db.from('players')
-      .select('id, discord_username, avatar_url, wins, losses, coins, created_at')
-      .order('wins', { ascending: false })
-      .limit(500);
+    // Appel REST direct — contourne tout problème d'instance window.db
+    const url = SUPABASE_URL +
+      '/rest/v1/players?select=id,discord_username,avatar_url,wins,losses,coins,created_at' +
+      '&order=wins.desc.nullslast,coins.desc.nullslast' +
+      '&limit=200';
 
-    if(error){
-      console.error('[loadLeaderboard] players query error:', error);
+    const resp = await fetch(url, {
+      headers: {
+        'apikey':        SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Accept':        'application/json',
+      }
+    });
+
+    if(!resp.ok){
+      console.error('[Leaderboard] HTTP', resp.status, await resp.text());
       setState({leaderboardLoading:false, leaderboardData:[]});
       return;
     }
 
-    // ── 2. Construire la liste (pas de jointure player_cards — trop lourd) ──
-    const myId = state.currentUser?.id;
-    let all = (data || []).map(p => ({
+    const raw = await resp.json();
+    console.log('[Leaderboard] joueurs reçus:', raw?.length);
+
+    // Normaliser null → 0
+    let all = (raw||[]).map(p=>({
       ...p,
       wins:   p.wins   ?? 0,
       losses: p.losses ?? 0,
       coins:  p.coins  ?? 0,
     }));
 
-    // ── 3. S'assurer que le joueur connecté est bien dans la liste ──
-    // (cas rare où la requête l'aurait manqué à cause du limit)
-    if(myId && !all.find(p => p.id === myId)){
+    // S'assurer que le joueur connecté est présent même si absent du résultat
+    const myId = state.currentUser?.id;
+    if(myId && !all.find(p=>p.id===myId)){
       const meta = state.currentUser?.user_metadata || {};
       all.push({
-        id:               myId,
-        discord_username: meta.full_name || meta.name || 'Toi',
-        avatar_url:       meta.avatar_url || null,
-        wins:             state.wins   ?? 0,
-        losses:           state.losses ?? 0,
-        coins:            state.coins  ?? 0,
+        id: myId,
+        discord_username: meta.full_name||meta.name||'Toi',
+        avatar_url: meta.avatar_url||null,
+        wins:   state.wins??0,
+        losses: state.losses??0,
+        coins:  state.coins??0,
+        created_at: null,
       });
     }
 
-    if(all.length === 0){
-      setState({leaderboardLoading:false, leaderboardData:[]});
-      return;
-    }
-
-    // ── 4. Tri : victoires desc, coins desc en départage ──
-    all.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins));
-
-    // ── 5. Filtre par période d'inscription ──
+    // Filtre période — sur created_at (inscription), fallback = tout afficher
     let filtered = all;
-    if(period === 'week'){
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - 7);
-      const recent = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
-      if(recent.length >= 1) filtered = recent;
-    } else if(period === 'month'){
-      const cutoff = new Date();
-      cutoff.setMonth(cutoff.getMonth() - 1);
-      const recent = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
-      if(recent.length >= 1) filtered = recent;
+    if(period==='week'){
+      const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-7);
+      const r=all.filter(p=>p.created_at&&new Date(p.created_at)>=cutoff);
+      if(r.length>0) filtered=r;
+    } else if(period==='month'){
+      const cutoff=new Date(); cutoff.setMonth(cutoff.getMonth()-1);
+      const r=all.filter(p=>p.created_at&&new Date(p.created_at)>=cutoff);
+      if(r.length>0) filtered=r;
     }
 
-    // ── 6. Rang du joueur connecté (dans le filtre courant, ou global sinon) ──
-    let playerRank = null;
+    // Tri final : victoires desc, coins desc
+    filtered.sort((a,b)=>(b.wins-a.wins)||(b.coins-a.coins));
+
+    // Rang du joueur connecté
+    let playerRank=null;
     if(myId){
-      const idx = filtered.findIndex(r => r.id === myId);
-      if(idx !== -1){
-        playerRank = idx + 1;
-      } else {
-        const gIdx = all.findIndex(r => r.id === myId);
-        if(gIdx !== -1) playerRank = gIdx + 1;
-      }
+      const idx=filtered.findIndex(r=>r.id===myId);
+      playerRank = idx!==-1 ? idx+1 : (all.findIndex(r=>r.id===myId)+1)||null;
     }
 
-    setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,50), playerRank});
+    setState({leaderboardLoading:false, leaderboardData:filtered.slice(0,50), playerRank});
 
   } catch(e){
-    console.error('[loadLeaderboard] exception:', e);
+    console.error('[Leaderboard] exception:', e);
     setState({leaderboardLoading:false, leaderboardData:[]});
   }
 }
