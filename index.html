@@ -3141,8 +3141,8 @@ function renderLeaderboardModal(th){
       </div>
 
       <!-- Table header -->
-      <div style="display:grid;grid-template-columns:32px 1fr 70px 70px 60px;gap:4px;padding:6px 16px;flex-shrink:0;border-bottom:2px solid #000;margin:0 0 0;">
-        ${['#','Joueur','Victoires','Win Rate','Coins'].map(h=>`<div style="font-size:8px;font-weight:900;color:${th.textMuted};letter-spacing:.6px;text-transform:uppercase;${h==='Joueur'?'':'text-align:center;'}">${h}</div>`).join('')}
+      <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px 52px;gap:4px;padding:6px 16px;flex-shrink:0;border-bottom:2px solid #000;margin:0 0 0;">
+        ${['#','Joueur','Victoires','W/R','Cartes','Coins'].map(h=>`<div style="font-size:8px;font-weight:900;color:${th.textMuted};letter-spacing:.6px;text-transform:uppercase;${h==='Joueur'?'':'text-align:center;'}">${h}</div>`).join('')}
       </div>
 
       <!-- Rows -->
@@ -3164,19 +3164,20 @@ function renderLeaderboardModal(th){
             const wr = (row.wins + row.losses) > 0 ? Math.round(row.wins/(row.wins+row.losses)*100) : 0;
             const rankColor = i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#f97316' : th.textMuted;
             return `
-            <div style="display:grid;grid-template-columns:32px 1fr 70px 70px 60px;gap:4px;padding:9px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};${isMe?'position:relative;':''}align-items:center;">
+            <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px 52px;gap:4px;padding:9px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};${isMe?'position:relative;':''}align-items:center;">
               ${isMe?`<div style="position:absolute;left:-16px;top:0;bottom:0;width:3px;background:${th.accent};"></div>`:''}
               <div style="text-align:center;font-size:${medal?'14px':'11px'};font-weight:900;color:${rankColor};">${medal||('#'+(i+1))}</div>
               <div style="display:flex;align-items:center;gap:7px;min-width:0;">
                 <div style="width:26px;height:26px;overflow:hidden;background:${th.surface};border:${isMe?'2px solid '+th.accent:'1px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-                  ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:12px;">👤</span>'}
+                  ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\'font-size:12px;display:flex;align-items:center;justify-content:center;width:100%;height:100%\\'>👤</span>'">`:'<span style="font-size:12px;">👤</span>'}
                 </div>
                 <div style="min-width:0;">
                   <div style="font-size:11px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.discord_username||'Joueur'}${isMe?' (Toi)':''}</div>
                 </div>
               </div>
               <div style="text-align:center;font-size:12px;font-weight:900;color:${th.green};">${row.wins}</div>
-              <div style="text-align:center;font-size:12px;font-weight:900;color:${th.yellow};">${wr}%</div>
+              <div style="text-align:center;font-size:11px;font-weight:700;color:${th.yellow};">${wr}%</div>
+              <div style="text-align:center;font-size:11px;font-weight:700;color:#818cf8;">${row.cards||0}</div>
               <div style="text-align:center;font-size:10px;font-weight:900;color:${th.accent};">${(row.coins||0).toLocaleString('fr-FR')}</div>
             </div>`;
           }).join('')
@@ -5148,67 +5149,109 @@ async function loadLeaderboard(period){
   if(!db){ setState({leaderboardLoading:false,leaderboardData:[]}); return; }
 
   try {
-    // Charger TOUS les joueurs
+    // ── 1. Charger tous les joueurs (avec order pour aider Supabase RLS/pagination) ──
     const { data, error } = await db.from('players')
-      .select('id, discord_username, avatar_url, wins, losses, coins, updated_at, created_at')
-      .limit(500);
+      .select('id, discord_username, avatar_url, wins, losses, coins, created_at')
+      .order('wins', {ascending: false})
+      .limit(200);
 
-    console.log('[Leaderboard] data:', data?.length, 'error:', error?.message);
-
-    // Si erreur RLS ou autre, afficher au moins le joueur connecté
-    if(error || !data || data.length === 0){
-      const myId = state.currentUser?.id;
-      if(myId){
-        const { data: me } = await db.from('players')
-          .select('id, discord_username, avatar_url, wins, losses, coins, created_at')
-          .eq('id', myId).single();
-        if(me){
-          const row = {...me, wins:me.wins??0, losses:me.losses??0, coins:me.coins??0};
-          setState({leaderboardLoading:false, leaderboardData:[row], playerRank:1});
-          return;
-        }
+    // ── 2. Compter les cartes obtenues par joueur (distinct card_id) ──
+    let cardCountMap = {};
+    try {
+      const { data: cardRows } = await db.from('player_cards')
+        .select('player_id, card_id');
+      if(cardRows && cardRows.length > 0){
+        cardRows.forEach(r => {
+          if(!cardCountMap[r.player_id]) cardCountMap[r.player_id] = 0;
+          cardCountMap[r.player_id]++;
+        });
       }
+    } catch(e){ /* facultatif */ }
+
+    // ── 3. Construire la liste de base ──
+    let all = [];
+
+    if(!error && data && data.length > 0){
+      all = data.map(p => ({
+        ...p,
+        wins:   p.wins   ?? 0,
+        losses: p.losses ?? 0,
+        coins:  p.coins  ?? 0,
+        cards:  cardCountMap[p.id] || 0,
+      }));
+    }
+
+    // ── 4. Garantir que le joueur courant figure toujours dans la liste ──
+    const myId = state.currentUser?.id;
+    if(myId && !all.find(p => p.id === myId)){
+      // Utiliser les données déjà chargées dans state (pas de requête supplémentaire)
+      const meta = state.currentUser?.user_metadata || {};
+      all.push({
+        id:               myId,
+        discord_username: meta.full_name || meta.name || 'Toi',
+        avatar_url:       meta.avatar_url || null,
+        wins:             state.wins   ?? 0,
+        losses:           state.losses ?? 0,
+        coins:            state.coins  ?? 0,
+        cards:            cardCountMap[myId] || ALL_CARDS.filter(c=>c.owned).length || 0,
+      });
+    }
+
+    if(all.length === 0){
       setState({leaderboardLoading:false, leaderboardData:[]});
       return;
     }
 
-    // Normaliser : wins/losses null → 0
-    const all = (data||[]).map(p => ({
-      ...p,
-      wins:   p.wins   ?? 0,
-      losses: p.losses ?? 0,
-      coins:  p.coins  ?? 0,
-    }));
+    // ── 5. Tri : victoires desc, puis coins desc pour départager ──
+    all.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins) || (b.cards - a.cards));
 
-    // Filtrer par période selon created_at (plus fiable qu'updated_at)
+    // ── 6. Pour weekly/monthly : afficher tous avec badge "cette semaine/ce mois"
+    //    (on n'a pas de données de victoires par période, donc on affiche le classement global)
+    //    Les onglets restent utiles pour filtrer les joueurs inscrits dans la période
     let filtered = all;
     if(period === 'week'){
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
-      const inPeriod = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
-      // Afficher les joueurs de la période ; si aucun, afficher tous
-      filtered = inPeriod.length > 0 ? inPeriod : all;
+      const recent = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
+      // Seulement si des joueurs récents existent — sinon afficher tout le classement
+      if(recent.length >= 2) filtered = recent;
     } else if(period === 'month'){
       const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth()-1);
-      const inPeriod = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
-      filtered = inPeriod.length > 0 ? inPeriod : all;
+      const recent = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
+      if(recent.length >= 2) filtered = recent;
     }
-    // 'all' → tous les joueurs
 
-    // Trier : d'abord par wins desc, ensuite par coins desc pour départager les ex-aequo à 0
-    filtered.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins));
-
-    // Rang du joueur connecté dans ce classement
-    const myId = state.currentUser?.id;
+    // ── 7. Rang du joueur connecté ──
     let playerRank = null;
     if(myId){
       const idx = filtered.findIndex(r => r.id === myId);
       if(idx !== -1) playerRank = idx + 1;
+      else {
+        // Rang global même si filtré hors de la période
+        const globalIdx = all.findIndex(r => r.id === myId);
+        if(globalIdx !== -1) playerRank = globalIdx + 1;
+      }
     }
 
-    setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,20), playerRank});
+    setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,30), playerRank});
+
   } catch(e){
     console.error('[loadLeaderboard]', e);
-    setState({leaderboardLoading:false, leaderboardData:[]});
+    // Fallback ultime : afficher au moins le joueur courant depuis state
+    const myId = state.currentUser?.id;
+    if(myId){
+      const meta = state.currentUser?.user_metadata || {};
+      setState({leaderboardLoading:false, leaderboardData:[{
+        id: myId,
+        discord_username: meta.full_name || meta.name || 'Toi',
+        avatar_url: meta.avatar_url || null,
+        wins:   state.wins   ?? 0,
+        losses: state.losses ?? 0,
+        coins:  state.coins  ?? 0,
+        cards:  ALL_CARDS.filter(c=>c.owned).length || 0,
+      }], playerRank: 1});
+    } else {
+      setState({leaderboardLoading:false, leaderboardData:[]});
+    }
   }
 }
 
