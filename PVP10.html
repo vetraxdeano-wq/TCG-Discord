@@ -1124,74 +1124,45 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .sd-mini-ph{width:100%;height:100%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:16px;}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-/* ── Aperçu carte au hover (PC) / long press (mobile) ── */
+/* ── Bannière dernier deck ── */
+#sd-last-deck-bar{
+  display:none;align-items:center;gap:10px;
+  padding:8px 14px;
+  background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.35);border-radius:10px;
+  width:100%;flex-shrink:0;
+}
+#sd-last-deck-bar.visible{display:flex;}
+#sd-last-deck-thumbs{display:flex;gap:3px;align-items:center;flex-shrink:0;}
+#sd-last-deck-thumbs img{width:22px;height:32px;border-radius:3px;object-fit:cover;border:1px solid rgba(240,192,64,.3);}
+#sd-last-deck-thumbs .ldt-ph{width:22px;height:32px;border-radius:3px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:9px;border:1px solid rgba(240,192,64,.2);}
+#sd-last-deck-label{font-size:11px;color:var(--gold);font-weight:600;flex:1;min-width:0;}
+#sd-last-deck-btn{background:var(--gold);color:#000;border:none;border-radius:7px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:background .15s,transform .12s;flex-shrink:0;}
+#sd-last-deck-btn:hover{background:var(--gold2);transform:translateY(-1px);}
+@media(max-width:768px){
+  #sd-last-deck-bar{padding:5px 8px;gap:6px;}
+  #sd-last-deck-thumbs img,#sd-last-deck-thumbs .ldt-ph{width:16px;height:24px;}
+  #sd-last-deck-label{font-size:10px;}
+  #sd-last-deck-btn{font-size:10px;padding:5px 10px;}
+}
+
+/* ── Aperçu carte (hover PC / long-press mobile) dans la grille ── */
 #sd-card-preview{
-  position:fixed;z-index:700;
-  pointer-events:none;
-  display:none;
-  flex-direction:column;
-  width:200px;
-  border-radius:14px;
-  overflow:hidden;
+  position:fixed;z-index:700;pointer-events:none;
+  display:none;flex-direction:column;
+  width:190px;border-radius:13px;overflow:hidden;
   box-shadow:0 16px 60px rgba(0,0,0,.9),0 0 0 1px var(--bdr3);
   animation:slideUp .15s cubic-bezier(.34,1.56,.64,1) both;
 }
 #sd-card-preview.visible{display:flex;}
-#sd-card-preview img{
-  width:100%;aspect-ratio:410/580;
-  object-fit:cover;display:block;
-}
-#sd-card-preview-info{
-  background:var(--s2);padding:10px 12px;
-  display:flex;flex-direction:column;gap:6px;
-}
-#sd-card-preview-name{
-  font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:var(--txt);line-height:1.2;
-}
-#sd-card-preview-rar{font-size:9px;letter-spacing:.2em;font-weight:700;text-transform:uppercase;margin-bottom:1px;}
-#sd-card-preview-stats{display:flex;flex-direction:column;gap:4px;}
-#sd-card-preview-stats .pv-row{
-  display:flex;align-items:center;gap:6px;
-  font-family:'DM Mono',monospace;font-size:11px;
-  padding:4px 8px;border-radius:7px;background:var(--s3);
-}
-#sd-card-preview-stats .pv-ico{font-size:12px;flex-shrink:0;}
-#sd-card-preview-stats .pv-lbl{font-size:8px;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;font-weight:600;flex:1;}
-#sd-card-preview-stats .pv-val{font-weight:700;font-size:14px;color:var(--txt);}
-#sd-card-preview-desc{font-size:10px;color:var(--sub);font-style:italic;line-height:1.4;padding:5px 8px;background:var(--s3);border-radius:7px;}
-
-/* ── Bannière dernier deck ── */
-#sd-last-deck-bar{
-  display:none;
-  align-items:center;gap:10px;
-  padding:8px 14px;
-  background:rgba(240,192,64,.1);
-  border:1px solid rgba(240,192,64,.35);
-  border-radius:10px;
-  width:100%;flex-shrink:0;
-}
-#sd-last-deck-bar.visible{display:flex;}
-#sd-last-deck-thumbs{display:flex;gap:3px;align-items:center;}
-#sd-last-deck-thumbs img,#sd-last-deck-thumbs .ldt-ph{
-  width:24px;height:34px;border-radius:3px;object-fit:cover;flex-shrink:0;
-  border:1px solid rgba(240,192,64,.3);
-}
-#sd-last-deck-thumbs .ldt-ph{background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:10px;}
-#sd-last-deck-label{font-family:'DM Sans',sans-serif;font-size:11px;color:var(--gold);font-weight:600;flex:1;min-width:0;}
-#sd-last-deck-btn{
-  background:var(--gold);color:#000;
-  border:none;border-radius:7px;
-  padding:6px 14px;font-size:11px;font-weight:700;
-  cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;
-  transition:background .15s,transform .12s;flex-shrink:0;
-}
-#sd-last-deck-btn:hover{background:var(--gold2);transform:translateY(-1px);}
-@media(max-width:768px){
-  #sd-last-deck-bar{padding:6px 10px;gap:6px;}
-  #sd-last-deck-thumbs img,#sd-last-deck-thumbs .ldt-ph{width:18px;height:26px;}
-  #sd-last-deck-label{font-size:10px;}
-  #sd-last-deck-btn{font-size:10px;padding:5px 10px;}
-}
+#sd-card-preview-img{width:100%;aspect-ratio:410/580;object-fit:cover;display:block;}
+#sd-card-preview-info{background:var(--s2);padding:9px 11px;display:flex;flex-direction:column;gap:5px;}
+#sd-card-preview-rar{font-size:8px;letter-spacing:.2em;font-weight:700;text-transform:uppercase;}
+#sd-card-preview-name{font-family:'Cinzel',serif;font-weight:700;font-size:12px;color:var(--txt);line-height:1.2;}
+.sdpv-row{display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;padding:3px 7px;border-radius:6px;background:var(--s3);}
+.sdpv-ico{font-size:11px;flex-shrink:0;}
+.sdpv-lbl{font-size:8px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;font-weight:600;flex:1;}
+.sdpv-val{font-weight:700;font-size:13px;color:var(--txt);}
+#sd-card-preview-desc{font-size:10px;color:var(--sub);font-style:italic;line-height:1.4;padding:5px 7px;background:var(--s3);border-radius:6px;}
 </style>
 <script>
 /* Met à jour --dvh à chaque resize pour iOS/Android (barre URL rétractable) */
@@ -1250,7 +1221,6 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
     <div class="logo" style="font-size:clamp(1.4rem,4vw,2rem);margin-top:-6px">DISCORD TCG</div>
     <div class="logo-sub" style="font-size:11px">Sélectionne exactement 10 cartes — le bot jouera avec le même deck en miroir</div>
     <div class="si-divider" style="margin:6px 0 8px"></div>
-    <!-- Bannière dernier deck -->
     <div id="sd-last-deck-bar">
       <div id="sd-last-deck-thumbs"></div>
       <div id="sd-last-deck-label">Rejouer avec ton dernier deck ?</div>
@@ -3332,8 +3302,6 @@ function restartGame(){
   // Réinitialiser la sélection
   _selected10=[];
   renderDeckGrid();
-  // Ré-afficher la bannière dernier deck si disponible
-  initLastDeckBar();
 }
 
 // ── Chargement principal 10v10 ────────────────────────────────────────
@@ -3403,230 +3371,205 @@ async function initSupabase(){
   updatePlayButton();
 }
 
-// ── Sauvegarde du dernier deck ─────────────────────────────────────────
-const LAST_DECK_KEY = 'discordtcg_last_deck_10v10';
+// ── Démarrage ─────────────────────────────────────────────────────────
+(async()=>{
+  await initSupabase();
+  // Après le chargement des données, on peut initialiser les features
+  _initLastDeckBar();
+  _initCardPreview();
+})();
 
-function saveLastDeck(){
+// ══════════════════════════════════════════════════════════════════════
+// FEATURE 1 — Mémorisation du dernier deck
+// ══════════════════════════════════════════════════════════════════════
+const _LAST_DECK_KEY = 'discordtcg_last_deck_10v10';
+
+function _saveLastDeck(){
   if(_selected10.length!==10) return;
-  try{
-    const payload = _selected10.map(c=>String(c.id));
-    localStorage.setItem(LAST_DECK_KEY, JSON.stringify(payload));
-  }catch(e){ console.warn('[10v10] saveLastDeck:',e); }
+  try{ localStorage.setItem(_LAST_DECK_KEY, JSON.stringify(_selected10.map(c=>String(c.id)))); }
+  catch(e){}
 }
 
 function loadLastDeck(){
   try{
-    const raw = localStorage.getItem(LAST_DECK_KEY);
-    if(!raw) return;
-    const ids = JSON.parse(raw);
+    const ids = JSON.parse(localStorage.getItem(_LAST_DECK_KEY)||'null');
     if(!Array.isArray(ids)||ids.length!==10) return;
     _selected10=[];
     ids.forEach(cidStr=>{
-      const raw2=_allCardsRaw.find(c=>String(c.id)===cidStr);
-      if(!raw2) return;
-      const g=supaToGame(raw2);
+      const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
+      if(!raw) return;
+      const g=supaToGame(raw);
       _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
     });
     renderDeckGrid();
-    // Feedback visuel
     const btn=document.getElementById('sd-last-deck-btn');
-    if(btn){btn.textContent='✓ Rechargé !';setTimeout(()=>{btn.textContent='↺ Recharger';},1800);}
-  }catch(e){ console.warn('[10v10] loadLastDeck:',e); }
+    if(btn){btn.textContent='✓ Chargé !';setTimeout(()=>{btn.textContent='↺ Recharger';},1800);}
+  }catch(e){}
 }
 
-function initLastDeckBar(){
-  const bar = document.getElementById('sd-last-deck-bar');
-  if(bar) bar.classList.remove('visible');
+function _initLastDeckBar(){
+  // N'afficher que si une sauvegarde existe ET que les cartes sont chargées
+  const bar=document.getElementById('sd-last-deck-bar');
+  const thumbs=document.getElementById('sd-last-deck-thumbs');
+  if(!bar||!thumbs) return;
+  bar.classList.remove('visible');
   try{
-    const raw = localStorage.getItem(LAST_DECK_KEY);
-    if(!raw) return;
-    const ids = JSON.parse(raw);
+    const ids=JSON.parse(localStorage.getItem(_LAST_DECK_KEY)||'null');
     if(!Array.isArray(ids)||ids.length!==10) return;
-
-    const thumbs = document.getElementById('sd-last-deck-thumbs');
-    if(!bar||!thumbs) return;
-
-    // Générer les vignettes (max 10)
     thumbs.innerHTML='';
-    ids.slice(0,10).forEach(cidStr=>{
-      const raw2=_allCardsRaw.find(c=>String(c.id)===cidStr);
-      if(raw2&&raw2.image_url){
-        const img=document.createElement('img');
-        img.src=raw2.image_url;img.alt='';
-        thumbs.appendChild(img);
-      } else {
-        const ph=document.createElement('div');
-        ph.className='ldt-ph';
-        ph.textContent=raw2?.type==='Hero'||raw2?.type==='Héro'?'⚡':'✨';
-        thumbs.appendChild(ph);
-      }
+    ids.forEach(cidStr=>{
+      const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
+      const el=document.createElement(raw&&raw.image_url?'img':'div');
+      if(raw&&raw.image_url){el.src=raw.image_url;el.alt='';}
+      else{el.className='ldt-ph';el.textContent=(raw?.type==='Hero'||raw?.type==='Héro')?'⚡':'✨';}
+      thumbs.appendChild(el);
     });
-
     bar.classList.add('visible');
   }catch(e){}
 }
 
-// Surcharge launchGame10v10 pour sauvegarder le deck avant de lancer
-const _origLaunchGame10v10 = launchGame10v10;
-launchGame10v10 = function(){
-  saveLastDeck();
-  _origLaunchGame10v10();
+// Sauvegarder avant de lancer + ré-afficher la barre au retour
+const _orig_launchGame10v10=launchGame10v10;
+launchGame10v10=function(){
+  _saveLastDeck();
+  _orig_launchGame10v10();
 };
 
-// ── Aperçu carte (hover PC / long press mobile) dans la grille de sélection ──
-const PREVIEW_EL = ()=>document.getElementById('sd-card-preview');
-let _previewHideTimer = null;
-let _previewLongTimer = null;
+const _orig_restartGame=restartGame;
+restartGame=function(){
+  _orig_restartGame();
+  // _allCardsRaw est encore dispo, on peut réafficher la barre
+  _initLastDeckBar();
+};
 
-function showCardPreview(g, anchorEl){
-  clearTimeout(_previewHideTimer);
-  const pv = PREVIEW_EL();
+// ══════════════════════════════════════════════════════════════════════
+// FEATURE 2 — Aperçu carte au hover (PC) / long-press (mobile)
+// ══════════════════════════════════════════════════════════════════════
+let _pvHideT=null, _pvLongT=null;
+
+function _showCardPreview(g, anchorEl){
+  clearTimeout(_pvHideT);
+  const pv=document.getElementById('sd-card-preview');
   if(!pv) return;
-
-  // Remplir contenu
   const rarCols={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'};
   const rarLabels={C:'Commun',PC:'Peu Commun',R:'Rare',M:'Mythique'};
-  const col = rarCols[g.rarete]||'#888';
-
-  document.getElementById('sd-card-preview-rar').style.color=col;
-  document.getElementById('sd-card-preview-rar').textContent=rarLabels[g.rarete]||'';
-  document.getElementById('sd-card-preview-name').textContent=g.nom;
-
+  const col=rarCols[g.rarete]||'#888';
   const img=document.getElementById('sd-card-preview-img');
   if(g.image_url){img.src=g.image_url;img.style.display='block';}
   else{img.style.display='none';}
-
+  document.getElementById('sd-card-preview-rar').style.color=col;
+  document.getElementById('sd-card-preview-rar').textContent=rarLabels[g.rarete]||'';
+  document.getElementById('sd-card-preview-name').textContent=g.nom;
   const stats=document.getElementById('sd-card-preview-stats');
   const desc=document.getElementById('sd-card-preview-desc');
   if(g.ct==='fighter'){
     stats.innerHTML=`
-      <div class="pv-row"><span class="pv-ico">❤️</span><span class="pv-lbl">HP</span><span class="pv-val">${g.hp}</span></div>
-      <div class="pv-row"><span class="pv-ico">⚔️</span><span class="pv-lbl">Attaque</span><span class="pv-val">${g.atq}</span></div>
-      <div class="pv-row"><span class="pv-ico">🛡️</span><span class="pv-lbl">Défense</span><span class="pv-val">${g.def}</span></div>
-      <div class="pv-row"><span class="pv-ico">🎯</span><span class="pv-lbl">Précision</span><span class="pv-val">${Math.round(g.prec*100)}%</span></div>`;
-    desc.style.display='none';
+      <div class="sdpv-row"><span class="sdpv-ico">❤️</span><span class="sdpv-lbl">HP</span><span class="sdpv-val">${g.hp}</span></div>
+      <div class="sdpv-row"><span class="sdpv-ico">⚔️</span><span class="sdpv-lbl">ATQ</span><span class="sdpv-val">${g.atq}</span></div>
+      <div class="sdpv-row"><span class="sdpv-ico">🛡️</span><span class="sdpv-lbl">DEF</span><span class="sdpv-val">${g.def}</span></div>
+      <div class="sdpv-row"><span class="sdpv-ico">🎯</span><span class="sdpv-lbl">PRÉ</span><span class="sdpv-val">${Math.round(g.prec*100)}%</span></div>`;
+    if(desc) desc.style.display='none';
   } else {
     stats.innerHTML='';
-    if(g.desc){
-      desc.textContent=g.desc;
-      desc.style.display='block';
-    } else {desc.style.display='none';}
+    if(desc&&g.desc){desc.textContent=g.desc;desc.style.display='block';}
+    else if(desc){desc.style.display='none';}
   }
-
-  // Positionnement
-  positionCardPreview(anchorEl);
-  pv.classList.add('visible');
-}
-
-function positionCardPreview(anchorEl){
-  const pv = PREVIEW_EL();
-  if(!pv||!anchorEl) return;
-  const rect = anchorEl.getBoundingClientRect();
-  const pvW = 200;
-  const vw = window.innerWidth, vh = window.innerHeight;
-  let x = rect.right + 8;
-  if(x+pvW > vw-8) x = rect.left - pvW - 8;
+  // Positionner
+  const rect=anchorEl.getBoundingClientRect();
+  const pvW=194, vw=window.innerWidth, vh=window.innerHeight;
+  let x=rect.right+10;
+  if(x+pvW>vw-6) x=rect.left-pvW-10;
   if(x<4) x=4;
-  let y = rect.top;
-  const pvH = pv.offsetHeight||320;
-  if(y+pvH > vh-8) y = vh-pvH-8;
-  if(y<4) y=4;
-  pv.style.left=x+'px';
-  pv.style.top=y+'px';
+  let y=rect.top;
+  // On positionne d'abord, puis on ajuste après rendu
+  pv.style.left=x+'px'; pv.style.top=y+'px';
+  pv.classList.add('visible');
+  // Réajuster verticalement après que le browser ait calculé la hauteur
+  requestAnimationFrame(()=>{
+    const pvH=pv.offsetHeight;
+    if(y+pvH>vh-6) y=Math.max(4,vh-pvH-6);
+    pv.style.top=y+'px';
+  });
 }
 
-function hideCardPreview(delay=100){
-  _previewHideTimer=setTimeout(()=>{
-    const pv=PREVIEW_EL();
+function _hideCardPreview(delay){
+  _pvHideT=setTimeout(()=>{
+    const pv=document.getElementById('sd-card-preview');
     if(pv) pv.classList.remove('visible');
-  },delay);
+  }, delay??100);
 }
 
-function initCardPreview(){
-  // Délégation événements sur la grille (fonctionne même après re-render)
-  const grid = document.getElementById('sd-grid');
+function _initCardPreview(){
+  const grid=document.getElementById('sd-grid');
   if(!grid) return;
 
-  // PC : mouseenter / mouseleave sur .sd-card
-  grid.addEventListener('mouseover', e=>{
-    const card = e.target.closest('.sd-card');
-    if(!card) return;
-    const g = card._cardData;
-    if(g) showCardPreview(g, card);
+  // PC : mouseenter / mouseleave par délégation
+  grid.addEventListener('mouseover',e=>{
+    const card=e.target.closest('.sd-card');
+    if(card&&card._cardData) _showCardPreview(card._cardData, card);
   });
-  grid.addEventListener('mouseout', e=>{
-    const card = e.target.closest('.sd-card');
-    if(card) hideCardPreview(80);
+  grid.addEventListener('mouseout',e=>{
+    if(e.target.closest('.sd-card')) _hideCardPreview(80);
   });
 
-  // Mobile : touchstart long press sur .sd-card
-  grid.addEventListener('touchstart', e=>{
-    const card = e.target.closest('.sd-card');
-    if(!card) return;
-    const g = card._cardData;
-    if(!g) return;
-    clearTimeout(_previewLongTimer);
-    const t = e.touches[0];
-    _previewLongTimer = setTimeout(()=>{
-      showCardPreview(g, card);
-    }, 350);
+  // Mobile : long-press (≥350ms) par délégation
+  grid.addEventListener('touchstart',e=>{
+    const card=e.target.closest('.sd-card');
+    if(!card||!card._cardData) return;
+    clearTimeout(_pvLongT);
+    _pvLongT=setTimeout(()=>_showCardPreview(card._cardData,card),350);
   },{passive:true});
-
-  grid.addEventListener('touchend', ()=>{
-    clearTimeout(_previewLongTimer);
-    hideCardPreview(1200);
-  },{passive:true});
-
-  grid.addEventListener('touchmove', ()=>{
-    clearTimeout(_previewLongTimer);
-    hideCardPreview(200);
-  },{passive:true});
+  grid.addEventListener('touchend',()=>{clearTimeout(_pvLongT);_hideCardPreview(1200);},{passive:true});
+  grid.addEventListener('touchmove',()=>{clearTimeout(_pvLongT);_hideCardPreview(150);},{passive:true});
 }
 
-// ── Patch renderDeckGrid pour attacher _cardData à chaque .sd-card ────
-const _origRenderDeckGrid = renderDeckGrid;
-renderDeckGrid = function(){
-  _origRenderDeckGrid();
-  // Après le rendu, attacher les données de carte aux éléments DOM
-  // On réutilise les mêmes données que renderDeckGrid calcule
-  attachCardDataToGrid();
+// Attacher les données de carte aux éléments DOM après chaque renderDeckGrid
+// On le fait en patchant renderSelectedBar (appelé en fin de renderDeckGrid)
+const _orig_renderSelectedBar=renderSelectedBar;
+renderSelectedBar=function(){
+  _orig_renderSelectedBar();
+  // Attacher _cardData à chaque .sd-card selon l'ordre de rendu
+  _attachCardData();
 };
 
-function attachCardDataToGrid(){
-  const grid = document.getElementById('sd-grid');
-  if(!grid||!_dataReady) return;
+function _attachCardData(){
+  if(!_dataReady) return;
+  const grid=document.getElementById('sd-grid');
+  if(!grid) return;
+  // Reconstruire la même liste ordonnée que renderDeckGrid
   const selCount={};
   _selected10.forEach(c=>{const k=String(c.id);selCount[k]=(selCount[k]||0)+1;});
-
-  // Reconstruire la même liste qu'in renderDeckGrid
-  const available=[];
-  for(const [cid, qty] of Object.entries(_playerCollection)){
+  const rarOrder={M:0,R:1,PC:2,C:3};
+  const list=[];
+  for(const [cid,qty] of Object.entries(_playerCollection)){
     if(qty<1) continue;
-    const cidStr=String(cid);
-    const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
+    const raw=_allCardsRaw.find(c=>String(c.id)===cid);
     if(!raw) continue;
     const g=supaToGame(raw);
     if(_sdFilter==='fighter'&&g.ct!=='fighter') continue;
     if(_sdFilter==='sort'&&g.ct!=='sort') continue;
-    available.push(g);
+    list.push(g);
   }
-
-  const sdCards = grid.querySelectorAll('.sd-card');
-  sdCards.forEach((el, i)=>{
-    if(available[i]) el._cardData = available[i];
+  list.sort((a,b)=>{
+    const aS=(selCount[a.id]||0)>0?0:1, bS=(selCount[b.id]||0)>0?0:1;
+    if(aS!==bS) return aS-bS;
+    const rA=rarOrder[a.rarete]??3, rB=rarOrder[b.rarete]??3;
+    if(rA!==rB) return rA-rB;
+    return a.nom.localeCompare(b.nom);
   });
+  grid.querySelectorAll('.sd-card').forEach((el,i)=>{ if(list[i]) el._cardData=list[i]; });
 }
 
+</script>
 
-
-</script><!-- ── Aperçu carte hover/longpress (sélection deck) ── -->
+<!-- ── Aperçu carte hover/longpress ── -->
 <div id="sd-card-preview">
   <img id="sd-card-preview-img" src="" alt="" />
   <div id="sd-card-preview-info">
     <div id="sd-card-preview-rar"></div>
     <div id="sd-card-preview-name"></div>
     <div id="sd-card-preview-stats"></div>
-    <div id="sd-card-preview-desc" style="display:none;"></div>
+    <div id="sd-card-preview-desc"></div>
   </div>
 </div>
 
