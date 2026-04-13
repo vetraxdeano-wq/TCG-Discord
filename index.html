@@ -3799,22 +3799,27 @@ function bindGame(){
       // ── Retirer du state par level (fiable même si notifId est vide) ──
       const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
 
-      // ── Marquer toutes les notifs de ce niveau comme lues en DB ──
+      // ── Vérifier + insérer dans claimed_rewards (1 récompense par joueur par level, définitif) ──
       if(db && myId && level) {
         try {
+          // Vérifier si déjà réclamée
+          const { data: alreadyClaimed } = await db.from('claimed_rewards')
+            .select('id').eq('player_id', myId).eq('level', level).maybeSingle();
+          if(alreadyClaimed) {
+            // Déjà réclamée — retirer du state silencieusement sans rien accorder
+            setState({ pendingLevelRewards: remaining, showNotif: false });
+            return;
+          }
+          // Insérer dans claimed_rewards (UNIQUE player_id+level empêche les doublons)
+          await db.from('claimed_rewards').insert({ player_id: myId, level: level }).catch(()=>{});
+          // Marquer toutes les notifs de ce niveau comme lues en DB
           const { data: lvlNotifs } = await db.from('notifications')
-            .select('id, meta')
+            .select('id')
             .eq('user_id', myId)
             .in('type', ['level_reward', 'level_reward_booster'])
             .eq('read', false);
-          const toMark = (lvlNotifs||[]).filter(n => {
-            try { return JSON.parse(n.meta||'{}').level === level; } catch(e){ return false; }
-          });
-          for(const n of toMark) {
-            let updatedMeta = {};
-            try { updatedMeta = JSON.parse(n.meta || '{}'); } catch(e) {}
-            updatedMeta.claimed = true;
-            await db.from('notifications').update({ read: true, meta: JSON.stringify(updatedMeta) }).eq('id', n.id).catch(()=>{});
+          for(const n of (lvlNotifs||[])) {
+            await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
           }
         } catch(e) {}
       }
@@ -3830,8 +3835,13 @@ function bindGame(){
           setState({ pendingLevelRewards: remaining, showNotif: false });
         }
       } else {
+        // ── Booster gratuit : écrire le flag en DB sur le joueur ──
+        if(db && myId) {
+          try {
+            await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId);
+          } catch(e) {}
+        }
         setState({ showNotif: false, pendingLevelRewards: remaining });
-        try { window.setBoosterFree(); } catch(e) {}
         setTimeout(()=>{
           if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
           else window.location.href = 'booster2.html';
@@ -6160,6 +6170,11 @@ async function subscribeNotifications() {
     .in('type', ['level_reward', 'level_reward_booster'])
     .eq('read', false);
   if (lvlAllNotifs && lvlAllNotifs.length > 0) {
+    // Charger les levels déjà réclamés (table claimed_rewards — source de vérité)
+    const { data: claimedRows } = await db.from('claimed_rewards')
+      .select('level').eq('player_id', myId);
+    const claimedLevels = new Set((claimedRows || []).map(r => r.level));
+
     const existing = state.pendingLevelRewards || [];
     const existingIds = new Set(existing.map(r => r.notifId));
     const newOnes = [];
@@ -6167,8 +6182,8 @@ async function subscribeNotifications() {
       if (existingIds.has(n.id)) return;
       let meta = {};
       try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
-      if (meta.claimed === true) return; // déjà réclamée
       const lvl = meta.level || 0;
+      if (claimedLevels.has(lvl)) return; // déjà réclamée définitivement
       if (n.type === 'level_reward') {
         const amount = meta.amount || 300;
         newOnes.push({ notifId: n.id, level: lvl, type: 'coins', amount });
@@ -6345,6 +6360,10 @@ async function pollNotificationsAndTrades() {
     .in('type', ['level_reward', 'level_reward_booster'])
     .eq('read', false);
   if (lvlPollNotifs && lvlPollNotifs.length > 0) {
+    const { data: claimedRowsPoll } = await db.from('claimed_rewards')
+      .select('level').eq('player_id', myId);
+    const claimedLevelsPoll = new Set((claimedRowsPoll || []).map(r => r.level));
+
     const existing = state.pendingLevelRewards || [];
     const existingIds = new Set(existing.map(r => r.notifId));
     const newOnes = [];
@@ -6352,8 +6371,8 @@ async function pollNotificationsAndTrades() {
       if (existingIds.has(n.id)) return;
       let meta = {};
       try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
-      if (meta.claimed === true) return; // déjà réclamée
       const lvl = meta.level || 0;
+      if (claimedLevelsPoll.has(lvl)) return; // déjà réclamée définitivement
       if (n.type === 'level_reward') {
         newOnes.push({ notifId: n.id, level: lvl, type: 'coins', amount: meta.amount || 300 });
       } else {
