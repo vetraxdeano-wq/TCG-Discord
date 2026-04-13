@@ -1145,24 +1145,77 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   #sd-last-deck-btn{font-size:10px;padding:5px 10px;}
 }
 
-/* ── Aperçu carte (hover PC / long-press mobile) dans la grille ── */
+/* ── Aperçu carte PC (hover) — grande ── */
 #sd-card-preview{
   position:fixed;z-index:700;pointer-events:none;
   display:none;flex-direction:column;
-  width:190px;border-radius:13px;overflow:hidden;
-  box-shadow:0 16px 60px rgba(0,0,0,.9),0 0 0 1px var(--bdr3);
-  animation:slideUp .15s cubic-bezier(.34,1.56,.64,1) both;
+  width:300px;border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,.95),0 0 0 1px var(--bdr3);
+  animation:sdpvIn .18s cubic-bezier(.34,1.4,.64,1) both;
 }
+@keyframes sdpvIn{from{opacity:0;transform:scale(.88) translateY(8px)}to{opacity:1;transform:none}}
 #sd-card-preview.visible{display:flex;}
 #sd-card-preview-img{width:100%;aspect-ratio:410/580;object-fit:cover;display:block;}
-#sd-card-preview-info{background:var(--s2);padding:9px 11px;display:flex;flex-direction:column;gap:5px;}
+#sd-card-preview-info{background:var(--s2);padding:12px 14px;display:flex;flex-direction:column;gap:7px;}
 #sd-card-preview-rar{font-size:8px;letter-spacing:.2em;font-weight:700;text-transform:uppercase;}
-#sd-card-preview-name{font-family:'Cinzel',serif;font-weight:700;font-size:12px;color:var(--txt);line-height:1.2;}
-.sdpv-row{display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;padding:3px 7px;border-radius:6px;background:var(--s3);}
-.sdpv-ico{font-size:11px;flex-shrink:0;}
-.sdpv-lbl{font-size:8px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;font-weight:600;flex:1;}
-.sdpv-val{font-weight:700;font-size:13px;color:var(--txt);}
-#sd-card-preview-desc{font-size:10px;color:var(--sub);font-style:italic;line-height:1.4;padding:5px 7px;background:var(--s3);border-radius:6px;}
+#sd-card-preview-name{font-family:'Cinzel',serif;font-weight:700;font-size:15px;color:var(--txt);line-height:1.2;}
+.sdpv-row{display:flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;padding:5px 9px;border-radius:7px;background:var(--s3);}
+.sdpv-ico{font-size:13px;flex-shrink:0;}
+.sdpv-lbl{font-size:9px;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;font-weight:600;flex:1;}
+.sdpv-val{font-weight:700;font-size:16px;color:var(--txt);}
+#sd-card-preview-desc{font-size:11px;color:var(--sub);font-style:italic;line-height:1.45;padding:7px 9px;background:var(--s3);border-radius:7px;}
+
+/* ── Bouton loupe sur les cartes (mobile uniquement) ── */
+.sd-card-loupe{
+  display:none; /* masqué sur PC */
+  position:absolute;bottom:3px;right:3px;
+  width:20px;height:20px;border-radius:50%;
+  background:rgba(0,0,0,.72);border:1px solid rgba(255,255,255,.25);
+  color:#fff;font-size:11px;
+  align-items:center;justify-content:center;
+  cursor:pointer;z-index:5;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+@media(max-width:900px),(pointer:coarse){
+  .sd-card-loupe{display:flex;}
+}
+
+/* ── Modale bottom-sheet aperçu (mobile) ── */
+#sd-preview-modal-overlay{
+  display:none;position:fixed;inset:0;z-index:800;
+  background:rgba(0,0,0,.78);backdrop-filter:blur(8px);
+  align-items:flex-end;justify-content:center;
+}
+#sd-preview-modal-overlay.open{display:flex;}
+#sd-preview-modal{
+  background:var(--s2);border:1px solid var(--bdr3);
+  border-radius:20px 20px 0 0;
+  width:100%;max-width:480px;
+  max-height:90dvh;
+  display:flex;flex-direction:column;
+  animation:slideUpModal .28s cubic-bezier(.34,1.4,.64,1) both;
+  overflow:hidden;
+}
+.sdpm-handle{width:36px;height:4px;border-radius:2px;background:var(--bdr3);margin:10px auto 0;flex-shrink:0;}
+.sdpm-body{display:flex;flex-direction:column;overflow-y:auto;padding:12px 16px 20px;}
+.sdpm-img{width:100%;aspect-ratio:410/580;object-fit:cover;border-radius:12px;display:block;margin-bottom:14px;}
+.sdpm-img-ph{width:100%;aspect-ratio:410/580;border-radius:12px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:48px;margin-bottom:14px;}
+.sdpm-rar{font-size:9px;letter-spacing:.2em;font-weight:700;text-transform:uppercase;margin-bottom:4px;}
+.sdpm-name{font-family:'Cinzel',serif;font-weight:700;font-size:20px;color:var(--txt);line-height:1.2;margin-bottom:12px;}
+.sdpm-stats{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.sdpm-row{display:flex;align-items:center;gap:10px;font-family:'DM Mono',monospace;padding:10px 14px;border-radius:10px;background:var(--s3);}
+.sdpm-ico{font-size:18px;flex-shrink:0;}
+.sdpm-lbl{font-size:11px;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;font-weight:600;flex:1;}
+.sdpm-val{font-weight:700;font-size:22px;color:var(--txt);}
+.sdpm-desc{font-size:13px;color:var(--sub);font-style:italic;line-height:1.5;padding:12px 14px;background:var(--s3);border-radius:10px;margin-bottom:12px;}
+.sdpm-close{
+  margin:0 16px 12px;padding:14px;border-radius:12px;
+  background:var(--s3);border:1px solid var(--bdr2);
+  color:var(--sub);font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;
+  cursor:pointer;text-align:center;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
 </style>
 <script>
 /* Met à jour --dvh à chaque resize pour iOS/Android (barre URL rétractable) */
@@ -3066,7 +3119,7 @@ function renderDeckGrid(){
       ${g.ct==='fighter'?`<div style="font-family:'DM Mono',monospace;font-size:5px;color:#aaa;">❤${g.hp} ⚔${g.atq} 🛡${g.def}</div>`:`<div style="font-size:5px;color:#aaa;">${g.type}</div>`}
     </div>`;
 
-    div.innerHTML=imgHTML+badge+infoBar;
+    div.innerHTML=imgHTML+badge+infoBar+`<div class="sd-card-loupe" data-cardid="${g.id}" onclick="_sdOpenPreviewModal('${g.id}',event)">🔍</div>`;
     div.onclick=()=>cycleCard(`${g.id}`);
 
     // Contrôles SOUS la carte
@@ -3374,9 +3427,8 @@ async function initSupabase(){
 // ── Démarrage ─────────────────────────────────────────────────────────
 (async()=>{
   await initSupabase();
-  // Après le chargement des données, on peut initialiser les features
   _initLastDeckBar();
-  _initCardPreview();
+  _initPCPreview();
 })();
 
 // ══════════════════════════════════════════════════════════════════════
@@ -3386,29 +3438,25 @@ const _LAST_DECK_KEY = 'discordtcg_last_deck_10v10';
 
 function _saveLastDeck(){
   if(_selected10.length!==10) return;
-  try{ localStorage.setItem(_LAST_DECK_KEY, JSON.stringify(_selected10.map(c=>String(c.id)))); }
-  catch(e){}
+  try{ localStorage.setItem(_LAST_DECK_KEY, JSON.stringify(_selected10.map(c=>String(c.id)))); }catch(e){}
 }
-
 function loadLastDeck(){
   try{
-    const ids = JSON.parse(localStorage.getItem(_LAST_DECK_KEY)||'null');
+    const ids=JSON.parse(localStorage.getItem(_LAST_DECK_KEY)||'null');
     if(!Array.isArray(ids)||ids.length!==10) return;
     _selected10=[];
     ids.forEach(cidStr=>{
       const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
       if(!raw) return;
       const g=supaToGame(raw);
-      _selected10.push({...g, hpCur:g.hp||10, hpBase:g.hp||10});
+      _selected10.push({...g,hpCur:g.hp||10,hpBase:g.hp||10});
     });
     renderDeckGrid();
     const btn=document.getElementById('sd-last-deck-btn');
     if(btn){btn.textContent='✓ Chargé !';setTimeout(()=>{btn.textContent='↺ Recharger';},1800);}
   }catch(e){}
 }
-
 function _initLastDeckBar(){
-  // N'afficher que si une sauvegarde existe ET que les cartes sont chargées
   const bar=document.getElementById('sd-last-deck-bar');
   const thumbs=document.getElementById('sd-last-deck-thumbs');
   if(!bar||!thumbs) return;
@@ -3419,44 +3467,36 @@ function _initLastDeckBar(){
     thumbs.innerHTML='';
     ids.forEach(cidStr=>{
       const raw=_allCardsRaw.find(c=>String(c.id)===cidStr);
-      const el=document.createElement(raw&&raw.image_url?'img':'div');
-      if(raw&&raw.image_url){el.src=raw.image_url;el.alt='';}
-      else{el.className='ldt-ph';el.textContent=(raw?.type==='Hero'||raw?.type==='Héro')?'⚡':'✨';}
-      thumbs.appendChild(el);
+      if(raw&&raw.image_url){
+        const img=document.createElement('img');img.src=raw.image_url;img.alt='';thumbs.appendChild(img);
+      } else {
+        const ph=document.createElement('div');ph.className='ldt-ph';
+        ph.textContent=(raw?.type==='Hero'||raw?.type==='Héro')?'⚡':'✨';thumbs.appendChild(ph);
+      }
     });
     bar.classList.add('visible');
   }catch(e){}
 }
 
-// Sauvegarder avant de lancer + ré-afficher la barre au retour
-const _orig_launchGame10v10=launchGame10v10;
-launchGame10v10=function(){
-  _saveLastDeck();
-  _orig_launchGame10v10();
-};
+// Patch launchGame : sauvegarder avant de lancer
+const _orig_launch=launchGame10v10;
+launchGame10v10=function(){ _saveLastDeck(); _orig_launch(); };
 
-const _orig_restartGame=restartGame;
-restartGame=function(){
-  _orig_restartGame();
-  // _allCardsRaw est encore dispo, on peut réafficher la barre
-  _initLastDeckBar();
-};
+// Patch restartGame : ré-afficher la barre au retour
+const _orig_restart=restartGame;
+restartGame=function(){ _orig_restart(); _initLastDeckBar(); };
 
 // ══════════════════════════════════════════════════════════════════════
-// FEATURE 2 — Aperçu carte au hover (PC) / long-press (mobile)
+// FEATURE 2a — Aperçu grande carte sur PC (hover)
 // ══════════════════════════════════════════════════════════════════════
-let _pvHideT=null, _pvLongT=null;
+let _pvHideT=null;
 
-function _showCardPreview(g, anchorEl){
-  clearTimeout(_pvHideT);
-  const pv=document.getElementById('sd-card-preview');
-  if(!pv) return;
+function _sdBuildPreviewContent(g){
   const rarCols={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'};
   const rarLabels={C:'Commun',PC:'Peu Commun',R:'Rare',M:'Mythique'};
   const col=rarCols[g.rarete]||'#888';
   const img=document.getElementById('sd-card-preview-img');
-  if(g.image_url){img.src=g.image_url;img.style.display='block';}
-  else{img.style.display='none';}
+  img.src=g.image_url||'';img.style.display=g.image_url?'block':'none';
   document.getElementById('sd-card-preview-rar').style.color=col;
   document.getElementById('sd-card-preview-rar').textContent=rarLabels[g.rarete]||'';
   document.getElementById('sd-card-preview-name').textContent=g.nom;
@@ -3465,78 +3505,64 @@ function _showCardPreview(g, anchorEl){
   if(g.ct==='fighter'){
     stats.innerHTML=`
       <div class="sdpv-row"><span class="sdpv-ico">❤️</span><span class="sdpv-lbl">HP</span><span class="sdpv-val">${g.hp}</span></div>
-      <div class="sdpv-row"><span class="sdpv-ico">⚔️</span><span class="sdpv-lbl">ATQ</span><span class="sdpv-val">${g.atq}</span></div>
-      <div class="sdpv-row"><span class="sdpv-ico">🛡️</span><span class="sdpv-lbl">DEF</span><span class="sdpv-val">${g.def}</span></div>
-      <div class="sdpv-row"><span class="sdpv-ico">🎯</span><span class="sdpv-lbl">PRÉ</span><span class="sdpv-val">${Math.round(g.prec*100)}%</span></div>`;
-    if(desc) desc.style.display='none';
+      <div class="sdpv-row"><span class="sdpv-ico">⚔️</span><span class="sdpv-lbl">Attaque</span><span class="sdpv-val">${g.atq}</span></div>
+      <div class="sdpv-row"><span class="sdpv-ico">🛡️</span><span class="sdpv-lbl">Défense</span><span class="sdpv-val">${g.def}</span></div>
+      <div class="sdpv-row"><span class="sdpv-ico">🎯</span><span class="sdpv-lbl">Précision</span><span class="sdpv-val">${Math.round(g.prec*100)}%</span></div>`;
+    desc.style.display='none';
   } else {
     stats.innerHTML='';
-    if(desc&&g.desc){desc.textContent=g.desc;desc.style.display='block';}
-    else if(desc){desc.style.display='none';}
+    if(g.desc){desc.textContent=g.desc;desc.style.display='block';}
+    else desc.style.display='none';
   }
-  // Positionner
+}
+
+function _sdShowPreview(g, anchorEl){
+  clearTimeout(_pvHideT);
+  _sdBuildPreviewContent(g);
+  const pv=document.getElementById('sd-card-preview');
+  const pvW=300, vw=window.innerWidth, vh=window.innerHeight;
   const rect=anchorEl.getBoundingClientRect();
-  const pvW=194, vw=window.innerWidth, vh=window.innerHeight;
-  let x=rect.right+10;
-  if(x+pvW>vw-6) x=rect.left-pvW-10;
+  let x=rect.right+14;
+  if(x+pvW>vw-8) x=rect.left-pvW-14;
   if(x<4) x=4;
-  let y=rect.top;
-  // On positionne d'abord, puis on ajuste après rendu
-  pv.style.left=x+'px'; pv.style.top=y+'px';
+  pv.style.left=x+'px'; pv.style.top='0px';
   pv.classList.add('visible');
-  // Réajuster verticalement après que le browser ait calculé la hauteur
   requestAnimationFrame(()=>{
+    let y=rect.top;
     const pvH=pv.offsetHeight;
-    if(y+pvH>vh-6) y=Math.max(4,vh-pvH-6);
+    if(y+pvH>vh-8) y=Math.max(4,vh-pvH-8);
     pv.style.top=y+'px';
   });
 }
 
-function _hideCardPreview(delay){
+function _sdHidePreview(delay){
   _pvHideT=setTimeout(()=>{
-    const pv=document.getElementById('sd-card-preview');
-    if(pv) pv.classList.remove('visible');
+    document.getElementById('sd-card-preview')?.classList.remove('visible');
   }, delay??100);
 }
 
-function _initCardPreview(){
+function _initPCPreview(){
   const grid=document.getElementById('sd-grid');
   if(!grid) return;
-
-  // PC : mouseenter / mouseleave par délégation
   grid.addEventListener('mouseover',e=>{
     const card=e.target.closest('.sd-card');
-    if(card&&card._cardData) _showCardPreview(card._cardData, card);
+    if(card&&card._sdCardData) _sdShowPreview(card._sdCardData, card);
   });
   grid.addEventListener('mouseout',e=>{
-    if(e.target.closest('.sd-card')) _hideCardPreview(80);
+    if(e.target.closest('.sd-card')) _sdHidePreview(80);
   });
-
-  // Mobile : long-press (≥350ms) par délégation
-  grid.addEventListener('touchstart',e=>{
-    const card=e.target.closest('.sd-card');
-    if(!card||!card._cardData) return;
-    clearTimeout(_pvLongT);
-    _pvLongT=setTimeout(()=>_showCardPreview(card._cardData,card),350);
-  },{passive:true});
-  grid.addEventListener('touchend',()=>{clearTimeout(_pvLongT);_hideCardPreview(1200);},{passive:true});
-  grid.addEventListener('touchmove',()=>{clearTimeout(_pvLongT);_hideCardPreview(150);},{passive:true});
 }
 
-// Attacher les données de carte aux éléments DOM après chaque renderDeckGrid
-// On le fait en patchant renderSelectedBar (appelé en fin de renderDeckGrid)
+// Patch renderSelectedBar pour attacher _sdCardData après chaque rendu
 const _orig_renderSelectedBar=renderSelectedBar;
 renderSelectedBar=function(){
   _orig_renderSelectedBar();
-  // Attacher _cardData à chaque .sd-card selon l'ordre de rendu
-  _attachCardData();
+  _attachCardDataToDOM();
 };
-
-function _attachCardData(){
+function _attachCardDataToDOM(){
   if(!_dataReady) return;
   const grid=document.getElementById('sd-grid');
   if(!grid) return;
-  // Reconstruire la même liste ordonnée que renderDeckGrid
   const selCount={};
   _selected10.forEach(c=>{const k=String(c.id);selCount[k]=(selCount[k]||0)+1;});
   const rarOrder={M:0,R:1,PC:2,C:3};
@@ -3551,18 +3577,60 @@ function _attachCardData(){
     list.push(g);
   }
   list.sort((a,b)=>{
-    const aS=(selCount[a.id]||0)>0?0:1, bS=(selCount[b.id]||0)>0?0:1;
+    const aS=(selCount[a.id]||0)>0?0:1,bS=(selCount[b.id]||0)>0?0:1;
     if(aS!==bS) return aS-bS;
-    const rA=rarOrder[a.rarete]??3, rB=rarOrder[b.rarete]??3;
+    const rA=rarOrder[a.rarete]??3,rB=rarOrder[b.rarete]??3;
     if(rA!==rB) return rA-rB;
     return a.nom.localeCompare(b.nom);
   });
-  grid.querySelectorAll('.sd-card').forEach((el,i)=>{ if(list[i]) el._cardData=list[i]; });
+  grid.querySelectorAll('.sd-card').forEach((el,i)=>{ if(list[i]) el._sdCardData=list[i]; });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// FEATURE 2b — Modale bottom-sheet aperçu sur mobile (bouton 🔍)
+// ══════════════════════════════════════════════════════════════════════
+function _sdOpenPreviewModal(cardId, event){
+  if(event){ event.stopPropagation(); event.preventDefault(); }
+  const raw=_allCardsRaw.find(c=>String(c.id)===String(cardId));
+  if(!raw) return;
+  const g=supaToGame(raw);
+  const rarCols={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'};
+  const rarLabels={C:'Commun',PC:'Peu Commun',R:'Rare',M:'Mythique'};
+  const col=rarCols[g.rarete]||'#888';
+
+  let imgHTML='';
+  if(g.image_url) imgHTML=`<img class="sdpm-img" src="${g.image_url}" alt="${g.nom}" />`;
+  else imgHTML=`<div class="sdpm-img-ph">${g.ct==='fighter'?'⚡':'✨'}</div>`;
+
+  let statsHTML='';
+  if(g.ct==='fighter'){
+    statsHTML=`<div class="sdpm-stats">
+      <div class="sdpm-row"><span class="sdpm-ico">❤️</span><span class="sdpm-lbl">HP</span><span class="sdpm-val">${g.hp}</span></div>
+      <div class="sdpm-row"><span class="sdpm-ico">⚔️</span><span class="sdpm-lbl">Attaque</span><span class="sdpm-val">${g.atq}</span></div>
+      <div class="sdpm-row"><span class="sdpm-ico">🛡️</span><span class="sdpm-lbl">Défense</span><span class="sdpm-val">${g.def}</span></div>
+      <div class="sdpm-row"><span class="sdpm-ico">🎯</span><span class="sdpm-lbl">Précision</span><span class="sdpm-val">${Math.round(g.prec*100)}%</span></div>
+    </div>`;
+  } else if(g.desc){
+    statsHTML=`<div class="sdpm-desc">${g.desc}</div>`;
+  }
+
+  const overlay=document.getElementById('sd-preview-modal-overlay');
+  const modal=document.getElementById('sd-preview-modal');
+  modal.querySelector('.sdpm-body').innerHTML=`
+    ${imgHTML}
+    <div class="sdpm-rar" style="color:${col}">${rarLabels[g.rarete]||''}</div>
+    <div class="sdpm-name">${g.nom}</div>
+    ${statsHTML}`;
+  overlay.classList.add('open');
+}
+
+function _sdClosePreviewModal(){
+  document.getElementById('sd-preview-modal-overlay')?.classList.remove('open');
 }
 
 </script>
 
-<!-- ── Aperçu carte hover/longpress ── -->
+<!-- ── Aperçu carte PC ── -->
 <div id="sd-card-preview">
   <img id="sd-card-preview-img" src="" alt="" />
   <div id="sd-card-preview-info">
@@ -3570,6 +3638,15 @@ function _attachCardData(){
     <div id="sd-card-preview-name"></div>
     <div id="sd-card-preview-stats"></div>
     <div id="sd-card-preview-desc"></div>
+  </div>
+</div>
+
+<!-- ── Modale aperçu mobile ── -->
+<div id="sd-preview-modal-overlay" onclick="_sdClosePreviewModal()">
+  <div id="sd-preview-modal" onclick="event.stopPropagation()">
+    <div class="sdpm-handle"></div>
+    <div class="sdpm-body"></div>
+    <button class="sdpm-close" onclick="_sdClosePreviewModal()">Fermer</button>
   </div>
 </div>
 
