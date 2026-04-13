@@ -5513,28 +5513,26 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
   btn.disabled = true;
   btn.textContent = '…';
 
-  // Attendre que window.db soit dispo
-  let attempts = 0;
-  while(!window.db && attempts < 40) { await new Promise(r=>setTimeout(r,100)); attempts++; }
-  const db = window.db;
-  const myId = state.currentUser?.id;
+  // Récupérer db — recréer si window.db absent
+  let db = window.db;
+  if(!db && window.supabase && window.supabase.createClient) {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY,
+      { auth: { autoRefreshToken: true, persistSession: true } });
+    window.db = db;
+  }
+  const myId = state?.currentUser?.id;
 
-  if(!db || !myId) {
-    console.error('[claim] db ou myId manquant', db, myId);
+  if(!db || !myId || !level) {
+    console.error('[claim] manquant:', {db:!!db, myId, level});
     btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
   }
-  if(!level) {
-    console.error('[claim] level=0, data:', {notifId, rewardType, amount, level});
-    btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
-  }
 
-  // Insérer dans claimed_rewards — si déjà réclamé la contrainte UNIQUE bloquera
+  // Insérer dans claimed_rewards
   const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
   if(insertErr) {
-    console.warn('[claim] déjà réclamé ou erreur:', insertErr.message);
+    console.warn('[claim] déjà réclamé:', insertErr.message);
     const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
     setState({ pendingLevelRewards: remaining, showNotif: false });
-    // Marquer notif comme lue quand même
     db.from('notifications').update({ read: true })
       .eq('user_id', myId).in('type', ['level_reward','level_reward_booster']).eq('read', false)
       .then(()=>{}).catch(()=>{});
