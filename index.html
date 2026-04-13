@@ -5520,7 +5520,8 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
       { auth: { autoRefreshToken: true, persistSession: true } });
     window.db = db;
   }
-  const myId = state?.currentUser?.id;
+  const _state = window.getState ? window.getState() : null;
+  const myId = _state?.currentUser?.id;
 
   if(!db || !myId || !level) {
     console.error('[claim] manquant:', {db:!!db, myId, level});
@@ -5531,8 +5532,8 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
   const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
   if(insertErr) {
     console.warn('[claim] déjà réclamé:', insertErr.message);
-    const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
-    setState({ pendingLevelRewards: remaining, showNotif: false });
+    const remaining = (_state.pendingLevelRewards||[]).filter(r => r.level !== level);
+    window.setStateGlobal({ pendingLevelRewards: remaining, showNotif: false });
     db.from('notifications').update({ read: true })
       .eq('user_id', myId).in('type', ['level_reward','level_reward_booster']).eq('read', false)
       .then(()=>{}).catch(()=>{});
@@ -5544,17 +5545,17 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     .eq('user_id', myId).in('type', ['level_reward','level_reward_booster']).eq('read', false)
     .catch(()=>{});
 
-  const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+  const remaining = (_state.pendingLevelRewards||[]).filter(r => r.level !== level);
 
   if(rewardType === 'coins') {
     const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
     const current = playerData?.coins ?? 0;
     await db.from('players').update({ coins: current + amount }).eq('id', myId);
-    setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
-    showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
+    window.setStateGlobal({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
+    if(window.showRewardToastGlobal) window.showRewardToastGlobal('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
   } else {
     await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
-    setState({ showNotif: false, pendingLevelRewards: remaining });
+    window.setStateGlobal({ showNotif: false, pendingLevelRewards: remaining });
     setTimeout(()=>{
       if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
       else window.location.href = 'booster2.html';
@@ -5567,6 +5568,9 @@ window.loadPlayerXp = loadPlayerXp;
 window.computeLevel = computeLevel;
 window.xpToNextLevel = xpToNextLevel;
 window.getLevelReward = getLevelReward;
+window.getState = function() { return state; };
+window.showRewardToastGlobal = showRewardToast;
+window.setStateGlobal = setState;
 
 // Helper pour les pages booster externes — bypass la vérification de coins si récompense gratuite
 // Poser le flag booster gratuit dans sessionStorage ET localStorage (TTL 5 min)
