@@ -5149,42 +5149,32 @@ async function loadLeaderboard(period){
   if(!db){ setState({leaderboardLoading:false,leaderboardData:[]}); return; }
 
   try {
-    // ── 1. Charger tous les joueurs (avec order pour aider Supabase RLS/pagination) ──
+    // ── 1. Récupérer TOUS les joueurs sans filtre utilisateur ──
+    // On utilise .select() simple sans .eq() pour récupérer tous les joueurs.
+    // RLS est disabled sur la table players côté Supabase.
     const { data, error } = await db.from('players')
       .select('id, discord_username, avatar_url, wins, losses, coins, created_at')
-      .order('wins', {ascending: false})
-      .limit(200);
+      .order('wins', { ascending: false })
+      .limit(500);
 
-    // ── 2. Compter les cartes obtenues par joueur (distinct card_id) ──
-    let cardCountMap = {};
-    try {
-      const { data: cardRows } = await db.from('player_cards')
-        .select('player_id, card_id');
-      if(cardRows && cardRows.length > 0){
-        cardRows.forEach(r => {
-          if(!cardCountMap[r.player_id]) cardCountMap[r.player_id] = 0;
-          cardCountMap[r.player_id]++;
-        });
-      }
-    } catch(e){ /* facultatif */ }
-
-    // ── 3. Construire la liste de base ──
-    let all = [];
-
-    if(!error && data && data.length > 0){
-      all = data.map(p => ({
-        ...p,
-        wins:   p.wins   ?? 0,
-        losses: p.losses ?? 0,
-        coins:  p.coins  ?? 0,
-        cards:  cardCountMap[p.id] || 0,
-      }));
+    if(error){
+      console.error('[loadLeaderboard] players query error:', error);
+      setState({leaderboardLoading:false, leaderboardData:[]});
+      return;
     }
 
-    // ── 4. Garantir que le joueur courant figure toujours dans la liste ──
+    // ── 2. Construire la liste (pas de jointure player_cards — trop lourd) ──
     const myId = state.currentUser?.id;
+    let all = (data || []).map(p => ({
+      ...p,
+      wins:   p.wins   ?? 0,
+      losses: p.losses ?? 0,
+      coins:  p.coins  ?? 0,
+    }));
+
+    // ── 3. S'assurer que le joueur connecté est bien dans la liste ──
+    // (cas rare où la requête l'aurait manqué à cause du limit)
     if(myId && !all.find(p => p.id === myId)){
-      // Utiliser les données déjà chargées dans state (pas de requête supplémentaire)
       const meta = state.currentUser?.user_metadata || {};
       all.push({
         id:               myId,
@@ -5193,7 +5183,6 @@ async function loadLeaderboard(period){
         wins:             state.wins   ?? 0,
         losses:           state.losses ?? 0,
         coins:            state.coins  ?? 0,
-        cards:            cardCountMap[myId] || ALL_CARDS.filter(c=>c.owned).length || 0,
       });
     }
 
@@ -5202,56 +5191,40 @@ async function loadLeaderboard(period){
       return;
     }
 
-    // ── 5. Tri : victoires desc, puis coins desc pour départager ──
-    all.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins) || (b.cards - a.cards));
+    // ── 4. Tri : victoires desc, coins desc en départage ──
+    all.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins));
 
-    // ── 6. Pour weekly/monthly : afficher tous avec badge "cette semaine/ce mois"
-    //    (on n'a pas de données de victoires par période, donc on affiche le classement global)
-    //    Les onglets restent utiles pour filtrer les joueurs inscrits dans la période
+    // ── 5. Filtre par période d'inscription ──
     let filtered = all;
     if(period === 'week'){
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
       const recent = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
-      // Seulement si des joueurs récents existent — sinon afficher tout le classement
-      if(recent.length >= 2) filtered = recent;
+      if(recent.length >= 1) filtered = recent;
     } else if(period === 'month'){
-      const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth()-1);
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 1);
       const recent = all.filter(p => p.created_at && new Date(p.created_at) >= cutoff);
-      if(recent.length >= 2) filtered = recent;
+      if(recent.length >= 1) filtered = recent;
     }
 
-    // ── 7. Rang du joueur connecté ──
+    // ── 6. Rang du joueur connecté (dans le filtre courant, ou global sinon) ──
     let playerRank = null;
     if(myId){
       const idx = filtered.findIndex(r => r.id === myId);
-      if(idx !== -1) playerRank = idx + 1;
-      else {
-        // Rang global même si filtré hors de la période
-        const globalIdx = all.findIndex(r => r.id === myId);
-        if(globalIdx !== -1) playerRank = globalIdx + 1;
+      if(idx !== -1){
+        playerRank = idx + 1;
+      } else {
+        const gIdx = all.findIndex(r => r.id === myId);
+        if(gIdx !== -1) playerRank = gIdx + 1;
       }
     }
 
-    setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,30), playerRank});
+    setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,50), playerRank});
 
   } catch(e){
-    console.error('[loadLeaderboard]', e);
-    // Fallback ultime : afficher au moins le joueur courant depuis state
-    const myId = state.currentUser?.id;
-    if(myId){
-      const meta = state.currentUser?.user_metadata || {};
-      setState({leaderboardLoading:false, leaderboardData:[{
-        id: myId,
-        discord_username: meta.full_name || meta.name || 'Toi',
-        avatar_url: meta.avatar_url || null,
-        wins:   state.wins   ?? 0,
-        losses: state.losses ?? 0,
-        coins:  state.coins  ?? 0,
-        cards:  ALL_CARDS.filter(c=>c.owned).length || 0,
-      }], playerRank: 1});
-    } else {
-      setState({leaderboardLoading:false, leaderboardData:[]});
-    }
+    console.error('[loadLeaderboard] exception:', e);
+    setState({leaderboardLoading:false, leaderboardData:[]});
   }
 }
 
