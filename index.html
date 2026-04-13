@@ -3782,70 +3782,6 @@ function bindGame(){
     requestAnimationFrame(()=>{ pop.style.opacity='1'; pop.style.transform='translate(-50%,-50%) scale(1)'; });
   });
 
-  // Réclamer booster récompense niveau — fonction globale (résiste au re-render du DOM)
-  window.claimLevelReward = async function(btn, notifId, rewardType, amount, level) {
-      if(btn.disabled) return;
-      const db = window.db;
-      const myId = state.currentUser?.id;
-      amount = parseInt(amount) || 0;
-      level = parseInt(level) || 0;
-
-      // Désactiver le bouton immédiatement (anti double-clic)
-      btn.disabled = true;
-      btn.textContent = '…';
-
-      // ── Vérifier + insérer dans claimed_rewards (1 récompense par joueur par level, définitif) ──
-      if(db && myId && level) {
-        // Vérifier si déjà réclamée
-        const { data: alreadyClaimed } = await db.from('claimed_rewards')
-          .select('id').eq('player_id', myId).eq('level', level).maybeSingle();
-        if(alreadyClaimed) {
-          // Déjà réclamée — retirer du state silencieusement sans rien accorder
-          const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
-          setState({ pendingLevelRewards: remaining, showNotif: false });
-          return;
-        }
-        // Insérer dans claimed_rewards
-        const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
-        if(insertErr) {
-          // Doublon ou erreur → ne pas accorder la récompense
-          const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
-          setState({ pendingLevelRewards: remaining, showNotif: false });
-          return;
-        }
-        // Marquer les notifs comme lues
-        const { data: lvlNotifs } = await db.from('notifications')
-          .select('id').eq('user_id', myId)
-          .in('type', ['level_reward', 'level_reward_booster']).eq('read', false);
-        for(const n of (lvlNotifs||[])) {
-          await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
-        }
-      }
-
-      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
-
-      if(rewardType === 'coins') {
-        if(myId && db && amount > 0) {
-          const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
-          const current = playerData?.coins ?? 0;
-          await db.from('players').update({ coins: current + amount }).eq('id', myId);
-          setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
-          showRewardToast(`Niveau ${level} — Récompense reçue !`, amount, '🪙');
-        } else {
-          setState({ pendingLevelRewards: remaining, showNotif: false });
-        }
-      } else {
-        // ── Booster gratuit : écrire le flag en DB sur le joueur ──
-        if(db && myId) {
-          await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
-        }
-        setState({ showNotif: false, pendingLevelRewards: remaining });
-        setTimeout(()=>{
-          if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
-          else window.location.href = 'booster2.html';
-        }, 200);
-      }
-  };
   const setBtn = document.getElementById('set-filter-btn');
   if(setBtn) setBtn.addEventListener('click',(e)=>{e.stopPropagation();setState({collSetOpen:!state.collSetOpen});});
   document.querySelectorAll('.set-opt').forEach(btn=>{
@@ -5569,6 +5505,62 @@ async function loadPlayerXp(userId) {
     }
   } catch(e) { /* silencieux */ }
 }
+window.claimLevelReward = async function(btn, notifId, rewardType, amount, level) {
+  if(btn.disabled) return;
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  amount = parseInt(amount) || 0;
+  level = parseInt(level) || 0;
+
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  if(db && myId && level) {
+    const { data: alreadyClaimed } = await db.from('claimed_rewards')
+      .select('id').eq('player_id', myId).eq('level', level).maybeSingle();
+    if(alreadyClaimed) {
+      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+      setState({ pendingLevelRewards: remaining, showNotif: false });
+      return;
+    }
+    const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
+    if(insertErr) {
+      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+      setState({ pendingLevelRewards: remaining, showNotif: false });
+      return;
+    }
+    const { data: lvlNotifs } = await db.from('notifications')
+      .select('id').eq('user_id', myId)
+      .in('type', ['level_reward', 'level_reward_booster']).eq('read', false);
+    for(const n of (lvlNotifs||[])) {
+      await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
+    }
+  }
+
+  const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+
+  if(rewardType === 'coins') {
+    if(myId && db && amount > 0) {
+      const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
+      const current = playerData?.coins ?? 0;
+      await db.from('players').update({ coins: current + amount }).eq('id', myId);
+      setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
+      showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
+    } else {
+      setState({ pendingLevelRewards: remaining, showNotif: false });
+    }
+  } else {
+    if(db && myId) {
+      await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
+    }
+    setState({ showNotif: false, pendingLevelRewards: remaining });
+    setTimeout(()=>{
+      if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
+      else window.location.href = 'booster2.html';
+    }, 200);
+  }
+};
+
 window.grantXp = grantXp;
 window.loadPlayerXp = loadPlayerXp;
 window.computeLevel = computeLevel;
