@@ -5204,8 +5204,6 @@ function enterGame(user, coins) {
     loadPlayerRankOnly(user.id);
     // Charger XP/niveau
     loadPlayerXp(user.id);
-    // Pré-charger le cache des récompenses de niveau depuis Supabase
-    loadLevelRewardsCache();
     // Bouton install PWA : montrer si pas encore installé, puis cacher après 15s
     if (window._startPwaAutoHide) window._startPwaAutoHide();
   }, 450);
@@ -5273,96 +5271,66 @@ function totalXpForLevel(level) {
 }
 
 // ─── RÉCOMPENSES DE NIVEAU ────────────────────────────────────────
-// Cache local des récompenses chargées depuis Supabase (table level_rewards)
-let _levelRewardsCache = null;
-
-// Charge toutes les récompenses depuis Supabase et les met en cache
-async function loadLevelRewardsCache() {
-  if (_levelRewardsCache) return _levelRewardsCache;
-  const db = window.db;
-  if (!db) return {};
-  const { data, error } = await db.from('level_rewards').select('level, reward_type, amount, label');
-  if (error) { console.warn('[level_rewards] erreur chargement:', error.message); return {}; }
-  _levelRewardsCache = {};
-  (data || []).forEach(r => { _levelRewardsCache[r.level] = r; });
-  return _levelRewardsCache;
-}
-
-// Récupère la récompense d'un niveau (depuis le cache DB, fallback JS si cache vide)
-async function getLevelRewardFromDB(level) {
-  const cache = await loadLevelRewardsCache();
-  if (cache[level]) {
-    const r = cache[level];
-    return { type: r.reward_type, amount: r.amount || 0, label: r.label };
-  }
-  // Fallback si la table n'est pas encore chargée
-  return getLevelReward(level);
-}
-
-// Version synchrone conservée pour compatibilité (XP bar, toasts, etc.)
 function getLevelReward(level) {
-  // Utilise le cache si disponible
-  if (_levelRewardsCache && _levelRewardsCache[level]) {
-    const r = _levelRewardsCache[level];
-    return { type: r.reward_type, amount: r.amount || 0, label: r.label };
-  }
-  // Fallback JS (même logique que la table)
   if (level % 10 === 0) return { type: 'booster_legendaire', label: 'Booster Légendaire ⚡' };
   if (level % 5  === 0) return { type: 'booster_prestige',   label: 'Booster Prestige 📦' };
-  return { type: 'coins', amount: 300, label: '+300 Coins 🪙' };
+  return { type: 'coins', amount: 300, label: '300 coins 🪙' };
 }
 
 async function grantLevelReward(userId, level) {
   const db = window.db;
   if (!db || !userId) return;
+  const reward = getLevelReward(level);
 
-  // 1. Vérifier dans claimed_rewards si déjà réclamé (source de vérité)
-  const { data: alreadyClaimed } = await db.from('claimed_rewards')
-    .select('id').eq('player_id', userId).eq('level', level).maybeSingle();
-  if (alreadyClaimed) return; // déjà réclamé, rien à faire
-
-  // 2. Lire la récompense depuis la table level_rewards
-  const reward = await getLevelRewardFromDB(level);
-
-  // 3. Guard anti-doublon sur les notifs : vérifier si une notif existe déjà pour ce niveau
-  const { data: allNotifs } = await db.from('notifications')
-    .select('id, read, meta')
-    .eq('user_id', userId)
-    .in('type', ['level_reward', 'level_reward_booster']);
-
-  const existingForLevel = (allNotifs || []).filter(n => {
-    try { return JSON.parse(n.meta || '{}').level === level; } catch(e) { return false; }
-  });
-
-  if (existingForLevel.length > 0) {
-    // Notif déjà existante → juste s'assurer qu'elle est dans le state si non lue
-    const unread = existingForLevel.find(n => !n.read);
-    if (unread) {
-      const alreadyPending = (state.pendingLevelRewards||[]).some(r => r.notifId === unread.id);
-      if (!alreadyPending) {
-        setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { notifId: unread.id, level, ...reward }] });
-      }
-    }
-    return;
-  }
-
-  // 4. Créer la notif (type unifié : toujours 'level_reward', le meta contient tout)
-  const notifType = reward.type === 'coins' ? 'level_reward' : 'level_reward_booster';
-  const notifText = reward.type === 'coins'
-    ? `Niveau ${level} atteint ! Récompense : +${reward.amount} coins`
-    : `Niveau ${level} atteint ! Récompense : ${reward.label}`;
-
-  let notifId = null;
+  // ── Guard anti-doublon fiable : charger toutes les notifs du type, filtrer en JS ──
   try {
-    const { data: notifData } = await db.from('notifications').insert({
-      user_id: userId, type: notifType, from_id: userId,
-      text: notifText, read: false,
-      meta: JSON.stringify({ level, rewardType: reward.type, amount: reward.amount || 0 }),
-    }).select('id').single();
-    notifId = notifData?.id || null;
-  } catch(e) { console.warn('[grantLevelReward] erreur création notif:', e); }
+    const { data: allNotifs } = await db.from('notifications')
+      .select('id, read, meta')
+      .eq('user_id', userId)
+      .in('type', ['level_reward', 'level_reward_booster']);
 
-  setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { notifId, level, ...reward }] });
+    const existingForLevel = (allNotifs || []).filter(n => {
+      try { return JSON.parse(n.meta || '{}').level === level; } catch(e) { return false; }
+    });
+
+    if (existingForLevel.length > 0) {
+      // Notif déjà existante (lue ou non) pour ce niveau → ne pas recréer
+      const unread = existingForLevel.find(n => !n.read);
+      if (unread) {
+        const alreadyPending = (state.pendingLevelRewards||[]).some(r => r.notifId === unread.id);
+        if (!alreadyPending) {
+          setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { notifId: unread.id, level, ...reward }] });
+        }
+      }
+      return; // Ne pas recréer
+    }
+  } catch(e) { console.warn('grantLevelReward guard error', e); }
+
+  if (reward.type === 'coins') {
+    let notifId = null;
+    try {
+      const { data: notifData } = await db.from('notifications').insert({
+        user_id: userId, type: 'level_reward', from_id: userId,
+        text: `Niveau ${level} atteint ! Récompense : +${reward.amount} coins`,
+        read: false,
+        meta: JSON.stringify({ level, rewardType: 'coins', amount: reward.amount }),
+      }).select('id').single();
+      notifId = notifData?.id || null;
+    } catch(e) {}
+    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { notifId, level, ...reward }] });
+  } else {
+    let notifId = null;
+    try {
+      const { data: notifData } = await db.from('notifications').insert({
+        user_id: userId, type: 'level_reward_booster', from_id: userId,
+        text: `Niveau ${level} atteint ! Récompense : ${reward.label}`,
+        read: false,
+        meta: JSON.stringify({ rewardType: reward.type, level }),
+      }).select('id').single();
+      notifId = notifData?.id || null;
+    } catch(e) {}
+    setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), { notifId, level, ...reward }] });
+  }
 }
 
 async function grantXp(userId, amount, reason) {
@@ -5561,40 +5529,18 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
   }
 
-  // 1. Vérifier que ce niveau n'a pas déjà été réclamé (source de vérité = DB)
-  const { data: alreadyClaimed } = await db.from('claimed_rewards')
-    .select('id').eq('player_id', myId).eq('level', level).maybeSingle();
-  if(alreadyClaimed) {
-    console.warn('[claim] niveau déjà réclamé en base:', level);
-    const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
-    setState({ pendingLevelRewards: remaining, showNotif: false });
-    if(notifId) db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
-    return;
-  }
-
-  // 2. Lire la récompense directement depuis la table level_rewards (source de vérité)
-  const { data: rewardRow, error: rewardErr } = await db.from('level_rewards')
-    .select('reward_type, amount, label').eq('level', level).maybeSingle();
-  if(rewardErr || !rewardRow) {
-    console.error('[claim] récompense introuvable pour niveau', level, rewardErr?.message);
-    btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
-  }
-  // Utiliser les données de la DB (ignore les paramètres rewardType/amount du HTML)
-  rewardType = rewardRow.reward_type;
-  amount = rewardRow.amount || 0;
-
-  // 3. Insérer dans claimed_rewards (contrainte UNIQUE garantit le one-shot)
-  const { error: insertErr } = await db.from('claimed_rewards')
-    .insert({ player_id: myId, level: level });
+  // Insérer dans claimed_rewards (la contrainte UNIQUE bloque le double-claim)
+  const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
   if(insertErr) {
-    console.warn('[claim] conflit insert claimed_rewards (doublon race condition):', insertErr.message);
+    // Déjà réclamé → juste nettoyer l'interface
+    console.warn('[claim] déjà réclamé:', insertErr.message);
     const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
     setState({ pendingLevelRewards: remaining, showNotif: false });
     if(notifId) db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
     return;
   }
 
-  // 4. Marquer uniquement la notif de CE niveau comme lue
+  // Marquer uniquement la notif de CE niveau comme lue
   if(notifId) {
     await db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
   }
@@ -5602,35 +5548,18 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
   const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
 
   if(rewardType === 'coins') {
-    // Lire les coins actuels et incrémenter
-    const { data: playerData, error: fetchErr } = await db.from('players')
-      .select('coins').eq('id', myId).single();
-    if(fetchErr) {
-      console.error('[claim] erreur lecture coins:', fetchErr.message);
-      btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
-    }
+    const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
     const current = playerData?.coins ?? 0;
-    const newTotal = current + amount;
-    const { error: updateErr } = await db.from('players').update({ coins: newTotal }).eq('id', myId);
-    if(updateErr) {
-      console.error('[claim] erreur update coins:', updateErr.message);
-      btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
-    }
-    setState({ coins: newTotal, pendingLevelRewards: remaining, showNotif: false });
+    await db.from('players').update({ coins: current + amount }).eq('id', myId);
+    setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
     showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
   } else {
-    // Écrire le flag booster gratuit — attendre la confirmation avant de rediriger
-    const { error: boosterErr } = await db.from('players')
-      .update({ pending_free_booster: rewardType }).eq('id', myId);
-    if(boosterErr) {
-      console.error('[claim] erreur écriture pending_free_booster:', boosterErr.message);
-      btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
-    }
+    await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
     setState({ showNotif: false, pendingLevelRewards: remaining });
     setTimeout(()=>{
       if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
       else window.location.href = 'booster2.html';
-    }, 500);
+    }, 200);
   }
 };
 
@@ -5639,8 +5568,6 @@ window.loadPlayerXp = loadPlayerXp;
 window.computeLevel = computeLevel;
 window.xpToNextLevel = xpToNextLevel;
 window.getLevelReward = getLevelReward;
-window.getLevelRewardFromDB = getLevelRewardFromDB;
-window.loadLevelRewardsCache = loadLevelRewardsCache;
 
 // Helper pour les pages booster externes — bypass la vérification de coins si récompense gratuite
 // Poser le flag booster gratuit dans sessionStorage ET localStorage (TTL 5 min)
