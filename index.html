@@ -5507,52 +5507,55 @@ async function loadPlayerXp(userId) {
 }
 window.claimLevelReward = async function(btn, notifId, rewardType, amount, level) {
   if(btn.disabled) return;
-  const db = window.db;
-  const myId = state.currentUser?.id;
   amount = parseInt(amount) || 0;
   level = parseInt(level) || 0;
 
   btn.disabled = true;
   btn.textContent = '…';
 
-  if(db && myId && level) {
-    const { data: alreadyClaimed } = await db.from('claimed_rewards')
-      .select('id').eq('player_id', myId).eq('level', level).maybeSingle();
-    if(alreadyClaimed) {
-      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
-      setState({ pendingLevelRewards: remaining, showNotif: false });
-      return;
-    }
-    const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
-    if(insertErr) {
-      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
-      setState({ pendingLevelRewards: remaining, showNotif: false });
-      return;
-    }
-    const { data: lvlNotifs } = await db.from('notifications')
-      .select('id').eq('user_id', myId)
-      .in('type', ['level_reward', 'level_reward_booster']).eq('read', false);
-    for(const n of (lvlNotifs||[])) {
-      await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
-    }
+  // Attendre que window.db soit dispo
+  let attempts = 0;
+  while(!window.db && attempts < 40) { await new Promise(r=>setTimeout(r,100)); attempts++; }
+  const db = window.db;
+  const myId = state.currentUser?.id;
+
+  if(!db || !myId) {
+    console.error('[claim] db ou myId manquant', db, myId);
+    btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
   }
+  if(!level) {
+    console.error('[claim] level=0, data:', {notifId, rewardType, amount, level});
+    btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
+  }
+
+  // Insérer dans claimed_rewards — si déjà réclamé la contrainte UNIQUE bloquera
+  const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
+  if(insertErr) {
+    console.warn('[claim] déjà réclamé ou erreur:', insertErr.message);
+    const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+    setState({ pendingLevelRewards: remaining, showNotif: false });
+    // Marquer notif comme lue quand même
+    db.from('notifications').update({ read: true })
+      .eq('user_id', myId).in('type', ['level_reward','level_reward_booster']).eq('read', false)
+      .then(()=>{}).catch(()=>{});
+    return;
+  }
+
+  // Marquer les notifs comme lues
+  await db.from('notifications').update({ read: true })
+    .eq('user_id', myId).in('type', ['level_reward','level_reward_booster']).eq('read', false)
+    .catch(()=>{});
 
   const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
 
   if(rewardType === 'coins') {
-    if(myId && db && amount > 0) {
-      const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
-      const current = playerData?.coins ?? 0;
-      await db.from('players').update({ coins: current + amount }).eq('id', myId);
-      setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
-      showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
-    } else {
-      setState({ pendingLevelRewards: remaining, showNotif: false });
-    }
+    const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
+    const current = playerData?.coins ?? 0;
+    await db.from('players').update({ coins: current + amount }).eq('id', myId);
+    setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
+    showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
   } else {
-    if(db && myId) {
-      await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
-    }
+    await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
     setState({ showNotif: false, pendingLevelRewards: remaining });
     setTimeout(()=>{
       if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
