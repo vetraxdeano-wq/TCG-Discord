@@ -2861,7 +2861,7 @@ function renderNotifModal(th){
             <div style="font-size:11px;font-weight:900;color:${accentCol};letter-spacing:.5px;">RÉCOMPENSE NIVEAU ${r.level||'?'}</div>
             <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">${label} débloqué !</div>
           </div>
-          <button class="notif-claim-booster" data-notifid="${r.notifId||''}" data-rewardtype="${r.type}" data-amount="${r.amount||0}" data-level="${r.level||0}" style="padding:7px 12px;font-size:10px;font-weight:900;background:${accentCol};color:${isCoins?'#000':'#000'};border:none;cursor:pointer;letter-spacing:.3px;flex-shrink:0;">RÉCLAMER</button>
+          <button onclick="window.claimLevelReward(this,'${r.notifId||''}','${r.type}',${r.amount||0},${r.level||0})" style="padding:7px 12px;font-size:10px;font-weight:900;background:${accentCol};color:#000;border:none;cursor:pointer;letter-spacing:.3px;flex-shrink:0;">RÉCLAMER</button>
         </div>`; }).join('')}
       ${tradeResults.map((r,idx)=>`
         <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
@@ -3782,47 +3782,47 @@ function bindGame(){
     requestAnimationFrame(()=>{ pop.style.opacity='1'; pop.style.transform='translate(-50%,-50%) scale(1)'; });
   });
 
-  // Réclamer booster récompense niveau (notif)
-  document.querySelectorAll('.notif-claim-booster').forEach(btn=>{
-    btn.addEventListener('click', async () => {
-      const notifId = btn.dataset.notifid || '';  // peut être string vide
-      const rewardType = btn.dataset.rewardtype;
-      const amount = parseInt(btn.dataset.amount) || 0;
-      const level = parseInt(btn.dataset.level) || 0;
+  // Réclamer booster récompense niveau — fonction globale (résiste au re-render du DOM)
+  window.claimLevelReward = async function(btn, notifId, rewardType, amount, level) {
+      if(btn.disabled) return;
       const db = window.db;
       const myId = state.currentUser?.id;
+      amount = parseInt(amount) || 0;
+      level = parseInt(level) || 0;
 
       // Désactiver le bouton immédiatement (anti double-clic)
       btn.disabled = true;
       btn.textContent = '…';
 
-      // ── Retirer du state par level (fiable même si notifId est vide) ──
-      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
-
       // ── Vérifier + insérer dans claimed_rewards (1 récompense par joueur par level, définitif) ──
       if(db && myId && level) {
-        try {
-          // Vérifier si déjà réclamée
-          const { data: alreadyClaimed } = await db.from('claimed_rewards')
-            .select('id').eq('player_id', myId).eq('level', level).maybeSingle();
-          if(alreadyClaimed) {
-            // Déjà réclamée — retirer du state silencieusement sans rien accorder
-            setState({ pendingLevelRewards: remaining, showNotif: false });
-            return;
-          }
-          // Insérer dans claimed_rewards (UNIQUE player_id+level empêche les doublons)
-          await db.from('claimed_rewards').insert({ player_id: myId, level: level }).catch(()=>{});
-          // Marquer toutes les notifs de ce niveau comme lues en DB
-          const { data: lvlNotifs } = await db.from('notifications')
-            .select('id')
-            .eq('user_id', myId)
-            .in('type', ['level_reward', 'level_reward_booster'])
-            .eq('read', false);
-          for(const n of (lvlNotifs||[])) {
-            await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
-          }
-        } catch(e) {}
+        // Vérifier si déjà réclamée
+        const { data: alreadyClaimed } = await db.from('claimed_rewards')
+          .select('id').eq('player_id', myId).eq('level', level).maybeSingle();
+        if(alreadyClaimed) {
+          // Déjà réclamée — retirer du state silencieusement sans rien accorder
+          const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+          setState({ pendingLevelRewards: remaining, showNotif: false });
+          return;
+        }
+        // Insérer dans claimed_rewards
+        const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
+        if(insertErr) {
+          // Doublon ou erreur → ne pas accorder la récompense
+          const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
+          setState({ pendingLevelRewards: remaining, showNotif: false });
+          return;
+        }
+        // Marquer les notifs comme lues
+        const { data: lvlNotifs } = await db.from('notifications')
+          .select('id').eq('user_id', myId)
+          .in('type', ['level_reward', 'level_reward_booster']).eq('read', false);
+        for(const n of (lvlNotifs||[])) {
+          await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
+        }
       }
+
+      const remaining = (state.pendingLevelRewards||[]).filter(r => r.level !== level);
 
       if(rewardType === 'coins') {
         if(myId && db && amount > 0) {
@@ -3837,9 +3837,7 @@ function bindGame(){
       } else {
         // ── Booster gratuit : écrire le flag en DB sur le joueur ──
         if(db && myId) {
-          try {
-            await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId);
-          } catch(e) {}
+          await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
         }
         setState({ showNotif: false, pendingLevelRewards: remaining });
         setTimeout(()=>{
@@ -3847,8 +3845,7 @@ function bindGame(){
           else window.location.href = 'booster2.html';
         }, 200);
       }
-    });
-  });
+  };
   const setBtn = document.getElementById('set-filter-btn');
   if(setBtn) setBtn.addEventListener('click',(e)=>{e.stopPropagation();setState({collSetOpen:!state.collSetOpen});});
   document.querySelectorAll('.set-opt').forEach(btn=>{
