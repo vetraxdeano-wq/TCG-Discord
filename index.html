@@ -4893,6 +4893,11 @@ function bindGame(){
       const myId = state.currentUser?.id;
       await markPiocheUsed(myId);
       startDailyTicker();
+      // ── Stats Supabase : pioche retournée ──
+      (async () => {
+        const db = window.db;
+        if (db && myId) await db.rpc('increment_stat', { p_user_id: myId, p_field: 'pioches_flipped' });
+      })();
 
       setTimeout(async ()=>{
         // Tirage pondéré par rareté : Mythique 0.1%, Rare 1%, Peu Commune 11.9%, Commune 87%
@@ -5403,8 +5408,50 @@ function startCoinsPolling(userId) {
 async function loadPlayerStats(userId) {
   const db = window.db;
   if (!db || !userId) return;
+  // Wins/losses depuis players
   const { data } = await db.from('players').select('wins, losses').eq('id', userId).single();
   if (data) setState({ wins: data.wins ?? 0, losses: data.losses ?? 0 });
+  // Stats détaillées personnelles
+  const { data: s } = await db.from('stats').select('*').eq('user_id', userId).single();
+  if (s) {
+    setState({
+      statsPvpGames:       s.games_pvp,
+      statsPveGames:       s.games_pve,
+      statsInitGames:      s.games_initiation,
+      statsTotalCardsPlayed: s.cards_played_total,
+      statsCommonPlayed:   s.cards_common,
+      statsUncommonPlayed: s.cards_uncommon,
+      statsRarePlayed:     s.cards_rare,
+      statsMythicPlayed:   s.cards_mythic,
+      statsBoostersOpened: s.boosters_total,
+      statsNormalBoosters: s.boosters_normal,
+      statsPrestigeBoosters: s.boosters_prestige,
+      statsLegendBoosters: s.boosters_legendary,
+      statsPiochesFlipped: s.pioches_flipped,
+      statsCoinsEarned:    s.coins_earned,
+    });
+  }
+  // Stats globales
+  const { data: g } = await db.from('stats_global').select('*').eq('id', 1).single();
+  if (g) {
+    setState({
+      globalStatsTotalGames:       g.games_total,
+      globalStatsPvpGames:         g.games_pvp,
+      globalStatsPveGames:         g.games_pve,
+      globalStatsInitGames:        g.games_initiation,
+      globalStatsTotalCardsPlayed: g.cards_played_total,
+      globalStatsCommonPlayed:     g.cards_common,
+      globalStatsUncommonPlayed:   g.cards_uncommon,
+      globalStatsRarePlayed:       g.cards_rare,
+      globalStatsMythicPlayed:     g.cards_mythic,
+      globalStatsBoostersOpened:   g.boosters_total,
+      globalStatsNormalBoosters:   g.boosters_normal,
+      globalStatsPrestigeBoosters: g.boosters_prestige,
+      globalStatsLegendBoosters:   g.boosters_legendary,
+      globalStatsPiochesFlipped:   g.pioches_flipped,
+      globalStatsCoinsEarned:      g.coins_earned,
+    });
+  }
 }
 
 // ─── RÉCOMPENSES & STREAK ─────────────────────────────────────────
