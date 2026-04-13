@@ -4386,7 +4386,7 @@ async function deductBoosterCost() {
 
   if (playerRow && playerRow.pending_free_booster) {
     // Consommer le flag → booster gratuit, aucune déduction
-    await db.from('players').update({ pending_free_booster: null }).eq('id', myId).catch(()=>{});
+    try { await db.from('players').update({ pending_free_booster: null }).eq('id', myId); } catch(e) {}
     return true;
   }
 
