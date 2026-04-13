@@ -1107,6 +1107,9 @@ function renderGame(th){
       <div id="tab-boosters" style="position:absolute;inset:0;${state.tab===2?'display:flex;':'display:none;'}flex-direction:column;">
         ${renderTabBoosters(th)}
       </div>
+      <div id="tab-stats" style="position:absolute;inset:0;${state.tab===3?'display:flex;':'display:none;'}flex-direction:column;overflow-y:auto;">
+        ${renderTabStats(th)}
+      </div>
     </div>
 
     <!-- ═══ BOTTOM NAV ═══ -->
@@ -1124,6 +1127,17 @@ function renderGame(th){
             <div style="transform:${state.tab===i?'scale(1.18) translateY(-1px)':'scale(1)'};transition:transform .2s;filter:${state.tab===i?`drop-shadow(0 0 8px ${th.accent}90)`:'none'};">${tb.icon}</div>
             <span style="font-size:9px;font-weight:${state.tab===i?'900':'600'};letter-spacing:.8px;text-transform:uppercase;line-height:1;">${tb.label}</span>
           </button>`).join('')}
+        <!-- Stats tab — carré compact -->
+        <button data-tab="3" style="width:56px;flex-shrink:0;min-height:56px;padding:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+          background:${state.tab===3?`linear-gradient(180deg,${th.accent}18,transparent)`:'transparent'};
+          border:none;border-left:1px solid ${th.border};
+          color:${state.tab===3?th.accent:th.textMuted};
+          transition:background .15s,color .15s;cursor:pointer;position:relative;
+          -webkit-tap-highlight-color:transparent;touch-action:manipulation;">
+          ${state.tab===3?`<div style="position:absolute;top:0;left:10%;right:10%;height:3px;background:${th.accent};"></div>`:''}
+          <span style="font-size:20px;line-height:1;transform:${state.tab===3?'scale(1.18) translateY(-1px)':'scale(1)'};transition:transform .2s;filter:${state.tab===3?`drop-shadow(0 0 8px ${th.accent}90)`:'none'};">📊</span>
+          <span style="font-size:7px;font-weight:${state.tab===3?'900':'600'};letter-spacing:.5px;text-transform:uppercase;line-height:1;">Stats</span>
+        </button>
       </div>
       <!-- Safe area : rempli avec exactement la même couleur que la nav, aucune bande visible -->
       <div style="height:env(safe-area-inset-bottom,0px);min-height:0;background:${th.bgSecondary};"></div>
@@ -1821,38 +1835,46 @@ function renderTabPlay(th){
         </div>
       </div>
     </div>` : `
-    <!-- Desktop : panneau performances complet -->
-    <div style="margin:14px 14px 0;flex-shrink:0;overflow:hidden;border:2px solid #000;position:relative;">
+    <!-- Desktop : panneau performances complet — une seule ligne -->
+    <div style="margin:10px 14px 0;flex-shrink:0;overflow:hidden;border:2px solid #000;position:relative;">
       <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});"></div>
       <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.03) 1px,transparent 1px);background-size:28px 28px;"></div>
-      <div style="position:absolute;top:0;left:0;right:0;height:4px;background:${th.accent};"></div>
-      <div style="position:relative;padding:16px 18px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div style="font-size:9px;color:${th.textMuted};letter-spacing:3px;text-transform:uppercase;font-weight:700;">Tes performances</div>
-          <button id="btn-leaderboard" style="display:flex;align-items:center;gap:6px;background:${th.accentAlt}14;border:2px solid #000;box-shadow:2px 2px 0 #000;padding:4px 10px;cursor:pointer;transition:all .15s;" title="Voir le classement">
-            <span style="font-size:9px;font-weight:900;color:${th.accentAlt};letter-spacing:.5px;">⭐ RANG</span>
-            <span style="font-size:13px;font-weight:900;color:${th.text};letter-spacing:-.5px;">${state.playerRank ? '#'+state.playerRank : '—'}</span>
-            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="${th.accentAlt}" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
-          <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);padding:12px 14px;position:relative;overflow:hidden;">
-            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.green};opacity:.4;"></div>
-            <div style="font-size:9px;color:${th.green};letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">Victoires</div>
-            <div style="font-family:'Bangers',cursive;font-size:32px;font-weight:900;color:${th.green};line-height:1;">${state.wins !== null ? state.wins : '—'}</div>
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${th.accent};"></div>
+      <div style="position:relative;padding:10px 14px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;min-width:0;">
+          <!-- Label + rang -->
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <div style="font-size:9px;color:${th.textMuted};letter-spacing:3px;text-transform:uppercase;font-weight:700;white-space:nowrap;">Tes performances</div>
+            <button id="btn-leaderboard" style="display:flex;align-items:center;gap:5px;background:${th.accentAlt}14;border:2px solid #000;box-shadow:2px 2px 0 #000;padding:3px 8px;cursor:pointer;transition:all .15s;white-space:nowrap;" title="Voir le classement">
+              <span style="font-size:8px;font-weight:900;color:${th.accentAlt};letter-spacing:.5px;">⭐ RANG</span>
+              <span style="font-size:12px;font-weight:900;color:${th.text};letter-spacing:-.5px;">${state.playerRank ? '#'+state.playerRank : '—'}</span>
+              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="${th.accentAlt}" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
           </div>
-          <div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.15);padding:12px 14px;position:relative;overflow:hidden;">
-            <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${th.red};opacity:.4;"></div>
-            <div style="font-size:9px;color:${th.red};letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px;">Défaites</div>
-            <div style="font-family:'Bangers',cursive;font-size:32px;font-weight:900;color:${th.red};line-height:1;">${state.losses !== null ? state.losses : '—'}</div>
-          </div>
-          <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.15);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:9px;color:${th.yellow};letter-spacing:1px;text-transform:uppercase;font-weight:700;">Win rate</span>
-            <span style="font-size:18px;font-weight:900;color:${th.yellow};">${winRate !== null ? winRate+'%' : '—'}</span>
-          </div>
-          <div style="background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.15);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:9px;color:${th.accent};letter-spacing:1px;text-transform:uppercase;font-weight:700;">Parties</span>
-            <span style="font-size:18px;font-weight:900;color:${th.accent};">${total > 0 ? total : '—'}</span>
+          <!-- Séparateur -->
+          <div style="width:1px;height:32px;background:${th.border};flex-shrink:0;"></div>
+          <!-- Stats inline -->
+          <div style="display:flex;gap:6px;flex:1;min-width:0;align-items:center;">
+            <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);padding:5px 10px;display:flex;align-items:center;gap:7px;flex:1;min-width:0;position:relative;overflow:hidden;">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.green};opacity:.6;"></div>
+              <span style="font-size:8px;color:${th.green};letter-spacing:.8px;text-transform:uppercase;font-weight:700;white-space:nowrap;">Victoires</span>
+              <span style="font-family:'Bangers',cursive;font-size:22px;font-weight:900;color:${th.green};line-height:1;margin-left:auto;">${state.wins !== null ? state.wins : '—'}</span>
+            </div>
+            <div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);padding:5px 10px;display:flex;align-items:center;gap:7px;flex:1;min-width:0;position:relative;overflow:hidden;">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.red};opacity:.6;"></div>
+              <span style="font-size:8px;color:${th.red};letter-spacing:.8px;text-transform:uppercase;font-weight:700;white-space:nowrap;">Défaites</span>
+              <span style="font-family:'Bangers',cursive;font-size:22px;font-weight:900;color:${th.red};line-height:1;margin-left:auto;">${state.losses !== null ? state.losses : '—'}</span>
+            </div>
+            <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);padding:5px 10px;display:flex;align-items:center;gap:7px;flex:1;min-width:0;position:relative;overflow:hidden;">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.yellow};opacity:.6;"></div>
+              <span style="font-size:8px;color:${th.yellow};letter-spacing:.8px;text-transform:uppercase;font-weight:700;white-space:nowrap;">Win rate</span>
+              <span style="font-size:18px;font-weight:900;color:${th.yellow};line-height:1;margin-left:auto;">${winRate !== null ? winRate+'%' : '—'}</span>
+            </div>
+            <div style="background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);padding:5px 10px;display:flex;align-items:center;gap:7px;flex:1;min-width:0;position:relative;overflow:hidden;">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${th.accent};opacity:.6;"></div>
+              <span style="font-size:8px;color:${th.accent};letter-spacing:.8px;text-transform:uppercase;font-weight:700;white-space:nowrap;">Parties</span>
+              <span style="font-size:18px;font-weight:900;color:${th.accent};line-height:1;margin-left:auto;">${total > 0 ? total : '—'}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -2628,6 +2650,97 @@ function renderTabBoosters(th){
         100%{opacity:0;}
       }
     </style>
+  </div>`;
+}
+
+
+
+// ─── TAB STATS ────────────────────────────────────────────────────
+function renderTabStats(th){
+  const isMobile = window.innerWidth < 600;
+
+  // Données personnelles (depuis state)
+  const wins = state.wins || 0;
+  const losses = state.losses || 0;
+  const totalGames = wins + losses;
+  const pvpGames = state.statsPvpGames || '—';
+  const pveGames = state.statsPveGames || '—';
+  const initGames = state.statsInitGames || '—';
+  const totalCardsPlayed = state.statsTotalCardsPlayed || '—';
+  const commonPlayed = state.statsCommonPlayed || '—';
+  const uncommonPlayed = state.statsUncommonPlayed || '—';
+  const rarePlayed = state.statsRarePlayed || '—';
+  const mythicPlayed = state.statsMythicPlayed || '—';
+  const boostersOpened = state.statsBoostersOpened || '—';
+  const normalBoosters = state.statsNormalBoosters || '—';
+  const prestigeBoosters = state.statsPrestigeBoosters || '—';
+  const legendBoosters = state.statsLegendBoosters || '—';
+  const piochesFlipped = state.statsPiochesFlipped || '—';
+  const coinsEarned = state.statsCoinsEarned !== undefined ? (state.statsCoinsEarned||0).toLocaleString('fr-FR') : '—';
+
+  const statRows = [
+    { label: 'Parties jouées (total)', personal: totalGames > 0 ? totalGames : '—', global: state.globalStatsTotalGames || '—' },
+    { label: 'Parties PvP', personal: pvpGames, global: state.globalStatsPvpGames || '—' },
+    { label: 'Parties vs IA (PvE)', personal: pveGames, global: state.globalStatsPveGames || '—' },
+    { label: 'Parties Initiation', personal: initGames, global: state.globalStatsInitGames || '—' },
+    { label: '— Cartes —', personal: '', global: '', separator: true },
+    { label: 'Cartes jouées (total)', personal: totalCardsPlayed, global: state.globalStatsTotalCardsPlayed || '—' },
+    { label: 'Cartes Communes', personal: commonPlayed, global: state.globalStatsCommonPlayed || '—' },
+    { label: 'Cartes Peu Communes', personal: uncommonPlayed, global: state.globalStatsUncommonPlayed || '—' },
+    { label: 'Cartes Rares', personal: rarePlayed, global: state.globalStatsRarePlayed || '—' },
+    { label: 'Cartes Mythiques', personal: mythicPlayed, global: state.globalStatsMythicPlayed || '—' },
+    { label: '— Boosters —', personal: '', global: '', separator: true },
+    { label: 'Boosters ouverts (total)', personal: boostersOpened, global: state.globalStatsBoostersOpened || '—' },
+    { label: 'Boosters Normaux', personal: normalBoosters, global: state.globalStatsNormalBoosters || '—' },
+    { label: 'Boosters Prestige', personal: prestigeBoosters, global: state.globalStatsPrestigeBoosters || '—' },
+    { label: 'Boosters Légendaires', personal: legendBoosters, global: state.globalStatsLegendBoosters || '—' },
+    { label: '— Divers —', personal: '', global: '', separator: true },
+    { label: 'Pioches retournées', personal: piochesFlipped, global: state.globalStatsPiochesFlipped || '—' },
+    { label: 'Coins gagnés', personal: coinsEarned, global: state.globalStatsCoinsEarned !== undefined ? (state.globalStatsCoinsEarned||0).toLocaleString('fr-FR') : '—' },
+  ];
+
+  return `
+  <div style="flex:1;display:flex;flex-direction:column;background:transparent;overflow-y:auto;padding:${isMobile?'10px':'16px'};">
+
+    <!-- Header -->
+    <div style="flex-shrink:0;margin-bottom:${isMobile?'10px':'14px'};">
+      <div style="font-size:${isMobile?'10px':'11px'};color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;margin-bottom:4px;">📊 Statistiques</div>
+      <div style="height:1px;background:${th.border};"></div>
+    </div>
+
+    <!-- Table stats -->
+    <div style="flex:1;border:2px solid #000;overflow:hidden;position:relative;">
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});"></div>
+      <div style="position:relative;">
+
+        <!-- En-têtes colonnes -->
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-bottom:2px solid #000;">
+          <div style="padding:${isMobile?'7px 10px':'9px 14px'};font-size:${isMobile?'8px':'9px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;">Statistique</div>
+          <div style="padding:${isMobile?'7px 12px':'9px 18px'};font-size:${isMobile?'8px':'9px'};color:#a78bfa;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};">Personnel</div>
+          <div style="padding:${isMobile?'7px 12px':'9px 18px'};font-size:${isMobile?'8px':'9px'};color:${th.accent};letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};">Globale</div>
+        </div>
+
+        <!-- Rows -->
+        ${statRows.map((row, idx) => row.separator ? `
+          <div style="display:grid;grid-template-columns:1fr auto auto;border-bottom:1px solid ${th.border};background:${th.bgTertiary}20;">
+            <div style="padding:${isMobile?'4px 10px':'5px 14px'};font-size:${isMobile?'7px':'8px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;font-style:italic;">${row.label}</div>
+            <div style="border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};"></div>
+            <div style="border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};"></div>
+          </div>
+        ` : `
+          <div style="display:grid;grid-template-columns:1fr auto auto;border-bottom:1px solid ${th.border}80;background:${idx%2===0?'transparent':th.bg+'30'};">
+            <div style="padding:${isMobile?'6px 10px':'8px 14px'};font-size:${isMobile?'9px':'10px'};color:${th.text};font-weight:600;">${row.label}</div>
+            <div style="padding:${isMobile?'6px 12px':'8px 18px'};font-size:${isMobile?'11px':'13px'};color:#a78bfa;font-weight:900;text-align:center;border-left:1px solid ${th.border}80;min-width:${isMobile?'64px':'88px'};font-family:'Bangers',cursive;letter-spacing:.5px;">${row.personal}</div>
+            <div style="padding:${isMobile?'6px 12px':'8px 18px'};font-size:${isMobile?'11px':'13px'};color:${th.accent};font-weight:900;text-align:center;border-left:1px solid ${th.border}80;min-width:${isMobile?'64px':'88px'};font-family:'Bangers',cursive;letter-spacing:.5px;">${row.global}</div>
+          </div>
+        `).join('')}
+
+      </div>
+    </div>
+
+    <!-- Note bas de page -->
+    <div style="flex-shrink:0;margin-top:8px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;text-align:center;">Les statistiques globales agrègent tous les joueurs • Mis à jour en temps réel</div>
+
   </div>`;
 }
 
