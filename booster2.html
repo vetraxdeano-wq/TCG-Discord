@@ -4253,35 +4253,24 @@ function showCoinsDeductedPopup(amount) {
 }
 
 async function deductBoosterCost() {
-  // Booster gratuit (récompense de niveau) → bypass total, aucune déduction
-  try {
-    const free = sessionStorage.getItem('booster_free');
-    if (free === '1') {
-      sessionStorage.removeItem('booster_free');
-      try { localStorage.removeItem('booster_free'); } catch(e) {}
-      return true;
-    }
-    // Fallback localStorage (TTL 5 min)
-    const ls = localStorage.getItem('booster_free');
-    if (ls) {
-      const obj = JSON.parse(ls);
-      if (obj.v === '1' && (Date.now() - obj.t) < 5 * 60 * 1000) {
-        localStorage.removeItem('booster_free');
-        return true;
-      }
-      localStorage.removeItem('booster_free');
-    }
-  } catch(e) {}
-
   const db = window._db;
   const myId = window._currentUserId;
   if (!db || !myId) return true; // pas connecté → laisser ouvrir
-  // Rafraîchir le solde depuis Supabase
-  const { data: p } = await db.from('players').select('coins').eq('id', myId).single();
-  const currentCoins = p ? p.coins : 0;
+
+  // Vérifier si booster gratuit (flag en DB sur le joueur)
+  const { data: playerRow } = await db.from('players')
+    .select('coins, pending_free_booster').eq('id', myId).single();
+  const currentCoins = playerRow ? playerRow.coins : 0;
   window._playerCoins = currentCoins;
+
+  if (playerRow && playerRow.pending_free_booster) {
+    // Consommer le flag → booster gratuit, aucune déduction
+    await db.from('players').update({ pending_free_booster: null }).eq('id', myId).catch(()=>{});
+    return true;
+  }
+
+  // Booster payant
   if (currentCoins < 1000) return false;
-  // Déduire
   await db.from('players').update({ coins: currentCoins - 1000 }).eq('id', myId);
   window._playerCoins = currentCoins - 1000;
   return true;
