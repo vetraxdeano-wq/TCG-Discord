@@ -5456,15 +5456,25 @@ async function loadPlayerXp(userId) {
   const { level } = computeLevel(xp);
   setState({ playerXp: xp, playerLevel: level });
 
-  // ── RÉTROACTIF COMPLET : s'assurer que chaque niveau passé a une notif en DB ──
-  // 1. Charger toutes les notifs de niveau (lues ET non lues) pour connaître les niveaux déjà traités
   try {
+    // 1. Charger les niveaux déjà réclamés (source de vérité absolue)
+    const { data: claimedRows } = await db.from('claimed_rewards')
+      .select('level').eq('player_id', userId);
+    const claimedLevels = new Set((claimedRows || []).map(r => r.level));
+
+    // 2. Charger les récompenses dans level_rewards pour avoir les bons montants
+    const { data: rewardRows } = await db.from('level_rewards')
+      .select('level, reward_type, amount, label');
+    const rewardMap = {};
+    (rewardRows || []).forEach(r => { rewardMap[r.level] = r; });
+
+    // 3. Charger les notifs non lues
     const { data: allLvlNotifs } = await db.from('notifications')
       .select('id, type, read, meta')
       .eq('user_id', userId)
-      .in('type', ['level_reward', 'level_reward_booster']);
+      .in('type', ['level_reward', 'level_reward_booster'])
+      .eq('read', false);
 
-    // Construire un Set des niveaux qui ont déjà une notif (lue ou non)
     const levelsWithNotif = new Set();
     const pendingRewards = [];
 
@@ -5472,39 +5482,47 @@ async function loadPlayerXp(userId) {
       let meta = {};
       try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
       const lvl = typeof meta.level === 'number' ? meta.level : parseInt(meta.level);
-      if (lvl && !isNaN(lvl)) levelsWithNotif.add(lvl);
+      if (!lvl || isNaN(lvl)) return;
+      levelsWithNotif.add(lvl);
 
-      // Si non lue ET non réclamée → à afficher dans les notifs
-      const isClaimed = meta.claimed === true || n.read === true;
-      if (!isClaimed && lvl) {
+      // Ne pas afficher si déjà réclamé en base
+      if (claimedLevels.has(lvl)) return;
+
+      // Lire le montant depuis level_rewards (source de vérité), fallback sur meta
+      const rwd = rewardMap[lvl];
+      if (rwd) {
+        if (rwd.reward_type === 'coins') {
+          pendingRewards.push({ notifId: n.id, level: lvl, type: 'coins', amount: rwd.amount || 300 });
+        } else {
+          pendingRewards.push({ notifId: n.id, level: lvl, type: rwd.reward_type, label: rwd.label });
+        }
+      } else {
+        // Fallback si level_rewards pas encore rempli
         if (n.type === 'level_reward') {
           const match = (n.meta || '').match(/"amount":(\d+)/);
-          const amount = match ? parseInt(match[1]) : 300;
-          pendingRewards.push({ notifId: n.id, level: lvl, type: 'coins', amount });
+          pendingRewards.push({ notifId: n.id, level: lvl, type: 'coins', amount: match ? parseInt(match[1]) : 300 });
         } else {
           pendingRewards.push({ notifId: n.id, level: lvl, type: meta.rewardType || 'booster_prestige', label: n.text });
         }
       }
     });
 
-    // 2. Pour chaque niveau atteint (2 → level actuel), créer la notif si manquante
+    // 4. Pour chaque niveau atteint non réclamé et sans notif → créer la notif
     for (let l = 2; l <= level; l++) {
-      if (!levelsWithNotif.has(l)) {
-        // Ce niveau n'a jamais eu de notif → la créer maintenant (grantLevelReward gère le guard)
+      if (!claimedLevels.has(l) && !levelsWithNotif.has(l)) {
         await grantLevelReward(userId, l);
       }
     }
 
-    // 3. Mettre à jour l'état avec les récompenses non réclamées (sans doublons)
+    // 5. Mettre à jour le state avec les récompenses à afficher + les niveaux réclamés
+    setState({ _claimedLevels: claimedLevels });
     if (pendingRewards.length > 0) {
       const existing = state.pendingLevelRewards || [];
       const existingIds = new Set(existing.map(r => r.notifId));
       const newOnes = pendingRewards.filter(r => r.notifId && !existingIds.has(r.notifId));
-      if (newOnes.length > 0) {
-        setState({ pendingLevelRewards: [...existing, ...newOnes] });
-      }
+      if (newOnes.length > 0) setState({ pendingLevelRewards: [...existing, ...newOnes] });
     }
-  } catch(e) { /* silencieux */ }
+  } catch(e) { console.warn('[loadPlayerXp]', e); }
 }
 window.claimLevelReward = async function(btn, notifId, rewardType, amount, level) {
   if(btn.disabled) return;
@@ -5547,15 +5565,19 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
 
   const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
 
+  // Mettre à jour le Set local des niveaux réclamés pour bloquer le realtime
+  const updatedClaimed = new Set(state._claimedLevels || []);
+  updatedClaimed.add(level);
+
   if(rewardType === 'coins') {
     const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
     const current = playerData?.coins ?? 0;
     await db.from('players').update({ coins: current + amount }).eq('id', myId);
-    setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
+    setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false, _claimedLevels: updatedClaimed });
     showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
   } else {
     await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
-    setState({ showNotif: false, pendingLevelRewards: remaining });
+    setState({ showNotif: false, pendingLevelRewards: remaining, _claimedLevels: updatedClaimed });
     setTimeout(()=>{
       if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
       else window.location.href = 'booster2.html';
@@ -6249,16 +6271,20 @@ async function subscribeNotifications() {
           let meta = {};
           try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
           const lvl = meta.level || 0;
-          let reward;
-          if (n.type === 'level_reward') {
-            const amount = meta.amount || 300;
-            reward = { notifId: n.id, level: lvl, type: 'coins', amount };
-          } else {
-            reward = { notifId: n.id, level: lvl, type: meta.rewardType || 'booster_prestige', label: n.text };
+          // Vérifier que ce niveau n'est pas déjà réclamé
+          const alreadyClaimed = (state._claimedLevels || new Set()).has(lvl);
+          if (!alreadyClaimed) {
+            let reward;
+            if (n.type === 'level_reward') {
+              const amount = meta.amount || 300;
+              reward = { notifId: n.id, level: lvl, type: 'coins', amount };
+            } else {
+              reward = { notifId: n.id, level: lvl, type: meta.rewardType || 'booster_prestige', label: n.text };
+            }
+            setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), reward] });
+            const icon = reward.type === 'coins' ? '🪙' : reward.type === 'booster_legendaire' ? '⚡' : '📦';
+            showToast(n.text || `Niveau ${lvl} — récompense disponible !`, icon);
           }
-          setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), reward] });
-          const icon = reward.type === 'coins' ? '🪙' : reward.type === 'booster_legendaire' ? '⚡' : '📦';
-          showToast(n.text || `Niveau ${lvl} — récompense disponible !`, icon);
         }
         return;
       }
