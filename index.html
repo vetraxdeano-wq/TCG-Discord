@@ -2861,7 +2861,7 @@ function renderNotifModal(th){
             <div style="font-size:11px;font-weight:900;color:${accentCol};letter-spacing:.5px;">RÉCOMPENSE NIVEAU ${r.level||'?'}</div>
             <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">${label} débloqué !</div>
           </div>
-          <button onclick="window.claimLevelReward(this,'${r.notifId||''}','${r.type}',${r.amount||0},${r.level||0})" style="padding:7px 12px;font-size:10px;font-weight:900;background:${accentCol};color:#000;border:none;cursor:pointer;letter-spacing:.3px;flex-shrink:0;">RÉCLAMER</button>
+          <button onclick="window.claimLevelReward(this,this.dataset.nid,this.dataset.rt,this.dataset.amt,this.dataset.lvl)" data-nid="${r.notifId||''}" data-rt="${r.type}" data-amt="${r.amount||0}" data-lvl="${r.level||0}" style="padding:7px 12px;font-size:10px;font-weight:900;background:${accentCol};color:#000;border:none;cursor:pointer;letter-spacing:.3px;flex-shrink:0;">RÉCLAMER</button>
         </div>`; }).join('')}
       ${tradeResults.map((r,idx)=>`
         <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
