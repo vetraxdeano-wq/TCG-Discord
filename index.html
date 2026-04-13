@@ -5529,38 +5529,55 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
   }
 
-  // Insérer dans claimed_rewards
+  // Insérer dans claimed_rewards (guard anti-doublon)
   const { error: insertErr } = await db.from('claimed_rewards').insert({ player_id: myId, level: level });
   if(insertErr) {
     console.warn('[claim] déjà réclamé:', insertErr.message);
     const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
     setState({ pendingLevelRewards: remaining, showNotif: false });
-    db.from('notifications').update({ read: true })
-      .eq('user_id', myId).in('type', ['level_reward','level_reward_booster']).eq('read', false)
-      .then(()=>{}).catch(()=>{});
+    // Marquer uniquement la notif de ce niveau comme lue
+    if(notifId) {
+      db.from('notifications').update({ read: true }).eq('id', notifId).then(()=>{}).catch(()=>{});
+    }
     return;
   }
 
-  // Marquer les notifs comme lues
-  await db.from('notifications').update({ read: true })
-    .eq('user_id', myId).in('type', ['level_reward','level_reward_booster']).eq('read', false)
-    .catch(()=>{});
+  // Marquer uniquement la notif de CE niveau comme lue (pas toutes les notifs level_reward)
+  if(notifId) {
+    await db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
+  }
 
   const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
 
   if(rewardType === 'coins') {
-    const { data: playerData } = await db.from('players').select('coins').eq('id', myId).single();
+    // Lire les coins actuels puis incrémenter de façon sécurisée
+    const { data: playerData, error: fetchErr } = await db.from('players').select('coins').eq('id', myId).single();
+    if(fetchErr) {
+      console.error('[claim] erreur lecture coins:', fetchErr.message);
+      btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
+    }
     const current = playerData?.coins ?? 0;
-    await db.from('players').update({ coins: current + amount }).eq('id', myId);
-    setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false });
+    const newTotal = current + amount;
+    const { error: updateErr } = await db.from('players').update({ coins: newTotal }).eq('id', myId);
+    if(updateErr) {
+      console.error('[claim] erreur update coins:', updateErr.message);
+      btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
+    }
+    setState({ coins: newTotal, pendingLevelRewards: remaining, showNotif: false });
     showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
   } else {
-    await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
+    // Écrire le flag booster gratuit en base avant de rediriger
+    const { error: boosterErr } = await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId);
+    if(boosterErr) {
+      console.error('[claim] erreur écriture pending_free_booster:', boosterErr.message);
+      btn.disabled = false; btn.textContent = 'RÉCLAMER'; return;
+    }
     setState({ showNotif: false, pendingLevelRewards: remaining });
+    // Délai augmenté pour s'assurer que la DB a bien enregistré avant la redirection
     setTimeout(()=>{
       if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
       else window.location.href = 'booster2.html';
-    }, 200);
+    }, 500);
   }
 };
 
