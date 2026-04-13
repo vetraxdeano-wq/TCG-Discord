@@ -332,9 +332,9 @@ const BOOSTERS = [
 // ALL_CARDS sera chargé depuis Supabase
 let ALL_CARDS = [];
 
-// ─── DAILY LIMITS (localStorage par joueur) ───────────────────────
-// Clé : daily_<userId>  →  { piocheDate, boosterPrestigeDate, boosterPrestigeCount,
-//                            boosterLegDate, boosterLegCount, tradeDate }
+// ─── DAILY LIMITS ─────────────────────────────────────────────────
+// Pioche & Trade : localStorage (pas cross-device mais ok)
+// Boosters Prestige/Légendaire : Supabase (cross-device, par compte)
 function _dailyKey(userId){ return 'daily_' + userId; }
 function _todayStr(){ return new Date().toISOString().slice(0,10); }
 
@@ -345,6 +345,87 @@ function getDailyData(userId){
 function setDailyData(userId, patch){
   const cur = getDailyData(userId);
   localStorage.setItem(_dailyKey(userId), JSON.stringify({...cur, ...patch}));
+}
+
+// ─── BOOSTERS DAILY LIMITS — cross-device via Supabase ────────────
+// Les colonnes Supabase utilisées :
+//   booster_prestige_date  DATE
+//   booster_prestige_count INT DEFAULT 0
+//   booster_leg_date        DATE
+//   booster_leg_count       INT DEFAULT 0
+// Le reset est automatique : on compare la date stockée avec aujourd'hui.
+// Si différente → nouveau jour → compteur repart à zéro.
+
+let _boosterCache = null; // { userId, prestigeDate, prestigeCount, legDate, legCount }
+
+async function _loadBoosterCache(userId){
+  if(_boosterCache && _boosterCache.userId === userId) return _boosterCache;
+  try{
+    const db = window.db;
+    if(!db) throw new Error('db not ready');
+    const { data } = await db
+      .from('players')
+      .select('booster_prestige_date, booster_prestige_count, booster_leg_date, booster_leg_count')
+      .eq('id', userId)
+      .single();
+    _boosterCache = {
+      userId,
+      prestigeDate:  data?.booster_prestige_date  || null,
+      prestigeCount: data?.booster_prestige_count  || 0,
+      legDate:       data?.booster_leg_date        || null,
+      legCount:      data?.booster_leg_count       || 0,
+    };
+  }catch(e){
+    _boosterCache = { userId, prestigeDate:null, prestigeCount:0, legDate:null, legCount:0 };
+  }
+  return _boosterCache;
+}
+
+// Async : vérification réelle avant ouverture
+async function getBoosterRemaining(userId, boosterId){
+  const today = _todayStr();
+  const c = await _loadBoosterCache(userId);
+  if(boosterId === 2){
+    if(c.prestigeDate !== today) return 2;
+    return Math.max(0, 2 - (c.prestigeCount || 0));
+  }
+  if(boosterId === 3){
+    if(c.legDate !== today) return 1;
+    return Math.max(0, 1 - (c.legCount || 0));
+  }
+  return Infinity; // Normal : illimité
+}
+
+// Sync : affichage UI basé sur le cache déjà chargé
+function getBoosterRemainingSync(userId, boosterId){
+  const today = _todayStr();
+  if(!_boosterCache || _boosterCache.userId !== userId){
+    return boosterId === 2 ? 2 : boosterId === 3 ? 1 : Infinity;
+  }
+  const c = _boosterCache;
+  if(boosterId === 2) return c.prestigeDate !== today ? 2 : Math.max(0, 2 - (c.prestigeCount || 0));
+  if(boosterId === 3) return c.legDate !== today ? 1 : Math.max(0, 1 - (c.legCount || 0));
+  return Infinity;
+}
+
+async function markBoosterUsed(userId, boosterId){
+  const today = _todayStr();
+  const c = await _loadBoosterCache(userId);
+  let patch = {};
+  if(boosterId === 2){
+    const count = c.prestigeDate === today ? (c.prestigeCount || 0) : 0;
+    patch = { booster_prestige_date: today, booster_prestige_count: count + 1 };
+    _boosterCache = { ...c, prestigeDate: today, prestigeCount: count + 1 };
+  } else if(boosterId === 3){
+    const count = c.legDate === today ? (c.legCount || 0) : 0;
+    patch = { booster_leg_date: today, booster_leg_count: count + 1 };
+    _boosterCache = { ...c, legDate: today, legCount: count + 1 };
+  }
+  if(Object.keys(patch).length){
+    try{
+      await window.db.from('players').update(patch).eq('id', userId);
+    }catch(e){ console.error('markBoosterUsed error', e); }
+  }
 }
 
 // Pioche : 1x/jour — géré via Supabase (cross-device)
@@ -387,31 +468,7 @@ async function markPiocheUsed(userId){
   }catch(e){ console.error('markPiocheUsed error', e); }
 }
 
-// Boosters : Prestige 2x/j, Légendaire 1x/j
-function getBoosterRemaining(userId, boosterId){
-  const d = getDailyData(userId);
-  const today = _todayStr();
-  if(boosterId === 2){ // Prestige
-    if(d.boosterPrestigeDate !== today) return 2;
-    return Math.max(0, 2 - (d.boosterPrestigeCount || 0));
-  }
-  if(boosterId === 3){ // Légendaire
-    if(d.boosterLegDate !== today) return 1;
-    return Math.max(0, 1 - (d.boosterLegCount || 0));
-  }
-  return Infinity; // Normal : illimité
-}
-function markBoosterUsed(userId, boosterId){
-  const d = getDailyData(userId);
-  const today = _todayStr();
-  if(boosterId === 2){
-    const count = d.boosterPrestigeDate === today ? (d.boosterPrestigeCount || 0) : 0;
-    setDailyData(userId, { boosterPrestigeDate: today, boosterPrestigeCount: count + 1 });
-  } else if(boosterId === 3){
-    const count = d.boosterLegDate === today ? (d.boosterLegCount || 0) : 0;
-    setDailyData(userId, { boosterLegDate: today, boosterLegCount: count + 1 });
-  }
-}
+
 
 // Trade : 1x/jour
 function canTradeToday(userId){
@@ -2379,7 +2436,7 @@ function renderTabBoosters(th){
     <!-- ═══ INFOS BOOSTER SÉLECTIONNÉ ═══ -->
     ${(()=>{
       const _uid = state.currentUser?.id || '';
-      const _rem = getBoosterRemaining(_uid, b.id);
+      const _rem = getBoosterRemainingSync(_uid, b.id);
       const _limited = b.id === 2 || b.id === 3;
       const _exhausted = _limited && _rem === 0;
       const _remLabel = b.id === 1 ? '∞' : String(_rem);
@@ -4588,7 +4645,7 @@ function bindGame(){
 
   // ── Handler boutons open-booster ──
   document.querySelectorAll('.open-booster').forEach(btn=>{
-    btn.addEventListener('click',(e)=>{
+    btn.addEventListener('click', async (e)=>{
       e.stopPropagation();
       const bid = parseInt(btn.dataset.bid);
       const selectedBooster = BOOSTERS[state.boosterSelectedIdx ?? 1];
@@ -4600,11 +4657,12 @@ function bindGame(){
         showToast(`Il vous faut ${booster.price.toLocaleString('fr-FR')} coins pour ouvrir ce booster.`,'🚫');
         return;
       }
-      // Vérifier la limite quotidienne
+      // Vérifier la limite quotidienne — via Supabase (cross-device, par compte)
       const _uid = state.currentUser?.id || '';
-      const _rem = getBoosterRemaining(_uid, bid);
+      const _rem = await getBoosterRemaining(_uid, bid);
       if(_rem === 0){
         showToast('Limite quotidienne atteinte — réessaie demain ! ⏳ ' + timeUntilMidnight(), '🚫');
+        render(); // Rafraîchir l'UI avec le compteur à jour
         return;
       }
       const meta = [
@@ -4614,8 +4672,9 @@ function bindGame(){
       ];
       const m = meta[bid-1];
       if(m){
-        markBoosterUsed(_uid, bid);
+        await markBoosterUsed(_uid, bid); // Supabase + màj cache local immédiat
         startDailyTicker();
+        render(); // Rafraîchir le compteur affiché
         triggerBoosterOpen(bid, m.color, m.src, m.href);
       }
     });
@@ -5188,6 +5247,8 @@ function enterGame(user, coins) {
     startDailyTicker();
     // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
     canPiocheToday(user.id).then(()=>{ setState({}); }); // force re-render après chargement
+    // Précharger les compteurs de boosters depuis Supabase (cross-device, par compte)
+    _loadBoosterCache(user.id).then(()=>{ setState({}); });
     if (window.subscribeNotifications) window.subscribeNotifications();
     if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
     // Souscrire aux messages en realtime dès l'entrée (pas seulement à l'ouverture d'une conv)
