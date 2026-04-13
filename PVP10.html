@@ -3340,6 +3340,11 @@ async function saveGameResult(isWin,coinsGained,xpGained){
       await _db.from('players').update(updates).eq('id',myId);
     }
     console.log(`[10v10] ${isWin?'Victoire':'Défaite'} — +${coinsGained} coins +${xpGained} XP`);
+    // ── Stats Supabase ──
+    const inc = (field, amount=1) => _db.rpc('increment_stat', { p_user_id: myId, p_field: field, p_amount: amount });
+    await inc('games_total');
+    await inc('games_initiation');
+    if(coinsGained > 0) await inc('coins_earned', coinsGained);
   }catch(e){console.error('[10v10] saveGameResult:',e);}
 }
 
