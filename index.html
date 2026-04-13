@@ -5554,13 +5554,13 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     console.warn('[claim] déjà réclamé:', insertErr.message);
     const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
     setState({ pendingLevelRewards: remaining, showNotif: false });
-    if(notifId) db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
+    if(notifId) { try { await db.from('notifications').update({ read: true }).eq('id', notifId); } catch(e) {} }
     return;
   }
 
   // Marquer uniquement la notif de CE niveau comme lue
   if(notifId) {
-    await db.from('notifications').update({ read: true }).eq('id', notifId).catch(()=>{});
+    try { await db.from('notifications').update({ read: true }).eq('id', notifId) } catch(e) {};
   }
 
   const remaining = ((window._gameState||{}).pendingLevelRewards||[]).filter(r => r.level !== level);
@@ -5576,7 +5576,7 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false, _claimedLevels: updatedClaimed });
     showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
   } else {
-    await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId).catch(()=>{});
+    try { await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId) } catch(e) {};
     setState({ showNotif: false, pendingLevelRewards: remaining, _claimedLevels: updatedClaimed });
     setTimeout(()=>{
       if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
@@ -6164,13 +6164,12 @@ async function subscribeNotifications() {
   // Notifs de convs déjà actives → marquer lues silencieusement
   const toMarkRead = activeConv ? allMsgNotifs.filter(n => n.from_id === activeConv) : [];
   if (toMarkRead.length > 0) {
-    db.from('notifications')
+    try { await db.from('notifications')
       .update({ read: true })
       .eq('user_id', myId)
       .eq('type', 'message')
       .eq('from_id', activeConv)
-      .eq('read', false)
-      .then(()=>{}).catch(()=>{});
+      .eq('read', false); } catch(e) {}
   }
 
   const msgNotifs = allMsgNotifs.filter(n => !activeConv || n.from_id !== activeConv);
@@ -6314,7 +6313,7 @@ async function pollNotificationsAndTrades() {
   if (acceptedNotifs && acceptedNotifs.length > 0) {
     const n = acceptedNotifs[0];
     // Marquer comme lu immédiatement pour éviter double déclenchement
-    await db.from('notifications').update({ read: true }).eq('id', n.id).catch(()=>{});
+    try { await db.from('notifications').update({ read: true }).eq('id', n.id) } catch(e) {};
     let matchId = state.pendingMatchId || null;
     try { if (n.meta) matchId = JSON.parse(n.meta)?.match_id || matchId; } catch(e) {}
     try {
@@ -6466,13 +6465,13 @@ async function respondCombatRequest(notifId, fromId, accept) {
     showToast('Défi refusé', '✗');
     // Prévenir l'expéditeur du refus
     if (fromId) {
-      await db.from('notifications').insert({
+      try { await db.from('notifications').insert({
         user_id: fromId,
         type: 'combat_declined',
         from_id: myId,
         text: 'Ton défi a été refusé.',
         read: false,
-      }).catch(()=>{});
+      }) } catch(e) {};
     }
     return;
   }
@@ -6487,14 +6486,14 @@ async function respondCombatRequest(notifId, fromId, accept) {
 
   // Envoyer combat_accepted à l'expéditeur avec le même match_id
   if (fromId) {
-    await db.from('notifications').insert({
+    try { await db.from('notifications').insert({
       user_id: fromId,
       type: 'combat_accepted',
       from_id: myId,
       text: 'Ton défi a été accepté ! Combat dans 5 secondes…',
       read: false,
       meta: JSON.stringify({ match_id: matchId }),
-    }).catch(()=>{});
+    }) } catch(e) {};
   }
 
   // Lancer le countdown sur l'accepteur (moi)
@@ -6597,13 +6596,13 @@ async function sendMessage(toId, text) {
   await db.from('messages').insert({ from_id: myId, to_id: toId, text });
 
   // Notif au receveur via la table notifications
-  await db.from('notifications').insert({
+  try { await db.from('notifications').insert({
     user_id: toId,
     type: 'message',
     from_id: myId,
     text: text.length > 40 ? text.slice(0,40)+'…' : text,
     read: false,
-  }).then(()=>{}).catch(()=>{});
+  }).then(()=>{}) } catch(e) {};
 }
 
 // Marquer les notifs message comme lues quand on ouvre la conv
@@ -7015,11 +7014,11 @@ async function sendTradeOffer(theirCardId) {
     }
 
     // Notifier l'ami
-    await db.from('notifications').insert({
+    try { await db.from('notifications').insert({
       user_id: toId, type: 'trade', from_id: myId,
       text: `Échange proposé : carte #${String(myCard.id).replace(/^0+/,'')} ↔ carte #${String(theirCardId).replace(/^0+/,'')}`,
       read: false,
-    }).then(()=>{}).catch(()=>{});
+    }).then(()=>{}) } catch(e) {};
 
     markTradeUsed(myId);
     startDailyTicker();
@@ -7098,10 +7097,10 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
     await db.from('trades').update({ status: 'accepted' }).eq('id', tradeId);
 
     // Notifier l'expéditeur
-    await db.from('notifications').insert({
+    try { await db.from('notifications').insert({
       user_id: incoming.from_id, type: 'trade_accepted', from_id: myId,
       text: 'Ton échange a été accepté !', read: false,
-    }).then(()=>{}).catch(()=>{});
+    }).then(()=>{}) } catch(e) {};
 
     // Recharger la collection
     if (window.loadCollection) window.loadCollection();
@@ -7111,10 +7110,10 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
     await db.from('trades').update({ status: 'declined' }).eq('id', tradeId);
     // Notifier l'expéditeur du refus
     if (incoming.from_id) {
-      await db.from('notifications').insert({
+      try { await db.from('notifications').insert({
         user_id: incoming.from_id, type: 'trade_declined', from_id: myId,
         text: 'Ton échange a été refusé.', read: false,
-      }).then(()=>{}).catch(()=>{});
+      }).then(()=>{}) } catch(e) {};
     }
     showToast('Échange refusé', '✗');
   }
