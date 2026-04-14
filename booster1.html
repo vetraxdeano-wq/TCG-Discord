@@ -4347,12 +4347,6 @@ function showDone(){
     const inc = (field, amount=1) => db.rpc('increment_stat', { p_user_id: myId, p_field: field, p_amount: amount });
     await inc('boosters_total');
     await inc('boosters_normal');
-    const rarityFieldMap = { 'COMMUNE': 'cards_common', 'PEU COMMMUNE': 'cards_uncommon', 'RARE': 'cards_rare', 'MYTHIQUE': 'cards_mythic' };
-    for (const card of revealed) {
-      const field = rarityFieldMap[card.rarity];
-      if (field) await inc(field);
-      await inc('cards_played_total');
-    }
   })();
 }
 
