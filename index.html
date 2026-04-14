@@ -2665,10 +2665,11 @@ function renderTabStats(th){
   const wins = state.wins || 0;
   const losses = state.losses || 0;
   const totalGames = wins + losses;
-  const pvpGames = state.statsPvpGames || '—';
+  const games10v10 = state.stats10v10Games || '—';
   const pveGames = state.statsPveGames || '—';
-  const initGames = state.statsInitGames || '—';
   const totalCardsPlayed = state.statsTotalCardsPlayed || '—';
+  const fightersPlayed = state.statsFightersPlayed || '—';
+  const spellsPlayed = state.statsSpellsPlayed || '—';
   const commonPlayed = state.statsCommonPlayed || '—';
   const uncommonPlayed = state.statsUncommonPlayed || '—';
   const rarePlayed = state.statsRarePlayed || '—';
@@ -2682,11 +2683,12 @@ function renderTabStats(th){
 
   const statRows = [
     { label: 'Parties jouées (total)', personal: totalGames > 0 ? totalGames : '—', global: state.globalStatsTotalGames || '—' },
-    { label: 'Parties PvP', personal: pvpGames, global: state.globalStatsPvpGames || '—' },
+    { label: 'Parties 10v10', personal: games10v10, global: state.globalStats10v10Games || '—' },
     { label: 'Parties vs IA (PvE)', personal: pveGames, global: state.globalStatsPveGames || '—' },
-    { label: 'Parties Initiation', personal: initGames, global: state.globalStatsInitGames || '—' },
-    { label: '— Cartes —', personal: '', global: '', separator: true },
+    { label: '— Cartes jouées en combat —', personal: '', global: '', separator: true },
     { label: 'Cartes jouées (total)', personal: totalCardsPlayed, global: state.globalStatsTotalCardsPlayed || '—' },
+    { label: 'Fighters joués', personal: fightersPlayed, global: state.globalStatsFightersPlayed || '—' },
+    { label: 'Sorts joués', personal: spellsPlayed, global: state.globalStatsSpellsPlayed || '—' },
     { label: 'Cartes Communes', personal: commonPlayed, global: state.globalStatsCommonPlayed || '—' },
     { label: 'Cartes Peu Communes', personal: uncommonPlayed, global: state.globalStatsUncommonPlayed || '—' },
     { label: 'Cartes Rares', personal: rarePlayed, global: state.globalStatsRarePlayed || '—' },
@@ -2702,7 +2704,7 @@ function renderTabStats(th){
   ];
 
   return `
-  <div style="flex:1;display:flex;flex-direction:column;background:transparent;overflow-y:auto;padding:${isMobile?'10px':'16px'};">
+  <div style="flex:1;display:flex;flex-direction:column;background:transparent;overflow-y:auto;padding:${isMobile?'10px':'16px'};-webkit-overflow-scrolling:touch;">
 
     <!-- Header -->
     <div style="flex-shrink:0;margin-bottom:${isMobile?'10px':'14px'};">
@@ -2710,13 +2712,13 @@ function renderTabStats(th){
       <div style="height:1px;background:${th.border};"></div>
     </div>
 
-    <!-- Table stats -->
-    <div style="flex:1;border:2px solid #000;overflow:hidden;position:relative;">
-      <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});"></div>
+    <!-- Table stats scrollable -->
+    <div style="flex:1;border:2px solid #000;overflow-y:auto;overflow-x:hidden;min-height:0;position:relative;scrollbar-width:thin;scrollbar-color:${th.accent} ${th.bgTertiary};">
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});pointer-events:none;"></div>
       <div style="position:relative;">
 
-        <!-- En-têtes colonnes -->
-        <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-bottom:2px solid #000;">
+        <!-- En-têtes colonnes (sticky) -->
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-bottom:2px solid #000;position:sticky;top:0;z-index:2;background:${th.bgSecondary};">
           <div style="padding:${isMobile?'7px 10px':'9px 14px'};font-size:${isMobile?'8px':'9px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;">Statistique</div>
           <div style="padding:${isMobile?'7px 12px':'9px 18px'};font-size:${isMobile?'8px':'9px'};color:#a78bfa;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};">Personnel</div>
           <div style="padding:${isMobile?'7px 12px':'9px 18px'};font-size:${isMobile?'8px':'9px'};color:${th.accent};letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};">Globale</div>
@@ -5418,20 +5420,21 @@ async function loadPlayerStats(userId) {
   const { data: s } = await db.from('stats').select('*').eq('user_id', userId).single();
   if (s) {
     setState({
-      statsPvpGames:       s.games_pvp,
-      statsPveGames:       s.games_pve,
-      statsInitGames:      s.games_initiation,
+      stats10v10Games:       s.games_10v10,
+      statsPveGames:         s.games_pve,
       statsTotalCardsPlayed: s.cards_played_total,
-      statsCommonPlayed:   s.cards_common,
-      statsUncommonPlayed: s.cards_uncommon,
-      statsRarePlayed:     s.cards_rare,
-      statsMythicPlayed:   s.cards_mythic,
-      statsBoostersOpened: s.boosters_total,
-      statsNormalBoosters: s.boosters_normal,
+      statsFightersPlayed:   s.cards_fighters_played,
+      statsSpellsPlayed:     s.cards_spells_played,
+      statsCommonPlayed:     s.cards_common,
+      statsUncommonPlayed:   s.cards_uncommon,
+      statsRarePlayed:       s.cards_rare,
+      statsMythicPlayed:     s.cards_mythic,
+      statsBoostersOpened:   s.boosters_total,
+      statsNormalBoosters:   s.boosters_normal,
       statsPrestigeBoosters: s.boosters_prestige,
-      statsLegendBoosters: s.boosters_legendary,
-      statsPiochesFlipped: s.pioches_flipped,
-      statsCoinsEarned:    s.coins_earned,
+      statsLegendBoosters:   s.boosters_legendary,
+      statsPiochesFlipped:   s.pioches_flipped,
+      statsCoinsEarned:      s.coins_earned,
     });
   }
   // Stats globales
@@ -5439,10 +5442,11 @@ async function loadPlayerStats(userId) {
   if (g) {
     setState({
       globalStatsTotalGames:       g.games_total,
-      globalStatsPvpGames:         g.games_pvp,
+      globalStats10v10Games:       g.games_10v10,
       globalStatsPveGames:         g.games_pve,
-      globalStatsInitGames:        g.games_initiation,
       globalStatsTotalCardsPlayed: g.cards_played_total,
+      globalStatsFightersPlayed:   g.cards_fighters_played,
+      globalStatsSpellsPlayed:     g.cards_spells_played,
       globalStatsCommonPlayed:     g.cards_common,
       globalStatsUncommonPlayed:   g.cards_uncommon,
       globalStatsRarePlayed:       g.cards_rare,
