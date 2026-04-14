@@ -3235,7 +3235,7 @@ function renderTutorialModal(th){
   const steps = [
     {
       icon:'🃏', title:'Bienvenue dans Discord TCG !',
-      text:'Discord TCG est un jeu de cartes à collectionner. Collecte des cartes, construis ton deck et affronte d\'autres joueurs !',
+      text:'Discord TCG est un jeu de cartes à collectionner. Collecte des cartes, construis ton deck et affronte d\'autres joueurs en 10 vs 10 pour débuter !',
       color:th.accent,
     },
     {
@@ -3250,12 +3250,12 @@ function renderTutorialModal(th){
     },
     {
       icon:'🗂️', title:'Le Deck Builder',
-      text:'Construis ton deck de 30 cartes dans l\'onglet Collection → Deck Builder. Un deck complet est nécessaire pour jouer. Max 2 cartes Mythiques !',
+      text:'Construis ton deck dans l\'onglet Collection → Deck Builder. Pour le mode 10v10, il suffit de 10 cartes — parfait pour débuter sans attendre !',
       color:'#a78bfa',
     },
     {
-      icon:'⚔️', title:'Affronte des adversaires',
-      text:'Dans l\'onglet Jouer, défie d\'autres joueurs en PvP ou entraîne-toi contre l\'IA. Gagne des parties pour monter dans le classement !',
+      icon:'⚔️', title:'Commence en 10 vs 10',
+      text:'Dans l\'onglet Jouer, choisis le mode Initiation (10 vs 10) pour tes premières parties. Format rapide, idéal pour apprendre les mécaniques sans avoir 30 cartes.',
       color:th.accentAlt,
     },
     {
@@ -3265,12 +3265,12 @@ function renderTutorialModal(th){
     },
     {
       icon:'🏆', title:'Le Classement',
-      text:'Consulte le classement hebdo, mensuel ou all-time en cliquant sur le bouton RANG dans l\'onglet Jouer. Qui sera le meilleur joueur ?',
+      text:'Consulte le classement hebdo, mensuel ou all-time via le bouton RANG dans l\'onglet Jouer. Le rang est basé sur le nombre de cartes collectées !',
       color:th.accent,
     },
     {
-      icon:'⚡', title:'Conseil de départ : le mode Initiation',
-      text:'Tutoriel terminé et 10 premières cartes en poche ? Lance-toi en mode Initiation (10 vs 10) ! C\'est le format parfait pour commencer. Accumule des boosters normaux jusqu\'à réunir assez de cartes pour le mode classique : 30 cartes, max 2 exemplaires par carte, max 2 Mythiques par deck.',
+      icon:'📖', title:'Prêt à jouer !',
+      text:'Lance-toi en mode 10 vs 10 dès que tu as 10 cartes. Une fois à l\'aise, passe au mode classique (30 cartes, max 2 exemplaires, max 2 Mythiques). Clique sur "TUTORIEL COMPLET" pour en savoir plus.',
       color:'#38bdf8',
     },
   ];
@@ -3316,7 +3316,7 @@ function renderTutorialModal(th){
       <div style="display:flex;gap:8px;padding:0 16px 18px;">
         ${step > 0 ? `<button id="tuto-prev" style="padding:10px 16px;background:${th.bgTertiary};color:${th.textMuted};border:2px solid #000;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;flex-shrink:0;">← RETOUR</button>` : ''}
         <button id="tuto-next" style="flex:1;padding:10px;background:${cur.color};color:#000;border:2px solid #000;box-shadow:3px 3px 0 #000;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.8px;transition:all .15s;">
-          ${isLast ? '✓ COMMENCER À JOUER' : 'SUIVANT →'}
+          ${isLast ? '📖 TUTORIEL COMPLET →' : 'SUIVANT →'}
         </button>
       </div>
     </div>
@@ -5163,7 +5163,7 @@ async function loadLeaderboard(period){
     const playersUrl = SUPABASE_URL +
       '/rest/v1/players' +
       '?select=id,discord_username,avatar_url,wins,losses,coins,first_win_date,last_streak_date' +
-      '&order=wins.desc.nullslast,coins.desc.nullslast&limit=500';
+      '&order=coins.desc.nullslast&limit=500';
 
     const [playersResp, cardsResp] = await Promise.all([
       fetch(playersUrl, {headers: HEADERS}),
@@ -5237,8 +5237,8 @@ async function loadLeaderboard(period){
       filtered = active.length > 0 ? active : all;
     }
 
-    // ── 5. Tri : wins desc, coins desc en départage ────────────────
-    filtered.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins));
+    // ── 5. Tri : cards desc, coins desc en départage ────────────────
+    filtered.sort((a,b) => (b.cards - a.cards) || (b.coins - a.coins));
 
     // ── 6. Rang du joueur connecté ─────────────────────────────────
     let playerRank = null;
@@ -5375,14 +5375,15 @@ function enterGame(user, coins) {
   if (_isNew) {
     sessionStorage.removeItem('_new_player');
     setTimeout(() => {
+      // Première connexion → ouvrir directement le tutoriel pas à pas
       setState({
+        showTutorial: true,
+        tutorialStep: 0,
         welcomeNotifs: [
-          { id: 'tuto', type: 'tutorial' },
           { id: 'starter', type: 'starter_pack' },
         ],
-        showNotif: true,
       });
-    }, 1800); // délai pour laisser le jeu charger
+    }, 1800);
   } else {
     // ── RÉTROACTIF : vérifier si le booster de bienvenue a été manqué ──
     // On vérifie dans localStorage si le joueur a déjà réclamé le starter pack
