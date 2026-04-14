@@ -2505,6 +2505,16 @@ function humanPlayCard(idx){
     if(G.fp==='bot'&&G.turn===1){G.phase='bot';render();setTimeout(()=>botTurn(),1400);}
     else{G.phase='sort';render();}
     resetChrono();if(_autoBattle)setTimeout(scheduleAutoStep,400);
+    // ── Stats carte jouée (fighter) ──
+    (async()=>{
+      if(!_db||!_currentUser)return;
+      const myId=_currentUser.id;
+      const inc=(field,amount=1)=>_db.rpc('increment_stat',{p_user_id:myId,p_field:field,p_amount:amount});
+      const rarMap={C:'cards_common',PC:'cards_uncommon',R:'cards_rare',M:'cards_mythic'};
+      await inc('cards_played_total');
+      await inc('cards_fighters_played');
+      if(rarMap[c.rarete]) await inc(rarMap[c.rarete]);
+    })();
     return;
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
@@ -2512,6 +2522,16 @@ function humanPlayCard(idx){
     G.human.hand.splice(idx,1);G.human.sortJoue=true;
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
+    // ── Stats carte jouée (sort) ──
+    (async()=>{
+      if(!_db||!_currentUser)return;
+      const myId=_currentUser.id;
+      const inc=(field,amount=1)=>_db.rpc('increment_stat',{p_user_id:myId,p_field:field,p_amount:amount});
+      const rarMap={C:'cards_common',PC:'cards_uncommon',R:'cards_rare',M:'cards_mythic'};
+      await inc('cards_played_total');
+      await inc('cards_spells_played');
+      if(rarMap[c.rarete]) await inc(rarMap[c.rarete]);
+    })();
     // applySort peut être async (modale de choix) — on lui passe un callback pour continuer
     // onCancel : remet la carte en main et annule le coup joué
     const onCancel=()=>{
