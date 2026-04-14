@@ -2718,24 +2718,24 @@ function renderTabStats(th){
       <div style="position:relative;">
 
         <!-- En-têtes colonnes (sticky) -->
-        <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;border-bottom:2px solid #000;position:sticky;top:0;z-index:2;background:${th.bgSecondary};">
-          <div style="padding:${isMobile?'7px 10px':'9px 14px'};font-size:${isMobile?'8px':'9px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;">Statistique</div>
-          <div style="padding:${isMobile?'7px 12px':'9px 18px'};font-size:${isMobile?'8px':'9px'};color:#a78bfa;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};">Personnel</div>
-          <div style="padding:${isMobile?'7px 12px':'9px 18px'};font-size:${isMobile?'8px':'9px'};color:${th.accent};letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};">Globale</div>
+        <div style="display:grid;grid-template-columns:1fr ${isMobile?'72px 72px':'110px 110px'};gap:0;border-bottom:2px solid #000;position:sticky;top:0;z-index:2;background:${th.bgSecondary};">
+          <div style="padding:${isMobile?'7px 10px':'9px 16px'};font-size:${isMobile?'8px':'9px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;font-family:'Oswald',sans-serif;">Statistique</div>
+          <div style="padding:${isMobile?'7px 4px':'9px 8px'};font-size:${isMobile?'8px':'9px'};color:#a78bfa;letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};font-family:'Oswald',sans-serif;">Personnel</div>
+          <div style="padding:${isMobile?'7px 4px':'9px 8px'};font-size:${isMobile?'8px':'9px'};color:${th.accent};letter-spacing:2px;text-transform:uppercase;font-weight:700;text-align:center;border-left:1px solid ${th.border};font-family:'Oswald',sans-serif;">Globale</div>
         </div>
 
         <!-- Rows -->
         ${statRows.map((row, idx) => row.separator ? `
-          <div style="display:grid;grid-template-columns:1fr auto auto;border-bottom:1px solid ${th.border};background:${th.bgTertiary}20;">
-            <div style="padding:${isMobile?'4px 10px':'5px 14px'};font-size:${isMobile?'7px':'8px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;font-style:italic;">${row.label}</div>
-            <div style="border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};"></div>
-            <div style="border-left:1px solid ${th.border};min-width:${isMobile?'64px':'88px'};"></div>
+          <div style="display:grid;grid-template-columns:1fr ${isMobile?'72px 72px':'110px 110px'};border-bottom:1px solid ${th.border};background:${th.bgTertiary}30;">
+            <div style="padding:${isMobile?'4px 10px':'5px 16px'};font-size:${isMobile?'7px':'8px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:700;font-style:italic;font-family:'Oswald',sans-serif;">${row.label}</div>
+            <div style="border-left:1px solid ${th.border};"></div>
+            <div style="border-left:1px solid ${th.border};"></div>
           </div>
         ` : `
-          <div style="display:grid;grid-template-columns:1fr auto auto;border-bottom:1px solid ${th.border}80;background:${idx%2===0?'transparent':th.bg+'30'};">
-            <div style="padding:${isMobile?'6px 10px':'8px 14px'};font-size:${isMobile?'9px':'10px'};color:${th.text};font-weight:600;">${row.label}</div>
-            <div style="padding:${isMobile?'6px 12px':'8px 18px'};font-size:${isMobile?'11px':'13px'};color:#a78bfa;font-weight:900;text-align:center;border-left:1px solid ${th.border}80;min-width:${isMobile?'64px':'88px'};font-family:'Bangers',cursive;letter-spacing:.5px;">${row.personal}</div>
-            <div style="padding:${isMobile?'6px 12px':'8px 18px'};font-size:${isMobile?'11px':'13px'};color:${th.accent};font-weight:900;text-align:center;border-left:1px solid ${th.border}80;min-width:${isMobile?'64px':'88px'};font-family:'Bangers',cursive;letter-spacing:.5px;">${row.global}</div>
+          <div style="display:grid;grid-template-columns:1fr ${isMobile?'72px 72px':'110px 110px'};border-bottom:1px solid ${th.border}80;background:${idx%2===0?'transparent':th.bg+'30'};">
+            <div style="padding:${isMobile?'7px 10px':'10px 16px'};font-size:${isMobile?'10px':'12px'};color:${th.text};font-weight:600;font-family:'Oswald',sans-serif;letter-spacing:.3px;display:flex;align-items:center;">${row.label}</div>
+            <div style="padding:${isMobile?'7px 4px':'10px 8px'};font-size:${isMobile?'14px':'18px'};color:#a78bfa;font-weight:900;text-align:center;border-left:1px solid ${th.border}80;font-family:'Bangers',cursive;letter-spacing:1px;display:flex;align-items:center;justify-content:center;">${row.personal}</div>
+            <div style="padding:${isMobile?'7px 4px':'10px 8px'};font-size:${isMobile?'14px':'18px'};color:${th.accent};font-weight:900;text-align:center;border-left:1px solid ${th.border}80;font-family:'Bangers',cursive;letter-spacing:1px;display:flex;align-items:center;justify-content:center;">${row.global}</div>
           </div>
         `).join('')}
 
