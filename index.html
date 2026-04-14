@@ -5812,7 +5812,6 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
   }
 };
 
-window.grantXp = grantXp;
 window.loadPlayerXp = loadPlayerXp;
 window.computeLevel = computeLevel;
 window.xpToNextLevel = xpToNextLevel;
@@ -5951,16 +5950,13 @@ window.onPlayerWin = async function() {
   // 1ère victoire du jour !
   await grantCoins(userId, 100, '1ère victoire du jour');
   showRewardToast('1ère victoire du jour !', 100, '🏆');
-  if (window.grantXp) {
-    await grantXp(userId, 20, '1ère victoire du jour');
-    showXpToast(20, '1ère victoire du jour');
-  }
+  await grantXp(userId, 20, '1ère victoire du jour');
+  showXpToast(20, '1ère victoire du jour');
   await db.from('players').update({ first_win_date: today }).eq('id', userId);
   setState({ firstWinTodayDone: true });
 };
 
-window.checkLoginStreak = checkLoginStreak;
-window.onPlayerWin = window.onPlayerWin;
+
 
 // Vérifie qu'un deck par défaut jouable (30 cartes) existe — affiche un toast sinon
 async function checkDefaultDeck() {
@@ -5992,7 +5988,7 @@ async function checkDefaultDeck() {
   return true;
 }
 
-window.refreshCoins = refreshCoins;
+// coins refresh — interne uniquement
 
 function showDiscordLoginBtn() {
   const splash = document.getElementById('splash');
