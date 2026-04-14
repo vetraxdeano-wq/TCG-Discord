@@ -4789,6 +4789,21 @@ function bindGame(){
         await markBoosterUsed(_uid, bid); // Supabase + màj cache local immédiat
         startDailyTicker();
         render(); // Rafraîchir le compteur affiché
+
+        // ── Stats : booster ouvert ──
+        (async () => {
+          const db = window.db;
+          const myId = state.currentUser?.id;
+          if (db && myId) {
+            const fieldMap = { 1: 'boosters_normal', 2: 'boosters_prestige', 3: 'boosters_legendary' };
+            const field = fieldMap[bid];
+            try {
+              await db.rpc('increment_stat', { p_user_id: myId, p_field: 'boosters_total' });
+              if (field) await db.rpc('increment_stat', { p_user_id: myId, p_field: field });
+            } catch(e) { console.error('increment_stat booster error', e); }
+          }
+        })();
+
         triggerBoosterOpen(bid, m.color, m.src, m.href);
       }
     });
@@ -5967,6 +5982,22 @@ window.onPlayerWin = async function() {
 
 window.checkLoginStreak = checkLoginStreak;
 window.onPlayerWin = window.onPlayerWin;
+
+// ── Appelée par les pages de jeu après chaque partie ──────────────
+// gameType : 'pvp' | 'pve' | 'initiation'
+window.onGameEnd = async function(gameType) {
+  const db = window.db;
+  const userId = state.currentUser?.id;
+  if (!db || !userId) return;
+  try {
+    const typeToField = { pvp: 'games_pvp', pve: 'games_pve', initiation: 'games_initiation' };
+    const field = typeToField[gameType];
+    await db.rpc('increment_stat', { p_user_id: userId, p_field: 'games_total' });
+    if (field) await db.rpc('increment_stat', { p_user_id: userId, p_field: field });
+    // Recharger les stats affichées
+    await loadPlayerStats(userId);
+  } catch(e) { console.error('onGameEnd stat error', e); }
+};
 
 // Vérifie qu'un deck par défaut jouable (30 cartes) existe — affiche un toast sinon
 async function checkDefaultDeck() {
