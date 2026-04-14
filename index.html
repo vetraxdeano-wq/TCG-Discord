@@ -2704,37 +2704,37 @@ function renderTabStats(th){
   ];
 
   return `
-  <div style="flex:1;display:flex;flex-direction:column;background:transparent;overflow-y:auto;padding:${isMobile?'10px':'20px'};-webkit-overflow-scrolling:touch;">
+  <div style="flex:1;display:flex;flex-direction:column;background:transparent;overflow-y:auto;padding:${isMobile?'8px':'20px'};-webkit-overflow-scrolling:touch;">
 
     <!-- Header -->
-    <div style="flex-shrink:0;margin-bottom:${isMobile?'10px':'16px'};">
+    <div style="flex-shrink:0;margin-bottom:${isMobile?'8px':'14px'};">
       <div style="font-size:${isMobile?'10px':'11px'};color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;margin-bottom:4px;">📊 Statistiques</div>
       <div style="height:1px;background:${th.border};"></div>
     </div>
 
-    <!-- Table stats scrollable — centrée avec max-width -->
+    <!-- Table stats -->
     <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:${th.accent} ${th.bgTertiary};">
-      <div style="max-width:${isMobile?'100%':'640px'};margin:0 auto;border:2px solid #000;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});">
+      <div style="width:100%;max-width:${isMobile?'100%':'760px'};margin:0 auto;border:2px solid #000;background:linear-gradient(135deg,${th.bgSecondary},${th.bgTertiary});">
 
-        <!-- En-têtes colonnes (sticky) -->
-        <div style="display:grid;grid-template-columns:1fr 120px 120px;border-bottom:2px solid #000;position:sticky;top:0;z-index:2;background:${th.bgSecondary};">
-          <div style="padding:${isMobile?'8px 12px':'10px 16px'};font-size:10px;color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:600;font-family:'DM Sans',sans-serif;">Statistique</div>
-          <div style="padding:${isMobile?'8px 4px':'10px 4px'};font-size:10px;color:#a78bfa;letter-spacing:2px;text-transform:uppercase;font-weight:600;text-align:center;border-left:1px solid ${th.border};font-family:'DM Sans',sans-serif;">Personnel</div>
-          <div style="padding:${isMobile?'8px 4px':'10px 4px'};font-size:10px;color:${th.accent};letter-spacing:2px;text-transform:uppercase;font-weight:600;text-align:center;border-left:1px solid ${th.border};font-family:'DM Sans',sans-serif;">Globale</div>
+        <!-- En-têtes -->
+        <div style="display:grid;grid-template-columns:1fr ${isMobile?'80px 80px':'140px 140px'};border-bottom:2px solid #000;position:sticky;top:0;z-index:2;background:${th.bgSecondary};">
+          <div style="padding:${isMobile?'8px 10px':'10px 16px'};font-size:${isMobile?'9px':'10px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:600;font-family:'DM Sans',sans-serif;white-space:nowrap;">Statistique</div>
+          <div style="padding:${isMobile?'8px 4px':'10px 4px'};font-size:${isMobile?'9px':'10px'};color:#a78bfa;letter-spacing:2px;text-transform:uppercase;font-weight:600;text-align:center;border-left:1px solid ${th.border};font-family:'DM Sans',sans-serif;white-space:nowrap;">Personnel</div>
+          <div style="padding:${isMobile?'8px 4px':'10px 4px'};font-size:${isMobile?'9px':'10px'};color:${th.accent};letter-spacing:2px;text-transform:uppercase;font-weight:600;text-align:center;border-left:1px solid ${th.border};font-family:'DM Sans',sans-serif;white-space:nowrap;">Globale</div>
         </div>
 
         <!-- Rows -->
         ${statRows.map((row, idx) => row.separator ? `
-          <div style="display:grid;grid-template-columns:1fr 120px 120px;border-bottom:1px solid ${th.border};background:${th.bgTertiary}40;">
-            <div style="padding:5px ${isMobile?'12px':'16px'};font-size:9px;color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:600;font-family:'DM Sans',sans-serif;">${row.label}</div>
+          <div style="display:grid;grid-template-columns:1fr ${isMobile?'80px 80px':'140px 140px'};border-bottom:1px solid ${th.border};background:${th.bgTertiary}40;">
+            <div style="padding:${isMobile?'4px 10px':'5px 16px'};font-size:${isMobile?'8px':'9px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:600;font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${row.label}</div>
             <div style="border-left:1px solid ${th.border};"></div>
             <div style="border-left:1px solid ${th.border};"></div>
           </div>
         ` : `
-          <div style="display:grid;grid-template-columns:1fr 120px 120px;border-bottom:1px solid ${th.border}50;background:${idx%2===0?'transparent':th.bg+'18'};">
-            <div style="padding:${isMobile?'10px 12px':'12px 16px'};font-size:${isMobile?'11px':'13px'};color:${th.text};font-weight:400;font-family:'DM Sans',sans-serif;display:flex;align-items:center;">${row.label}</div>
-            <div style="padding:${isMobile?'10px 4px':'12px 4px'};font-size:${isMobile?'15px':'17px'};color:#a78bfa;font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.3px;">${row.personal}</div>
-            <div style="padding:${isMobile?'10px 4px':'12px 4px'};font-size:${isMobile?'15px':'17px'};color:${th.accent};font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.3px;">${row.global}</div>
+          <div style="display:grid;grid-template-columns:1fr ${isMobile?'80px 80px':'140px 140px'};border-bottom:1px solid ${th.border}50;background:${idx%2===0?'transparent':th.bg+'18'};">
+            <div style="padding:${isMobile?'9px 10px':'11px 16px'};font-size:${isMobile?'11px':'13px'};color:${th.text};font-weight:400;font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;">${row.label}</div>
+            <div style="padding:${isMobile?'9px 4px':'11px 4px'};font-size:${isMobile?'15px':'18px'};color:#a78bfa;font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;">${row.personal}</div>
+            <div style="padding:${isMobile?'9px 4px':'11px 4px'};font-size:${isMobile?'15px':'18px'};color:${th.accent};font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;">${row.global}</div>
           </div>
         `).join('')}
 
