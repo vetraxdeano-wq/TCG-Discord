@@ -5150,11 +5150,11 @@ async function loadLeaderboard(period){
   setState({leaderboardLoading:true});
 
   try {
-    // Appel REST direct — contourne tout problème d'instance window.db
+    // created_at n'existe pas dans players — on l'exclut du select
     const url = SUPABASE_URL +
-      '/rest/v1/players?select=id,discord_username,avatar_url,wins,losses,coins,created_at' +
+      '/rest/v1/players?select=id,discord_username,avatar_url,wins,losses,coins' +
       '&order=wins.desc.nullslast,coins.desc.nullslast' +
-      '&limit=200';
+      '&limit=500';
 
     const resp = await fetch(url, {
       headers: {
@@ -5192,33 +5192,22 @@ async function loadLeaderboard(period){
         wins:   state.wins??0,
         losses: state.losses??0,
         coins:  state.coins??0,
-        created_at: null,
       });
     }
 
-    // Filtre période — sur created_at (inscription), fallback = tout afficher
-    let filtered = all;
-    if(period==='week'){
-      const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-7);
-      const r=all.filter(p=>p.created_at&&new Date(p.created_at)>=cutoff);
-      if(r.length>0) filtered=r;
-    } else if(period==='month'){
-      const cutoff=new Date(); cutoff.setMonth(cutoff.getMonth()-1);
-      const r=all.filter(p=>p.created_at&&new Date(p.created_at)>=cutoff);
-      if(r.length>0) filtered=r;
-    }
-
-    // Tri final : victoires desc, coins desc
-    filtered.sort((a,b)=>(b.wins-a.wins)||(b.coins-a.coins));
+    // Tri : victoires desc, coins desc
+    // La colonne created_at n'existant pas, les 3 onglets (week/month/all)
+    // affichent le même classement global trié par victoires.
+    all.sort((a,b)=>(b.wins-a.wins)||(b.coins-a.coins));
 
     // Rang du joueur connecté
     let playerRank=null;
     if(myId){
-      const idx=filtered.findIndex(r=>r.id===myId);
-      playerRank = idx!==-1 ? idx+1 : (all.findIndex(r=>r.id===myId)+1)||null;
+      const idx=all.findIndex(r=>r.id===myId);
+      if(idx!==-1) playerRank=idx+1;
     }
 
-    setState({leaderboardLoading:false, leaderboardData:filtered.slice(0,50), playerRank});
+    setState({leaderboardLoading:false, leaderboardData:all.slice(0,50), playerRank});
 
   } catch(e){
     console.error('[Leaderboard] exception:', e);
