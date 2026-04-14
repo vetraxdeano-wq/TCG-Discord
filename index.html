@@ -2364,13 +2364,15 @@ function renderTabBoosters(th){
   function boosterInner(bid, bMeta, bIsOpen) {
     const shimmer = bid===1
       ? `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(209,213,219,.12) 0%,transparent 65%);animation:normalSparkle 2s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
-         <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;pointer-events:none;z-index:2;animation:normalSparkle 2.6s ease-in-out infinite;filter:drop-shadow(0 0 5px #9ca3af) grayscale(1) brightness(1.4);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);"/>`
+         <img src="https://i.goopics.net/5f52vt.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;pointer-events:none;z-index:2;animation:normalSparkle 2.6s ease-in-out infinite;filter:drop-shadow(0 0 5px #9ca3af) grayscale(1) brightness(1.4);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);"/>
+         <img src="https://i.goopics.net/5f52vt.png" style="position:absolute;right:-10%;top:5%;width:50%;height:88%;object-fit:contain;pointer-events:none;z-index:2;animation:normalSparkle 2.6s ease-in-out .4s infinite;filter:drop-shadow(0 0 5px #9ca3af) grayscale(1) brightness(1.4);transform:scaleX(-1);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);"/>`
       : bid===2
       ? `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(205,127,50,.22) 0%,transparent 65%);animation:normalSparkle 1.8s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
-         <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;pointer-events:none;z-index:2;animation:prestigeShine 2.6s ease-in-out infinite;filter:drop-shadow(0 0 6px #cd7f32) sepia(1) saturate(2.5) hue-rotate(5deg) brightness(.9);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);"/>`
+         <img src="https://i.goopics.net/k7jl1r.png" style="position:absolute;left:-10%;top:5%;width:50%;height:88%;object-fit:contain;pointer-events:none;z-index:2;animation:prestigeShine 2.6s ease-in-out infinite;filter:drop-shadow(0 0 6px #cd7f32) sepia(1) saturate(2.5) hue-rotate(5deg) brightness(.9);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);"/>
+         <img src="https://i.goopics.net/k7jl1r.png" style="position:absolute;right:-10%;top:5%;width:50%;height:88%;object-fit:contain;pointer-events:none;z-index:2;animation:prestigeShine 2.6s ease-in-out .5s infinite;filter:drop-shadow(0 0 6px #cd7f32) sepia(1) saturate(2.5) hue-rotate(5deg) brightness(.9);transform:scaleX(-1);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.9) 25%,rgba(0,0,0,.9) 75%,transparent 100%);"/>`
       : `<div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(240,192,96,.25) 0%,transparent 70%);animation:legendGlow 1.6s ease-in-out infinite;pointer-events:none;z-index:0;"></div>
          <img src="https://i.goopics.net/9vyw2d.png" style="position:absolute;left:-8%;top:0;width:55%;height:100%;object-fit:contain;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out infinite;filter:drop-shadow(0 0 8px #f0c060) sepia(1) saturate(4) hue-rotate(-15deg) brightness(1.1);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);"/>
-         <img src="https://i.goopics.net/sksdpb.png" style="position:absolute;right:-8%;top:0;width:55%;height:100%;object-fit:contain;pointer-events:none;z-index:2;transform:scaleX(-1);animation:boltFlash 2.2s ease-in-out .7s infinite;filter:drop-shadow(0 0 8px #fde68a) sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.15);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);"/>`;
+         <img src="https://i.goopics.net/9uldrt.png" style="position:absolute;right:-8%;top:0;width:55%;height:100%;object-fit:contain;pointer-events:none;z-index:2;animation:boltFlash 2.2s ease-in-out .7s infinite;filter:drop-shadow(0 0 8px #fde68a) sepia(1) saturate(4) hue-rotate(-20deg) brightness(1.15);mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);-webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.95) 20%,rgba(0,0,0,.95) 70%,transparent 100%);"/>`;
     const glow = bid===1 ? 'drop-shadow(0 0 8px #9ca3af50) brightness(1.05)'
                 : bid===2 ? 'drop-shadow(0 0 10px #cd7f3270) brightness(1.08)'
                 :           'drop-shadow(0 0 14px #f0c06090) drop-shadow(0 0 28px #fbbf2450) brightness(1.12)';
@@ -4789,21 +4791,6 @@ function bindGame(){
         await markBoosterUsed(_uid, bid); // Supabase + màj cache local immédiat
         startDailyTicker();
         render(); // Rafraîchir le compteur affiché
-
-        // ── Stats : booster ouvert ──
-        (async () => {
-          const db = window.db;
-          const myId = state.currentUser?.id;
-          if (db && myId) {
-            const fieldMap = { 1: 'boosters_normal', 2: 'boosters_prestige', 3: 'boosters_legendary' };
-            const field = fieldMap[bid];
-            try {
-              await db.rpc('increment_stat', { p_user_id: myId, p_field: 'boosters_total' });
-              if (field) await db.rpc('increment_stat', { p_user_id: myId, p_field: field });
-            } catch(e) { console.error('increment_stat booster error', e); }
-          }
-        })();
-
         triggerBoosterOpen(bid, m.color, m.src, m.href);
       }
     });
@@ -5982,22 +5969,6 @@ window.onPlayerWin = async function() {
 
 window.checkLoginStreak = checkLoginStreak;
 window.onPlayerWin = window.onPlayerWin;
-
-// ── Appelée par les pages de jeu après chaque partie ──────────────
-// gameType : 'pvp' | 'pve' | 'initiation'
-window.onGameEnd = async function(gameType) {
-  const db = window.db;
-  const userId = state.currentUser?.id;
-  if (!db || !userId) return;
-  try {
-    const typeToField = { pvp: 'games_pvp', pve: 'games_pve', initiation: 'games_initiation' };
-    const field = typeToField[gameType];
-    await db.rpc('increment_stat', { p_user_id: userId, p_field: 'games_total' });
-    if (field) await db.rpc('increment_stat', { p_user_id: userId, p_field: field });
-    // Recharger les stats affichées
-    await loadPlayerStats(userId);
-  } catch(e) { console.error('onGameEnd stat error', e); }
-};
 
 // Vérifie qu'un deck par défaut jouable (30 cartes) existe — affiche un toast sinon
 async function checkDefaultDeck() {
