@@ -5152,65 +5152,106 @@ async function loadPlayerRankOnly(userId) {
 async function loadLeaderboard(period){
   setState({leaderboardLoading:true});
 
+  const HEADERS = {
+    'apikey':        SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Accept':        'application/json',
+  };
+
   try {
-    // created_at n'existe pas dans players — on l'exclut du select
-    const url = SUPABASE_URL +
-      '/rest/v1/players?select=id,discord_username,avatar_url,wins,losses,coins' +
-      '&order=wins.desc.nullslast,coins.desc.nullslast' +
-      '&limit=500';
+    // ── 1. Tous les joueurs ────────────────────────────────────────
+    const playersUrl = SUPABASE_URL +
+      '/rest/v1/players' +
+      '?select=id,discord_username,avatar_url,wins,losses,coins,first_win_date,last_streak_date' +
+      '&order=wins.desc.nullslast,coins.desc.nullslast&limit=500';
 
-    const resp = await fetch(url, {
-      headers: {
-        'apikey':        SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Accept':        'application/json',
-      }
-    });
+    const [playersResp, cardsResp] = await Promise.all([
+      fetch(playersUrl, {headers: HEADERS}),
+      // Nombre de cartes distinctes par joueur (quantity>=1 = possédée, on compte 1 par card_id)
+      fetch(SUPABASE_URL + '/rest/v1/player_cards?select=player_id,card_id&limit=50000', {headers: HEADERS}),
+    ]);
 
-    if(!resp.ok){
-      console.error('[Leaderboard] HTTP', resp.status, await resp.text());
-      setState({leaderboardLoading:false, leaderboardData:[]});
-      return;
+    if(!playersResp.ok){
+      console.error('[Leaderboard] players HTTP', playersResp.status);
+      setState({leaderboardLoading:false, leaderboardData:[]}); return;
     }
 
-    const raw = await resp.json();
-    console.log('[Leaderboard] joueurs reçus:', raw?.length);
+    const rawPlayers = await playersResp.json();
+    const rawCards   = cardsResp.ok ? await cardsResp.json() : [];
+    console.log('[Leaderboard] joueurs:', rawPlayers?.length, '| lignes cartes:', rawCards?.length);
 
-    // Normaliser null → 0
-    let all = (raw||[]).map(p=>({
+    // ── 2. Construire la map player_id → nb cartes distinctes ─────
+    const cardCountMap = {};
+    (rawCards||[]).forEach(row => {
+      if(!row.player_id) return;
+      if(!cardCountMap[row.player_id]) cardCountMap[row.player_id] = new Set();
+      cardCountMap[row.player_id].add(row.card_id);
+    });
+
+    // ── 3. Normaliser + enrichir ───────────────────────────────────
+    let all = (rawPlayers||[]).map(p => ({
       ...p,
       wins:   p.wins   ?? 0,
       losses: p.losses ?? 0,
       coins:  p.coins  ?? 0,
+      cards:  cardCountMap[p.id] ? cardCountMap[p.id].size : 0,
     }));
 
-    // S'assurer que le joueur connecté est présent même si absent du résultat
+    // Assurer que le joueur connecté est présent
     const myId = state.currentUser?.id;
-    if(myId && !all.find(p=>p.id===myId)){
+    if(myId && !all.find(p => p.id === myId)){
       const meta = state.currentUser?.user_metadata || {};
       all.push({
         id: myId,
-        discord_username: meta.full_name||meta.name||'Toi',
-        avatar_url: meta.avatar_url||null,
-        wins:   state.wins??0,
-        losses: state.losses??0,
-        coins:  state.coins??0,
+        discord_username: meta.full_name || meta.name || 'Toi',
+        avatar_url: meta.avatar_url || null,
+        wins: state.wins ?? 0, losses: state.losses ?? 0, coins: state.coins ?? 0,
+        cards: cardCountMap[myId] ? cardCountMap[myId].size : 0,
+        first_win_date: null, last_streak_date: null,
       });
     }
 
-    // Tri : victoires desc, coins desc
-    // La colonne created_at n'existant pas, les 3 onglets (week/month/all)
-    // affichent le même classement global trié par victoires.
-    all.sort((a,b)=>(b.wins-a.wins)||(b.coins-a.coins));
+    // ── 4. Filtre par période ──────────────────────────────────────
+    // "Semaine" = joueurs actifs cette semaine (first_win_date ou last_streak_date dans les 7j)
+    // "Mois"    = joueurs actifs ce mois (dans les 30j)
+    // "All"     = tous
+    let filtered = all;
 
-    // Rang du joueur connecté
-    let playerRank=null;
-    if(myId){
-      const idx=all.findIndex(r=>r.id===myId);
-      if(idx!==-1) playerRank=idx+1;
+    if(period === 'week'){
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      const active = all.filter(p => {
+        const d1 = p.first_win_date   ? new Date(p.first_win_date)   : null;
+        const d2 = p.last_streak_date ? new Date(p.last_streak_date) : null;
+        return (d1 && d1 >= cutoff) || (d2 && d2 >= cutoff);
+      });
+      filtered = active.length > 0 ? active : all; // fallback si personne n'a joué
+    } else if(period === 'month'){
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const active = all.filter(p => {
+        const d1 = p.first_win_date   ? new Date(p.first_win_date)   : null;
+        const d2 = p.last_streak_date ? new Date(p.last_streak_date) : null;
+        return (d1 && d1 >= cutoff) || (d2 && d2 >= cutoff);
+      });
+      filtered = active.length > 0 ? active : all;
     }
 
-    setState({leaderboardLoading:false, leaderboardData:all.slice(0,50), playerRank});
+    // ── 5. Tri : wins desc, coins desc en départage ────────────────
+    filtered.sort((a,b) => (b.wins - a.wins) || (b.coins - a.coins));
+
+    // ── 6. Rang du joueur connecté ─────────────────────────────────
+    let playerRank = null;
+    if(myId){
+      const idx = filtered.findIndex(r => r.id === myId);
+      if(idx !== -1) playerRank = idx + 1;
+      else {
+        const gi = all.findIndex(r => r.id === myId);
+        if(gi !== -1) playerRank = gi + 1;
+      }
+    }
+
+    setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,50), playerRank});
 
   } catch(e){
     console.error('[Leaderboard] exception:', e);
