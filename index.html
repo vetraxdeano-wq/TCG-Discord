@@ -1093,6 +1093,8 @@ function renderGame(th){
         <button id="btn-profile" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
           ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:12px;">👤</span>'}
         </button>
+        <!-- Admin panel button (invisible sauf si admin) -->
+        <button id="btn-admin-panel" onclick="window._openAdminPanel()" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.4;transition:all .18s;" title="Admin">⚙️</button>
       </div>
     </div>
 
@@ -7606,6 +7608,323 @@ function openCard3DViewer(card) {
     }
   `;
   document.head.appendChild(s);
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PANEL ADMIN                                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  // ── Config ────────────────────────────────────────────────────
+  const ADMIN_CODE    = '5989';
+  const GITHUB_REPO   = 'vetraxdeano-wq/TCG-Discord';
+  const GITHUB_FILE   = 'index.html';
+  const GITHUB_BRANCH = 'main';
+
+  // ── Variables modifiables ──────────────────────────────────────
+  const ADMIN_FIELDS = [
+    // COULEURS THÈME DARK
+    { id:'dark_bg',          label:'Fond principal',        type:'color', path:'themes.dark.bg' },
+    { id:'dark_bgSecondary', label:'Fond secondaire',       type:'color', path:'themes.dark.bgSecondary' },
+    { id:'dark_bgTertiary',  label:'Fond tertiaire',        type:'color', path:'themes.dark.bgTertiary' },
+    { id:'dark_accent',      label:'Couleur accentuation',  type:'color', path:'themes.dark.accent' },
+    { id:'dark_accentAlt',   label:'Accentuation alt',      type:'color', path:'themes.dark.accentAlt' },
+    { id:'dark_text',        label:'Texte principal',       type:'color', path:'themes.dark.text' },
+    { id:'dark_textMuted',   label:'Texte secondaire',      type:'color', path:'themes.dark.textMuted' },
+    { id:'dark_green',       label:'Couleur succès',        type:'color', path:'themes.dark.green' },
+    { id:'dark_red',         label:'Couleur danger',        type:'color', path:'themes.dark.red' },
+    // IMAGES
+    { id:'img_logo',         label:'Logo (URL)',            type:'url',   path:'img_logo' },
+    { id:'img_background',   label:'Image fond (URL)',      type:'url',   path:'img_background' },
+    { id:'img_booster1',     label:'Booster Normal (URL)',  type:'url',   path:'img_booster1' },
+    { id:'img_booster2',     label:'Booster Prestige (URL)',type:'url',   path:'img_booster2' },
+    { id:'img_booster3',     label:'Booster Légendaire (URL)',type:'url', path:'img_booster3' },
+    // MUSIQUE
+    { id:'yt_video_id',      label:'YouTube Video ID (musique)', type:'text', path:'yt_video_id' },
+    // TYPOGRAPHIES
+    { id:'font_main',        label:'Police principale (Google Fonts name)', type:'text', path:'font_main' },
+    { id:'font_title',       label:'Police titres (Google Fonts name)',     type:'text', path:'font_title' },
+    // BOOSTERS - PRIX
+    { id:'price_booster1',   label:'Prix Booster Normal',   type:'number', path:'price_booster1' },
+    { id:'price_booster2',   label:'Prix Booster Prestige', type:'number', path:'price_booster2' },
+    { id:'price_booster3',   label:'Prix Booster Légendaire',type:'number',path:'price_booster3' },
+  ];
+
+  // ── Lire les valeurs actuelles depuis le DOM/state ─────────────
+  function getCurrentValues() {
+    const vals = {};
+    try {
+      const th = window.state?.isDark !== false ? (window.themes?.dark||{}) : (window.themes?.light||{});
+      vals.dark_bg          = th.bg          || '#0f0e17';
+      vals.dark_bgSecondary = th.bgSecondary || '#1a1825';
+      vals.dark_bgTertiary  = th.bgTertiary  || '#221f2e';
+      vals.dark_accent      = th.accent      || '#fbbf24';
+      vals.dark_accentAlt   = th.accentAlt   || '#f43f5e';
+      vals.dark_text        = th.text        || '#fffbeb';
+      vals.dark_textMuted   = th.textMuted   || '#9d8ea0';
+      vals.dark_green       = th.green       || '#22c55e';
+      vals.dark_red         = th.red         || '#ef4444';
+    } catch(e) {}
+    // Images — lire depuis le HTML source
+    vals.img_logo        = document.querySelector('img[src*="ok3cbg"]')?.src || '';
+    vals.img_background  = (document.querySelector('body::before') || '');
+    vals.img_booster1    = '';
+    vals.img_booster2    = '';
+    vals.img_booster3    = '';
+    vals.yt_video_id     = window.YT_VIDEO_ID || 'WZH17pU1XeA';
+    vals.font_main       = 'Oswald';
+    vals.font_title      = 'Bangers';
+    vals.price_booster1  = window.BOOSTERS?.[0]?.price || 150;
+    vals.price_booster2  = window.BOOSTERS?.[1]?.price || 1000;
+    vals.price_booster3  = window.BOOSTERS?.[2]?.price || 2000;
+    return vals;
+  }
+
+  // ── Appliquer un changement en live ───────────────────────────
+  function applyLive(fieldId, value) {
+    try {
+      if (fieldId.startsWith('dark_')) {
+        const key = fieldId.replace('dark_', '');
+        if (window.themes?.dark) window.themes.dark[key] = value;
+        if (window.render) window.render();
+      }
+      if (fieldId === 'img_logo') {
+        document.querySelectorAll('img[src*="ok3cbg"], img[src*="logo"]').forEach(el => el.src = value);
+      }
+      if (fieldId === 'price_booster1' && window.BOOSTERS?.[0]) window.BOOSTERS[0].price = parseInt(value);
+      if (fieldId === 'price_booster2' && window.BOOSTERS?.[1]) window.BOOSTERS[1].price = parseInt(value);
+      if (fieldId === 'price_booster3' && window.BOOSTERS?.[2]) window.BOOSTERS[2].price = parseInt(value);
+      if (fieldId === 'font_main') {
+        document.querySelectorAll('[style*="Oswald"]').forEach(el => {
+          el.style.fontFamily = `'${value}', sans-serif`;
+        });
+      }
+    } catch(e) {}
+  }
+
+  // ── Appliquer toutes les modifs dans le HTML source ───────────
+  function applyChangesToHtml(html, changes) {
+    let result = html;
+    for (const [fieldId, value] of Object.entries(changes)) {
+      if (fieldId.startsWith('dark_')) {
+        const key = fieldId.replace('dark_', '');
+        // Remplacer dans l'objet themes.dark
+        const regex = new RegExp(`(themes\\s*=\\s*\\{[^}]*?dark\\s*:\\s*\\{[^}]*?${key}\\s*:\\s*)"[^"]*"`, 's');
+        result = result.replace(regex, `$1"${value}"`);
+      }
+      if (fieldId === 'img_logo') {
+        result = result.replace(/https:\/\/i\.goopics\.net\/ok3cbg\.png/g, value);
+      }
+      if (fieldId === 'img_background') {
+        result = result.replace(/(background-image:url\()([^)]+)(\))/g, `$1${value}$3`);
+      }
+      if (fieldId === 'img_booster1') {
+        result = result.replace(/https:\/\/i\.goopics\.net\/ueiki4\.png/g, value);
+      }
+      if (fieldId === 'img_booster2') {
+        result = result.replace(/https:\/\/i\.goopics\.net\/61e1o1\.png/g, value);
+      }
+      if (fieldId === 'img_booster3') {
+        result = result.replace(/https:\/\/i\.goopics\.net\/cussu4\.png/g, value);
+      }
+      if (fieldId === 'yt_video_id') {
+        result = result.replace(/const YT_VIDEO_ID\s*=\s*'[^']*'/, `const YT_VIDEO_ID = '${value}'`);
+      }
+      if (fieldId === 'font_main') {
+        result = result.replace(/family=Bangers&family=Oswald[^"]*/, `family=${value}:wght@400;600;700&display=swap`);
+        result = result.replace(/'Oswald',sans-serif/g, `'${value}',sans-serif`);
+      }
+      if (fieldId === 'font_title') {
+        result = result.replace(/'Bangers',cursive/g, `'${value}',cursive`);
+      }
+      if (fieldId === 'price_booster1') {
+        result = result.replace(/(\{id:1,name:"Normal",price:)\d+/, `$1${value}`);
+      }
+      if (fieldId === 'price_booster2') {
+        result = result.replace(/(\{id:2,name:"Prestige",price:)\d+/, `$1${value}`);
+      }
+      if (fieldId === 'price_booster3') {
+        result = result.replace(/(\{id:3,name:"Légendaire",price:)\d+/, `$1${value}`);
+      }
+    }
+    return result;
+  }
+
+  // ── Sauvegarder sur GitHub ─────────────────────────────────────
+  async function saveToGitHub(token, changes) {
+    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+
+    // Récupérer le fichier actuel + son SHA
+    const getRes = await fetch(apiUrl + `?ref=${GITHUB_BRANCH}`, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (!getRes.ok) throw new Error('Impossible de lire le fichier GitHub. Vérifie ton token.');
+    const fileData = await getRes.json();
+    const sha = fileData.sha;
+    const currentHtml = atob(fileData.content.replace(/\n/g, ''));
+
+    // Appliquer les modifications
+    const newHtml = applyChangesToHtml(currentHtml, changes);
+
+    // Commit
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: '⚙️ Admin panel update',
+        content: btoa(unescape(encodeURIComponent(newHtml))),
+        sha,
+        branch: GITHUB_BRANCH
+      })
+    });
+    if (!putRes.ok) {
+      const err = await putRes.json();
+      throw new Error(err.message || 'Erreur GitHub');
+    }
+    return true;
+  }
+
+  // ── Construire le panel ────────────────────────────────────────
+  function buildPanel() {
+    const vals = getCurrentValues();
+    const panel = document.createElement('div');
+    panel.id = 'admin-panel-overlay';
+    panel.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:16px;';
+
+    const sections = {
+      'COULEURS': ADMIN_FIELDS.filter(f => f.id.startsWith('dark_')),
+      'IMAGES': ADMIN_FIELDS.filter(f => f.id.startsWith('img_')),
+      'MUSIQUE': ADMIN_FIELDS.filter(f => f.id === 'yt_video_id'),
+      'TYPOGRAPHIES': ADMIN_FIELDS.filter(f => f.id.startsWith('font_')),
+      'PRIX BOOSTERS': ADMIN_FIELDS.filter(f => f.id.startsWith('price_')),
+    };
+
+    let fieldsHtml = '';
+    for (const [section, fields] of Object.entries(sections)) {
+      fieldsHtml += `<div style="font-size:9px;color:#fbbf24;letter-spacing:3px;font-weight:700;text-transform:uppercase;margin:16px 0 8px;border-bottom:1px solid rgba(251,191,36,.2);padding-bottom:6px;">— ${section} —</div>`;
+      for (const f of fields) {
+        const v = vals[f.id] || '';
+        if (f.type === 'color') {
+          fieldsHtml += `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <input type="color" id="af_${f.id}" value="${v}" style="width:36px;height:28px;border:2px solid #000;cursor:pointer;padding:2px;background:#1a1825;flex-shrink:0;"
+                oninput="window._adminLive('${f.id}', this.value)">
+              <label style="font-size:11px;color:#9d8ea0;flex:1;">${f.label}</label>
+              <span id="af_${f.id}_val" style="font-size:10px;color:#fffbeb;font-family:monospace;">${v}</span>
+            </div>`;
+        } else {
+          fieldsHtml += `
+            <div style="margin-bottom:8px;">
+              <label style="font-size:10px;color:#9d8ea0;display:block;margin-bottom:4px;">${f.label}</label>
+              <input type="${f.type === 'number' ? 'number' : 'text'}" id="af_${f.id}" value="${v}"
+                style="width:100%;background:#0f0e17;border:1px solid #000;color:#fffbeb;padding:7px 10px;font-size:11px;font-family:monospace;box-sizing:border-box;"
+                oninput="window._adminLive('${f.id}', this.value)">
+            </div>`;
+        }
+      }
+    }
+
+    panel.innerHTML = `
+      <div style="width:100%;max-width:520px;max-height:90vh;background:#1a1825;border:3px solid #000;box-shadow:6px 6px 0 #000;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="height:4px;background:linear-gradient(90deg,#fbbf24,#f43f5e,#a78bfa);flex-shrink:0;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:2px solid #000;flex-shrink:0;">
+          <div style="font-family:'Bangers',cursive;font-size:18px;letter-spacing:2px;color:#fffbeb;">⚙️ PANEL ADMIN</div>
+          <button onclick="document.getElementById('admin-panel-overlay').remove()" style="background:transparent;border:none;color:#9d8ea0;font-size:20px;cursor:pointer;line-height:1;">✕</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:16px;scrollbar-width:thin;scrollbar-color:#fbbf24 #0f0e17;">
+          ${fieldsHtml}
+        </div>
+        <div style="padding:14px 16px;border-top:2px solid #000;flex-shrink:0;display:flex;flex-direction:column;gap:8px;">
+          <div>
+            <label style="font-size:10px;color:#9d8ea0;display:block;margin-bottom:4px;">🔑 GitHub Personal Access Token</label>
+            <input type="password" id="admin-gh-token" placeholder="ghp_xxxxxxxxxxxx"
+              style="width:100%;background:#0f0e17;border:1px solid #000;color:#fffbeb;padding:7px 10px;font-size:11px;font-family:monospace;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+              <input type="checkbox" id="admin-remember-token" style="cursor:pointer;">
+              <label for="admin-remember-token" style="font-size:10px;color:#9d8ea0;cursor:pointer;">Mémoriser le token sur cet appareil</label>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="admin-save-btn" onclick="window._adminSave()" style="flex:1;padding:11px;background:#fbbf24;color:#000;border:2px solid #000;box-shadow:3px 3px 0 #000;font-family:'Bangers',cursive;font-size:15px;letter-spacing:2px;cursor:pointer;">💾 SAUVEGARDER POUR TOUS</button>
+            <button onclick="document.getElementById('admin-panel-overlay').remove()" style="padding:11px 16px;background:transparent;color:#9d8ea0;border:1px solid #000;cursor:pointer;font-size:12px;">Annuler</button>
+          </div>
+          <div id="admin-save-status" style="font-size:10px;text-align:center;color:#9d8ea0;min-height:14px;"></div>
+        </div>
+      </div>`;
+
+    document.body.appendChild(panel);
+
+    // Charger le token mémorisé si présent
+    const savedToken = localStorage.getItem('_admin_gh_token');
+    if (savedToken) {
+      document.getElementById('admin-gh-token').value = savedToken;
+      document.getElementById('admin-remember-token').checked = true;
+    }
+  }
+
+  // ── Live preview ───────────────────────────────────────────────
+  window._adminLive = function(fieldId, value) {
+    const valEl = document.getElementById(`af_${fieldId}_val`);
+    if (valEl) valEl.textContent = value;
+    applyLive(fieldId, value);
+  };
+
+  // ── Sauvegarder ───────────────────────────────────────────────
+  window._adminSave = async function() {
+    const token = document.getElementById('admin-gh-token')?.value?.trim();
+    const remember = document.getElementById('admin-remember-token')?.checked;
+    if (!token) { document.getElementById('admin-save-status').textContent = '⚠️ Entre ton GitHub token.'; return; }
+    if (remember) localStorage.setItem('_admin_gh_token', token);
+    else localStorage.removeItem('_admin_gh_token');
+    const btn = document.getElementById('admin-save-btn');
+    const status = document.getElementById('admin-save-status');
+    btn.textContent = '⏳ Sauvegarde en cours…';
+    btn.disabled = true;
+    status.style.color = '#9d8ea0';
+    status.textContent = 'Connexion à GitHub…';
+
+    const changes = {};
+    for (const f of ADMIN_FIELDS) {
+      const el = document.getElementById(`af_${f.id}`);
+      if (el) changes[f.id] = el.value;
+    }
+
+    try {
+      await saveToGitHub(token, changes);
+      status.style.color = '#22c55e';
+      status.textContent = '✅ Sauvegardé ! GitHub Pages se met à jour dans ~1 minute.';
+      btn.textContent = '✅ SAUVEGARDÉ';
+    } catch(e) {
+      status.style.color = '#ef4444';
+      status.textContent = '❌ Erreur : ' + e.message;
+      btn.textContent = '💾 RÉESSAYER';
+      btn.disabled = false;
+    }
+  };
+
+  // ── Ouvrir le panel (avec code) ───────────────────────────────
+  let _adminAttempts = 0;
+  window._openAdminPanel = function() {
+    if (_adminAttempts >= 5) {
+      alert('Trop de tentatives.');
+      return;
+    }
+    const code = prompt('🔐 Code administrateur :');
+    if (!code) return;
+    if (code !== ADMIN_CODE) {
+      _adminAttempts++;
+      alert('Code incorrect.');
+      return;
+    }
+    _adminAttempts = 0;
+    buildPanel();
+  };
+
 })();
 </script>
 </body>
