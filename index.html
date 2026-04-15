@@ -580,19 +580,19 @@ window.onYouTubeIframeAPIReady = function(){
       onReady: function(e){
         const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
         e.target.setVolume(savedVol);
-        // Restaurer la position seulement si on doit jouer
+        // Restaurer la position sauvegardée dans tous les cas (même si muté)
+        // pour que la lecture reprenne là où elle s'était arrêtée
+        const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
+        if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
         if(audioPlaying){
-          const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
-          if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
           if(_ytPendingPlay){ _ytPendingPlay = false; _doPlay(); }
         } else {
-          // Musique désactivée → rester en pause, ne pas restaurer position
           _ytPendingPlay = false;
         }
-        // Sauvegarder la position toutes les 5s
+        // Sauvegarder la position toutes les 5s (qu'on joue ou non)
         setInterval(()=>{
           try{
-            if(_ytPlayer && _ytPlayer.getCurrentTime && audioPlaying){
+            if(_ytPlayer && _ytPlayer.getCurrentTime){
               const t = _ytPlayer.getCurrentTime();
               if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
             }
@@ -602,11 +602,11 @@ window.onYouTubeIframeAPIReady = function(){
       onStateChange: function(e){
         if(!audioPlaying) return; // mute actif → ignorer tous les états
         if(e.data === YT.PlayerState.ENDED){
-          // Fin de la vidéo → reprendre depuis le début
+          // Fin de la vidéo → reprendre depuis le début (position reset naturelle)
           try{ _ytPlayer.seekTo(0, true); _ytPlayer.playVideo(); }catch(ex){}
-          localStorage.removeItem('music_pos');
+          try{ localStorage.setItem('music_pos', '0'); }catch(ex){}
         } else if(e.data === YT.PlayerState.PAUSED){
-          // Pause involontaire (navigateur, tab masquée) → relancer après 300ms
+          // Pause involontaire → relancer après 300ms
           setTimeout(()=>{ if(audioPlaying){ try{ _ytPlayer.playVideo(); }catch(ex){} } }, 300);
         }
       },
@@ -655,10 +655,15 @@ function audioStop(){
   _ytPendingPlay = false;
   _saveMusicPref(false);
   if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; }
-  if(_ytPlayer){ try{ _ytPlayer.pauseVideo(); } catch(e){} }
+  if(_ytPlayer){
+    try{
+      // Sauvegarder la position avant de mettre en pause
+      const t = _ytPlayer.getCurrentTime ? _ytPlayer.getCurrentTime() : 0;
+      if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
+      _ytPlayer.pauseVideo();
+    } catch(e){}
+  }
   _broadcastStopped();
-  // Réinitialiser la position sauvegardée pour que la prochaine lecture reparte du début
-  try{ localStorage.removeItem('music_pos'); }catch(e){}
 }
 function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
 
