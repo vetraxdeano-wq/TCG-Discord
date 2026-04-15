@@ -3641,4 +3641,111 @@ function _sdmRefreshBtns(){
   </div>
 </div>
 
+
+<!-- ── Musique persistante cross-pages ──────────────────────────── -->
+<div id="_yt_ap" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+
+<!-- Bouton musique flottant -->
+<div id="_mc" style="position:fixed;bottom:14px;right:14px;z-index:9990;display:flex;align-items:center;gap:6px;background:rgba(8,8,13,.92);border:1px solid rgba(255,255,255,.12);padding:6px 10px;backdrop-filter:blur(8px);border-radius:6px;">
+  <button id="_mc_btn" onclick="_mToggle()" style="background:none;border:none;font-size:18px;cursor:pointer;line-height:1;padding:0;" title="Musique">🔊</button>
+  <input type="range" id="_mc_vol" min="0" max="100" value="25"
+    style="width:68px;accent-color:#f0c040;cursor:pointer;vertical-align:middle;"
+    oninput="_mVol(this.value)">
+  <span id="_mc_pct" style="font-size:10px;color:#f0c040;min-width:28px;font-family:monospace;">25%</span>
+</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+  const YT_ID  = 'WZH17pU1XeA';
+  let _p=null, _ready=false;
+
+  function _getOn(){  try{var v=localStorage.getItem('music_on');  return v===null?true:v==='1';}catch(e){return true;} }
+  function _getVol(){ try{return parseInt(localStorage.getItem('music_volume')||'25');}catch(e){return 25;} }
+  function _getPos(){ try{return parseFloat(localStorage.getItem('music_pos')||'0');}catch(e){return 0;} }
+  function _setOn(v){ try{localStorage.setItem('music_on',v?'1':'0');}catch(e){} }
+  function _setVol(v){ try{localStorage.setItem('music_volume',v);}catch(e){} }
+  function _setPos(v){ try{localStorage.setItem('music_pos',v);}catch(e){} }
+
+  function _updateBtn(){
+    var on=_getOn();
+    var btn=document.getElementById('_mc_btn');
+    if(btn) btn.textContent=on?'🔊':'🔇';
+  }
+
+  // Initialiser le slider avec la valeur sauvegardée
+  window.addEventListener('DOMContentLoaded',function(){
+    var vol=_getVol();
+    var sl=document.getElementById('_mc_vol');
+    var lb=document.getElementById('_mc_pct');
+    if(sl) sl.value=vol;
+    if(lb) lb.textContent=vol+'%';
+    _updateBtn();
+  });
+
+  window.onYouTubeIframeAPIReady = function(){
+    var vol=_getVol(), pos=_getPos(), on=_getOn();
+    _p = new YT.Player('_yt_ap',{
+      videoId: YT_ID,
+      playerVars:{autoplay:0,controls:0,loop:0,playlist:YT_ID,
+        start:Math.floor(pos),modestbranding:1,rel:0,playsinline:1,mute:0},
+      events:{
+        onReady:function(e){
+          _ready=true;
+          e.target.setVolume(vol);
+          if(pos>2){ try{e.target.seekTo(pos,true);}catch(x){} }
+          if(on){ try{e.target.playVideo();}catch(x){} }
+          _updateBtn();
+          // Sauvegarder la position toutes les 5s
+          setInterval(function(){
+            try{if(_p&&_p.getCurrentTime){var t=_p.getCurrentTime();if(t>0)_setPos(t.toFixed(1));}}catch(x){}
+          },5000);
+        },
+        onStateChange:function(e){
+          if(!_getOn()) return;
+          if(e.data===0){ // ended → reboucler
+            try{_p.seekTo(0,true);_p.playVideo();_setPos('0');}catch(x){}
+          } else if(e.data===2){ // paused involontaire
+            setTimeout(function(){if(_getOn()&&_p){try{_p.playVideo();}catch(x){}}},300);
+          }
+        },
+        onError:function(){
+          if(_getOn()) setTimeout(function(){try{_p.playVideo();}catch(x){}},2000);
+        }
+      }
+    });
+  };
+
+  window.addEventListener('beforeunload',function(){
+    try{
+      _setOn(document.getElementById('_mc_btn')&&document.getElementById('_mc_btn').textContent==='🔊');
+      if(_p&&_p.getCurrentTime){var t=_p.getCurrentTime();if(t>0)_setPos(t.toFixed(1));}
+    }catch(x){}
+  });
+
+  // Unlock autoplay au premier clic utilisateur
+  document.addEventListener('click',function _u(){
+    document.removeEventListener('click',_u);
+    if(_ready&&_getOn()&&_p){try{_p.playVideo();}catch(x){}}
+  },{once:true});
+
+  window._mToggle = function(){
+    var on=!_getOn();
+    _setOn(on);
+    if(_p){ try{on?_p.playVideo():_p.pauseVideo();}catch(x){} }
+    _updateBtn();
+  };
+
+  window._mVol = function(v){
+    v=parseInt(v);
+    _setVol(v);
+    if(_p){ try{_p.setVolume(v);}catch(x){} }
+    var lb=document.getElementById('_mc_pct');
+    if(lb) lb.textContent=v+'%';
+    // Si volume > 0 et musique en pause mais activée → relancer
+    if(v>0&&_getOn()&&_p){ try{var s=_p.getPlayerState();if(s!==1)_p.playVideo();}catch(x){} }
+    if(v===0&&_p){ try{_p.pauseVideo();}catch(x){} }
+  };
+})();
+</script>
 </body></html>
