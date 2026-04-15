@@ -1897,7 +1897,7 @@ function renderTabPlay(th){
       const nextLvl = lvl + 1;
       const nextReward = getLevelReward(nextLvl);
       const rewardHtml = nextReward.type === 'coins'
-        ? `🪙 ${nextReward.amount} coins`
+        ? `${'<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>'} +${nextReward.amount} coins`
         : nextReward.type === 'booster_prestige'
           ? `📦 Booster Prestige`
           : `⚡ Booster Légendaire`;
@@ -3032,7 +3032,7 @@ function renderNotifModal(th){
         const isLegend  = r.type === 'booster_legendaire';
         const isPrestige= r.type === 'booster_prestige';
         const accentCol = isCoins ? '#fbbf24' : isLegend ? '#eb459e' : '#fee75c';
-        const icon      = isCoins ? '🪙' : isLegend ? '⚡' : '📦';
+        const icon      = isCoins ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>' : isLegend ? '⚡' : '📦';
         const label     = isCoins ? `+${r.amount||300} coins` : isLegend ? 'Booster Légendaire' : 'Booster Prestige';
         return `
         <div style="display:flex;align-items:center;gap:12px;background:${th.bgTertiary};padding:12px;border:2px solid #000;margin-bottom:8px;position:relative;overflow:hidden;">
@@ -3820,7 +3820,7 @@ function bindGame(){
 
     // Helper couleur récompense
     function rwdStyle(r){ return r.type==='coins'?'#fbbf24':r.type==='booster_prestige'?'#fee75c':'#eb459e'; }
-    function rwdIcon(r){ return r.type==='coins'?'🪙':r.type==='booster_prestige'?'📦':'⚡'; }
+    function rwdIcon(r){ return r.type==='coins'?'<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>':r.type==='booster_prestige'?'📦':'⚡'; }
     function rwdLabel(r){ return r.type==='coins'?`+${r.amount} coins`:r.type==='booster_prestige'?'Booster Prestige':'Booster Légendaire'; }
 
     // Niveaux précédents (jusqu'à 4)
@@ -5550,7 +5550,7 @@ function totalXpForLevel(level) {
 function getLevelReward(level) {
   if (level % 10 === 0) return { type: 'booster_legendaire', label: 'Booster Légendaire ⚡' };
   if (level % 5  === 0) return { type: 'booster_prestige',   label: 'Booster Prestige 📦' };
-  return { type: 'coins', amount: 300, label: '300 coins 🪙' };
+  return { type: 'coins', amount: 300, label: '300 coins' };
 }
 
 async function grantLevelReward(userId, level) {
@@ -5660,7 +5660,7 @@ function showXpLevelUpToast(newLevel, reward) {
   // Libellé récompense
   let rewardHtml = '';
   if (reward) {
-    if (reward.type === 'coins') rewardHtml = `<div style="margin-top:10px;font-size:11px;color:#fbbf24;font-weight:700;">🪙 +${reward.amount} Coins</div>`;
+    if (reward.type === 'coins') rewardHtml = `<div style="margin-top:10px;font-size:11px;color:#fbbf24;font-weight:700;display:flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#fbbf24" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg> +${reward.amount} Coins</div>`;
     else if (reward.type === 'booster_legendaire') rewardHtml = `<div style="margin-top:10px;font-size:11px;color:#f0c060;font-weight:700;">🎁 Booster Légendaire !</div>`;
     else if (reward.type === 'booster_prestige') rewardHtml = `<div style="margin-top:10px;font-size:11px;color:#c084fc;font-weight:700;">🎁 Booster Prestige !</div>`;
   }
@@ -5850,7 +5850,7 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     const current = playerData?.coins ?? 0;
     await db.from('players').update({ coins: current + amount }).eq('id', myId);
     setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false, _claimedLevels: updatedClaimed });
-    showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '🪙');
+    showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>');
   } else {
     try { await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId) } catch(e) {};
     setState({ showNotif: false, pendingLevelRewards: remaining, _claimedLevels: updatedClaimed });
@@ -6553,7 +6553,7 @@ async function subscribeNotifications() {
               reward = { notifId: n.id, level: lvl, type: meta.rewardType || 'booster_prestige', label: n.text };
             }
             setState({ pendingLevelRewards: [...(state.pendingLevelRewards||[]), reward] });
-            const icon = reward.type === 'coins' ? '🪙' : reward.type === 'booster_legendaire' ? '⚡' : '📦';
+            const icon = reward.type === 'coins' ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>' : reward.type === 'booster_legendaire' ? '⚡' : '📦';
             showToast(n.text || `Niveau ${lvl} — récompense disponible !`, icon);
           }
         }
