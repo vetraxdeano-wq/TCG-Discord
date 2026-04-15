@@ -7819,12 +7819,7 @@ function openCard3DViewer(card) {
       },
       body: JSON.stringify({
         message: '⚙️ Admin panel update',
-        content: (function utf8ToB64(str) {
-          const bytes = new TextEncoder().encode(str);
-          let binary = '';
-          for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-          return btoa(binary);
-        })(newHtml),
+        content: (function(){const bytes=new TextEncoder().encode(newHtml);let b='';for(let i=0;i<bytes.length;i++)b+=String.fromCharCode(bytes[i]);return btoa(b);})(),
         sha,
         branch: GITHUB_BRANCH
       })
