@@ -587,7 +587,9 @@ window.onYouTubeIframeAPIReady = function(){
         if(audioPlaying){
           if(_ytPendingPlay){ _ytPendingPlay = false; _doPlay(); }
         } else {
+          // Forcer la pause — seekTo peut relancer la lecture sur certains browsers
           _ytPendingPlay = false;
+          try{ e.target.pauseVideo(); }catch(ex){}
         }
         // Sauvegarder la position toutes les 5s (qu'on joue ou non)
         setInterval(()=>{
@@ -639,8 +641,44 @@ function _ensurePlay(){
 }
 
 // ─── PERSISTANCE PRÉFÉRENCE MUSIQUE ──────────────────────────────
-function _saveMusicPref(on){ try{ localStorage.setItem('music_on', on ? '1' : '0'); }catch(e){} }
+function _saveMusicPref(on){
+  try{ localStorage.setItem('music_on', on ? '1' : '0'); }catch(e){}
+  const vol = parseInt(localStorage.getItem('music_volume')||'25');
+  _saveMusicPrefsToSupabase(on, vol);
+}
 function _loadMusicPref(){ try{ var v=localStorage.getItem('music_on'); return v===null ? false : v==='1'; }catch(e){ return false; } }
+
+// ── Sync musique ↔ Supabase ──────────────────────────────────────
+async function _saveMusicPrefsToSupabase(on, vol){
+  try{
+    const db = window.db;
+    const uid = state.currentUser?.id;
+    if(!db||!uid) return;
+    await db.from('players').update({ music_on: on, music_volume: vol }).eq('id', uid);
+  }catch(e){ /* colonne absente ou erreur réseau — silencieux */ }
+}
+
+async function _loadMusicPrefsFromSupabase(userId){
+  try{
+    const db = window.db;
+    if(!db||!userId) return;
+    const { data } = await db.from('players').select('music_on, music_volume').eq('id', userId).single();
+    if(!data) return;
+    // Synchroniser localStorage avec les prefs Supabase (priorité Supabase = cross-device)
+    if(data.music_on !== null && data.music_on !== undefined){
+      try{ localStorage.setItem('music_on', data.music_on ? '1' : '0'); }catch(e){}
+    }
+    if(data.music_volume !== null && data.music_volume !== undefined && !isNaN(data.music_volume)){
+      try{ localStorage.setItem('music_volume', String(data.music_volume)); }catch(e){}
+      state.musicVolume = data.music_volume;
+      if(_ytPlayer && _ytPlayer.setVolume) try{ _ytPlayer.setVolume(data.music_volume); }catch(e){}
+    }
+    const shouldPlay = data.music_on === true || data.music_on === 1;
+    state.musicOn = shouldPlay;
+    if(shouldPlay && !audioPlaying){ audioPlay(); }
+    else if(!shouldPlay && audioPlaying){ audioStop(); }
+  }catch(e){ /* colonne absente — fallback localStorage */ }
+}
 
 function audioPlay(){
   if(audioPlaying) return;
@@ -680,6 +718,7 @@ window._setMusicVolume = function(val) {
     try { _ytPlayer.setVolume(v); } catch(e) {}
   }
   try { localStorage.setItem('music_volume', v); } catch(e) {}
+  _saveMusicPrefsToSupabase(audioPlaying, v);
   // Mettre à jour l'affichage du % sans re-render complet
   const span = document.querySelector('#music-volume-slider + span, span:has(+ #music-volume-slider)');
   // Mettre à jour le label à côté du slider
@@ -741,7 +780,7 @@ let state = {
   showNotif: false,
   showProfile: false,
   musicOn: (function(){ try{ var v=localStorage.getItem('music_on'); return v===null?false:v==='1'; }catch(e){ return false; } })(),
-  musicVolume: 25,
+  musicVolume: (function(){ try{ var v=parseInt(localStorage.getItem('music_volume')); return isNaN(v)?25:v; }catch(e){ return 25; } })(),
   currentUser: null,
   coins: 0,
   wins: null,
@@ -3638,8 +3677,7 @@ function bindGame(){
   };
   window._applyMusicVolume = function(val) {
     const v = parseInt(val);
-    state.musicVolume = v;
-    if(_ytPlayer && _ytPlayer.setVolume){ try{ _ytPlayer.setVolume(v); }catch(e){} }
+    window._setMusicVolume(v); // centralise save localStorage + Supabase
     // Mettre à jour le slider + label si popup encore ouverte
     const slider = document.getElementById('music-vol-slider');
     const label  = document.getElementById('music-vol-label');
@@ -5419,8 +5457,12 @@ function enterGame(user, coins) {
   if (s) s.style.opacity = '0';
   setTimeout(() => {
     const _musicWasOn = _loadMusicPref();
+    const _musicVol = parseInt(localStorage.getItem('music_volume')||'25');
+    state.musicVolume = isNaN(_musicVol) ? 25 : _musicVol;
     setState({ screen: "game", musicOn: _musicWasOn, currentUser: user, coins: coins });
     if (_musicWasOn) audioPlay();
+    // Charger les prefs depuis Supabase (cross-device) — peut override localStorage
+    _loadMusicPrefsFromSupabase(user.id);
     loadCollection();
     startDailyTicker();
     // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
