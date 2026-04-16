@@ -646,6 +646,12 @@ function audioPlay(){
   if(audioPlaying) return;
   audioPlaying = true;
   _saveMusicPref(true);
+  // Restaurer le volume sauvegardé (jamais 0) avant de jouer
+  if(_ytPlayer && _ytPlayer.setVolume){
+    const vol = parseInt(localStorage.getItem('music_volume')||'25');
+    try{ _ytPlayer.setVolume(vol > 0 ? vol : 25); }catch(e){}
+    state.musicVolume = vol > 0 ? vol : 25;
+  }
   if(!_ytReady || !_ytPlayer){ _ytPendingPlay = true; return; }
   _doPlay();
   _ensurePlay();
@@ -654,10 +660,10 @@ function audioStop(){
   audioPlaying = false;
   _ytPendingPlay = false;
   _saveMusicPref(false);
+  // NE PAS toucher à music_volume ici — le volume reste intact pour la prochaine lecture
   if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; }
   if(_ytPlayer){
     try{
-      // Sauvegarder la position avant de mettre en pause
       const t = _ytPlayer.getCurrentTime ? _ytPlayer.getCurrentTime() : 0;
       if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
       _ytPlayer.pauseVideo();
