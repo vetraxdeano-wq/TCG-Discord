@@ -299,7 +299,7 @@ button{font-family:inherit;cursor:pointer;}
 </head>
 <body>
 <div id="app" style="position:relative;z-index:1;"></div>
-<div id="yt-audio-player" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+<div id="yt-audio-player" style="display:none;width:0;height:0;pointer-events:none;"></div>
 <script>
 // ─── THEMES ───────────────────────────────────────────────────────
 const themes = {
@@ -734,7 +734,7 @@ let state = {
   showFriends: false,
   showNotif: false,
   showProfile: false,
-  musicOn: false,
+  musicOn: (function(){ try{ var v=localStorage.getItem('music_on'); return v===null?true:v==='1'; }catch(e){ return true; } })(),
   musicVolume: 25,
   currentUser: null,
   coins: 0,
@@ -2079,7 +2079,7 @@ function renderTabCollection(th){
         <div style="width:40px;height:40px;flex-shrink:0;background:${th.accent}18;border:1px solid ${th.accent}40;display:flex;align-items:center;justify-content:center;font-size:18px;">🗂️</div>
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Bangers',cursive;font-size:12px;font-weight:700;color:${th.text};letter-spacing:.5px;">Deck Builder</div>
-          <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">${owned} carte${owned>1?'s':''} disponible${owned>1?'s':''} · ${pct}% de la collection</div>
+          <div style="font-size:11px;font-weight:700;color:${th.text};margin-top:2px;"><span style="color:${th.accent};font-weight:900;">${owned}</span><span style="color:${th.textMuted};font-weight:500;"> / ${ALL_CARDS.length} cartes</span> <span style="color:${pct>=100?th.accent:pct>=50?'#22c55e':th.textMuted};font-weight:700;">(${pct}%)</span></div>
           <div style="height:2px;background:${th.bg};margin-top:6px;overflow:hidden;">
             <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${th.accent},${th.accentAlt});"></div>
           </div>
