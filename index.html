@@ -640,7 +640,7 @@ function _ensurePlay(){
 
 // ─── PERSISTANCE PRÉFÉRENCE MUSIQUE ──────────────────────────────
 function _saveMusicPref(on){ try{ localStorage.setItem('music_on', on ? '1' : '0'); }catch(e){} }
-function _loadMusicPref(){ try{ var v=localStorage.getItem('music_on'); return v===null ? true : v==='1'; }catch(e){ return true; } }
+function _loadMusicPref(){ try{ var v=localStorage.getItem('music_on'); return v===null ? false : v==='1'; }catch(e){ return false; } }
 
 function audioPlay(){
   if(audioPlaying) return;
@@ -734,7 +734,7 @@ let state = {
   showFriends: false,
   showNotif: false,
   showProfile: false,
-  musicOn: (function(){ try{ var v=localStorage.getItem('music_on'); return v===null?true:v==='1'; }catch(e){ return true; } })(),
+  musicOn: (function(){ try{ var v=localStorage.getItem('music_on'); return v===null?false:v==='1'; }catch(e){ return false; } })(),
   musicVolume: 25,
   currentUser: null,
   coins: 0,
@@ -3613,10 +3613,11 @@ function bindGame(){
 
   // Helpers exposés globalement pour les handlers inline du popup volume
   window._toggleMusicFromPopup = function() {
-    audioToggle();
-    const nowOn = !state.musicOn;
+    // Lire l'état AVANT le toggle pour décider dans quel sens on va
+    const wasOn = audioPlaying;
+    if(wasOn) audioStop(); else audioPlay();
+    const nowOn = !wasOn;
     setState({ musicOn: nowOn });
-    // Mettre à jour le bouton dans le popup sans le fermer
     const btn = document.getElementById('music-toggle-btn');
     if(btn){ btn.innerHTML = `<span>${nowOn ? '▶ EN LECTURE' : '⏸ EN PAUSE'}</span><span style="font-size:14px;">${nowOn ? '🔊' : '🔇'}</span>`; btn.style.background = nowOn?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'; btn.style.borderColor = nowOn?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'; btn.style.color = nowOn?'#fbbf24':'#9d8ea0'; }
   };
@@ -3642,8 +3643,8 @@ function bindGame(){
     const pop = document.getElementById('music-vol-popup');
     if(pop){ pop.querySelectorAll('[onclick^="window._applyMusicVolume"]').forEach(b=>{ const bv=parseInt(b.getAttribute('onclick').match(/\d+/)[0]); b.style.background=bv===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'; b.style.borderColor=bv===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'; b.style.color=bv===v?'#fbbf24':'#9d8ea0'; }); }
     // Si volume > 0 et musique en pause → on relance automatiquement
-    if(v > 0 && !state.musicOn){ audioPlay(); setState({ musicOn: true }); const btn=document.getElementById('music-toggle-btn'); if(btn){ btn.innerHTML='<span>▶ EN LECTURE</span><span style="font-size:14px;">🔊</span>'; btn.style.background='rgba(251,191,36,.12)'; btn.style.borderColor='rgba(251,191,36,.3)'; btn.style.color='#fbbf24'; } }
-    if(v === 0 && state.musicOn){ audioStop(); setState({ musicOn: false }); const btn=document.getElementById('music-toggle-btn'); if(btn){ btn.innerHTML='<span>⏸ EN PAUSE</span><span style="font-size:14px;">🔇</span>'; btn.style.background='rgba(255,255,255,.04)'; btn.style.borderColor='rgba(255,255,255,.08)'; btn.style.color='#9d8ea0'; } }
+    // Volume à 0 → pause (mais ne relance PAS si volume revient > 0, c'est au toggle de le faire)
+    if(v === 0 && audioPlaying){ audioStop(); setState({ musicOn: false }); const btn=document.getElementById('music-toggle-btn'); if(btn){ btn.innerHTML='<span>⏸ EN PAUSE</span><span style="font-size:14px;">🔇</span>'; btn.style.background='rgba(255,255,255,.04)'; btn.style.borderColor='rgba(255,255,255,.08)'; btn.style.color='#9d8ea0'; } }
   };
 
   const btnSettings = document.getElementById('btn-settings');
