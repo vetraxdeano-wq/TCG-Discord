@@ -4247,15 +4247,34 @@ function bindGame(){
     btn.addEventListener('click',async ()=>{
       const mode = btn.dataset.mode;
       if (mode === '10v10') { window.location.href = 'PVP10.html'; return; }
-      if (mode === 'ia' || mode === 'pvp') {
+      if (mode === 'ia') {
         // Vérifier qu'un deck par défaut jouable existe
         const ok = await checkDefaultDeck();
         if (!ok) return;
-        if (mode === 'ia') { window.location.href = 'PVE.html'; return; }
+        window.location.href = 'PVE.html';
+        return;
       }
       if (mode === 'pvp') {
-        setState({showFriends:true, friendsTab:'list'});
-        loadFriends();
+        // Pour PvP, on a besoin d'au moins un deck complet (30 cartes) — pas forcément le par défaut
+        const db = window.db;
+        const myId = state.currentUser?.id;
+        if (!db || !myId) { showToast('Non connecté', '✗'); return; }
+        const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
+        if (!decksData || decksData.length === 0) {
+          showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
+          return;
+        }
+        const deckIds = decksData.map(d=>d.id);
+        const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
+        const totals = {};
+        (dc||[]).forEach(c=>{ totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
+        const hasComplete = Object.values(totals).some(t=>t>=30);
+        if (!hasComplete) {
+          showToast('Complète au moins un deck (30 cartes) avant de jouer en PvP', '⚠');
+          return;
+        }
+        window.location.href = 'PVP.html';
+        return;
       }
     });
   });
@@ -6568,16 +6587,18 @@ async function subscribeNotifications() {
         return;
       }
       if (n.type === 'combat_accepted') {
-        // Récupérer le match_id depuis le meta
+        // Nouveau flow : rediriger vers PVP.html, qui gère la sélection de deck synchronisée
         let matchId = state.pendingMatchId || null;
         try { if (n.meta) matchId = JSON.parse(n.meta)?.match_id || matchId; } catch(e) {}
-        try {
-          sessionStorage.setItem('pvp_match_id', matchId || '');
-          sessionStorage.setItem('pvp_opponent_id', n.from_id || '');
-          sessionStorage.setItem('pvp_my_id', state.currentUser?.id || '');
-          sessionStorage.setItem('pvp_role', 'challenger');
-        } catch(e) {}
-        showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
+        if (matchId) {
+          try { sessionStorage.setItem('pvp_pending_match_id', matchId); } catch(e) {}
+        }
+        showToast(n.text || 'Défi accepté !', '⚔');
+        window.location.href = 'PVP.html';
+        return;
+      }
+      if (n.type === 'combat_cancelled') {
+        showToast(n.text || 'Le combat a été annulé.', '✗');
         return;
       }
       if (n.type === 'combat_declined') {
@@ -6637,13 +6658,11 @@ async function pollNotificationsAndTrades() {
     try { await db.from('notifications').update({ read: true }).eq('id', n.id) } catch(e) {};
     let matchId = state.pendingMatchId || null;
     try { if (n.meta) matchId = JSON.parse(n.meta)?.match_id || matchId; } catch(e) {}
-    try {
-      sessionStorage.setItem('pvp_match_id', matchId || '');
-      sessionStorage.setItem('pvp_opponent_id', n.from_id || '');
-      sessionStorage.setItem('pvp_my_id', myId);
-      sessionStorage.setItem('pvp_role', 'challenger');
-    } catch(e) {}
-    showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
+    if (matchId) {
+      try { sessionStorage.setItem('pvp_pending_match_id', matchId); } catch(e) {}
+    }
+    showToast('Défi accepté !', '⚔');
+    window.location.href = 'PVP.html';
     return;
   }
 
@@ -6728,7 +6747,40 @@ function startNotifPolling() {
 window.startNotifPolling = startNotifPolling;
 
 // ─── COMBAT REQUESTS ──────────────────────────────────────────────
+// Le bouton ⚔️ rapide dans la liste d'amis redirige vers PVP.html
+// (qui gère le nouveau flow complet : deck picker, realtime, etc.)
 async function sendCombatRequest(toId, toName) {
+  const db = window.db;
+  if (!db) return;
+  const myId = state.currentUser?.id;
+  if (!myId || !toId) return;
+
+  // Vérifier qu'on a au moins un deck complet
+  const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
+  if (!decksData || decksData.length === 0) {
+    showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
+    return;
+  }
+  const deckIds = decksData.map(d=>d.id);
+  const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
+  const totals = {};
+  (dc||[]).forEach(c=>{ totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
+  const hasComplete = Object.values(totals).some(t=>t>=30);
+  if (!hasComplete) {
+    showToast('Complète au moins un deck (30 cartes)', '⚠');
+    return;
+  }
+
+  // Pré-sélectionner cet ami sur la page PVP pour lancer directement le défi
+  try {
+    sessionStorage.setItem('pvp_autochallenge_fid', toId);
+    sessionStorage.setItem('pvp_autochallenge_fname', toName || 'Ami');
+  } catch(e) {}
+  window.location.href = 'PVP.html';
+}
+
+// Ancienne logique conservée dans sendCombatRequestLegacy pour référence historique (non utilisée)
+async function sendCombatRequestLegacy(toId, toName) {
   const db = window.db;
   if (!db) return;
   const myId = state.currentUser?.id;
@@ -6768,11 +6820,15 @@ async function respondCombatRequest(notifId, fromId, accept) {
   const myId = state.currentUser?.id;
   if (!myId) return;
 
-  // Récupérer le meta (match_id) de la notif
-  let matchId = null;
+  // Récupérer le meta (match_id + match_key) de la notif — nouveau flow PvP
+  let matchId = null, matchKey = null;
   try {
     const { data: notifData } = await db.from('notifications').select('meta').eq('id', notifId).single();
-    if (notifData?.meta) matchId = JSON.parse(notifData.meta)?.match_id;
+    if (notifData?.meta) {
+      const meta = JSON.parse(notifData.meta);
+      matchId  = meta?.match_id  || null;
+      matchKey = meta?.match_key || null;
+    }
   } catch(e) {}
 
   // Marquer la notif comme lue
@@ -6784,6 +6840,14 @@ async function respondCombatRequest(notifId, fromId, accept) {
 
   if (!accept) {
     showToast('Défi refusé', '✗');
+    // Annuler le match côté DB (nouveau système pvp_matches)
+    if (matchId) {
+      try {
+        await db.from('pvp_matches')
+          .update({ phase: 'cancelled', end_reason: 'declined' })
+          .eq('id', matchId);
+      } catch(e) {}
+    }
     // Prévenir l'expéditeur du refus
     if (fromId) {
       try { await db.from('notifications').insert({
@@ -6797,34 +6861,52 @@ async function respondCombatRequest(notifId, fromId, accept) {
     return;
   }
 
-  // Vérifier deck par défaut
-  const { data: deck } = await db.from('decks')
-    .select('id').eq('player_id', myId).eq('is_default', true).single();
-  if (!deck) {
-    showToast('Configure un deck par défaut avant de combattre !', '🗂️');
+  // Accepté : vérifier qu'on a au moins un deck complet
+  const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
+  if (!decksData || decksData.length === 0) {
+    showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
+    return;
+  }
+  const deckIds = decksData.map(d => d.id);
+  const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
+  const totals = {};
+  (dc||[]).forEach(c => { totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
+  const hasComplete = Object.values(totals).some(t => t >= 30);
+  if (!hasComplete) {
+    showToast('Complète au moins un deck (30 cartes) avant de combattre', '⚠');
     return;
   }
 
-  // Envoyer combat_accepted à l'expéditeur avec le même match_id
+  // Nouveau flow : passer le match en phase 'deck_selection' et rediriger vers PVP.html
+  // qui affichera la sélection de deck simultanée pour les 2 joueurs.
+  if (matchId) {
+    try {
+      await db.from('pvp_matches')
+        .update({ phase: 'deck_selection' })
+        .eq('id', matchId);
+    } catch(e) { console.error('pvp_matches update', e); }
+
+    // Stocker l'ID du match en session — PVP.html le lira via checkPendingMatch()
+    try {
+      sessionStorage.setItem('pvp_pending_match_id', matchId);
+    } catch(e) {}
+    window.location.href = 'PVP.html';
+    return;
+  }
+
+  // ── Fallback ancien flow (ne devrait plus se produire avec le nouveau système) ──
+  // Envoyer combat_accepted à l'expéditeur
   if (fromId) {
     try { await db.from('notifications').insert({
       user_id: fromId,
       type: 'combat_accepted',
       from_id: myId,
-      text: 'Ton défi a été accepté ! Combat dans 5 secondes…',
+      text: 'Ton défi a été accepté !',
       read: false,
-      meta: JSON.stringify({ match_id: matchId }),
     }) } catch(e) {};
   }
-
-  // Lancer le countdown sur l'accepteur (moi)
-  try {
-    sessionStorage.setItem('pvp_match_id', matchId || '');
-    sessionStorage.setItem('pvp_opponent_id', fromId || '');
-    sessionStorage.setItem('pvp_my_id', myId);
-    sessionStorage.setItem('pvp_role', 'defender');
-  } catch(e) {}
-  showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
+  showToast('Défi accepté — en route vers la sélection de deck', '⚔');
+  window.location.href = 'PVP.html';
 }
 
 function showPvpCountdown(seconds, onDone) {
