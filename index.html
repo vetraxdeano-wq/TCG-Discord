@@ -817,6 +817,7 @@ let state = {
   piocheFlipped: {},
   piocheChosen: null,
   piocheResult: null,
+  piocheRevealImg: null,
   piocheConsumed: false, // true dès qu'une carte est retournée — bloque la réouverture via croix
   // Deck Builder
   showDeckBuilder: false,
@@ -3001,7 +3002,11 @@ function renderPiocheMechanic(th){
               <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:${isChosen?1:.8};filter:${isChosen?'brightness(1.1)':'none'};" />
               ${isChosen?'<div style="position:absolute;inset:0;background:rgba(88,101,242,.25);"></div>':''}
             </div>
-            <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);background:linear-gradient(135deg,#5865f230,#eb459e20);border:1px solid #5865f260;display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>
+            <div style="position:absolute;inset:0;backface-visibility:hidden;transform:rotateY(180deg);overflow:hidden;border:1px solid rgba(88,101,242,.6);">
+                ${isChosen && state.piocheRevealImg
+                  ? `<img src="${state.piocheRevealImg}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+                  : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#5865f230,#eb459e20);display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>`}
+              </div>
           </div>
         </div>`;
       }).join('')}
@@ -4948,7 +4953,7 @@ function bindGame(){
       showToast('Pioche déjà utilisée aujourd\'hui ! ⏳ ' + timeUntilMidnight(), '🎴');
       return;
     }
-    setState({showPioche:true,piocheFlipped:{},piocheChosen:null,piocheResult:null,piocheConsumed:false});
+    setState({showPioche:true,piocheFlipped:{},piocheChosen:null,piocheResult:null,piocheRevealImg:null,piocheConsumed:false});
   });
 
   // Booster hover
@@ -4983,7 +4988,17 @@ function bindGame(){
       if(state.piocheConsumed)return; // sécurité anti-double-clic
       const idx=parseInt(el.dataset.idx);
       const newFlipped={...state.piocheFlipped,[idx]:true};
-      setState({piocheChosen:idx,piocheFlipped:newFlipped,piocheConsumed:true});
+      // ── Tirer la carte immédiatement pour afficher le PNG pendant le flip ──
+      const _roll = Math.random() * 100;
+      let _targetRarity;
+      if (_roll < 0.1)       _targetRarity = 'mythic';
+      else if (_roll < 1.1)  _targetRarity = 'rare';
+      else if (_roll < 13.0) _targetRarity = 'uncommon';
+      else                   _targetRarity = 'common';
+      const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity);
+      const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS;
+      const _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
+      setState({piocheChosen:idx,piocheFlipped:newFlipped,piocheConsumed:true,piocheRevealImg:_drawnCard?.image_url||null});
 
       // ── Marquer la pioche comme utilisée DÈS LE TIRAGE (cross-device) ──
       const myId = state.currentUser?.id;
@@ -4996,18 +5011,8 @@ function bindGame(){
       })();
 
       setTimeout(async ()=>{
-        // Tirage pondéré par rareté : Mythique 0.1%, Rare 1%, Peu Commune 11.9%, Commune 87%
-        const roll = Math.random() * 100;
-        let targetRarity;
-        if (roll < 0.1)       targetRarity = 'mythic';
-        else if (roll < 1.1)  targetRarity = 'rare';
-        else if (roll < 13.0) targetRarity = 'uncommon';
-        else                  targetRarity = 'common';
-
-        const pool = ALL_CARDS.filter(c => c.rarity === targetRarity);
-        // Fallback si le pool est vide pour cette rareté
-        const finalPool = pool.length > 0 ? pool : ALL_CARDS;
-        const drawn = finalPool[Math.floor(Math.random() * finalPool.length)];
+        const drawn = _drawnCard;
+        if(!drawn){ setState({piocheResult:null}); return; }
 
         // ── Ajouter la carte en BDD IMMÉDIATEMENT (avant que le joueur clique collect) ──
         const db = window.db;
