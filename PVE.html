@@ -1171,268 +1171,55 @@ html.ios .mob-card-modal{
 </head>
 <body>
 
-<!-- YT audio player caché — musique continue depuis index.html -->
-<div id="yt-audio-player-pve" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
-
-<!-- Popup volume musique -->
-<div id="pve-vol-popup" style="display:none;position:fixed;top:48px;right:12px;z-index:10002;background:#1a1825;border:2px solid rgba(255,255,255,.1);box-shadow:0 8px 32px rgba(0,0,0,.6);padding:0;min-width:210px;border-radius:6px;overflow:hidden;">
-  <div style="height:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
-  <div style="padding:10px 12px 6px;">
-    <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">🎵 Musique Ambiante</div>
-    <button id="pve-music-toggle" onclick="window._pveMusicToggle()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#9d8ea0;cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.5px;border-radius:3px;">
-      <span id="pve-toggle-label">⏸ EN PAUSE</span>
-      <span id="pve-toggle-icon">🔇</span>
-    </button>
-  </div>
-  <div style="padding:0 12px 12px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-      <span style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Volume</span>
-      <span id="pve-vol-label" style="font-size:10px;font-weight:900;color:#fbbf24;">25%</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <span style="font-size:11px;opacity:.5;">🔈</span>
-      <input id="pve-vol-slider" type="range" min="0" max="100" value="25"
-        oninput="window._pvePreviewVol(this.value)"
-        onchange="window._pveApplyVol(this.value)"
-        style="width:100%;height:4px;outline:none;border:none;cursor:pointer;accent-color:#fbbf24;">
-      <span style="font-size:11px;opacity:.8;">🔊</span>
-    </div>
-    <div style="display:flex;gap:4px;">
-      <button onclick="window._pveApplyVol(0)"   style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;border-radius:2px;">0%</button>
-      <button onclick="window._pveApplyVol(25)"  style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;border-radius:2px;">25%</button>
-      <button onclick="window._pveApplyVol(50)"  style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;border-radius:2px;">50%</button>
-      <button onclick="window._pveApplyVol(75)"  style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;border-radius:2px;">75%</button>
-      <button onclick="window._pveApplyVol(100)" style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;border-radius:2px;">100%</button>
-    </div>
-  </div>
+<!-- ── Musique persistante cross-pages ───────────────────────────── -->
+<div id="_yt_ap" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+<div id="_mc" style="position:fixed;bottom:14px;right:14px;z-index:9990;display:flex;align-items:center;gap:6px;background:rgba(8,8,13,.92);border:1px solid rgba(255,255,255,.12);padding:6px 10px;backdrop-filter:blur(8px);border-radius:6px;">
+  <button id="_mc_btn" onclick="_mToggle()" style="background:none;border:none;font-size:18px;cursor:pointer;line-height:1;padding:0;" title="Musique">⏳</button>
+  <input type="range" id="_mc_vol" min="0" max="100" value="25" style="width:68px;accent-color:#f0c040;cursor:pointer;vertical-align:middle;" oninput="_mVol(this.value)">
+  <span id="_mc_pct" style="font-size:10px;color:#f0c040;min-width:28px;font-family:monospace;">25%</span>
 </div>
-
-<div id="si" class="screen active">
-  <div id="si-bg"></div>
-  <div id="si-grid"></div>
-  <div class="si-inner">
-    <div class="si-eyebrow"><span></span>Trading Card Game<span></span></div>
-    <div class="logo"><img src="https://i.ibb.co/7Npt0hQc/db02f0c5-8f01-49c8-a74b-3eafd98b29fe.png" alt="P&L" style="max-width:clamp(200px,35vw,380px);width:100%;height:auto;display:block;margin:0 auto;" /></div>
-    <div class="logo-sub">Collectez · Combattez · Dominez</div>
-    <div class="si-divider"></div>
-    <button class="start-btn" onclick="startGame()">Jouer</button>
-    <button onclick="window.location.href='index.html'" style="margin-top:14px;background:transparent;border:1px solid var(--bdr3);color:var(--sub);padding:9px 24px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;transition:all .2s;" onmouseover="this.style.color='var(--txt)';this.style.borderColor='var(--bdr2)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='var(--bdr3)'">← Retour au menu</button>
-  </div>
-  <div class="si-cards">
-    <div class="si-card-ph"></div>
-    <div class="si-card-ph"></div>
-    <div class="si-card-ph"></div>
-    <div class="si-card-ph"></div>
-    <div class="si-card-ph"></div>
-  </div>
-</div>
-
-<div id="sg" class="screen">
-  <div class="topbar">
-    <div style="display:flex;align-items:center;gap:10px">
-      <span class="t-title">PWL TCG</span>
-      <span class="t-turn" id="tbadge">TOUR 1</span>
-    </div>
-    <div class="wt-pill ww" id="wt"><div class="tdot"></div><span id="wt-txt">—</span></div>
-    <div style="display:flex;align-items:center;gap:6px">
-      <button id="pve-music-btn" onclick="window._pveMusicBtnClick(event)" title="Musique"
-        style="background:var(--s3);border:1px solid var(--bdr2);color:var(--txt);padding:4px 10px;border-radius:20px;cursor:pointer;font-size:11px;font-family:'DM Mono',monospace;transition:all .2s;display:flex;align-items:center;gap:5px;">
-        <span id="pve-music-icon">♪</span>
-        <span id="pve-music-pct">—%</span>
-      </button>
-      <button id="theme-btn" onclick="toggleTheme()" style="background:var(--s3);border:1px solid var(--bdr2);color:var(--txt);padding:4px 10px;border-radius:20px;cursor:pointer;font-size:11px;font-family:'DM Mono',monospace;transition:all .2s">☀️ Clair</button>
-      <button id="layout-btn" onclick="toggleLayout()" style="background:var(--s3);border:1px solid var(--bdr2);color:var(--txt);padding:4px 10px;border-radius:20px;cursor:pointer;font-size:11px;font-family:'DM Mono',monospace;transition:all .2s">📱 Téléphone</button>
-    </div>
-  </div>
-
-  <div class="field">
-
-    
-    <div class="pj pj-left">
-      <div class="pj-deck" id="h-deck-lbl"><span>🃏</span><span id="h-dk-txt">—</span></div>
-      <div class="pj-hand-count" id="h-hand-lbl"><span>✋</span><span id="h-hand-txt">—</span></div>
-      <div class="heart-wrap" id="h-hwrap">
-        <svg class="heart-svg" viewBox="0 0 100 90" fill="none">
-          <defs>
-            <linearGradient id="hg-h" x1="50" y1="0" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#ffd700"/><stop offset="40%" stop-color="#f59200"/><stop offset="100%" stop-color="#cc3300"/>
-            </linearGradient>
-            <filter id="gf-h"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-            <clipPath id="cp-h"><rect id="cpr-h" x="0" y="0" width="100" height="90"/></clipPath>
-          </defs>
-          <path d="M50 82C50 82 8 54 8 28C8 15 18 6 30 6C38 6 45 11 50 18C55 11 62 6 70 6C82 6 92 15 92 28C92 54 50 82 50 82Z" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.1)" stroke-width="1.5"/>
-          <path d="M50 82C50 82 8 54 8 28C8 15 18 6 30 6C38 6 45 11 50 18C55 11 62 6 70 6C82 6 92 15 92 28C92 54 50 82 50 82Z" fill="url(#hg-h)" filter="url(#gf-h)" clip-path="url(#cp-h)"/>
-          <path d="M33 14C28 17 23 25 22 33" stroke="rgba(255,255,255,.28)" stroke-width="3.5" stroke-linecap="round"/>
-        </svg>
-        <span class="heart-txt" id="h-hpv">75</span>
-      </div>
-    </div>
-
-    
-    <div class="card-zone cz-human">
-      <div class="field-card" id="h-fc">
-        <div class="fc-img-wrap">
-          <div id="h-art" class="fc-ph"><div class="icon">⚡</div><div class="lbl">Héro</div></div>
-        </div>
-        <div class="fc-hprow row-left">
-          <div class="fc-hplabel" id="h-fhplbl">—</div>
-          <div class="fc-hpbar"><div class="fc-hpfill" id="h-fhp" style="width:100%;background:var(--grn)"></div></div>
-        </div>
-      </div>
-    </div>
-
-    
-    <div class="centre">
-      <div class="arrows">
-        <div class="arrow arrow-l"></div>
-        <div class="vs-label">VS.</div>
-        <div class="arrow arrow-r"></div>
-      </div>
-      <div class="stats-row">
-        <div class="stats-panel sp-left">
-          <div class="sp-rar rC" id="h-rar">—</div>
-          <div class="sp-name" id="h-name">—</div>
-
-          <div class="stat-row" id="h-sr-end"><span class="sr-ico">❤️</span><span class="sr-lbl">HP</span><span class="sr-val" id="h-end">—</span></div>
-
-          <div class="stat-row" id="h-sr-atq"><span class="sr-ico">⚔️</span><span class="sr-lbl">Atq</span><span class="sr-val" id="h-atq">—</span></div>
-          <div class="stat-row" id="h-sr-def"><span class="sr-ico">🛡️</span><span class="sr-lbl">Déf</span><span class="sr-val" id="h-def">—</span></div>
-          <div class="stat-row" id="h-sr-prec"><span class="sr-ico">🎯</span><span class="sr-lbl">Prec</span><span class="sr-val" id="h-prec">—</span></div>
-          <div class="stat-row sr-dmg-row" id="h-sr-dmg"><span class="sr-ico">💥</span><span class="sr-lbl">Dmg</span><span class="sr-val sr-dmg" id="h-dmg">—</span></div>
-          <div class="sr-dmg-hint" id="h-dmg-hint"></div>
-          <div class="sp-effslbl">Effets</div>
-          <div class="sp-effs" id="h-act"><span style="font-size:9px;color:var(--dim)">Aucun</span></div>
-        </div>
-        <div class="stats-panel">
-          <div class="sp-rar rC" id="b-rar">—</div>
-          <div class="sp-name" id="b-name">—</div>
-
-          <div class="stat-row" id="b-sr-end"><span class="sr-ico">❤️</span><span class="sr-lbl">HP</span><span class="sr-val" id="b-end">—</span></div>
-          <div class="stat-row" id="b-sr-atq"><span class="sr-ico">⚔️</span><span class="sr-lbl">Atq</span><span class="sr-val" id="b-atq">—</span></div>
-          <div class="stat-row" id="b-sr-def"><span class="sr-ico">🛡️</span><span class="sr-lbl">Déf</span><span class="sr-val" id="b-def">—</span></div>
-          <div class="stat-row" id="b-sr-prec"><span class="sr-ico">🎯</span><span class="sr-lbl">Prec</span><span class="sr-val" id="b-prec">—</span></div>
-          <div class="stat-row sr-dmg-row" id="b-sr-dmg"><span class="sr-ico">💥</span><span class="sr-lbl">Dmg</span><span class="sr-val sr-dmg" id="b-dmg">—</span></div>
-          <div class="sr-dmg-hint" id="b-dmg-hint"></div>
-          <div class="sp-effslbl">Effets</div>
-          <div class="sp-effs" id="b-act"><span style="font-size:9px;color:var(--dim)">Aucun</span></div>
-        </div>
-      </div>
-    </div>
-
-    
-    <div class="card-zone cz-bot">
-      <div class="field-card" id="b-fc">
-        <div class="fc-img-wrap">
-          <div id="b-art" class="fc-ph"><div class="icon">🤖</div><div class="lbl">En attente</div></div>
-        </div>
-        <div class="fc-hprow row-right">
-          <div class="fc-hplabel" id="b-fhplbl">—</div>
-          <div class="fc-hpbar"><div class="fc-hpfill" id="b-fhp" style="width:100%;background:var(--grn)"></div></div>
-        </div>
-      </div>
-    </div>
-
-    
-    <div class="pj pj-right">
-      <div class="pj-deck" id="b-deck-lbl" style="justify-content:flex-end"><span id="b-dk-txt">—</span><span>🃏</span></div>
-      <div class="heart-wrap" id="b-hwrap">
-        <svg class="heart-svg" viewBox="0 0 100 90" fill="none">
-          <defs>
-            <linearGradient id="hg-b" x1="50" y1="0" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#ff6a6a"/><stop offset="100%" stop-color="#bb0000"/>
-            </linearGradient>
-            <filter id="gf-b"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-            <clipPath id="cp-b"><rect id="cpr-b" x="0" y="0" width="100" height="90"/></clipPath>
-          </defs>
-          <path d="M50 82C50 82 8 54 8 28C8 15 18 6 30 6C38 6 45 11 50 18C55 11 62 6 70 6C82 6 92 15 92 28C92 54 50 82 50 82Z" fill="rgba(255,255,255,.05)" stroke="rgba(255,255,255,.09)" stroke-width="1.5"/>
-          <path d="M50 82C50 82 8 54 8 28C8 15 18 6 30 6C38 6 45 11 50 18C55 11 62 6 70 6C82 6 92 15 92 28C92 54 50 82 50 82Z" fill="url(#hg-b)" filter="url(#gf-b)" clip-path="url(#cp-b)"/>
-          <path d="M33 14C28 17 23 25 22 33" stroke="rgba(255,255,255,.22)" stroke-width="3.5" stroke-linecap="round"/>
-        </svg>
-        <span class="heart-txt" id="b-hpv">75</span>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="instr-bar ib-choose" id="instr-bar">
-    <div class="instr-dot"></div>
-    <div class="instr-txt" id="instr-txt">Choisis un Héro dans ta main</div>
-  </div>
-
-  <div class="hand-wrap">
-    <div class="hand-meta">
-      <div class="hand-lbl">Main</div>
-      
-    </div>
-    <div class="hand-cards" id="hcards"></div>
-  </div>
-
-  <div class="actions">
-    <div class="chrono-wrap">
-      <span class="chrono-ico" id="chrono-ico">🕐</span>
-      <span class="chrono-num" id="chrono-num">30</span>
-    </div>
-    <button class="btn btn-gold" id="btn-atk" onclick="humanAttack()" disabled>⚔ Attaquer</button>
-    <button class="btn btn-red"  id="btn-pass" onclick="humanPassSort()" disabled>Skip Sort</button>
-    <button class="auto-btn" id="auto-btn" onclick="toggleAuto()"><div class="auto-dot"></div>AUTO BATTLE</button>
-    <div class="auto-speed" id="auto-speed">
-      <button class="spd-btn active" id="spd1" onclick="setSpeed(1)">×1</button>
-      <button class="spd-btn" id="spd2" onclick="setSpeed(2)">×2</button>
-      <button class="spd-btn" id="spd3" onclick="setSpeed(3)">×3</button>
-    </div>
-  </div>
-</div>
-
-<div class="logp" id="logp">
-  <div class="log-hdr" onclick="toggleLog()">
-    <span>📋 Journal</span>
-    <span class="log-hdr-toggle">▲</span>
-  </div>
-  <div class="log-body" id="loge"></div>
-</div>
-
-<!-- Modale carte mobile -->
-<div class="mob-card-modal-overlay" id="mob-modal-overlay" onclick="closeCardModal(event)">
-  <div class="mob-card-modal" id="mob-modal">
-    <div class="mob-card-modal-header">
-      <div>
-        <div class="mob-card-modal-rar" id="mob-modal-rar"></div>
-        <div class="mob-card-modal-title" id="mob-modal-title"></div>
-      </div>
-      <button class="mob-card-modal-close" onclick="closeCardModal()">✕</button>
-    </div>
-    <div class="mob-card-modal-body">
-      <div class="mob-card-modal-img" id="mob-modal-img"></div>
-      <div class="mob-card-modal-stats" id="mob-modal-stats"></div>
-    </div>
-    <div class="mob-card-modal-actions">
-      <button class="mob-card-modal-play" id="mob-modal-play">⚡ ENVOYER AU COMBAT</button>
-      <button class="mob-card-modal-cancel" onclick="closeCardModal()">Annuler</button>
-    </div>
-  </div>
-</div>
-<div id="hcard-tt" class="hcard-tooltip"></div>
-<div class="ov" id="ov-end"><div class="ov-box">
-  <div class="ov-title" id="ov-title">?</div>
-  <div class="ov-sub" id="ov-sub"></div>
-  <div id="ov-reward" style="font-size:15px;font-weight:700;margin:8px 0;color:var(--gold)"></div>
-  <div class="ov-stats" id="ov-stats"></div>
-  <button class="btn btn-gold" onclick="restartGame()">Rejouer</button>
-  <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="margin-top:8px;">← Menu principal</button>
-</div></div>
-
-<!-- Modale choix retrait effet -->
-<div class="effect-pick-overlay" id="effect-pick-overlay">
-  <div class="effect-pick-box">
-    <div class="effect-pick-title" id="effect-pick-title">Choisir un effet</div>
-    <div class="effect-pick-sub" id="effect-pick-sub">Sélectionne l'effet à retirer</div>
-    <div class="effect-pick-list" id="effect-pick-list"></div>
-    <button class="effect-pick-cancel" onclick="closeEffectPick()">Annuler</button>
-  </div>
-</div>
-
-<div class="coin-ov" id="coin-ov" style="display:none"><div class="coin-box" id="coin-box"><span class="coin-emoji" id="coin-emoji">🪙</span><div class="coin-who" id="coin-who">—</div><div class="coin-detail" id="coin-detail">—</div></div></div>
-<div class="toast" id="toast"></div>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+  var SB_URL='https://ndsnbvvcbkblkncvoroc.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kc25idnZjYmtibGtuY3Zvcm9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NjczMTksImV4cCI6MjA4ODU0MzMxOX0.mMsaBIrDI3BIoeTFBsCXo2AbuBLRnzqk625fKRkYCtM',YT_ID='WZH17pU1XeA';
+  var _p=null,_ready=false,_on=false,_vol=25;
+  function _lsGet(k,d){try{var v=localStorage.getItem(k);return v===null?d:v;}catch(e){return d;}}
+  function _lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+  function _uid(){
+    try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith('sb-')&&k.endsWith('-auth-token')){var raw=localStorage.getItem(k);if(!raw)continue;var p=JSON.parse(raw);var id=p?.user?.id;if(!id&&p?.access_token)try{id=JSON.parse(atob(p.access_token.split('.')[1]))?.sub;}catch(x){}if(id)return id;}}}catch(e){}return null;
+  }
+  async function _loadPrefs(){
+    _on=_lsGet('music_on','0')==='1';
+    _vol=Math.max(1,parseInt(_lsGet('music_volume','25'))||25);
+    var uid=_uid();if(!uid)return;
+    try{var r=await fetch(SB_URL+'/rest/v1/players?select=music_on,music_volume&id=eq.'+uid+'&limit=1',{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});if(!r.ok)return;var rows=await r.json();if(!rows||!rows[0])return;var row=rows[0];if(row.music_on!==null&&row.music_on!==undefined){_on=row.music_on===true||row.music_on===1;_lsSet('music_on',_on?'1':'0');}if(row.music_volume!==null&&!isNaN(row.music_volume)){_vol=Math.max(1,parseInt(row.music_volume));_lsSet('music_volume',_vol);}}catch(e){}
+  }
+  function _savePrefs(on,vol){
+    _lsSet('music_on',on?'1':'0');if(vol>0)_lsSet('music_volume',vol);
+    var uid=_uid();if(!uid)return;
+    fetch(SB_URL+'/rest/v1/players?id=eq.'+uid,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({music_on:on,...(vol>0?{music_volume:vol}:{})}) }).catch(function(){});
+  }
+  function _ui(){
+    var btn=document.getElementById('_mc_btn'),sl=document.getElementById('_mc_vol'),lb=document.getElementById('_mc_pct');
+    if(btn)btn.textContent=_on?'🔊':'🔇';
+    if(sl){sl.value=_vol;sl.style.background='linear-gradient(90deg,#f0c040 '+_vol+'%,rgba(255,255,255,.1) '+_vol+'%)';}
+    if(lb)lb.textContent=_vol+'%';
+  }
+  window.onYouTubeIframeAPIReady=function(){
+    var pos=parseFloat(_lsGet('music_pos','0'))||0;
+    _p=new YT.Player('_yt_ap',{videoId:YT_ID,playerVars:{autoplay:0,controls:0,loop:0,playlist:YT_ID,start:Math.floor(pos),modestbranding:1,rel:0,playsinline:1,mute:0},events:{
+      onReady:async function(e){_ready=true;await _loadPrefs();e.target.setVolume(_vol);if(pos>2)try{e.target.seekTo(pos,true);}catch(x){}if(_on)try{e.target.playVideo();}catch(x){}_ui();setInterval(function(){try{if(_p&&_p.getCurrentTime){var t=_p.getCurrentTime();if(t>0)_lsSet('music_pos',t.toFixed(1));}}catch(x){}},5000);},
+      onStateChange:function(e){if(e.data===0&&_on){try{_p.seekTo(0,true);_p.playVideo();_lsSet('music_pos','0');}catch(x){}}},
+      onError:function(){if(_on)setTimeout(function(){try{_p.playVideo();}catch(x){}},2000);}
+    }}});
+  };
+  window.addEventListener('beforeunload',function(){try{if(_p&&_p.getCurrentTime){var t=_p.getCurrentTime();if(t>0)_lsSet('music_pos',t.toFixed(1));}}catch(x){}_savePrefs(_on,_vol);});
+  document.addEventListener('click',function _u(){document.removeEventListener('click',_u);if(_ready&&_on&&_p)try{_p.playVideo();}catch(x){}},{once:true});
+  window._mToggle=function(){_on=!_on;_savePrefs(_on,_vol);if(_p)try{_on?_p.playVideo():_p.pauseVideo();}catch(x){}_ui();};
+  window._mVol=function(v){v=parseInt(v);if(v>0){_vol=v;_savePrefs(_on,_vol);}if(_p)try{_p.setVolume(v);}catch(x){}var lb=document.getElementById('_mc_pct');if(lb)lb.textContent=v+'%';var sl=document.getElementById('_mc_vol');if(sl)sl.style.background='linear-gradient(90deg,#f0c040 '+v+'%,rgba(255,255,255,.1) '+v+'%)';if(v===0&&_p)try{_p.pauseVideo();}catch(x){}else if(v>0&&_on&&_p)try{var s=_p.getPlayerState();if(s!==1)_p.playVideo();}catch(x){}};
+  document.addEventListener('DOMContentLoaded',function(){var vol=Math.max(1,parseInt(_lsGet('music_volume','25'))||25);var sl=document.getElementById('_mc_vol');var lb=document.getElementById('_mc_pct');if(sl){sl.value=vol;sl.style.background='linear-gradient(90deg,#f0c040 '+vol+'%,rgba(255,255,255,.1) '+vol+'%)';}if(lb)lb.textContent=vol+'%';});
+})();
+</script>
 
 <script>
 const IMGS={
