@@ -5500,14 +5500,17 @@ function enterGame(user, coins) {
   }
   const s = document.getElementById('splash');
   if (s) s.style.opacity = '0';
-  setTimeout(() => {
+  setTimeout(async () => {
+    // 1. Charger les prefs musique depuis Supabase en priorité (source de vérité cross-device)
+    await _loadMusicPrefsFromSupabase(user.id);
+    // 2. Lire le statut résultant (Supabase a pu corriger le localStorage)
     const _musicWasOn = _loadMusicPref();
     const _musicVol = parseInt(localStorage.getItem('music_volume')||'25');
     state.musicVolume = isNaN(_musicVol) ? 25 : _musicVol;
     setState({ screen: "game", musicOn: _musicWasOn, currentUser: user, coins: coins });
-    if (_musicWasOn) audioPlay();
-    // Charger les prefs depuis Supabase (cross-device) — peut override localStorage
-    _loadMusicPrefsFromSupabase(user.id);
+    // 3. Démarrer (ou non) selon la vérité Supabase
+    if (_musicWasOn && !audioPlaying) audioPlay();
+    else if (!_musicWasOn && audioPlaying) audioStop();
     loadCollection();
     startDailyTicker();
     // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
