@@ -3660,7 +3660,7 @@ function _sdmRefreshBtns(){
   const YT_ID  = 'WZH17pU1XeA';
   let _p=null, _ready=false;
 
-  function _getOn(){  try{var v=localStorage.getItem('music_on');  return v===null?true:v==='1';}catch(e){return true;} }
+  function _getOn(){  try{var v=localStorage.getItem('music_on');  return v===null?false:v==='1';}catch(e){return false;} }
   function _getVol(){ try{return parseInt(localStorage.getItem('music_volume')||'25');}catch(e){return 25;} }
   function _getPos(){ try{return parseFloat(localStorage.getItem('music_pos')||'0');}catch(e){return 0;} }
   function _setOn(v){ try{localStorage.setItem('music_on',v?'1':'0');}catch(e){} }
@@ -3718,7 +3718,7 @@ function _sdmRefreshBtns(){
 
   window.addEventListener('beforeunload',function(){
     try{
-      _setOn(document.getElementById('_mc_btn')&&document.getElementById('_mc_btn').textContent==='🔊');
+      var _wasOn = _getOn(); _setOn(_wasOn);
       if(_p&&_p.getCurrentTime){var t=_p.getCurrentTime();if(t>0)_setPos(t.toFixed(1));}
     }catch(x){}
   });
@@ -3729,11 +3729,60 @@ function _sdmRefreshBtns(){
     if(_ready&&_getOn()&&_p){try{_p.playVideo();}catch(x){}}
   },{once:true});
 
+  // ── Sync Supabase ──────────────────────────────────────────────
+  function _saveToSupabase(on, vol){
+    try{
+      var db=window._db; // référence depuis le code init Supabase
+      var uid=window._currentUser&&window._currentUser.id;
+      if(!db||!uid) return;
+      db.from('players').update({music_on:on, music_volume:vol}).eq('id',uid)
+        .then(function(){}).catch(function(){});
+    }catch(x){}
+  }
+
+  function _loadFromSupabase(){
+    try{
+      var db=window._db;
+      var uid=window._currentUser&&window._currentUser.id;
+      if(!db||!uid) return;
+      db.from('players').select('music_on,music_volume').eq('id',uid).single()
+        .then(function(res){
+          var data=res&&res.data;
+          if(!data) return;
+          if(data.music_on!==null&&data.music_on!==undefined){
+            _setOn(data.music_on===true||data.music_on===1);
+          }
+          if(data.music_volume!=null&&!isNaN(data.music_volume)){
+            _setVol(data.music_volume);
+            if(_p)try{_p.setVolume(data.music_volume);}catch(x){}
+            var sl=document.getElementById('_mc_vol');
+            var lb=document.getElementById('_mc_pct');
+            if(sl) sl.value=data.music_volume;
+            if(lb) lb.textContent=data.music_volume+'%';
+          }
+          var shouldPlay=data.music_on===true||data.music_on===1;
+          _updateBtn();
+          if(shouldPlay&&_ready&&_p){ try{_p.playVideo();}catch(x){} }
+          else if(!shouldPlay&&_p){ try{_p.pauseVideo();}catch(x){} }
+        }).catch(function(){});
+    }catch(x){}
+  }
+
+  // Charger les prefs Supabase dès que _currentUser est disponible
+  var _sbLoadInterval = setInterval(function(){
+    if(window._currentUser && window._db){
+      clearInterval(_sbLoadInterval);
+      _loadFromSupabase();
+    }
+  }, 500);
+  setTimeout(function(){ clearInterval(_sbLoadInterval); }, 15000);
+
   window._mToggle = function(){
     var on=!_getOn();
     _setOn(on);
     if(_p){ try{on?_p.playVideo():_p.pauseVideo();}catch(x){} }
     _updateBtn();
+    _saveToSupabase(on, _getVol());
   };
 
   window._mVol = function(v){
@@ -3742,9 +3791,9 @@ function _sdmRefreshBtns(){
     if(_p){ try{_p.setVolume(v);}catch(x){} }
     var lb=document.getElementById('_mc_pct');
     if(lb) lb.textContent=v+'%';
-    // Si volume > 0 et musique en pause mais activée → relancer
-    if(v>0&&_getOn()&&_p){ try{var s=_p.getPlayerState();if(s!==1)_p.playVideo();}catch(x){} }
-    if(v===0&&_p){ try{_p.pauseVideo();}catch(x){} }
+    if(v===0&&_p){ try{_p.pauseVideo(); _setOn(false);}catch(x){} }
+    _updateBtn();
+    _saveToSupabase(_getOn(), v);
   };
 })();
 </script>
