@@ -4057,7 +4057,11 @@ function bindGame(){
     const card = state.collSelectedCard;
     if(!card) return;
     const friends = state.friends || [];
-    if(friends.length === 0){ showToast('Aucun ami pour proposer un échange','⚠'); return; }
+    if(friends.length === 0){
+      // Ouvrir la liste d'amis complète pour en ajouter
+      setState({collSelectedCard:null, showFriends:true, friendsTab:'list'});
+      return;
+    }
     _showFriendPickerForTrade(card);
   });
 
