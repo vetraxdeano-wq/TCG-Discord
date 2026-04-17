@@ -3094,30 +3094,6 @@ async function initSupabase(){
   }
   _currentUser=session.user;
 
-  // ── Charger les préférences musique depuis players ──
-  // On lit music_on et music_volume depuis la table players (colonnes optionnelles)
-  try {
-    const { data: pref } = await _db.from('players')
-      .select('music_on, music_volume')
-      .eq('id', _currentUser.id)
-      .single();
-    if (pref) {
-      // Synchroniser localStorage depuis Supabase (source de vérité)
-      if (pref.music_on !== null && pref.music_on !== undefined) {
-        localStorage.setItem('music_on', pref.music_on ? '1' : '0');
-      }
-      if (pref.music_volume !== null && pref.music_volume !== undefined) {
-        localStorage.setItem('music_volume', String(pref.music_volume));
-      }
-    }
-  } catch(e) { /* colonnes absentes — fallback localStorage */ }
-
-  // ── Démarrer la musique APRÈS la synchro Supabase ──
-  if(window._musicAutoStart && !window._musicAutoStartCalled){
-    window._musicAutoStartCalled = true;
-    window._musicAutoStart();
-  }
-
   // ── Charger TOUTES les cartes depuis Supabase ──
   const {data:allCards,error:cardErr}=await _db.from('cards')
     .select('id,name,type,rarity,hp,attack,defense,precision,description,effect,time_played,name_spell_1,value_spell_1,name_spell_2,value_spell_2,image_url')
@@ -3301,17 +3277,36 @@ async function saveGameResult(isWin,coinsGained,xpGained){
     } catch(e){}
   }
 
+  // _savePrefLocal : localStorage uniquement (page load, auto-start)
+  function _savePrefLocal(on, vol){
+    localStorage.setItem('music_on', on ? '1' : '0');
+    if(vol !== undefined) localStorage.setItem('music_volume', String(vol));
+  }
+  // _savePref : localStorage + Supabase (uniquement sur action utilisateur)
+  function _savePref(on, vol){
+    _savePrefLocal(on, vol);
+    try {
+      const db = window._db || window.db;
+      const uid = window._currentUser?.id;
+      if(db && uid){
+        const patch = { music_on: on };
+        if(vol !== undefined) patch.music_volume = vol;
+        db.from('players').update(patch).eq('id', uid).then(()=>{}).catch(()=>{});
+      }
+    } catch(e){}
+  }
+
   function _start(){
     if(_playing)return;
     _playing=true;
-    _savePref(true);
+    // Pas de _savePref ici — on respecte le statut existant (vient du localStorage)
     if(!_ready||!_player){_pending=true;if(_ready)_init();return;}
     _doPlay();_ensurePlay();
   }
 
   function _stop(){
     _playing=false;_pending=false;
-    _savePref(false);
+    // Pas de _savePref ici non plus — stop automatique ne doit pas écraser les prefs
     if(_retry){clearInterval(_retry);_retry=null;}
     if(_player)try{_player.pauseVideo();}catch(e){}
   }
@@ -3356,7 +3351,13 @@ async function saveGameResult(isWin,coinsGained,xpGained){
   };
 
   window._pveMusicToggle=function(){
-    if(_playing)_stop();else _start();
+    if(_playing){
+      _stop();
+      _savePref(false); // action utilisateur → Supabase
+    } else {
+      _start();
+      _savePref(true);  // action utilisateur → Supabase
+    }
     _updateUI();
   };
 
@@ -3386,27 +3387,18 @@ async function saveGameResult(isWin,coinsGained,xpGained){
     }catch(e){}
   });
 
-  // Auto-démarrer — appelé par initSupabase() APRÈS la synchro Supabase→localStorage
-  window._musicAutoStart = function(){
-    if(_ready) _init();
-    // localStorage est maintenant à jour (initSupabase a terminé)
-    const shouldPlay = localStorage.getItem('music_on') !== '0';
+  // Auto-démarrer depuis localStorage (source de vérité same-device, toujours à jour)
+  // initSupabase n'a plus besoin de lire les prefs musique — le localStorage est déjà correct
+  document.addEventListener('DOMContentLoaded',()=>{
+    if(_ready)_init();
+    const shouldPlay = localStorage.getItem('music_on') === '1';
     if(shouldPlay) _start();
-    else { _playing = false; _updateUI(); }
+    else { _playing=false; _updateUI(); }
     document.addEventListener('click',()=>{
       if(_playing&&_player)try{const s=_player.getPlayerState();if(s!==1)_doPlay();}catch(e){}
     },{once:true});
     _updateUI();
-  };
-
-  // Fallback : si initSupabase() ne peut pas appeler le hook (erreur réseau)
-  // on attend 4s et on lit le localStorage tel quel
-  setTimeout(()=>{
-    if(window._musicAutoStart && !window._musicAutoStartCalled){
-      window._musicAutoStartCalled = true;
-      window._musicAutoStart();
-    }
-  }, 4000);
+  });
 })();
 </script>
 </body></html>
