@@ -568,7 +568,7 @@ body{
   </div>
 </div>
 
-<!-- ── Overlay sélection de deck ── -->
+<!-- ── Overlay sélection de deck (flow 2 étapes : Valider → Prêt) ── -->
 <div class="overlay" id="deck-overlay">
   <div class="sheet">
     <div class="sheet-head">
@@ -580,7 +580,7 @@ body{
 
     <div class="status-strip">
       <div class="s-card" id="status-me">
-        <div class="s-lbl">Toi</div>
+        <div class="s-lbl" id="status-me-lbl">Toi</div>
         <div class="s-val" id="status-me-val">En attente…</div>
       </div>
       <div class="s-card" id="status-opp">
@@ -595,7 +595,8 @@ body{
 
     <div class="buttons">
       <button class="btn-cancel" onclick="cancelCombat()">❌ Annuler</button>
-      <button class="btn-confirm" id="btn-confirm" onclick="confirmDeck()" disabled>VALIDER</button>
+      <button class="btn-confirm" id="btn-validate" onclick="validateDeck()" disabled>VALIDER LE DECK</button>
+      <button class="btn-confirm" id="btn-ready" onclick="markReady()" style="display:none;background:#3ddb6f;">✓ PRÊT AU COMBAT</button>
     </div>
   </div>
 </div>
@@ -625,6 +626,7 @@ let _selectedDeckId = null;
 let _matchSub = null;             // subscription realtime
 let _timerInterval = null;
 let _timerStart = 0;
+let _transitioningToPlaying = false; // évite les doubles transitions phase->playing
 const DECK_SELECT_SECONDS = 60;   // 1 minute
 
 // ─── LEVEL / XP — même formule que dans index.html ────────────────────
@@ -909,6 +911,24 @@ async function challengeFriend(fid, fname){
 }
 window.challengeFriend = challengeFriend;
 
+// ─── Chargement du pseudo d'un joueur (utilisé pour afficher l'adversaire) ─
+async function loadOpponentName(oppId){
+  if(!oppId) return 'Adversaire';
+  try {
+    const { data } = await _db.from('players')
+      .select('discord_username').eq('id', oppId).single();
+    return data?.discord_username || 'Adversaire';
+  } catch(e){ return 'Adversaire'; }
+}
+
+// Affiche mon propre pseudo dans la carte "Toi" (symétrique avec l'adversaire)
+function setMyNameLabel(){
+  const myName = _me?.user_metadata?.full_name || _me?.user_metadata?.name
+                 || _me?.user_metadata?.discord_username || 'Toi';
+  const lbl = document.getElementById('status-me-lbl');
+  if(lbl) lbl.textContent = myName;
+}
+
 // ─── ATTENTE DE L'ACCEPTATION PAR L'ADVERSAIRE (CHALLENGER) ───────────
 function startWaitingForAccept(match, fname){
   const overlay = document.getElementById('deck-overlay');
@@ -922,13 +942,16 @@ function startWaitingForAccept(match, fname){
   oppVal.textContent = 'N\'a pas encore répondu…';
   meVal.textContent = 'Défi envoyé ✓';
 
-  // Cacher liste de decks + bouton valider pendant attente
+  setMyNameLabel();
+
+  // Cacher liste de decks + boutons pendant attente
   document.getElementById('deck-list').style.display = 'none';
-  document.getElementById('btn-confirm').style.display = 'none';
+  document.getElementById('btn-validate').style.display = 'none';
+  document.getElementById('btn-ready').style.display = 'none';
 
   overlay.classList.add('show');
 
-  // Timer 60s pour acceptation
+  // Timer 60s pour acceptation (côté challenger en attente de réponse)
   startTimer(DECK_SELECT_SECONDS, ()=>{
     // Timeout : annuler
     _db.from('pvp_matches').update({ phase:'cancelled', end_reason:'no_response' })
@@ -959,6 +982,7 @@ function subscribeToMatch(matchId){
 
 function onMatchUpdate(match){
   if(!match) return;
+  const wasPhase = _currentMatch?.phase;
   _currentMatch = match;
 
   // Match annulé
@@ -969,7 +993,8 @@ function onMatchUpdate(match){
   }
 
   // Passage en phase deck_selection : le défenseur a accepté, on peut maintenant choisir nos decks
-  if(match.phase === 'deck_selection'){
+  // (les 2 côtés reçoivent cet update simultanément via Realtime)
+  if(match.phase === 'deck_selection' && wasPhase !== 'deck_selection'){
     showDeckPicker();
   }
 
@@ -979,33 +1004,76 @@ function onMatchUpdate(match){
     return;
   }
 
-  // Mise à jour des statuts ready/not ready
-  updateReadyStatus(match);
+  // Mise à jour des statuts validated/ready
+  updatePickerState(match);
+
+  // Si on vient de passer à (challenger_ready && defender_ready) en phase deck_selection :
+  // n'importe lequel des 2 clients déclenche la transition 'playing' (la première qui passe gagne,
+  // les autres qui essaient après voient juste phase=playing et skippent silencieusement).
+  if(match.phase === 'deck_selection'
+     && match.challenger_ready && match.defender_ready
+     && !_transitioningToPlaying){
+    _transitioningToPlaying = true;
+    const firstPlayer = Math.random() < 0.5 ? 'challenger' : 'defender';
+    _db.from('pvp_matches')
+      .update({ phase:'playing', first_player: firstPlayer })
+      .eq('id', match.id)
+      .eq('phase', 'deck_selection')  // condition pour éviter d'écraser si un autre a déjà fait la transition
+      .then(()=>{}, ()=>{ _transitioningToPlaying = false; });
+  }
 }
 
-// ─── PASSAGE DU MATCH EN DECK_SELECTION ───────────────────────────────
-function showDeckPicker(){
+// ─── ACTIVATION DU PICKER DE DECK ─────────────────────────────────────
+async function showDeckPicker(){
   const sub = document.getElementById('deck-sheet-sub');
-  sub.textContent = 'Choisis ton deck pour le combat !';
+  sub.textContent = 'Choisis ton deck puis valide, enfin marque-toi Prêt pour lancer le combat !';
   document.getElementById('deck-list').style.display = '';
-  document.getElementById('btn-confirm').style.display = '';
-  renderDeckPicker();
-  updateReadyStatus(_currentMatch);
+  document.getElementById('btn-validate').style.display = '';
+  document.getElementById('btn-ready').style.display = 'none';
 
-  // Reset timer pour 60s de sélection de deck
-  stopTimer();
-  startTimer(DECK_SELECT_SECONDS, ()=>{
-    // Timeout : si on n'a pas choisi, forcer le deck par défaut
-    if(!_selectedDeckId){
-      const def = _decks.find(d=>d.is_default && d.total>=30) || _decks.find(d=>d.total>=30);
-      if(def){
-        _selectedDeckId = def.id;
-        confirmDeck(true);
-      } else {
-        cancelCombat();
-      }
+  // Charger le pseudo adverse si pas déjà fait + mon propre pseudo
+  if(_currentMatch){
+    setMyNameLabel();
+    const oppId = _currentMatch.challenger_id === _me.id
+      ? _currentMatch.defender_id
+      : _currentMatch.challenger_id;
+    const oppLbl = document.getElementById('status-opp-lbl');
+    if(oppLbl){
+      const oppName = await loadOpponentName(oppId);
+      oppLbl.textContent = oppName;
     }
-  });
+  }
+
+  renderDeckPicker();
+  updatePickerState(_currentMatch);
+
+  // Reset timer 60s pour toute la séquence (sélection + validation + prêt)
+  stopTimer();
+  startTimer(DECK_SELECT_SECONDS, onTimerExpire);
+}
+
+function onTimerExpire(){
+  // Timeout : si pas encore ready, annuler (gratuit pour les 2)
+  if(!_currentMatch) return;
+  const iAmChall = _currentMatch.challenger_id === _me.id;
+  const myReady = iAmChall ? _currentMatch.challenger_ready : _currentMatch.defender_ready;
+  if(myReady){
+    // J'ai déjà cliqué Prêt → pas de mon ressort, on attend l'autre. On annule quand même si on arrive là.
+    cancelCombat();
+    return;
+  }
+  // Si je n'ai pas encore validé, tenter le deck par défaut
+  const myVal = iAmChall ? _currentMatch.challenger_validated : _currentMatch.defender_validated;
+  if(!myVal && !_selectedDeckId){
+    const def = _decks.find(d=>d.is_default && d.total>=30) || _decks.find(d=>d.total>=30);
+    if(def) _selectedDeckId = def.id;
+  }
+  // Auto-valider + auto-prêt pour ne pas bloquer la partie
+  if(_selectedDeckId){
+    validateDeck(true).then(()=>markReady(true)).catch(()=>cancelCombat());
+  } else {
+    cancelCombat();
+  }
 }
 
 function renderDeckPicker(){
@@ -1020,99 +1088,163 @@ function renderDeckPicker(){
     const def = list.find(d=>d.is_default && d.total>=30);
     if(def) _selectedDeckId = def.id;
   }
+  // Si j'ai déjà validé mon deck, désactiver la sélection (mais on peut encore changer si on clique "re-sélectionner")
+  const myVal = iAmValidated();
+  const myRdy = iAmReady();
+  const locked = myRdy; // on ne peut plus changer une fois "prêt" (mais on peut encore avant)
+
   root.innerHTML = list.map(d=>{
     const ok = d.total >= 30;
     const sel = _selectedDeckId === d.id;
+    const dis = !ok || locked;
     return `
       <div class="deck-pick ${sel?'selected':''} ${ok?'':'incomplete'}"
-           onclick="${ok?`selectDeck('${d.id}')`:''}">
+           style="${locked?'opacity:.6;cursor:not-allowed;':''}"
+           onclick="${dis?'':`selectDeck('${d.id}')`}">
         <div class="dp-name">${escapeHtml(d.name)}${d.is_default?' <span style="color:#fbbf24;font-size:9px;letter-spacing:1px;">★ PAR DÉFAUT</span>':''}</div>
         <div class="dp-count">${d.total}/30</div>
         ${sel?'<div class="dp-check">✓</div>':''}
       </div>`;
   }).join('');
-  updateConfirmBtn();
+  updateButtonsState();
 }
 
 function selectDeck(id){
+  // Interdire si déjà prêt
+  if(iAmReady()) return;
   _selectedDeckId = id;
+  // Si on a déjà validé et qu'on change, on "dé-valide" côté client pour forcer une nouvelle validation
   renderDeckPicker();
+  updateButtonsState();
 }
 window.selectDeck = selectDeck;
 
-function updateConfirmBtn(){
-  const btn = document.getElementById('btn-confirm');
-  // Si je suis déjà ready, ne plus afficher le bouton
-  if(iAmReady()){
-    btn.textContent = '✓ DECK VALIDÉ';
-    btn.disabled = true;
+function iAmValidated(){
+  if(!_currentMatch) return false;
+  if(_currentMatch.challenger_id === _me.id) return !!_currentMatch.challenger_validated;
+  return !!_currentMatch.defender_validated;
+}
+function iAmReady(){
+  if(!_currentMatch) return false;
+  if(_currentMatch.challenger_id === _me.id) return !!_currentMatch.challenger_ready;
+  return !!_currentMatch.defender_ready;
+}
+
+// Mise à jour des 2 boutons (valider / prêt) selon l'état actuel
+function updateButtonsState(){
+  const btnV = document.getElementById('btn-validate');
+  const btnR = document.getElementById('btn-ready');
+  const myVal = iAmValidated();
+  const myRdy = iAmReady();
+
+  if(myRdy){
+    // Étape 3 : prêt, on attend l'autre
+    btnV.style.display = 'none';
+    btnR.style.display = '';
+    btnR.textContent = '✓ EN ATTENTE DE L\'ADVERSAIRE';
+    btnR.disabled = true;
+    btnR.style.background = '#2a7f47';
+  } else if(myVal){
+    // Étape 2 : deck validé, bouton Prêt visible
+    btnV.style.display = '';
+    btnV.textContent = '✓ DECK VALIDÉ (ré-éditer)';
+    btnV.disabled = false;
+    btnV.style.background = 'transparent';
+    btnV.style.color = '#fbbf24';
+    btnV.style.border = '2px solid #fbbf24';
+    btnV.style.boxShadow = 'none';
+    btnR.style.display = '';
+    btnR.textContent = '✓ PRÊT AU COMBAT';
+    btnR.disabled = false;
+    btnR.style.background = '#3ddb6f';
   } else {
-    btn.textContent = 'VALIDER';
-    btn.disabled = !_selectedDeckId;
+    // Étape 1 : doit sélectionner + valider un deck
+    btnV.style.display = '';
+    btnV.textContent = 'VALIDER LE DECK';
+    btnV.disabled = !_selectedDeckId;
+    btnV.style.background = ''; // retour défaut (CSS)
+    btnV.style.color = '';
+    btnV.style.border = '';
+    btnV.style.boxShadow = '';
+    btnR.style.display = 'none';
   }
 }
 
-function iAmReady(){
-  if(!_currentMatch) return false;
-  if(_currentMatch.challenger_id === _me.id) return _currentMatch.challenger_ready;
-  return _currentMatch.defender_ready;
-}
-
-function updateReadyStatus(match){
+// Mise à jour complète (statuts + boutons) après update match
+function updatePickerState(match){
   if(!match) return;
   const iAmChall = match.challenger_id === _me.id;
-  const myReady = iAmChall ? match.challenger_ready : match.defender_ready;
-  const oppReady = iAmChall ? match.defender_ready : match.challenger_ready;
+  const myVal  = iAmChall ? match.challenger_validated : match.defender_validated;
+  const myRdy  = iAmChall ? match.challenger_ready     : match.defender_ready;
+  const oppVal = iAmChall ? match.defender_validated   : match.challenger_validated;
+  const oppRdy = iAmChall ? match.defender_ready       : match.challenger_ready;
 
   const meCard = document.getElementById('status-me');
   const oppCard = document.getElementById('status-opp');
   const meVal = document.getElementById('status-me-val');
-  const oppVal = document.getElementById('status-opp-val');
+  const oppVal2 = document.getElementById('status-opp-val');
 
-  if(myReady){
+  // Mon statut
+  if(myRdy){
     meCard.classList.add('ready');
-    meVal.textContent = 'Prêt';
+    meVal.textContent = '✓ Prêt';
+  } else if(myVal){
+    meCard.classList.remove('ready');
+    meVal.textContent = 'Deck validé';
   } else {
     meCard.classList.remove('ready');
     meVal.textContent = 'Choisis ton deck…';
   }
 
-  if(oppReady){
+  // Statut adverse
+  if(oppRdy){
     oppCard.classList.add('ready');
-    oppVal.textContent = 'Prêt';
+    oppVal2.textContent = '✓ Prêt';
+  } else if(oppVal){
+    oppCard.classList.remove('ready');
+    oppVal2.textContent = 'Deck validé';
   } else {
     oppCard.classList.remove('ready');
-    oppVal.textContent = 'Choisit son deck…';
+    oppVal2.textContent = 'Choisit son deck…';
   }
 
-  updateConfirmBtn();
+  updateButtonsState();
 }
 
-// ─── VALIDER LE DECK ──────────────────────────────────────────────────
-async function confirmDeck(forced){
+// ─── ÉTAPE 1 : Valider le deck sélectionné ────────────────────────────
+async function validateDeck(forced){
   if(!_currentMatch || !_selectedDeckId){
     if(!forced) toast('Sélectionne un deck');
     return;
   }
-  // Vérifier à nouveau que le deck a 30 cartes
+  // Vérifier que le deck a 30 cartes
   const deck = _decks.find(d=>d.id===_selectedDeckId);
   if(!deck || deck.total < 30){
     toast('Ce deck est incomplet');
     return;
   }
+  // Si on est déjà prêt, ne rien faire (verrouillé)
+  if(iAmReady()) return;
 
+  // Si le bouton sert actuellement de "ré-éditer" (déjà validé), on dé-valide localement
+  // pour que le joueur puisse changer de deck
+  if(iAmValidated()){
+    const iAmChall = _currentMatch.challenger_id === _me.id;
+    const patch = iAmChall ? { challenger_validated: false } : { defender_validated: false };
+    const { data:updated } = await _db.from('pvp_matches')
+      .update(patch).eq('id', _currentMatch.id).select().single();
+    if(updated){ _currentMatch = updated; updatePickerState(updated); renderDeckPicker(); }
+    return;
+  }
+
+  // Sinon c'est une validation normale
   const iAmChall = _currentMatch.challenger_id === _me.id;
   const patch = iAmChall
-    ? { challenger_deck_id: _selectedDeckId, challenger_ready: true }
-    : { defender_deck_id: _selectedDeckId, defender_ready: true };
+    ? { challenger_deck_id: _selectedDeckId, challenger_validated: true }
+    : { defender_deck_id:   _selectedDeckId, defender_validated:   true };
 
-  // Si l'autre est déjà ready, on fait la transition phase 'playing' + tirer au sort le first_player
-  // Mais pour éviter les races, on fait un update atomique d'abord, puis on relit.
   const { data:updated, error } = await _db.from('pvp_matches')
-    .update(patch)
-    .eq('id', _currentMatch.id)
-    .select()
-    .single();
+    .update(patch).eq('id', _currentMatch.id).select().single();
 
   if(error || !updated){
     console.error(error);
@@ -1121,21 +1253,41 @@ async function confirmDeck(forced){
   }
 
   _currentMatch = updated;
-  updateReadyStatus(updated);
-
-  // Si les 2 sont maintenant ready, lancer la phase 'playing'
-  if(updated.challenger_ready && updated.defender_ready && updated.phase === 'deck_selection'){
-    // Un seul des deux fait la transition (le challenger, conventionellement)
-    if(iAmChall){
-      const firstPlayer = Math.random() < 0.5 ? 'challenger' : 'defender';
-      await _db.from('pvp_matches')
-        .update({ phase:'playing', first_player: firstPlayer })
-        .eq('id', updated.id);
-    }
-    // Dans tous les cas, le subscribe recevra le changement et redirigera via onMatchUpdate
-  }
+  updatePickerState(updated);
+  renderDeckPicker();
 }
-window.confirmDeck = confirmDeck;
+window.validateDeck = validateDeck;
+
+// ─── ÉTAPE 2 : Se déclarer prêt au combat ─────────────────────────────
+async function markReady(forced){
+  if(!_currentMatch) return;
+  if(!iAmValidated()){
+    if(!forced) toast('Valide d\'abord ton deck');
+    return;
+  }
+  if(iAmReady()) return;
+
+  const iAmChall = _currentMatch.challenger_id === _me.id;
+  const patch = iAmChall ? { challenger_ready: true } : { defender_ready: true };
+
+  const { data:updated, error } = await _db.from('pvp_matches')
+    .update(patch).eq('id', _currentMatch.id).select().single();
+
+  if(error || !updated){
+    console.error(error);
+    toast('Erreur : réessaie');
+    return;
+  }
+
+  _currentMatch = updated;
+  updatePickerState(updated);
+
+  // Si les 2 sont prêts, onMatchUpdate (via Realtime) déclenchera la transition 'playing'
+  // On simule aussi un onMatchUpdate local immédiat pour que le client qui valide en dernier
+  // déclenche lui-même la transition (anti-race)
+  onMatchUpdate(updated);
+}
+window.markReady = markReady;
 
 // ─── ANNULER LE COMBAT ────────────────────────────────────────────────
 async function cancelCombat(){
@@ -1171,9 +1323,14 @@ function closeDeckOverlay(){
   if(_matchSub){ try{_matchSub.unsubscribe();}catch(e){} _matchSub = null; }
   _currentMatch = null;
   _selectedDeckId = null;
+  _transitioningToPlaying = false;
   // Réinitialiser l'overlay pour la prochaine utilisation
   document.getElementById('deck-list').style.display = '';
-  document.getElementById('btn-confirm').style.display = '';
+  const btnV = document.getElementById('btn-validate');
+  const btnR = document.getElementById('btn-ready');
+  if(btnV){ btnV.style.display = ''; btnV.textContent = 'VALIDER LE DECK'; btnV.disabled = true;
+            btnV.style.background = ''; btnV.style.color = ''; btnV.style.border = ''; btnV.style.boxShadow = ''; }
+  if(btnR){ btnR.style.display = 'none'; btnR.disabled = false; btnR.style.background = '#3ddb6f'; }
 }
 
 // ─── TIMER ────────────────────────────────────────────────────────────
