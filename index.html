@@ -4054,15 +4054,18 @@ function bindGame(){
 
   // Bouton "Proposer en échange" dans modal carte → ouvre mini-picker d'amis
   const btnProposeTrade = document.getElementById('btn-propose-trade');
-  if(btnProposeTrade) btnProposeTrade.addEventListener('click',()=>{
+  if(btnProposeTrade) btnProposeTrade.addEventListener('click', async ()=>{
     const card = state.collSelectedCard;
     if(!card) return;
+    // Charger les amis si pas encore chargés (ou si la liste est vide)
+    if((state.friends||[]).length === 0){
+      await loadFriends();
+    }
     const friends = state.friends || [];
     if(friends.length === 0){
-      showToast('Aucun ami pour proposer un échange', '⚠');
+      showToast('Tu n\'as pas encore d\'amis à qui proposer un échange', '⚠');
       return;
     }
-    // Afficher un mini-modal inline pour choisir l'ami
     _showFriendPickerForTrade(card);
   });
 
