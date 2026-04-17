@@ -2286,6 +2286,7 @@ function renderCardDetailModal(card,th){
       </div>
     </div>
     <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'8':'10'}px;background:${th.accent};color:#fff;border:none;font-size:${isMobile?'10':'11'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
+    <button id="btn-propose-trade" data-cardid="${card.id}" style="padding:${isMobile?'7':'9'}px;background:transparent;color:${th.accent};border:2px solid ${th.accent}50;font-size:${isMobile?'9':'10'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;margin-top:4px;">🔄 PROPOSER EN ÉCHANGE</button>
   ` : `
     <div style="font-family:'Bangers',cursive;font-size:15px;font-weight:900;color:${th.textMuted};letter-spacing:2px;">???</div>
     <div style="font-size:10px;color:${th.textFaint};margin-top:3px;">Carte mystère</div>
@@ -4051,6 +4052,20 @@ function bindGame(){
     loadDecks();
   });
 
+  // Bouton "Proposer en échange" dans modal carte → ouvre mini-picker d'amis
+  const btnProposeTrade = document.getElementById('btn-propose-trade');
+  if(btnProposeTrade) btnProposeTrade.addEventListener('click',()=>{
+    const card = state.collSelectedCard;
+    if(!card) return;
+    const friends = state.friends || [];
+    if(friends.length === 0){
+      showToast('Aucun ami pour proposer un échange', '⚠');
+      return;
+    }
+    // Afficher un mini-modal inline pour choisir l'ami
+    _showFriendPickerForTrade(card);
+  });
+
   // Ouvrir Deck Builder depuis la collection
   const btnOpenDB = document.getElementById('btn-open-deckbuilder');
   if(btnOpenDB) btnOpenDB.addEventListener('click',()=>{
@@ -4247,34 +4262,15 @@ function bindGame(){
     btn.addEventListener('click',async ()=>{
       const mode = btn.dataset.mode;
       if (mode === '10v10') { window.location.href = 'PVP10.html'; return; }
-      if (mode === 'ia') {
+      if (mode === 'ia' || mode === 'pvp') {
         // Vérifier qu'un deck par défaut jouable existe
         const ok = await checkDefaultDeck();
         if (!ok) return;
-        window.location.href = 'PVE.html';
-        return;
+        if (mode === 'ia') { window.location.href = 'PVE.html'; return; }
       }
       if (mode === 'pvp') {
-        // Pour PvP, on a besoin d'au moins un deck complet (30 cartes) — pas forcément le par défaut
-        const db = window.db;
-        const myId = state.currentUser?.id;
-        if (!db || !myId) { showToast('Non connecté', '✗'); return; }
-        const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
-        if (!decksData || decksData.length === 0) {
-          showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
-          return;
-        }
-        const deckIds = decksData.map(d=>d.id);
-        const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
-        const totals = {};
-        (dc||[]).forEach(c=>{ totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
-        const hasComplete = Object.values(totals).some(t=>t>=30);
-        if (!hasComplete) {
-          showToast('Complète au moins un deck (30 cartes) avant de jouer en PvP', '⚠');
-          return;
-        }
-        window.location.href = 'PVP.html';
-        return;
+        setState({showFriends:true, friendsTab:'list'});
+        loadFriends();
       }
     });
   });
@@ -6176,6 +6172,7 @@ waitForSupabase(() => {
           id: user.id,
           discord_username: user.user_metadata.full_name || user.user_metadata.name,
           avatar_url: user.user_metadata.avatar_url,
+          ...(isNewPlayer ? { music_on: true, music_volume: 25 } : {}),
         }, { onConflict: 'id' });
         const { data: playerData } = await db.from('players').select('coins').eq('id', user.id).single();
         if (isNewPlayer) {
@@ -6587,18 +6584,16 @@ async function subscribeNotifications() {
         return;
       }
       if (n.type === 'combat_accepted') {
-        // Nouveau flow : rediriger vers PVP.html, qui gère la sélection de deck synchronisée
+        // Récupérer le match_id depuis le meta
         let matchId = state.pendingMatchId || null;
         try { if (n.meta) matchId = JSON.parse(n.meta)?.match_id || matchId; } catch(e) {}
-        if (matchId) {
-          try { sessionStorage.setItem('pvp_pending_match_id', matchId); } catch(e) {}
-        }
-        showToast(n.text || 'Défi accepté !', '⚔');
-        window.location.href = 'PVP.html';
-        return;
-      }
-      if (n.type === 'combat_cancelled') {
-        showToast(n.text || 'Le combat a été annulé.', '✗');
+        try {
+          sessionStorage.setItem('pvp_match_id', matchId || '');
+          sessionStorage.setItem('pvp_opponent_id', n.from_id || '');
+          sessionStorage.setItem('pvp_my_id', state.currentUser?.id || '');
+          sessionStorage.setItem('pvp_role', 'challenger');
+        } catch(e) {}
+        showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
         return;
       }
       if (n.type === 'combat_declined') {
@@ -6658,11 +6653,13 @@ async function pollNotificationsAndTrades() {
     try { await db.from('notifications').update({ read: true }).eq('id', n.id) } catch(e) {};
     let matchId = state.pendingMatchId || null;
     try { if (n.meta) matchId = JSON.parse(n.meta)?.match_id || matchId; } catch(e) {}
-    if (matchId) {
-      try { sessionStorage.setItem('pvp_pending_match_id', matchId); } catch(e) {}
-    }
-    showToast('Défi accepté !', '⚔');
-    window.location.href = 'PVP.html';
+    try {
+      sessionStorage.setItem('pvp_match_id', matchId || '');
+      sessionStorage.setItem('pvp_opponent_id', n.from_id || '');
+      sessionStorage.setItem('pvp_my_id', myId);
+      sessionStorage.setItem('pvp_role', 'challenger');
+    } catch(e) {}
+    showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
     return;
   }
 
@@ -6747,40 +6744,7 @@ function startNotifPolling() {
 window.startNotifPolling = startNotifPolling;
 
 // ─── COMBAT REQUESTS ──────────────────────────────────────────────
-// Le bouton ⚔️ rapide dans la liste d'amis redirige vers PVP.html
-// (qui gère le nouveau flow complet : deck picker, realtime, etc.)
 async function sendCombatRequest(toId, toName) {
-  const db = window.db;
-  if (!db) return;
-  const myId = state.currentUser?.id;
-  if (!myId || !toId) return;
-
-  // Vérifier qu'on a au moins un deck complet
-  const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
-  if (!decksData || decksData.length === 0) {
-    showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
-    return;
-  }
-  const deckIds = decksData.map(d=>d.id);
-  const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
-  const totals = {};
-  (dc||[]).forEach(c=>{ totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
-  const hasComplete = Object.values(totals).some(t=>t>=30);
-  if (!hasComplete) {
-    showToast('Complète au moins un deck (30 cartes)', '⚠');
-    return;
-  }
-
-  // Pré-sélectionner cet ami sur la page PVP pour lancer directement le défi
-  try {
-    sessionStorage.setItem('pvp_autochallenge_fid', toId);
-    sessionStorage.setItem('pvp_autochallenge_fname', toName || 'Ami');
-  } catch(e) {}
-  window.location.href = 'PVP.html';
-}
-
-// Ancienne logique conservée dans sendCombatRequestLegacy pour référence historique (non utilisée)
-async function sendCombatRequestLegacy(toId, toName) {
   const db = window.db;
   if (!db) return;
   const myId = state.currentUser?.id;
@@ -6820,15 +6784,11 @@ async function respondCombatRequest(notifId, fromId, accept) {
   const myId = state.currentUser?.id;
   if (!myId) return;
 
-  // Récupérer le meta (match_id + match_key) de la notif — nouveau flow PvP
-  let matchId = null, matchKey = null;
+  // Récupérer le meta (match_id) de la notif
+  let matchId = null;
   try {
     const { data: notifData } = await db.from('notifications').select('meta').eq('id', notifId).single();
-    if (notifData?.meta) {
-      const meta = JSON.parse(notifData.meta);
-      matchId  = meta?.match_id  || null;
-      matchKey = meta?.match_key || null;
-    }
+    if (notifData?.meta) matchId = JSON.parse(notifData.meta)?.match_id;
   } catch(e) {}
 
   // Marquer la notif comme lue
@@ -6840,14 +6800,6 @@ async function respondCombatRequest(notifId, fromId, accept) {
 
   if (!accept) {
     showToast('Défi refusé', '✗');
-    // Annuler le match côté DB (nouveau système pvp_matches)
-    if (matchId) {
-      try {
-        await db.from('pvp_matches')
-          .update({ phase: 'cancelled', end_reason: 'declined' })
-          .eq('id', matchId);
-      } catch(e) {}
-    }
     // Prévenir l'expéditeur du refus
     if (fromId) {
       try { await db.from('notifications').insert({
@@ -6861,52 +6813,34 @@ async function respondCombatRequest(notifId, fromId, accept) {
     return;
   }
 
-  // Accepté : vérifier qu'on a au moins un deck complet
-  const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
-  if (!decksData || decksData.length === 0) {
-    showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
-    return;
-  }
-  const deckIds = decksData.map(d => d.id);
-  const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
-  const totals = {};
-  (dc||[]).forEach(c => { totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
-  const hasComplete = Object.values(totals).some(t => t >= 30);
-  if (!hasComplete) {
-    showToast('Complète au moins un deck (30 cartes) avant de combattre', '⚠');
+  // Vérifier deck par défaut
+  const { data: deck } = await db.from('decks')
+    .select('id').eq('player_id', myId).eq('is_default', true).single();
+  if (!deck) {
+    showToast('Configure un deck par défaut avant de combattre !', '🗂️');
     return;
   }
 
-  // Nouveau flow : passer le match en phase 'deck_selection' et rediriger vers PVP.html
-  // qui affichera la sélection de deck simultanée pour les 2 joueurs.
-  if (matchId) {
-    try {
-      await db.from('pvp_matches')
-        .update({ phase: 'deck_selection' })
-        .eq('id', matchId);
-    } catch(e) { console.error('pvp_matches update', e); }
-
-    // Stocker l'ID du match en session — PVP.html le lira via checkPendingMatch()
-    try {
-      sessionStorage.setItem('pvp_pending_match_id', matchId);
-    } catch(e) {}
-    window.location.href = 'PVP.html';
-    return;
-  }
-
-  // ── Fallback ancien flow (ne devrait plus se produire avec le nouveau système) ──
-  // Envoyer combat_accepted à l'expéditeur
+  // Envoyer combat_accepted à l'expéditeur avec le même match_id
   if (fromId) {
     try { await db.from('notifications').insert({
       user_id: fromId,
       type: 'combat_accepted',
       from_id: myId,
-      text: 'Ton défi a été accepté !',
+      text: 'Ton défi a été accepté ! Combat dans 5 secondes…',
       read: false,
+      meta: JSON.stringify({ match_id: matchId }),
     }) } catch(e) {};
   }
-  showToast('Défi accepté — en route vers la sélection de deck', '⚔');
-  window.location.href = 'PVP.html';
+
+  // Lancer le countdown sur l'accepteur (moi)
+  try {
+    sessionStorage.setItem('pvp_match_id', matchId || '');
+    sessionStorage.setItem('pvp_opponent_id', fromId || '');
+    sessionStorage.setItem('pvp_my_id', myId);
+    sessionStorage.setItem('pvp_role', 'defender');
+  } catch(e) {}
+  showPvpCountdown(5, () => { window.location.href = 'GAMEPLAY.html'; });
 }
 
 function showPvpCountdown(seconds, onDone) {
@@ -8104,6 +8038,67 @@ function openCard3DViewer(card) {
   };
 
 })();
+
+// ─── FRIEND PICKER POUR TRADE DEPUIS MODAL CARTE ─────────────────
+function _showFriendPickerForTrade(card){
+  // Supprimer un éventuel picker existant
+  const existing = document.getElementById('_friend-trade-picker');
+  if(existing) existing.remove();
+
+  const friends = state.friends || [];
+  const th = THEMES[state.isDark?'dark':'light'];
+
+  const overlay = document.createElement('div');
+  overlay.id = '_friend-trade-picker';
+  overlay.style.cssText = `position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;`;
+
+  overlay.innerHTML = `
+    <div style="width:100%;max-width:360px;background:${th.bgSecondary};border:3px solid #000;box-shadow:6px 6px 0 #000;overflow:hidden;">
+      <div style="height:3px;background:${th.accent};"></div>
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px 0;">
+        <div style="font-family:'Bangers',cursive;font-size:16px;color:${th.text};letter-spacing:.5px;flex:1;">Proposer à un ami</div>
+        <button id="_ftp-close" style="width:28px;height:28px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="padding:10px 16px 6px;font-size:10px;color:${th.textMuted};">
+        Tu proposes : <span style="color:${RARITY_COLOR[card.rarity]};font-weight:700;">${card.name}</span> (${RARITY_LABEL[card.rarity]})
+      </div>
+      <div style="max-height:280px;overflow-y:auto;padding:6px 16px 16px;display:flex;flex-direction:column;gap:6px;">
+        ${friends.map(f=>`
+          <button class="_ftp-friend" data-fid="${f.id}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${th.bgTertiary};border:2px solid #000;cursor:pointer;transition:all .15s;text-align:left;width:100%;">
+            <div style="width:32px;height:32px;background:${th.accent}20;border:2px solid #000;border-radius:50%;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+              ${f.avatar_url ? `<img src="${f.avatar_url}" style="width:100%;height:100%;object-fit:cover;" />` : `<span style="font-size:14px;">👤</span>`}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.discord_username||'Ami'}</div>
+            </div>
+            <span style="font-size:10px;color:${th.accent};font-weight:700;">Choisir →</span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  // Fermer
+  document.getElementById('_ftp-close').addEventListener('click', ()=>overlay.remove());
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+
+  // Sélectionner un ami → ouvrir trade avec carte déjà sélectionnée, skip à pick_their_card
+  overlay.querySelectorAll('._ftp-friend').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const friendId = btn.dataset.fid;
+      overlay.remove();
+      setState({
+        collSelectedCard: null,
+        showTrade: true,
+        tradeWithId: friendId,
+        tradeMyCard: card,
+        tradeStep: 'pick_their_card',
+        tradeWantedNum: null,
+        tradeSearch: '',
+      });
+    });
+  });
+}
 </script>
 </body>
 </html>
