@@ -3094,6 +3094,24 @@ async function initSupabase(){
   }
   _currentUser=session.user;
 
+  // ── Charger les préférences musique depuis players ──
+  // On lit music_on et music_volume depuis la table players (colonnes optionnelles)
+  try {
+    const { data: pref } = await _db.from('players')
+      .select('music_on, music_volume')
+      .eq('id', _currentUser.id)
+      .single();
+    if (pref) {
+      // Synchroniser localStorage depuis Supabase (source de vérité)
+      if (pref.music_on !== null && pref.music_on !== undefined) {
+        localStorage.setItem('music_on', pref.music_on ? '1' : '0');
+      }
+      if (pref.music_volume !== null && pref.music_volume !== undefined) {
+        localStorage.setItem('music_volume', String(pref.music_volume));
+      }
+    }
+  } catch(e) { /* colonnes absentes — fallback localStorage */ }
+
   // ── Charger TOUTES les cartes depuis Supabase ──
   const {data:allCards,error:cardErr}=await _db.from('cards')
     .select('id,name,type,rarity,hp,attack,defense,precision,description,effect,time_played,name_spell_1,value_spell_1,name_spell_2,value_spell_2,image_url')
@@ -3203,7 +3221,7 @@ async function saveGameResult(isWin,coinsGained,xpGained){
 })();
 </script>
 <script>
-// ─── MUSIQUE AMBIANTE PVE — continuité depuis index.html ─────────────
+// ─── MUSIQUE AMBIANTE PVE — préférences depuis Supabase (players) ─────
 (function(){
   const YT_VID = 'WZH17pU1XeA';
   let _player=null,_ready=false,_pending=false,_playing=false,_retry=null;
@@ -3260,29 +3278,46 @@ async function saveGameResult(isWin,coinsGained,xpGained){
     setTimeout(()=>{if(_retry){clearInterval(_retry);_retry=null;}},15000);
   }
 
+  // ── Persistance Supabase + localStorage (fallback) ──────────────────
+  function _savePref(on, vol){
+    // localStorage — toujours
+    localStorage.setItem('music_on', on ? '1' : '0');
+    if(vol !== undefined) localStorage.setItem('music_volume', String(vol));
+    // Supabase — asynchrone, sans bloquer
+    try {
+      const db = window._db || window.db;
+      const uid = window._currentUser?.id;
+      if(db && uid){
+        const patch = { music_on: on };
+        if(vol !== undefined) patch.music_volume = vol;
+        db.from('players').update(patch).eq('id', uid).then(()=>{}).catch(()=>{});
+      }
+    } catch(e){}
+  }
+
   function _start(){
     if(_playing)return;
-    _playing=true; localStorage.setItem('music_on','1');
+    _playing=true;
+    _savePref(true);
     if(!_ready||!_player){_pending=true;if(_ready)_init();return;}
     _doPlay();_ensurePlay();
   }
 
   function _stop(){
-    _playing=false;_pending=false; localStorage.setItem('music_on','0');
+    _playing=false;_pending=false;
+    _savePref(false);
     if(_retry){clearInterval(_retry);_retry=null;}
     if(_player)try{_player.pauseVideo();}catch(e){}
   }
 
   function _updateUI(){
     const vol=parseInt(localStorage.getItem('music_volume')||'25');
-    // bouton topbar
     const icon=document.getElementById('pve-music-icon');
     const pct=document.getElementById('pve-music-pct');
     const btn=document.getElementById('pve-music-btn');
     if(icon) icon.textContent=_playing?'♪':'♩';
     if(pct)  pct.textContent=vol+'%';
     if(btn)  { btn.style.color=_playing?'#fbbf24':'var(--txt)'; btn.style.borderColor=_playing?'#fbbf2460':'var(--bdr2)'; }
-    // popup
     const tl=document.getElementById('pve-toggle-label');
     const ti=document.getElementById('pve-toggle-icon');
     const tb=document.getElementById('pve-music-toggle');
@@ -3330,24 +3365,25 @@ async function saveGameResult(isWin,coinsGained,xpGained){
 
   window._pveApplyVol=function(val){
     const v=parseInt(val);
-    localStorage.setItem('music_volume',v);
+    _savePref(_playing, v);
     if(_player&&_player.setVolume)try{_player.setVolume(v);}catch(e){}
     _updateUI();
     if(v>0&&!_playing)_start();
     if(v===0&&_playing)_stop();
   };
 
-  // Sauvegarder avant départ
+  // Sauvegarder position avant départ (localStorage uniquement — éphémère)
   window.addEventListener('beforeunload',()=>{
     try{
       if(_player&&_player.getCurrentTime){const t=_player.getCurrentTime();if(t>0)localStorage.setItem('music_pos',t.toFixed(1));}
-      localStorage.setItem('music_on',_playing?'1':'0');
+      // music_on déjà sauvé dans Supabase au moment du toggle
     }catch(e){}
   });
 
-  // Auto-démarrer selon préférence sauvegardée
+  // Auto-démarrer — initSupabase a déjà synchronisé localStorage depuis Supabase
   document.addEventListener('DOMContentLoaded',()=>{
     if(_ready)_init();
+    // localStorage est maintenant à jour grâce à initSupabase()
     if(localStorage.getItem('music_on')!=='0')_start();
     document.addEventListener('click',()=>{
       if(_playing&&_player)try{const s=_player.getPlayerState();if(s!==1)_doPlay();}catch(e){}
