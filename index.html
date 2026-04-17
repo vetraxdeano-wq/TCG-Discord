@@ -8049,7 +8049,7 @@ function _showFriendPickerForTrade(card){
   if(existing) existing.remove();
 
   const friends = state.friends || [];
-  const th = THEMES[state.isDark?'dark':'light'];
+  const th = typeof THEMES !== 'undefined' ? THEMES[state.isDark?'dark':'light'] : (typeof themes !== 'undefined' ? (state.isDark ? themes.dark : themes.light) : t());
 
   const overlay = document.createElement('div');
   overlay.id = '_friend-trade-picker';
