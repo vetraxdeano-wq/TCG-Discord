@@ -4053,11 +4053,17 @@ function bindGame(){
   });
 
   const btnProposeTrade = document.getElementById('btn-propose-trade');
-  if(btnProposeTrade) btnProposeTrade.addEventListener('click',()=>{
+  if(btnProposeTrade) btnProposeTrade.addEventListener('click', async ()=>{
     const card = state.collSelectedCard;
     if(!card) return;
+    if((state.friends||[]).length === 0 && typeof loadFriends === 'function'){
+      await loadFriends();
+    }
     const friends = state.friends || [];
-    if(friends.length === 0){ showToast('Aucun ami pour proposer un échange','⚠'); return; }
+    if(friends.length === 0){
+      setState({collSelectedCard:null, showFriends:true, friendsTab:'list'});
+      return;
+    }
     _showFriendPickerForTrade(card);
   });
 
