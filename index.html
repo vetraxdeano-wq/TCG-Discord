@@ -1686,12 +1686,16 @@ function renderTradeModal(th){
     const rarityOk = wantedCard && wantedCard.rarity === state.tradeMyCard.rarity;
     const notSame = wantedCard && parseInt(wantedCard.id) !== parseInt(state.tradeMyCard.id);
     const canSend = wantedCard && rarityOk && notSame;
-    // Suggestions : filtre par nom OU id, toutes raretés, pas la même carte
+    // Suggestions : si recherche par nom → cartes possédées uniquement (pas de spoil)
+    //               si recherche par ID pur (chiffres) → toutes raretés (l'ID est public)
     const suggestions = tradeSearch.length >= 1
       ? ALL_CARDS.filter(c => {
           const q = tradeSearch.toLowerCase();
-          const matchId  = String(parseInt(c.id)).includes(q) || c.id.toLowerCase().includes(q);
+          const isIdSearch = /^\d+$/.test(tradeSearch.trim());
+          const matchId   = String(parseInt(c.id)).includes(q) || c.id.toLowerCase().includes(q);
           const matchName = c.name.toLowerCase().includes(q);
+          // Nom → seulement les possédées. ID → toutes.
+          if(matchName && !isIdSearch && !c.owned) return false;
           return (matchId || matchName) && parseInt(c.id) !== parseInt(state.tradeMyCard.id);
         }).slice(0, 8)
       : [];
