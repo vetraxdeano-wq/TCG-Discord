@@ -1216,6 +1216,7 @@ html.ios .mob-card-modal{
     <div class="logo-sub" id="pvp-opponent-name">Préparation du combat…</div>
     <div class="si-divider"></div>
     <button class="start-btn" onclick="startGame()" id="pvp-start-btn">Chargement…</button>
+    <div id="pvp-autostart-label" style="margin-top:10px;font-size:11px;color:var(--sub);letter-spacing:.05em;opacity:0;transition:opacity .3s;"></div>
     <button onclick="forfeitBeforeStart()" style="margin-top:14px;background:transparent;border:1px solid var(--bdr3);color:var(--sub);padding:9px 24px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;letter-spacing:.04em;transition:all .2s;" onmouseover="this.style.color='var(--txt)';this.style.borderColor='var(--bdr2)'" onmouseout="this.style.color='var(--sub)';this.style.borderColor='var(--bdr3)'">← Abandonner</button>
   </div>
   <div class="si-cards">
@@ -1270,6 +1271,7 @@ html.ios .mob-card-modal{
 
     
     <div class="card-zone cz-human">
+      <div class="player-tag" id="h-player-tag" style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:3px 0 5px;color:var(--gold);line-height:1;opacity:.9;">—</div>
       <div class="field-card" id="h-fc">
         <div class="fc-img-wrap">
           <div id="h-art" class="fc-ph"><div class="icon">⚡</div><div class="lbl">Héro</div></div>
@@ -1321,6 +1323,7 @@ html.ios .mob-card-modal{
 
     
     <div class="card-zone cz-bot">
+      <div class="player-tag" id="b-player-tag" style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:3px 0 5px;color:var(--red);line-height:1;opacity:.9;">—</div>
       <div class="field-card" id="b-fc">
         <div class="fc-img-wrap">
           <div id="b-art" class="fc-ph"><div class="icon">🤖</div><div class="lbl">En attente</div></div>
@@ -3586,6 +3589,13 @@ async function initSupabase(){
   if(pjNames[0]) pjNames[0].textContent=uname;
   if(pjNames[1]) pjNames[1].textContent=_oppName;
 
+  // ── Labels au-dessus des cartes (visibles mobile + desktop) ──
+  // Côté "human" (h) = TOI, toujours à gauche ; côté "bot" (b) = ADVERSAIRE, toujours à droite
+  const hTag = document.getElementById('h-player-tag');
+  const bTag = document.getElementById('b-player-tag');
+  if(hTag) hTag.textContent = uname;
+  if(bTag) bTag.textContent = _oppName;
+
   // ── Définir le first_player pour la logique de jeu ──
   // En interne : 'human' = moi, 'bot' = adversaire
   const imFirst = (_myRole === _firstPlayer);
@@ -3597,6 +3607,9 @@ async function initSupabase(){
     btn.textContent='⚔ Commencer le combat';
     btn.disabled=false;
   }
+
+  // ── Timer auto-start 10s : si le joueur ne clique pas, on démarre tout seul ──
+  startAutoStartCountdown();
 
   // Prévenir la fermeture intempestive de la page → forfait
   window.addEventListener('beforeunload', (e)=>{
@@ -3611,6 +3624,42 @@ async function initSupabase(){
     }
   });
 }
+
+// ── Timer auto-start : démarre le combat automatiquement après 10s
+//    si le joueur ne clique pas sur le bouton. Évite de bloquer l'adversaire. ──
+let _autoStartInterval = null;
+let _gameStarted = false;
+function startAutoStartCountdown(){
+  const AUTO_SECS = 10;
+  let remaining = AUTO_SECS;
+  const lbl = document.getElementById('pvp-autostart-label');
+  if(lbl){
+    lbl.style.opacity = '1';
+    lbl.textContent = `Démarrage automatique dans ${remaining}s…`;
+  }
+  _autoStartInterval = setInterval(()=>{
+    remaining--;
+    if(_gameStarted){ clearInterval(_autoStartInterval); _autoStartInterval=null; return; }
+    if(lbl) lbl.textContent = `Démarrage automatique dans ${remaining}s…`;
+    if(remaining <= 0){
+      clearInterval(_autoStartInterval); _autoStartInterval=null;
+      if(!_gameStarted){
+        // Lancer le combat automatiquement
+        try { startGame(); } catch(e) { console.warn('[PvP auto-start]', e); }
+      }
+    }
+  }, 1000);
+}
+
+// Patch startGame pour marquer que le combat a commencé (stoppe l'auto-start timer)
+const _origStartGame = window.startGame || startGame;
+window.startGame = function(){
+  _gameStarted = true;
+  if(_autoStartInterval){ clearInterval(_autoStartInterval); _autoStartInterval=null; }
+  const lbl = document.getElementById('pvp-autostart-label');
+  if(lbl) lbl.style.opacity = '0';
+  return _origStartGame.apply(this, arguments);
+};
 
 // ── Patch initGame pour utiliser __pvpInitialFP au lieu de random ──
 const _origInitGame = initGame;
