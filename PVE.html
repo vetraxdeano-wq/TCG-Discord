@@ -3222,22 +3222,29 @@ async function saveGameResult(isWin,coinsGained,xpGained){
     if(!el||_player) return;
     _player=new YT.Player('yt-audio-player-pve',{
       videoId:YT_VID,
-      playerVars:{autoplay:0,controls:0,loop:1,playlist:YT_VID,modestbranding:1,rel:0,playsinline:1,mute:0},
+      playerVars:{autoplay:0,controls:0,loop:0,playlist:YT_VID,modestbranding:1,rel:0,playsinline:1,mute:0},
       events:{
         onReady:function(e){
           const vol=parseInt(localStorage.getItem('music_volume')||'25');
           const pos=parseFloat(localStorage.getItem('music_pos')||'0');
           e.target.setVolume(vol);
           if(pos>2){ try{e.target.seekTo(pos,true);}catch(ex){} }
-          if(_pending){_pending=false;_doPlay();}
+          // seekTo peut déclencher la lecture — forcer la pause si on ne doit pas jouer
+          if(_pending){ _pending=false; _doPlay(); }
+          else { try{ e.target.pauseVideo(); }catch(ex){} }
           setInterval(()=>{
             try{if(_player&&_player.getCurrentTime){const t=_player.getCurrentTime();if(t>0)localStorage.setItem('music_pos',t.toFixed(1));}}catch(ex){}
           },5000);
           _updateUI();
         },
         onStateChange:function(e){
-          if(_playing&&(e.data===YT.PlayerState.ENDED||e.data===YT.PlayerState.PAUSED))
+          if(!_playing) return;
+          if(e.data===YT.PlayerState.ENDED){
+            // Boucle manuelle (loop:0 pour éviter l'autoplay parasite)
+            try{_player.seekTo(0,true);_player.playVideo();}catch(ex){}
+          } else if(e.data===YT.PlayerState.PAUSED){
             setTimeout(()=>{if(_playing)try{_player.playVideo();}catch(ex){}},300);
+          }
         },
         onError:function(){if(_playing)setTimeout(_doPlay,2000);}
       }
