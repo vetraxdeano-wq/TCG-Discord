@@ -2925,7 +2925,7 @@ let _bgRetryTimer = null;
 
 // Lire les préférences sauvegardées par index.html
 function _bgLoadPref(){
-  try{ return localStorage.getItem('music_on') !== '0'; }catch(e){ return true; }
+  try{ return localStorage.getItem('music_on') === '1'; }catch(e){ return false; }
 }
 function _bgLoadVol(){
   try{ return parseInt(localStorage.getItem('music_volume')||'25'); }catch(e){ return 25; }
@@ -3051,34 +3051,13 @@ loadYTApi();
 
 // Démarrer la musique d'ambiance si elle était active dans l'index
 window.addEventListener('DOMContentLoaded',()=>{
+  const shouldPlay=_bgLoadPref();
   _bgUpdateBtn();
-  // Consulter Supabase pour la préférence musique avant tout démarrage
-  (async()=>{
-    try{
-      let tries=0;
-      while(!window.supabase && tries++<30) await new Promise(r=>setTimeout(r,100));
-      if(window.supabase){
-        const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true}});
-        const {data:{session}}=await db.auth.getSession();
-        if(session?.user?.id){
-          const {data}=await db.from('players').select('music_on,music_volume').eq('id',session.user.id).single();
-          if(data){
-            if(data.music_on!==null&&data.music_on!==undefined)
-              localStorage.setItem('music_on',data.music_on?'1':'0');
-            if(data.music_volume!==null&&!isNaN(data.music_volume))
-              localStorage.setItem('music_volume',String(data.music_volume));
-          }
-        }
-      }
-    }catch(e){ /* fallback localStorage */ }
-    // Démarrer seulement si explicitement activé (null = jamais défini = ne pas jouer)
-    const pref=localStorage.getItem('music_on');
-    if(pref==='1'){
-      _bgPlaying=true;
-      _bgPendingPlay=true;
-      _bgUpdateBtn();
-    }
-  })();
+  if(shouldPlay){
+    _bgPlaying=true;
+    _bgPendingPlay=true; // le player n'est pas encore prêt
+    _bgUpdateBtn();
+  }
 });
 
 // Sauvegarder position + état avant de quitter
