@@ -3822,10 +3822,37 @@ initGame = function(){
     }catch(e){}
   });
 
-  // Auto-démarrer selon préférence sauvegardée
+  // Auto-démarrer selon préférence Supabase (fallback localStorage)
   document.addEventListener('DOMContentLoaded',()=>{
     if(_ready)_init();
-    if(localStorage.getItem('music_on')!=='0')_start();
+    // Consulter Supabase pour la préférence musique avant tout démarrage
+    (async()=>{
+      try{
+        // Attendre que Supabase soit dispo (max 3s)
+        let tries=0;
+        while(!window.supabase && tries++<30) await new Promise(r=>setTimeout(r,100));
+        if(window.supabase){
+          const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true}});
+          const {data:{session}} = await db.auth.getSession();
+          if(session?.user?.id){
+            const {data} = await db.from('players').select('music_on,music_volume').eq('id',session.user.id).single();
+            if(data){
+              // Mettre à jour localStorage avec la valeur Supabase (source de vérité)
+              if(data.music_on !== null && data.music_on !== undefined){
+                localStorage.setItem('music_on', data.music_on ? '1' : '0');
+              }
+              if(data.music_volume !== null && !isNaN(data.music_volume)){
+                localStorage.setItem('music_volume', String(data.music_volume));
+                if(_player && _player.setVolume) try{_player.setVolume(data.music_volume);}catch(e){}
+              }
+            }
+          }
+        }
+      }catch(e){ /* fallback localStorage */ }
+      // Démarrer seulement si music_on est true dans localStorage (mis à jour par Supabase si possible)
+      if(localStorage.getItem('music_on') !== '0') _start();
+      _updateUI();
+    })();
     document.addEventListener('click',()=>{
       if(_playing&&_player)try{const s=_player.getPlayerState();if(s!==1)_doPlay();}catch(e){}
     },{once:true});
