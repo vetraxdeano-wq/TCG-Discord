@@ -1668,19 +1668,10 @@ async function loadCardsFromSupabase() {
   const { data: { session } } = await db.auth.getSession();
   window._currentUserId = session?.user?.id || null;
 
-  // Charger le solde coins + préférences musique
+  // Charger le solde coins
   if (window._currentUserId) {
-    const { data: p } = await db.from('players')
-      .select('coins, music_on, music_volume')
-      .eq('id', window._currentUserId).single();
+    const { data: p } = await db.from('players').select('coins').eq('id', window._currentUserId).single();
     window._playerCoins = p ? p.coins : 0;
-    // Synchroniser les prefs musique depuis Supabase (source de vérité)
-    try{
-      if(p && p.music_on !== null && p.music_on !== undefined)
-        localStorage.setItem('music_on', p.music_on ? '1' : '0');
-      if(p && p.music_volume !== null && p.music_volume !== undefined)
-        localStorage.setItem('music_volume', String(p.music_volume));
-    }catch(e){}
 
     // Charger les cartes déjà possédées (map card_id → quantity)
     const { data: owned } = await db.from('player_cards')
@@ -4393,22 +4384,26 @@ async function restart(){
     if(!el || _player) return;
     _player = new YT.Player('yt-audio-player-b2', {
       videoId: YT_VID,
-      playerVars:{ autoplay:0, controls:0, loop:1, playlist:YT_VID, modestbranding:1, rel:0, playsinline:1, mute:0 },
+      playerVars:{ autoplay:0, controls:0, loop:0, playlist:YT_VID, modestbranding:1, rel:0, playsinline:1, mute:0 },
       events:{
         onReady: function(e){
           const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
           const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
           e.target.setVolume(savedVol);
           if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
+          // seekTo peut déclencher la lecture — forcer pause si on ne doit pas jouer
           if(_pendingPlay){ _pendingPlay=false; _doPlay(); }
-          // Sauvegarder position toutes les 5s
+          else{ try{ e.target.pauseVideo(); }catch(ex){} }
           setInterval(()=>{
             try{ if(_player && _player.getCurrentTime){ const t=_player.getCurrentTime(); if(t>0) localStorage.setItem('music_pos', t.toFixed(1)); } }catch(ex){}
           },5000);
           _updateUI();
         },
         onStateChange: function(e){
-          if(_playing && (e.data===YT.PlayerState.ENDED||e.data===YT.PlayerState.PAUSED)){
+          if(!_playing) return;
+          if(e.data===YT.PlayerState.ENDED){
+            try{ _player.seekTo(0,true); _player.playVideo(); }catch(ex){}
+          } else if(e.data===YT.PlayerState.PAUSED){
             setTimeout(()=>{ if(_playing){ try{ _player.playVideo(); }catch(ex){} } },300);
           }
         },
@@ -4433,31 +4428,17 @@ async function restart(){
     setTimeout(()=>{ if(_retryTimer){ clearInterval(_retryTimer); _retryTimer=null; } },15000);
   }
 
-  function _savePref(on, vol){
-    localStorage.setItem('music_on', on ? '1' : '0');
-    if(vol !== undefined) localStorage.setItem('music_volume', String(vol));
-    try{
-      const db = window._db;
-      const uid = window._currentUserId;
-      if(db && uid){
-        const patch = {music_on: on};
-        if(vol !== undefined) patch.music_volume = vol;
-        db.from('players').update(patch).eq('id', uid).then(()=>{}).catch(()=>{});
-      }
-    }catch(e){}
-  }
-
   function _startMusic(){
     if(_playing) return;
     _playing = true;
-    _savePref(true);
+    // Ne pas écrire localStorage ici — uniquement sur action utilisateur
     if(!_ready||!_player){ _pendingPlay=true; if(_ready) _initPlayer(); return; }
     _doPlay(); _ensurePlay();
   }
 
   function _stopMusic(){
     _playing = false; _pendingPlay = false;
-    _savePref(false);
+    // Ne pas écrire localStorage ici — uniquement sur action utilisateur
     if(_retryTimer){ clearInterval(_retryTimer); _retryTimer=null; }
     if(_player){ try{ _player.pauseVideo(); }catch(e){} }
   }
@@ -4505,7 +4486,8 @@ async function restart(){
   };
 
   window._b2ToggleOnOff = function(){
-    if(_playing) _stopMusic(); else _startMusic();
+    if(_playing){ _stopMusic(); localStorage.setItem('music_on','0'); }
+    else { _startMusic(); localStorage.setItem('music_on','1'); }
     _updateUI();
   };
 
@@ -4520,28 +4502,28 @@ async function restart(){
 
   window._b2ApplyVol = function(val){
     const v=parseInt(val);
-    _savePref(_playing, v);
+    localStorage.setItem('music_volume',v);
     if(_player&&_player.setVolume){ try{ _player.setVolume(v); }catch(e){} }
     const label=document.getElementById('music-btn-label');
     if(label) label.textContent=v+'%';
     _updateUI();
-    if(v>0&&!_playing){ _startMusic(); }
-    if(v===0&&_playing){ _stopMusic(); }
+    if(v>0&&!_playing){ _startMusic(); localStorage.setItem('music_on','1'); }
+    if(v===0&&_playing){ _stopMusic(); localStorage.setItem('music_on','0'); }
   };
 
-  // Sauvegarder position avant de quitter (music_on déjà persisté dans Supabase au toggle)
+  // Sauvegarder position avant de quitter
   window.addEventListener('beforeunload',()=>{
     try{
       if(_player&&_player.getCurrentTime){ const t=_player.getCurrentTime(); if(t>0) localStorage.setItem('music_pos',t.toFixed(1)); }
+      localStorage.setItem('music_on',_playing?'1':'0');
     }catch(e){}
   });
 
   // Auto-démarrer si music_on=1 dans localStorage
   document.addEventListener('DOMContentLoaded',()=>{
     if(_ready) _initPlayer();
-    const shouldPlay = localStorage.getItem('music_on') !== '0';
+    const shouldPlay = localStorage.getItem('music_on') === '1';
     if(shouldPlay){ _startMusic(); }
-    // Permettre l'audio après première interaction si autoplay bloqué
     document.addEventListener('click',()=>{ if(_playing&&_player){ try{ const s=_player.getPlayerState(); if(s!==1) _doPlay(); }catch(e){} } },{once:true});
     _updateUI();
   });
