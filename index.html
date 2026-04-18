@@ -299,9 +299,7 @@ button{font-family:inherit;cursor:pointer;}
 </head>
 <body>
 <div id="app" style="position:relative;z-index:1;"></div>
-<!-- Player YT muet système — son restitué via Web Audio API -->
-<div id="yt-audio-player" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;opacity:0;"></div>
-<audio id="_wa_sink" style="display:none;"></audio>
+<div id="yt-audio-player" style="display:none;width:0;height:0;pointer-events:none;"></div>
 <script>
 // ─── THEMES ───────────────────────────────────────────────────────
 const themes = {
@@ -570,37 +568,18 @@ window.onYouTubeIframeAPIReady = function(){
     playerVars:{
       autoplay: 0,
       controls: 0,
-      loop: 0,
+      loop: 0, // géré manuellement pour éviter relance non désirée
       playlist: YT_VIDEO_ID,
       start: YT_START_SEC,
       modestbranding: 1,
       rel: 0,
       playsinline: 1,
-      mute: 1,  // muet système → pas de notification OS / barre de média
+      mute: 0,
     },
     events:{
       onReady: function(e){
-        // Rester muet côté YT — le volume est géré par Web Audio gainNode
-        e.target.setVolume(100); // full volume YT, on gère via gainNode
-        // Relier l'iframe au Web Audio context pour restituer le son sans notif OS
-        try {
-          if(!window._waCtx) window._waCtx = new (window.AudioContext||window.webkitAudioContext)();
-          const iframe = document.querySelector('#yt-audio-player iframe') || document.getElementById('yt-audio-player');
-          if(iframe && window._waCtx) {
-            const dest = window._waCtx.destination;
-            if(!window._waGain) {
-              window._waGain = window._waCtx.createGain();
-              window._waGain.connect(dest);
-            }
-            const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
-            window._waGain.gain.value = savedVol / 100;
-          }
-        } catch(ex) {
-          // Fallback si Web Audio indispo : utiliser setVolume normal
-          e.target.unMute();
-          const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
-          e.target.setVolume(savedVol);
-        }
+        const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
+        e.target.setVolume(savedVol);
         // Restaurer la position sauvegardée dans tous les cas (même si muté)
         // pour que la lecture reprenne là où elle s'était arrêtée
         const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
@@ -762,13 +741,9 @@ window.addEventListener('beforeunload', ()=>{
   }catch(e){}
 });
 
-// Unlock AudioContext + autoplay au 1er clic utilisateur
+// Unlock audio dès la première interaction utilisateur (contourne la politique autoplay)
 (function(){
   const unlock = ()=>{
-    // Résumer le contexte Web Audio (obligatoire après interaction)
-    if(window._waCtx && window._waCtx.state === 'suspended') {
-      window._waCtx.resume().catch(()=>{});
-    }
     if(audioPlaying && _ytPlayer){
       try{ const s=_ytPlayer.getPlayerState(); if(s!==1) _doPlay(); }catch(e){}
     }
