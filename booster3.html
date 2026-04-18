@@ -4410,18 +4410,18 @@ function _bgInitPlayer(){
   if(!el || _bgPlayer) return;
   _bgPlayer = new YT.Player('bg-music-player', {
     videoId: BG_YT_ID,
-    playerVars:{ autoplay:0, controls:0, loop:1, playlist:BG_YT_ID,
+    playerVars:{ autoplay:0, controls:0, loop:0, playlist:BG_YT_ID,
                  modestbranding:1, rel:0, playsinline:1, mute:0 },
     events:{
       onReady: function(e){
-        // Restaurer volume + position sauvegardés par index
         const vol = parseInt(localStorage.getItem('music_volume')||'25');
         e.target.setVolume(vol);
         const pos = parseFloat(localStorage.getItem('music_pos')||'0');
         if(pos > 2){ try{ e.target.seekTo(pos, true); }catch(ex){} }
-        // Démarrer si la préférence est "on"
-        const wantOn = (localStorage.getItem('music_on') !== '0');
+        // seekTo peut déclencher la lecture — forcer pause si on ne doit pas jouer
+        const wantOn = (localStorage.getItem('music_on') === '1');
         if(wantOn){ _bgPlaying=true; _bgDoPlay(); }
+        else { try{ e.target.pauseVideo(); }catch(ex){} }
         _bgUpdateBtn();
         // Sauvegarder la position toutes les 5s
         setInterval(()=>{
@@ -4434,7 +4434,10 @@ function _bgInitPlayer(){
         }, 5000);
       },
       onStateChange: function(e){
-        if(_bgPlaying && (e.data===YT.PlayerState.ENDED||e.data===YT.PlayerState.PAUSED)){
+        if(!_bgPlaying) return;
+        if(e.data===YT.PlayerState.ENDED){
+          try{ _bgPlayer.seekTo(0,true); _bgPlayer.playVideo(); }catch(ex){}
+        } else if(e.data===YT.PlayerState.PAUSED){
           setTimeout(()=>{ if(_bgPlaying){ try{ _bgPlayer.playVideo(); }catch(ex){} } }, 300);
         }
       },
@@ -4457,7 +4460,7 @@ function _bgDoPlay(){
 function _bgPlay(){
   if(_bgPlaying) return;
   _bgPlaying=true;
-  localStorage.setItem('music_on','1');
+  // Ne pas écrire localStorage ici — le statut vient de l'extérieur
   if(!_bgReady||!_bgPlayer){ _bgPending=true; return; }
   _bgDoPlay();
   // Retry polling
@@ -4549,7 +4552,8 @@ document.getElementById('btn-bg-music').addEventListener('click', function(e){
 });
 
 window._bgToggleFromPopup=function(){
-  if(_bgPlaying){ _bgStop(); } else { _bgPlay(); }
+  if(_bgPlaying){ _bgStop(); localStorage.setItem('music_on','0'); }
+  else { _bgPlay(); localStorage.setItem('music_on','1'); }
   _bgUpdateBtn();
   const btn=document.getElementById('bg-music-toggle');
   if(btn){
@@ -4587,8 +4591,8 @@ window._bgApplyVol=function(val){
     b.style.borderColor=bv===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)';
     b.style.color=bv===v?'#fbbf24':'#9d8ea0';
   });
-  if(v>0&&!_bgPlaying){ _bgPlay(); _bgUpdateBtn(); }
-  if(v===0&&_bgPlaying){ _bgStop(); _bgUpdateBtn(); }
+  if(v>0&&!_bgPlaying){ _bgPlay(); localStorage.setItem('music_on','1'); _bgUpdateBtn(); }
+  if(v===0&&_bgPlaying){ _bgStop(); localStorage.setItem('music_on','0'); _bgUpdateBtn(); }
 };
 
 // Sauvegarder position avant de quitter
@@ -4644,7 +4648,7 @@ window.onYouTubeIframeAPIReady = function(){
   _bmuPlayer = new YT.Player('yt-audio-player-booster', {
     videoId: _BMU_VIDEO_ID,
     playerVars:{
-      autoplay:0, controls:0, loop:1,
+      autoplay:0, controls:0, loop:0,
       playlist:_BMU_VIDEO_ID,
       modestbranding:1, rel:0, playsinline:1, mute:0,
     },
@@ -4653,6 +4657,7 @@ window.onYouTubeIframeAPIReady = function(){
         e.target.setVolume(savedVol);
         if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
         if(_bmuPendingPlay){ _bmuPendingPlay = false; _bmuDoPlay(); }
+        else { try{ e.target.pauseVideo(); }catch(ex){} }
         // Sauvegarder la position toutes les 5s
         setInterval(()=>{
           try{
@@ -4664,7 +4669,10 @@ window.onYouTubeIframeAPIReady = function(){
         }, 5000);
       },
       onStateChange: function(e){
-        if(_bmuPlaying && (e.data === YT.PlayerState.ENDED || e.data === YT.PlayerState.PAUSED)){
+        if(!_bmuPlaying) return;
+        if(e.data === YT.PlayerState.ENDED){
+          try{ _bmuPlayer.seekTo(0,true); _bmuPlayer.playVideo(); }catch(ex){}
+        } else if(e.data === YT.PlayerState.PAUSED){
           setTimeout(()=>{ if(_bmuPlaying){ try{ _bmuPlayer.playVideo(); }catch(ex){} } }, 300);
         }
       },
@@ -4696,7 +4704,7 @@ function _bmuEnsurePlay(){
 function _bmuPlay(){
   if(_bmuPlaying) return;
   _bmuPlaying = true;
-  localStorage.setItem('music_on', '1');
+  // Ne pas écrire localStorage ici — uniquement sur action utilisateur
   if(!_bmuReady || !_bmuPlayer){ _bmuPendingPlay = true; return; }
   _bmuDoPlay();
   _bmuEnsurePlay();
@@ -4704,12 +4712,18 @@ function _bmuPlay(){
 function _bmuStop(){
   _bmuPlaying = false;
   _bmuPendingPlay = false;
-  localStorage.setItem('music_on', '0');
+  // Ne pas écrire localStorage ici — uniquement sur action utilisateur
   if(_bmuRetryTimer){ clearInterval(_bmuRetryTimer); _bmuRetryTimer=null; }
   if(_bmuPlayer){ try{ _bmuPlayer.pauseVideo(); }catch(e){} }
 }
 function _bmuToggle(){
-  if(_bmuPlaying) _bmuStop(); else _bmuPlay();
+  if(_bmuPlaying){
+    _bmuStop();
+    localStorage.setItem('music_on','0'); // action utilisateur
+  } else {
+    _bmuPlay();
+    localStorage.setItem('music_on','1'); // action utilisateur
+  }
   _bmuUpdateBtn();
 }
 
@@ -4800,8 +4814,8 @@ window._bmuApplyVol = function(val){
   // Presets highlight
   const pop = document.getElementById('music-vol-popup-booster');
   if(pop){ pop.querySelectorAll('[onclick^="window._bmuApplyVol"]').forEach(b=>{ const bv=parseInt(b.getAttribute('onclick').match(/\d+/)[0]); b.style.background=bv===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'; b.style.borderColor=bv===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'; b.style.color=bv===v?'#fbbf24':'#9d8ea0'; }); }
-  if(v > 0 && !_bmuPlaying){ _bmuPlay(); _bmuUpdateBtn(); const btn=document.getElementById('bmu-toggle-btn'); if(btn){btn.innerHTML='<span>▶ EN LECTURE</span><span style="font-size:14px;">🔊</span>';btn.style.background='rgba(251,191,36,.12)';btn.style.borderColor='rgba(251,191,36,.3)';btn.style.color='#fbbf24';} }
-  if(v === 0 && _bmuPlaying){ _bmuStop(); _bmuUpdateBtn(); const btn=document.getElementById('bmu-toggle-btn'); if(btn){btn.innerHTML='<span>⏸ EN PAUSE</span><span style="font-size:14px;">🔇</span>';btn.style.background='rgba(255,255,255,.04)';btn.style.borderColor='rgba(255,255,255,.08)';btn.style.color='#9d8ea0';} }
+  if(v > 0 && !_bmuPlaying){ _bmuPlay(); localStorage.setItem('music_on','1'); _bmuUpdateBtn(); const btn=document.getElementById('bmu-toggle-btn'); if(btn){btn.innerHTML='<span>▶ EN LECTURE</span><span style="font-size:14px;">🔊</span>';btn.style.background='rgba(251,191,36,.12)';btn.style.borderColor='rgba(251,191,36,.3)';btn.style.color='#fbbf24';} }
+  if(v === 0 && _bmuPlaying){ _bmuStop(); localStorage.setItem('music_on','0'); _bmuUpdateBtn(); const btn=document.getElementById('bmu-toggle-btn'); if(btn){btn.innerHTML='<span>⏸ EN PAUSE</span><span style="font-size:14px;">🔇</span>';btn.style.background='rgba(255,255,255,.04)';btn.style.borderColor='rgba(255,255,255,.08)';btn.style.color='#9d8ea0';} }
 };
 
 // Sauvegarder position avant de quitter (pour reprise dans index.html)
@@ -4826,13 +4840,10 @@ window.addEventListener('beforeunload', ()=>{
   document.addEventListener('click', unlock, {once:true});
 })();
 
-// Démarrage automatique si la préférence est "musique active"
+// Démarrage automatique — respecte strictement la préférence sauvegardée
 (function _bmuAutoStart(){
   const on = localStorage.getItem('music_on');
-  // Par défaut actif si jamais défini, sinon respecter la préférence
-  if(on === null || on === '1'){
-    _bmuPlay();
-  }
+  if(on === '1'){ _bmuPlay(); }
   _bmuUpdateBtn();
 })();
 
