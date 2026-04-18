@@ -2967,7 +2967,7 @@ function _bgEnsurePlay(){
 function bgAudioPlay(){
   if(_bgPlaying) return;
   _bgPlaying=true;
-  _bgSavePref(true);
+  // Ne pas écrire localStorage ici — uniquement sur action utilisateur
   _bgUpdateBtn();
   if(!_bgPlayer){ _bgPendingPlay=true; return; }
   _bgDoPlay();
@@ -2976,13 +2976,16 @@ function bgAudioPlay(){
 function bgAudioStop(){
   _bgPlaying=false;
   _bgPendingPlay=false;
-  _bgSavePref(false);
+  // Ne pas écrire localStorage ici — uniquement sur action utilisateur
   _bgSavePos();
   if(_bgRetryTimer){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; }
   if(_bgPlayer){ try{_bgPlayer.pauseVideo();}catch(e){} }
   _bgUpdateBtn();
 }
-function bgAudioToggle(){ if(_bgPlaying) bgAudioStop(); else bgAudioPlay(); }
+function bgAudioToggle(){
+  if(_bgPlaying){ bgAudioStop(); localStorage.setItem('music_on','0'); }
+  else { bgAudioPlay(); localStorage.setItem('music_on','1'); }
+}
 
 function _bgUpdateBtn(){
   const btn=document.getElementById('bg-music-btn');
@@ -3007,18 +3010,22 @@ function _bgInitPlayer(){
   const savedPos=_bgLoadPos();
   _bgPlayer=new YT.Player('_bgYtFrame',{
     videoId:BG_YT_ID,
-    playerVars:{autoplay:0,controls:0,loop:1,playlist:BG_YT_ID,start:Math.floor(savedPos)||0,modestbranding:1,rel:0,playsinline:1,mute:0},
+    playerVars:{autoplay:0,controls:0,loop:0,playlist:BG_YT_ID,start:Math.floor(savedPos)||0,modestbranding:1,rel:0,playsinline:1,mute:0},
     events:{
       onReady:function(e){
         e.target.setVolume(_bgLoadVol());
         const pos=_bgLoadPos();
         if(pos>2){ try{e.target.seekTo(pos,true);}catch(ex){} }
+        // seekTo peut déclencher la lecture — forcer pause si pas en lecture
         if(_bgPendingPlay){ _bgPendingPlay=false; _bgDoPlay(); _bgEnsurePlay(); }
-        // Sauvegarder position toutes les 5s
+        else{ try{e.target.pauseVideo();}catch(ex){} }
         setInterval(()=>{ _bgSavePos(); },5000);
       },
       onStateChange:function(e){
-        if(_bgPlaying&&(e.data===YT.PlayerState.ENDED||e.data===YT.PlayerState.PAUSED)){
+        if(!_bgPlaying) return;
+        if(e.data===YT.PlayerState.ENDED){
+          try{_bgPlayer.seekTo(0,true);_bgPlayer.playVideo();}catch(ex){}
+        } else if(e.data===YT.PlayerState.PAUSED){
           setTimeout(()=>{ if(_bgPlaying){ try{_bgPlayer.playVideo();}catch(ex){} } },300);
         }
       },
@@ -3051,13 +3058,34 @@ loadYTApi();
 
 // Démarrer la musique d'ambiance si elle était active dans l'index
 window.addEventListener('DOMContentLoaded',()=>{
-  const shouldPlay=_bgLoadPref();
   _bgUpdateBtn();
-  if(shouldPlay){
-    _bgPlaying=true;
-    _bgPendingPlay=true; // le player n'est pas encore prêt
-    _bgUpdateBtn();
-  }
+  // Consulter Supabase pour la préférence musique avant tout démarrage
+  (async()=>{
+    try{
+      let tries=0;
+      while(!window.supabase && tries++<30) await new Promise(r=>setTimeout(r,100));
+      if(window.supabase){
+        const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true}});
+        const {data:{session}}=await db.auth.getSession();
+        if(session?.user?.id){
+          const {data}=await db.from('players').select('music_on,music_volume').eq('id',session.user.id).single();
+          if(data){
+            if(data.music_on!==null&&data.music_on!==undefined)
+              localStorage.setItem('music_on',data.music_on?'1':'0');
+            if(data.music_volume!==null&&!isNaN(data.music_volume))
+              localStorage.setItem('music_volume',String(data.music_volume));
+          }
+        }
+      }
+    }catch(e){ /* fallback localStorage */ }
+    // Démarrer seulement si explicitement activé (null = jamais défini = ne pas jouer)
+    const pref=localStorage.getItem('music_on');
+    if(pref==='1'){
+      _bgPlaying=true;
+      _bgPendingPlay=true;
+      _bgUpdateBtn();
+    }
+  })();
 });
 
 // Sauvegarder position + état avant de quitter
