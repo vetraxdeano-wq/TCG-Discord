@@ -1668,10 +1668,19 @@ async function loadCardsFromSupabase() {
   const { data: { session } } = await db.auth.getSession();
   window._currentUserId = session?.user?.id || null;
 
-  // Charger le solde coins
+  // Charger le solde coins + préférences musique
   if (window._currentUserId) {
-    const { data: p } = await db.from('players').select('coins').eq('id', window._currentUserId).single();
+    const { data: p } = await db.from('players')
+      .select('coins, music_on, music_volume')
+      .eq('id', window._currentUserId).single();
     window._playerCoins = p ? p.coins : 0;
+    // Synchroniser les prefs musique depuis Supabase (source de vérité)
+    try{
+      if(p && p.music_on !== null && p.music_on !== undefined)
+        localStorage.setItem('music_on', p.music_on ? '1' : '0');
+      if(p && p.music_volume !== null && p.music_volume !== undefined)
+        localStorage.setItem('music_volume', String(p.music_volume));
+    }catch(e){}
 
     // Charger les cartes déjà possédées (map card_id → quantity)
     const { data: owned } = await db.from('player_cards')
@@ -4424,17 +4433,31 @@ async function restart(){
     setTimeout(()=>{ if(_retryTimer){ clearInterval(_retryTimer); _retryTimer=null; } },15000);
   }
 
+  function _savePref(on, vol){
+    localStorage.setItem('music_on', on ? '1' : '0');
+    if(vol !== undefined) localStorage.setItem('music_volume', String(vol));
+    try{
+      const db = window._db;
+      const uid = window._currentUserId;
+      if(db && uid){
+        const patch = {music_on: on};
+        if(vol !== undefined) patch.music_volume = vol;
+        db.from('players').update(patch).eq('id', uid).then(()=>{}).catch(()=>{});
+      }
+    }catch(e){}
+  }
+
   function _startMusic(){
     if(_playing) return;
     _playing = true;
-    localStorage.setItem('music_on','1');
+    _savePref(true);
     if(!_ready||!_player){ _pendingPlay=true; if(_ready) _initPlayer(); return; }
     _doPlay(); _ensurePlay();
   }
 
   function _stopMusic(){
     _playing = false; _pendingPlay = false;
-    localStorage.setItem('music_on','0');
+    _savePref(false);
     if(_retryTimer){ clearInterval(_retryTimer); _retryTimer=null; }
     if(_player){ try{ _player.pauseVideo(); }catch(e){} }
   }
@@ -4497,7 +4520,7 @@ async function restart(){
 
   window._b2ApplyVol = function(val){
     const v=parseInt(val);
-    localStorage.setItem('music_volume',v);
+    _savePref(_playing, v);
     if(_player&&_player.setVolume){ try{ _player.setVolume(v); }catch(e){} }
     const label=document.getElementById('music-btn-label');
     if(label) label.textContent=v+'%';
@@ -4506,11 +4529,10 @@ async function restart(){
     if(v===0&&_playing){ _stopMusic(); }
   };
 
-  // Sauvegarder position avant de quitter
+  // Sauvegarder position avant de quitter (music_on déjà persisté dans Supabase au toggle)
   window.addEventListener('beforeunload',()=>{
     try{
       if(_player&&_player.getCurrentTime){ const t=_player.getCurrentTime(); if(t>0) localStorage.setItem('music_pos',t.toFixed(1)); }
-      localStorage.setItem('music_on',_playing?'1':'0');
     }catch(e){}
   });
 
