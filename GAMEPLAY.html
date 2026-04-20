@@ -161,7 +161,7 @@ body.mobile .cz-bot .field-card{
   min-height:0 !important;
   width:100% !important;
   height:auto !important;
-  max-height:100% !important;
+  max-height:calc(100% - 18px) !important;
   max-width:100% !important;
   aspect-ratio:2/3 !important;
   display:flex !important;
@@ -256,7 +256,7 @@ body.mobile .cz-human .field-card{
   min-height:0 !important;
   width:100% !important;
   height:auto !important;
-  max-height:100% !important;
+  max-height:calc(100% - 18px) !important;
   max-width:100% !important;
   aspect-ratio:2/3 !important;
   display:flex !important;
@@ -668,7 +668,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   
   flex:1;
   min-height:0;
-  max-height:calc(100% - 28px);
+  max-height:calc(100% - 40px);
   aspect-ratio:410/580;
   width:auto;
   max-width:92%;
@@ -679,6 +679,14 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   box-shadow:none;
   animation:cardIn .35s cubic-bezier(.34,1.56,.64,1) both;
   flex-shrink:1;
+}
+
+/* Barre HP positionnée hors du field-card, directement dans .card-zone */
+.fc-hprow-outside{
+  width:92%;
+  max-width:92%;
+  margin:4px auto 0;
+  flex-shrink:0;
 }
 
 .fc-img-wrap{
@@ -1271,15 +1279,15 @@ html.ios .mob-card-modal{
 
     
     <div class="card-zone cz-human">
-      <div class="player-tag" id="h-player-tag" style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:3px 0 5px;color:var(--gold);line-height:1;opacity:.9;">—</div>
+      <div class="player-tag" id="h-player-tag" style="font-family:'Cinzel',serif;font-weight:700;font-size:10px;letter-spacing:.07em;text-transform:uppercase;text-align:center;padding:2px 0 3px;color:var(--gold);line-height:1;opacity:.9;">—</div>
       <div class="field-card" id="h-fc">
         <div class="fc-img-wrap">
           <div id="h-art" class="fc-ph"><div class="icon">⚡</div><div class="lbl">Héro</div></div>
         </div>
-        <div class="fc-hprow row-left">
-          <div class="fc-hplabel" id="h-fhplbl">—</div>
-          <div class="fc-hpbar"><div class="fc-hpfill" id="h-fhp" style="width:100%;background:var(--grn)"></div></div>
-        </div>
+      </div>
+      <div class="fc-hprow row-left fc-hprow-outside">
+        <div class="fc-hplabel" id="h-fhplbl">—</div>
+        <div class="fc-hpbar"><div class="fc-hpfill" id="h-fhp" style="width:100%;background:var(--grn)"></div></div>
       </div>
     </div>
 
@@ -1323,15 +1331,15 @@ html.ios .mob-card-modal{
 
     
     <div class="card-zone cz-bot">
-      <div class="player-tag" id="b-player-tag" style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:3px 0 5px;color:var(--red);line-height:1;opacity:.9;">—</div>
+      <div class="player-tag" id="b-player-tag" style="font-family:'Cinzel',serif;font-weight:700;font-size:10px;letter-spacing:.07em;text-transform:uppercase;text-align:center;padding:2px 0 3px;color:var(--red);line-height:1;opacity:.9;">—</div>
       <div class="field-card" id="b-fc">
         <div class="fc-img-wrap">
           <div id="b-art" class="fc-ph"><div class="icon">🤖</div><div class="lbl">En attente</div></div>
         </div>
-        <div class="fc-hprow row-right">
-          <div class="fc-hplabel" id="b-fhplbl">—</div>
-          <div class="fc-hpbar"><div class="fc-hpfill" id="b-fhp" style="width:100%;background:var(--grn)"></div></div>
-        </div>
+      </div>
+      <div class="fc-hprow row-right fc-hprow-outside">
+        <div class="fc-hplabel" id="b-fhplbl">—</div>
+        <div class="fc-hpbar"><div class="fc-hpfill" id="b-fhp" style="width:100%;background:var(--grn)"></div></div>
       </div>
     </div>
 
@@ -2534,6 +2542,7 @@ function renderActions(){
 
 function humanPlayCard(idx){
   const c=G.human.hand[idx];if(!c)return;
+  if(!_isAutoAction) _afkTimeoutCount = 0; // action réelle du joueur → reset AFK
   if(c.ct==='fighter'&&G.phase==='choose_fighter'){
     G.human.hand.splice(idx,1);
     // Réinitialiser hpCur si corrompue (sécurité contre valeur négative ou NaN)
@@ -2607,6 +2616,7 @@ function humanPlayCard(idx){
 }
 function humanPassSort(){
   if(G.phase!=='sort')return;
+  if(!_isAutoAction) _afkTimeoutCount = 0; // action réelle → reset AFK
   G.human.sortJoue=true;
   G.phase='attack';
   pvpBroadcast('pass_spell', {});
@@ -2615,6 +2625,7 @@ function humanPassSort(){
 }
 function humanAttack(){
   if(G.phase!=='attack')return;
+  if(!_isAutoAction) _afkTimeoutCount = 0; // action réelle → reset AFK
   G.phase='bot'; // passe en attente pendant l'animation
   stopChrono();renderActions();
   if(!G.human.fighter||!G.bot.fighter){pvpEndTurn(true);return;}
@@ -3042,19 +3053,36 @@ function resetChrono(){
 }
 
 // Action automatique si le joueur laisse expirer le chrono
+let _isAutoAction = false;
 function runAutoStep(){
   if(G.ended)return;
-  if(G.phase==='choose_fighter'){
-    while(!G.human.hand.some(c=>c.ct==='fighter')&&G.human.pioche.length){
-      G.human.hand.push(G.human.pioche.shift());
+
+  // ── Compteur AFK : 2 chronos expirés consécutifs = forfait automatique ──
+  _afkTimeoutCount = (_afkTimeoutCount||0) + 1;
+  if(_afkTimeoutCount >= AFK_MAX_TIMEOUTS){
+    addLog(`💤 AFK détecté (${AFK_MAX_TIMEOUTS} chronos consécutifs) — forfait automatique`,'sys','JOUEUR');
+    // Notifier l'adversaire
+    try{ pvpBroadcast('forfeit', { reason:'afk' }); }catch(e){}
+    endGame('bot','forfeit');
+    return;
+  }
+
+  _isAutoAction = true;
+  try{
+    if(G.phase==='choose_fighter'){
+      while(!G.human.hand.some(c=>c.ct==='fighter')&&G.human.pioche.length){
+        G.human.hand.push(G.human.pioche.shift());
+      }
+      const fs=G.human.hand.filter(c=>c.ct==='fighter');
+      if(fs.length) humanPlayCard(G.human.hand.indexOf(fs[0]));
+    } else if(G.phase==='sort'){
+      // Par défaut en timeout : passer son sort (conservateur)
+      humanPassSort();
+    } else if(G.phase==='attack'){
+      humanAttack();
     }
-    const fs=G.human.hand.filter(c=>c.ct==='fighter');
-    if(fs.length) humanPlayCard(G.human.hand.indexOf(fs[0]));
-  } else if(G.phase==='sort'){
-    // Par défaut en timeout : passer son sort (conservateur)
-    humanPassSort();
-  } else if(G.phase==='attack'){
-    humanAttack();
+  } finally {
+    _isAutoAction = false;
   }
 }
 
@@ -3248,8 +3276,12 @@ let _matchSub   = null;       // subscription realtime au match (pour forfait ad
 let _processedEventIds = new Set();   // anti-doublon si un event est livré plusieurs fois
 let _heartbeatInterval = null;
 let _disconnectInterval = null;
-const DISCONNECT_TIMEOUT_SEC = 60;
-const HEARTBEAT_INTERVAL_MS = 10000;
+const DISCONNECT_TIMEOUT_SEC = 25;  // délai max avant victoire auto si l'adversaire ne répond plus
+const HEARTBEAT_INTERVAL_MS = 5000; // plus fréquent pour détecter les déco rapidement
+
+// ─── Suivi AFK : nombre de chronos consécutifs expirés pour MOI ───────
+let _afkTimeoutCount = 0;
+const AFK_MAX_TIMEOUTS = 2; // 2 chronos de 30s expirés d'affilée = forfait AFK
 
 // Indique si on attend l'adversaire (désactive les actions + affiche "… joue")
 function setWaitingOpponent(wait, forceFighter){
@@ -3611,16 +3643,102 @@ async function initSupabase(){
   // ── Timer auto-start 10s : si le joueur ne clique pas, on démarre tout seul ──
   startAutoStartCountdown();
 
-  // Prévenir la fermeture intempestive de la page → forfait
-  window.addEventListener('beforeunload', (e)=>{
-    if(!G.ended && G.turn>=1 && document.getElementById('sg').classList.contains('active')){
-      // On ne peut pas bloquer, mais on peut essayer de notifier une déco (best-effort)
-      try{
-        if(navigator.sendBeacon){
-          // Pas d'appel Supabase simple via beacon — on se contente de updater le heartbeat une dernière fois
-          // (l'adversaire détectera le timeout)
-        }
-      }catch(err){}
+  // ── Prévenir la fermeture / retour au menu pendant le combat → FORFAIT immédiat ──
+  //    On utilise fetch(keepalive:true) pour envoyer un PATCH qui survit à la fermeture
+  //    de la page. L'adversaire reçoit donc l'info instantanément via la subscription realtime
+  //    au lieu d'attendre le timeout heartbeat.
+  let _leaveForfeitSent = false;
+  let _sessionToken = null;
+  // Récupérer le token de session une fois pour l'utiliser lors du fetch keepalive
+  (async()=>{
+    try{
+      const { data:{ session } } = await _db.auth.getSession();
+      if(session?.access_token) _sessionToken = session.access_token;
+    }catch(e){}
+  })();
+
+  function triggerInstantForfeit(reason){
+    if(_leaveForfeitSent) return;
+    if(!_matchId || !_currentUser) return;
+    if(G.ended) return;
+    // Ne déclencher que si le combat a réellement commencé
+    if(!(G.turn>=1 && document.getElementById('sg')?.classList.contains('active'))) return;
+    _leaveForfeitSent = true;
+
+    const myId = _currentUser.id;
+    const oppId = _opponentId;
+    const token = _sessionToken || SUPABASE_KEY;
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    };
+
+    // 1) Marquer le match comme terminé — adversaire gagnant
+    try{
+      fetch(`${SUPABASE_URL}/rest/v1/pvp_matches?id=eq.${_matchId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          phase: 'finished',
+          winner_id: oppId,
+          loser_id: myId,
+          end_reason: reason || 'leave',
+          ended_at: new Date().toISOString(),
+        }),
+        keepalive: true,
+      }).catch(()=>{});
+    }catch(e){}
+
+    // 2) Broadcast de l'event "forfeit" pour que l'adversaire soit notifié immédiatement
+    try{
+      fetch(`${SUPABASE_URL}/rest/v1/pvp_match_events`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          match_id: _matchId,
+          player_id: myId,
+          seq: Date.now()*100 + 99,
+          event_type: 'forfeit',
+          payload: { reason: reason || 'leave' },
+        }),
+        keepalive: true,
+      }).catch(()=>{});
+    }catch(e){}
+
+    // 3) Appliquer la pénalité côté joueur (coins -50, losses +1) via RPC si dispo
+    try{
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/apply_forfeit_penalty`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ p_user_id: myId, p_coins_delta: -50 }),
+        keepalive: true,
+      }).catch(()=>{});
+    }catch(e){}
+  }
+  // exposer pour debug
+  window._triggerInstantForfeit = triggerInstantForfeit;
+
+  // beforeunload : fermeture d'onglet / rafraîchissement / navigation
+  window.addEventListener('beforeunload', ()=>{
+    triggerInstantForfeit('leave');
+  });
+  // pagehide : plus fiable que beforeunload sur mobile Safari
+  window.addEventListener('pagehide', ()=>{
+    triggerInstantForfeit('leave');
+  });
+  // visibilitychange : si l'onglet devient caché pendant plus de 30s, forfait
+  let _hiddenTimeout = null;
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'hidden'){
+      clearTimeout(_hiddenTimeout);
+      _hiddenTimeout = setTimeout(()=>{
+        triggerInstantForfeit('hidden_too_long');
+      }, 30000);
+    } else {
+      clearTimeout(_hiddenTimeout);
+      _hiddenTimeout = null;
     }
   });
 }
