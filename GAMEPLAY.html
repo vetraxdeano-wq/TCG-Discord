@@ -1637,7 +1637,8 @@ const SPEED_DELAYS={1:{atk:1800,auto:1200,deal:350},2:{atk:900,auto:500,deal:200
 function mkP(){return{hp:60,hpMax:60,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false,noSpellThisTurn:false};}
 function initGame(){
   G={turn:1,phase:'choose_fighter',human:mkP(),bot:mkP(),ended:false,fp:Math.random()<.5?'human':'bot',
-     stats:{dmgByCard:{},totalDmgH:0,totalDmgB:0,turns:0}};
+     stats:{dmgByCard:{},totalDmgH:0,totalDmgB:0,turns:0},
+     _startedAt: Date.now()};
   const hd=buildPioche(),bd=buildPioche();
   G.human.hand=hd.slice(0,5);G.human.pioche=hd.slice(5);
   G.bot.hand=bd.slice(0,5);G.bot.pioche=bd.slice(5);
@@ -2575,12 +2576,16 @@ function humanPlayCard(idx){
     (async()=>{
       if(!_db||!_currentUser)return;
       const myId=_currentUser.id;
-      const inc=(field,amount=1)=>_db.rpc('increment_stat',{p_user_id:myId,p_field:field,p_amount:amount});
-      const rarMap={C:'cards_common',PC:'cards_uncommon',R:'cards_rare',M:'cards_mythic'};
-      await inc('cards_played_total');
-      await inc('cards_fighters_played');
-      if(rarMap[c.rarete]) await inc(rarMap[c.rarete]);
+      await _db.rpc('register_card_play', {
+        p_user_id: myId,
+        p_card_id: parseInt(c.id),
+        p_mode: 'pvp',
+        p_card_type: 'fighter',
+        p_rarity: c.rarete || null,
+      });
     })();
+    // Mémoriser le dernier fighter joué (pour register_card_win en fin de match)
+    G._myLastFighterId = parseInt(c.id);
     return;
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
@@ -2592,11 +2597,13 @@ function humanPlayCard(idx){
     (async()=>{
       if(!_db||!_currentUser)return;
       const myId=_currentUser.id;
-      const inc=(field,amount=1)=>_db.rpc('increment_stat',{p_user_id:myId,p_field:field,p_amount:amount});
-      const rarMap={C:'cards_common',PC:'cards_uncommon',R:'cards_rare',M:'cards_mythic'};
-      await inc('cards_played_total');
-      await inc('cards_spells_played');
-      if(rarMap[c.rarete]) await inc(rarMap[c.rarete]);
+      await _db.rpc('register_card_play', {
+        p_user_id: myId,
+        p_card_id: parseInt(c.id),
+        p_mode: 'pvp',
+        p_card_type: 'sort',
+        p_rarity: c.rarete || null,
+      });
     })();
     // applySort peut être async (modale de choix) — on lui passe un callback pour continuer
     // onCancel : remet la carte en main et annule le coup joué
@@ -3417,27 +3424,50 @@ async function savePvpResult(isWin, coinsDelta, xpGained, reason){
   if(!_db || !_currentUser || !_matchId) return;
   const myId = _currentUser.id;
   try{
-    // 1. Mettre à jour mes stats joueur (wins/losses/coins/xp)
-    const col = isWin ? 'wins' : 'losses';
+    // 1. Coins + XP sur players (wins/losses/streaks sont gérés par register_match_result)
     const { data:p } = await _db.from('players')
-      .select('wins, losses, coins, xp').eq('id', myId).single();
+      .select('coins, xp').eq('id', myId).single();
     if(p){
       const newCoins = Math.max(0, (p.coins||0) + coinsDelta); // pas en dessous de 0
-      const updates = {
-        [col]: (p[col]||0) + 1,
+      await _db.from('players').update({
         coins: newCoins,
         xp: (p.xp||0) + xpGained,
-      };
-      await _db.from('players').update(updates).eq('id', myId);
+      }).eq('id', myId);
     }
 
-    // 2. Incréments stats
-    const inc = (field, amount=1) => _db.rpc('increment_stat', { p_user_id: myId, p_field: field, p_amount: amount });
-    await inc('games_total');
-    await inc('games_pvp').catch(()=>{}); // si le champ n'existe pas, on ignore silencieusement
-    if(coinsDelta > 0) await inc('coins_earned', coinsDelta);
+    // 2. Résultat de match (wins/losses + séries + games_total + games_pvp)
+    await _db.rpc('register_match_result', {
+      p_user_id: myId,
+      p_mode: 'pvp',
+      p_is_win: !!isWin,
+    });
 
-    // 3. Marquer la ligne pvp_matches comme terminée (seulement le gagnant le fait pour éviter les races)
+    // 3. Coins gagnés (stats)
+    if(coinsDelta > 0){
+      await _db.rpc('increment_stat', { p_user_id: myId, p_field: 'coins_earned', p_amount: coinsDelta });
+    }
+
+    // 4. Temps de jeu (secondes) — global + par mode 'pvp'
+    try {
+      const durMs = Math.max(0, Date.now() - (G._startedAt || Date.now()));
+      const durSec = Math.floor(durMs / 1000);
+      if(durSec > 0){
+        await _db.rpc('increment_stat', { p_user_id: myId, p_field: 'time_played_seconds', p_amount: durSec });
+      }
+    } catch(e){ /* silent */ }
+
+    // 5. Victoire de la carte-fighter (pour "Carte la + victorieuse")
+    if(isWin && G._myLastFighterId){
+      try {
+        await _db.rpc('register_card_win', {
+          p_user_id: myId,
+          p_card_id: G._myLastFighterId,
+          p_mode: 'pvp',
+        });
+      } catch(e){ /* silent */ }
+    }
+
+    // 6. Marquer la ligne pvp_matches comme terminée (seulement le gagnant le fait pour éviter les races)
     if(isWin){
       await _db.from('pvp_matches').update({
         phase: 'finished',
