@@ -1144,8 +1144,6 @@ function renderGame(th){
         <button id="btn-profile" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};overflow:hidden;border:2px solid #000;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,${th.accent},${th.accentAlt});">
           ${state.currentUser?.user_metadata?.avatar_url?`<img src="${state.currentUser.user_metadata.avatar_url}" style="width:100%;height:100%;object-fit:cover;">`:'<span style="font-size:12px;">👤</span>'}
         </button>
-        <!-- Admin panel button (invisible sauf si admin) -->
-        <button id="btn-admin-panel" onclick="window._openAdminPanel()" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0.4;transition:all .18s;" title="Admin">⚙️</button>
       </div>
     </div>
 
@@ -2724,6 +2722,16 @@ function renderTabStats(th){
   const wins = state.wins || 0;
   const losses = state.losses || 0;
   const totalGames = wins + losses;
+  const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) + '%' : '—';
+  const winsPvp = state.winsPvp ?? 0;
+  const lossesPvp = state.lossesPvp ?? 0;
+  const gamesPvp = winsPvp + lossesPvp;
+  const winRatePvp = gamesPvp > 0 ? Math.round((winsPvp / gamesPvp) * 100) + '%' : '—';
+  const winsPve = state.winsPve ?? 0;
+  const lossesPve = state.lossesPve ?? 0;
+  const gamesPve = winsPve + lossesPve;
+  const winRatePve = gamesPve > 0 ? Math.round((winsPve / gamesPve) * 100) + '%' : '—';
+  const longestStreak = state.longestWinStreak || '—';
   const games10v10 = state.stats10v10Games || '—';
   const pveGames = state.statsPveGames || '—';
   const totalCardsPlayed = state.statsTotalCardsPlayed || '—';
@@ -2733,6 +2741,12 @@ function renderTabStats(th){
   const uncommonPlayed = state.statsUncommonPlayed || '—';
   const rarePlayed = state.statsRarePlayed || '—';
   const mythicPlayed = state.statsMythicPlayed || '—';
+  // PVP par rareté
+  const pvpTotal = state.statsPvpCardsTotal || '—';
+  const pvpCommon = state.statsPvpCommon || '—';
+  const pvpUncommon = state.statsPvpUncommon || '—';
+  const pvpRare = state.statsPvpRare || '—';
+  const pvpMythic = state.statsPvpMythic || '—';
   const boostersOpened = state.statsBoostersOpened || '—';
   const normalBoosters = state.statsNormalBoosters || '—';
   const prestigeBoosters = state.statsPrestigeBoosters || '—';
@@ -2740,11 +2754,57 @@ function renderTabStats(th){
   const piochesFlipped = state.statsPiochesFlipped || '—';
   const coinsEarned = state.statsCoinsEarned !== undefined ? (state.statsCoinsEarned||0).toLocaleString('fr-FR') : '—';
 
+  // ── Formatter une carte top : "#ID Nom (×count)" ──
+  const fmtTopCard = (entry) => {
+    if (!entry || !entry.card_id) return '—';
+    const card = (typeof ALL_CARDS !== 'undefined')
+      ? ALL_CARDS.find(c => parseInt(c.id) === parseInt(entry.card_id))
+      : null;
+    const name = card?.name || 'Carte inconnue';
+    return `#${entry.card_id} · ${name} (×${entry.value})`;
+  };
+
+  // ── Collection : % complétion ──
+  let collectionPct = '—';
+  if (typeof ALL_CARDS !== 'undefined' && ALL_CARDS.length > 0) {
+    const owned = ALL_CARDS.filter(c => c.owned).length;
+    collectionPct = Math.round((owned / ALL_CARDS.length) * 100) + '% (' + owned + '/' + ALL_CARDS.length + ')';
+  }
+
   const statRows = [
+    // ── RÉSUMÉ COMBATS ──
     { label: 'Parties jouées (total)', personal: totalGames > 0 ? totalGames : '—', global: state.globalStatsTotalGames || '—' },
+    { label: 'Victoires', personal: wins > 0 ? wins : '—', global: '—' },
+    { label: 'Défaites', personal: losses > 0 ? losses : '—', global: '—' },
+    { label: 'Taux de victoire', personal: winRate, global: '—' },
+    { label: 'Meilleure série de victoires', personal: longestStreak, global: '—' },
     { label: 'Parties 10v10', personal: games10v10, global: state.globalStats10v10Games || '—' },
     { label: 'Parties vs IA (PvE)', personal: pveGames, global: state.globalStatsPveGames || '—' },
-    { label: '— Cartes jouées en combat —', personal: '', global: '', separator: true },
+
+    // ── PVP ──
+    { label: '— Mode PVP —', personal: '', global: '', separator: true },
+    { label: 'Parties PVP', personal: gamesPvp > 0 ? gamesPvp : '—', global: '—' },
+    { label: 'Victoires PVP', personal: winsPvp > 0 ? winsPvp : '—', global: '—' },
+    { label: 'Défaites PVP', personal: lossesPvp > 0 ? lossesPvp : '—', global: '—' },
+    { label: 'Taux de victoire PVP', personal: winRatePvp, global: '—' },
+    { label: 'Cartes jouées en PVP', personal: pvpTotal, global: state.globalStatsPvpCardsTotal || '—' },
+    { label: 'Communes (PVP)', personal: pvpCommon, global: state.globalStatsPvpCommon || '—' },
+    { label: 'Peu Communes (PVP)', personal: pvpUncommon, global: state.globalStatsPvpUncommon || '—' },
+    { label: 'Rares (PVP)', personal: pvpRare, global: state.globalStatsPvpRare || '—' },
+    { label: 'Mythiques (PVP)', personal: pvpMythic, global: state.globalStatsPvpMythic || '—' },
+    { label: 'Carte la + jouée (PVP)', personal: fmtTopCard(state.topCardPvpPlays), global: fmtTopCard(state.globalTopCardPvpPlays) },
+    { label: 'Carte la + victorieuse (PVP)', personal: fmtTopCard(state.topCardPvpWins),  global: fmtTopCard(state.globalTopCardPvpWins) },
+
+    // ── PVE ──
+    { label: '— Mode PVE —', personal: '', global: '', separator: true },
+    { label: 'Victoires PVE', personal: winsPve > 0 ? winsPve : '—', global: '—' },
+    { label: 'Défaites PVE', personal: lossesPve > 0 ? lossesPve : '—', global: '—' },
+    { label: 'Taux de victoire PVE', personal: winRatePve, global: '—' },
+    { label: 'Carte la + jouée (PVE)', personal: fmtTopCard(state.topCardPvePlays), global: fmtTopCard(state.globalTopCardPvePlays) },
+    { label: 'Carte la + victorieuse (PVE)', personal: fmtTopCard(state.topCardPveWins),  global: fmtTopCard(state.globalTopCardPveWins) },
+
+    // ── CARTES (TOUS MODES CONFONDUS) ──
+    { label: '— Cartes jouées (tous modes) —', personal: '', global: '', separator: true },
     { label: 'Cartes jouées (total)', personal: totalCardsPlayed, global: state.globalStatsTotalCardsPlayed || '—' },
     { label: 'Fighters joués', personal: fightersPlayed, global: state.globalStatsFightersPlayed || '—' },
     { label: 'Sorts joués', personal: spellsPlayed, global: state.globalStatsSpellsPlayed || '—' },
@@ -2752,11 +2812,19 @@ function renderTabStats(th){
     { label: 'Cartes Peu Communes', personal: uncommonPlayed, global: state.globalStatsUncommonPlayed || '—' },
     { label: 'Cartes Rares', personal: rarePlayed, global: state.globalStatsRarePlayed || '—' },
     { label: 'Cartes Mythiques', personal: mythicPlayed, global: state.globalStatsMythicPlayed || '—' },
+
+    // ── COLLECTION ──
+    { label: '— Collection —', personal: '', global: '', separator: true },
+    { label: 'Complétion', personal: collectionPct, global: '—' },
+
+    // ── BOOSTERS ──
     { label: '— Boosters —', personal: '', global: '', separator: true },
     { label: 'Boosters ouverts (total)', personal: boostersOpened, global: state.globalStatsBoostersOpened || '—' },
     { label: 'Boosters Normaux', personal: normalBoosters, global: state.globalStatsNormalBoosters || '—' },
     { label: 'Boosters Prestige', personal: prestigeBoosters, global: state.globalStatsPrestigeBoosters || '—' },
     { label: 'Boosters Légendaires', personal: legendBoosters, global: state.globalStatsLegendBoosters || '—' },
+
+    // ── DIVERS ──
     { label: '— Divers —', personal: '', global: '', separator: true },
     { label: 'Pioches retournées', personal: piochesFlipped, global: state.globalStatsPiochesFlipped || '—' },
     { label: 'Coins gagnés', personal: coinsEarned, global: state.globalStatsCoinsEarned !== undefined ? (state.globalStatsCoinsEarned||0).toLocaleString('fr-FR') : '—' },
@@ -2789,13 +2857,21 @@ function renderTabStats(th){
             <div style="border-left:1px solid ${th.border};"></div>
             <div style="border-left:1px solid ${th.border};"></div>
           </div>
-        ` : `
+        ` : (() => {
+          // Valeurs longues (ex. "Carte la + jouée" → "#42 Nom (×123)") :
+          // réduire la taille de police et autoriser le wrap sans casser la grille.
+          const pStr = String(row.personal ?? '');
+          const gStr = String(row.global ?? '');
+          const isLongVal = pStr.length > 10 || gStr.length > 10;
+          const valSize = isLongVal ? (isMobile?'9px':'11px') : (isMobile?'15px':'18px');
+          const valWrap = isLongVal ? 'white-space:normal;word-break:break-word;line-height:1.25;text-align:center;' : '';
+          return `
           <div style="display:grid;grid-template-columns:1fr ${isMobile?'80px 80px':'140px 140px'};border-bottom:1px solid ${th.border}50;background:${idx%2===0?'transparent':th.bg+'18'};">
             <div style="padding:${isMobile?'9px 10px':'11px 16px'};font-size:${isMobile?'11px':'13px'};color:${th.text};font-weight:400;font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;">${row.label}</div>
-            <div style="padding:${isMobile?'9px 4px':'11px 4px'};font-size:${isMobile?'15px':'18px'};color:#a78bfa;font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;">${row.personal}</div>
-            <div style="padding:${isMobile?'9px 4px':'11px 4px'};font-size:${isMobile?'15px':'18px'};color:${th.accent};font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;">${row.global}</div>
-          </div>
-        `).join('')}
+            <div style="padding:${isMobile?'9px 4px':'11px 4px'};font-size:${valSize};color:#a78bfa;font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;${valWrap}">${row.personal}</div>
+            <div style="padding:${isMobile?'9px 4px':'11px 4px'};font-size:${valSize};color:${th.accent};font-weight:700;text-align:center;border-left:1px solid ${th.border}50;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;${valWrap}">${row.global}</div>
+          </div>`;
+        })()).join('')}
 
       </div>
     </div>
@@ -3078,7 +3154,7 @@ function renderNotifModal(th){
             <div style="font-size:11px;font-weight:900;color:${th.green};letter-spacing:.5px;">CADEAU DE BIENVENUE</div>
             <div style="font-size:10px;color:${th.text};margin-top:2px;font-weight:700;">Un Booster Normal offert ! Ouvre tes premières cartes gratuitement.</div>
           </div>
-          <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n,showNotif:false});try{localStorage.setItem('starter_claimed_'+(state.currentUser?.id||''),'1');}catch(e){}window.setBoosterFree();window.location.href='booster1.html';})()" style="padding:7px 12px;font-size:9px;font-weight:900;background:${th.green};color:#000;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">OUVRIR</button>
+          <button onclick="window._claimStarterPack(${idx})" style="padding:7px 12px;font-size:9px;font-weight:900;background:${th.green};color:#000;border:none;cursor:pointer;flex-shrink:0;letter-spacing:.3px;">OUVRIR</button>
           <button onclick="(function(){const n=[...(state.welcomeNotifs||[])];n.splice(${idx},1);setState({welcomeNotifs:n});})()" style="padding:7px 8px;font-size:10px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};cursor:pointer;flex-shrink:0;">✕</button>
         </div>`;
         return '';
@@ -5464,6 +5540,37 @@ function showToast(msg, icon='ℹ') {
   setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2500);
 }
 
+// ─── STARTER PACK — réclamer (source de vérité = Supabase, lié à l'ID joueur) ─
+window._claimStarterPack = async function(notifIdx) {
+  const uid = state.currentUser?.id;
+  // 1. Retirer la notif de l'UI tout de suite (responsive)
+  const n = [...(state.welcomeNotifs || [])];
+  if (notifIdx !== undefined && notifIdx !== null) n.splice(notifIdx, 1);
+  setState({ welcomeNotifs: n, showNotif: false });
+
+  // 2. Marquer comme réclamé côté Supabase (AVANT la redirection : on veut
+  //    s'assurer que le flag est persisté, sinon une erreur réseau laisserait
+  //    la porte ouverte à une seconde réclamation).
+  if (uid && window.db) {
+    try {
+      await window.db.from('players')
+        .update({ starter_pack_claimed: true })
+        .eq('id', uid);
+    } catch(e) {
+      // En cas d'échec : on bloque, on ré-affiche la notif et on informe.
+      console.error('Starter pack claim failed:', e);
+      setState({ welcomeNotifs: [...(state.welcomeNotifs || []), { id: 'starter', type: 'starter_pack' }] });
+      if (window.showToast) window.showToast('Connexion perdue, réessaie', '⚠️');
+      return;
+    }
+  }
+
+  // 3. Mirror localStorage + redirection booster
+  try { localStorage.setItem('starter_claimed_' + (uid || ''), '1'); } catch(e) {}
+  if (window.setBoosterFree) window.setBoosterFree();
+  window.location.href = 'booster1.html';
+};
+
 function enterGame(user, coins) {
   // Notifs de bienvenue (première connexion uniquement)
   const _isNew = sessionStorage.getItem('_new_player');
@@ -5480,23 +5587,34 @@ function enterGame(user, coins) {
       });
     }, 1800);
   } else {
-    // ── RÉTROACTIF : vérifier si le booster de bienvenue a été manqué ──
-    // On vérifie dans localStorage si le joueur a déjà réclamé le starter pack
-    const _starterKey = 'starter_claimed_' + user.id;
-    const _starterClaimed = localStorage.getItem(_starterKey);
-    if (!_starterClaimed) {
-      // Vérifier si le joueur a ouvert des boosters (indicateur de 1ère connexion ancienne)
-      // On remet la notif starter_pack si pas encore réclamée
-      setTimeout(() => {
-        const currentNotifs = state.welcomeNotifs || [];
-        const hasStarter = currentNotifs.some(n => n.type === 'starter_pack');
-        if (!hasStarter) {
-          setState({
-            welcomeNotifs: [...currentNotifs, { id: 'starter', type: 'starter_pack' }],
-          });
+    // ── RÉTROACTIF : vérifier si le starter pack a été réclamé (source de vérité = Supabase) ──
+    // Le flag est lié à l'ID joueur → cross-device, non contournable en changeant de navigateur/IP.
+    (async () => {
+      try {
+        const db = window.db;
+        if (!db || !user?.id) return;
+        const { data: p } = await db.from('players')
+          .select('starter_pack_claimed')
+          .eq('id', user.id)
+          .single();
+        // Si déjà réclamé en base → on mirror dans localStorage pour perf UI et on n'affiche rien
+        if (p && p.starter_pack_claimed === true) {
+          try { localStorage.setItem('starter_claimed_' + user.id, '1'); } catch(e) {}
+          return;
         }
-      }, 2500);
-    }
+        // Pas encore réclamé en base → afficher la notif (même si localStorage dit le contraire :
+        // le joueur a peut-être vidé son cache avant d'ouvrir le booster).
+        setTimeout(() => {
+          const currentNotifs = state.welcomeNotifs || [];
+          const hasStarter = currentNotifs.some(n => n.type === 'starter_pack');
+          if (!hasStarter) {
+            setState({
+              welcomeNotifs: [...currentNotifs, { id: 'starter', type: 'starter_pack' }],
+            });
+          }
+        }, 2500);
+      } catch(e) { /* silent */ }
+    })();
   }
   const s = document.getElementById('splash');
   if (s) s.style.opacity = '0';
@@ -5559,9 +5677,17 @@ async function loadPlayerStats(userId) {
   const db = window.db;
   if (!db || !userId) return;
   // Wins/losses depuis players
-  const { data } = await db.from('players').select('wins, losses').eq('id', userId).single();
-  if (data) setState({ wins: data.wins ?? 0, losses: data.losses ?? 0 });
-  // Stats détaillées personnelles
+  const { data } = await db.from('players').select('wins, losses, wins_pvp, wins_pve, losses_pvp, losses_pve, longest_win_streak').eq('id', userId).single();
+  if (data) setState({
+    wins: data.wins ?? 0,
+    losses: data.losses ?? 0,
+    winsPvp: data.wins_pvp ?? 0,
+    winsPve: data.wins_pve ?? 0,
+    lossesPvp: data.losses_pvp ?? 0,
+    lossesPve: data.losses_pve ?? 0,
+    longestWinStreak: data.longest_win_streak ?? 0,
+  });
+  // Stats détaillées personnelles (table `stats`)
   const { data: s } = await db.from('stats').select('*').eq('user_id', userId).single();
   if (s) {
     setState({
@@ -5580,6 +5706,12 @@ async function loadPlayerStats(userId) {
       statsLegendBoosters:   s.boosters_legendary,
       statsPiochesFlipped:   s.pioches_flipped,
       statsCoinsEarned:      s.coins_earned,
+      // PVP-only (si colonnes présentes — sinon undefined → affichera '—')
+      statsPvpCardsTotal:    s.pvp_cards_total,
+      statsPvpCommon:        s.pvp_cards_common,
+      statsPvpUncommon:      s.pvp_cards_uncommon,
+      statsPvpRare:          s.pvp_cards_rare,
+      statsPvpMythic:        s.pvp_cards_mythic,
     });
   }
   // Stats globales
@@ -5602,8 +5734,58 @@ async function loadPlayerStats(userId) {
       globalStatsLegendBoosters:   g.boosters_legendary,
       globalStatsPiochesFlipped:   g.pioches_flipped,
       globalStatsCoinsEarned:      g.coins_earned,
+      globalStatsPvpCardsTotal:    g.pvp_cards_total,
+      globalStatsPvpCommon:        g.pvp_cards_common,
+      globalStatsPvpUncommon:      g.pvp_cards_uncommon,
+      globalStatsPvpRare:          g.pvp_cards_rare,
+      globalStatsPvpMythic:        g.pvp_cards_mythic,
     });
   }
+
+  // ─── CARTES TOP (joueur) depuis card_plays ─────────────────────
+  // Table : card_plays(user_id, card_id, mode, plays, wins)
+  // mode ∈ {'pvp','pve'}
+  try {
+    const { data: myPlays } = await db.from('card_plays')
+      .select('card_id, mode, plays, wins')
+      .eq('user_id', userId);
+    if (myPlays && myPlays.length > 0) {
+      const topFor = (mode, field) => {
+        const rows = myPlays.filter(r => r.mode === mode && (r[field] || 0) > 0);
+        if (rows.length === 0) return null;
+        rows.sort((a,b) => (b[field]||0) - (a[field]||0));
+        return { card_id: rows[0].card_id, value: rows[0][field] };
+      };
+      setState({
+        topCardPvpPlays: topFor('pvp', 'plays'),
+        topCardPvePlays: topFor('pve', 'plays'),
+        topCardPvpWins:  topFor('pvp', 'wins'),
+        topCardPveWins:  topFor('pve', 'wins'),
+      });
+    }
+  } catch(e) { /* table absente → stats silencieusement masquées */ }
+
+  // ─── CARTES TOP (global) depuis card_plays_global (vue/table agrégée) ──
+  // Option simple côté Supabase : une VIEW qui agrège SUM(plays), SUM(wins)
+  // par (card_id, mode), ou une table matérialisée maintenue par trigger.
+  try {
+    const { data: gPlays } = await db.from('card_plays_global')
+      .select('card_id, mode, plays, wins');
+    if (gPlays && gPlays.length > 0) {
+      const topFor = (mode, field) => {
+        const rows = gPlays.filter(r => r.mode === mode && (r[field] || 0) > 0);
+        if (rows.length === 0) return null;
+        rows.sort((a,b) => (b[field]||0) - (a[field]||0));
+        return { card_id: rows[0].card_id, value: rows[0][field] };
+      };
+      setState({
+        globalTopCardPvpPlays: topFor('pvp', 'plays'),
+        globalTopCardPvePlays: topFor('pve', 'plays'),
+        globalTopCardPvpWins:  topFor('pvp', 'wins'),
+        globalTopCardPveWins:  topFor('pve', 'wins'),
+      });
+    }
+  } catch(e) { /* silent */ }
 }
 
 // ─── RÉCOMPENSES & STREAK ─────────────────────────────────────────
@@ -6771,7 +6953,10 @@ async function pollNotificationsAndTrades() {
 }
 function startNotifPolling() {
   if (_notifPollInterval) clearInterval(_notifPollInterval);
-  _notifPollInterval = setInterval(pollNotificationsAndTrades, 20000);
+  // Polling rapide (3s) : fallback au realtime Supabase pour que les invitations
+  // PVP / défis en combat apparaissent quasi-instantanément même si la
+  // connexion realtime a sauté (reconnexion WebSocket, onglet en arrière-plan, etc.).
+  _notifPollInterval = setInterval(pollNotificationsAndTrades, 3000);
 }
 window.startNotifPolling = startNotifPolling;
 
@@ -7818,322 +8003,7 @@ function openCard3DViewer(card) {
 })();
 </script>
 
-<!-- ═══════════════════════════════════════════════════════════ -->
-<!-- PANEL ADMIN                                                 -->
-<!-- ═══════════════════════════════════════════════════════════ -->
 <script>
-(function() {
-  // ── Config ────────────────────────────────────────────────────
-  const ADMIN_CODE    = '5989';
-  const GITHUB_REPO   = 'vetraxdeano-wq/TCG-Discord';
-  const GITHUB_FILE   = 'index.html';
-  const GITHUB_BRANCH = 'main';
-
-  // ── Variables modifiables ──────────────────────────────────────
-  const ADMIN_FIELDS = [
-    // COULEURS THÈME DARK
-    { id:'dark_bg',          label:'Fond principal',        type:'color', path:'themes.dark.bg' },
-    { id:'dark_bgSecondary', label:'Fond secondaire',       type:'color', path:'themes.dark.bgSecondary' },
-    { id:'dark_bgTertiary',  label:'Fond tertiaire',        type:'color', path:'themes.dark.bgTertiary' },
-    { id:'dark_accent',      label:'Couleur accentuation',  type:'color', path:'themes.dark.accent' },
-    { id:'dark_accentAlt',   label:'Accentuation alt',      type:'color', path:'themes.dark.accentAlt' },
-    { id:'dark_text',        label:'Texte principal',       type:'color', path:'themes.dark.text' },
-    { id:'dark_textMuted',   label:'Texte secondaire',      type:'color', path:'themes.dark.textMuted' },
-    { id:'dark_green',       label:'Couleur succès',        type:'color', path:'themes.dark.green' },
-    { id:'dark_red',         label:'Couleur danger',        type:'color', path:'themes.dark.red' },
-    // IMAGES
-    { id:'img_logo',         label:'Logo (URL)',            type:'url',   path:'img_logo' },
-    { id:'img_background',   label:'Image fond (URL)',      type:'url',   path:'img_background' },
-    { id:'img_booster1',     label:'Booster Normal (URL)',  type:'url',   path:'img_booster1' },
-    { id:'img_booster2',     label:'Booster Prestige (URL)',type:'url',   path:'img_booster2' },
-    { id:'img_booster3',     label:'Booster Légendaire (URL)',type:'url', path:'img_booster3' },
-    // MUSIQUE
-    { id:'yt_video_id',      label:'YouTube Video ID (musique)', type:'text', path:'yt_video_id' },
-    // TYPOGRAPHIES
-    { id:'font_main',        label:'Police principale (Google Fonts name)', type:'text', path:'font_main' },
-    { id:'font_title',       label:'Police titres (Google Fonts name)',     type:'text', path:'font_title' },
-    // BOOSTERS - PRIX
-    { id:'price_booster1',   label:'Prix Booster Normal',   type:'number', path:'price_booster1' },
-    { id:'price_booster2',   label:'Prix Booster Prestige', type:'number', path:'price_booster2' },
-    { id:'price_booster3',   label:'Prix Booster Légendaire',type:'number',path:'price_booster3' },
-  ];
-
-  // ── Lire les valeurs actuelles depuis le DOM/state ─────────────
-  function getCurrentValues() {
-    const vals = {};
-    try {
-      const th = window.state?.isDark !== false ? (window.themes?.dark||{}) : (window.themes?.light||{});
-      vals.dark_bg          = th.bg          || '#0f0e17';
-      vals.dark_bgSecondary = th.bgSecondary || '#1a1825';
-      vals.dark_bgTertiary  = th.bgTertiary  || '#221f2e';
-      vals.dark_accent      = th.accent      || '#fbbf24';
-      vals.dark_accentAlt   = th.accentAlt   || '#f43f5e';
-      vals.dark_text        = th.text        || '#fffbeb';
-      vals.dark_textMuted   = th.textMuted   || '#9d8ea0';
-      vals.dark_green       = th.green       || '#22c55e';
-      vals.dark_red         = th.red         || '#ef4444';
-    } catch(e) {}
-    // Images — lire depuis le HTML source
-    vals.img_logo        = document.querySelector('img[src*="ok3cbg"]')?.src || '';
-    vals.img_background  = (document.querySelector('body::before') || '');
-    vals.img_booster1    = '';
-    vals.img_booster2    = '';
-    vals.img_booster3    = '';
-    vals.yt_video_id     = window.YT_VIDEO_ID || 'WZH17pU1XeA';
-    vals.font_main       = 'Oswald';
-    vals.font_title      = 'Bangers';
-    vals.price_booster1  = window.BOOSTERS?.[0]?.price || 150;
-    vals.price_booster2  = window.BOOSTERS?.[1]?.price || 1000;
-    vals.price_booster3  = window.BOOSTERS?.[2]?.price || 2000;
-    return vals;
-  }
-
-  // ── Appliquer un changement en live ───────────────────────────
-  function applyLive(fieldId, value) {
-    try {
-      if (fieldId.startsWith('dark_')) {
-        const key = fieldId.replace('dark_', '');
-        if (window.themes?.dark) window.themes.dark[key] = value;
-        if (window.render) window.render();
-      }
-      if (fieldId === 'img_logo') {
-        document.querySelectorAll('img[src*="ok3cbg"], img[src*="logo"]').forEach(el => el.src = value);
-      }
-      if (fieldId === 'price_booster1' && window.BOOSTERS?.[0]) window.BOOSTERS[0].price = parseInt(value);
-      if (fieldId === 'price_booster2' && window.BOOSTERS?.[1]) window.BOOSTERS[1].price = parseInt(value);
-      if (fieldId === 'price_booster3' && window.BOOSTERS?.[2]) window.BOOSTERS[2].price = parseInt(value);
-      if (fieldId === 'font_main') {
-        document.querySelectorAll('[style*="Oswald"]').forEach(el => {
-          el.style.fontFamily = `'${value}', sans-serif`;
-        });
-      }
-    } catch(e) {}
-  }
-
-  // ── Appliquer toutes les modifs dans le HTML source ───────────
-  function applyChangesToHtml(html, changes) {
-    let result = html;
-    for (const [fieldId, value] of Object.entries(changes)) {
-      if (fieldId.startsWith('dark_')) {
-        const key = fieldId.replace('dark_', '');
-        // Remplacer dans l'objet themes.dark
-        const regex = new RegExp(`(themes\\s*=\\s*\\{[^}]*?dark\\s*:\\s*\\{[^}]*?${key}\\s*:\\s*)"[^"]*"`, 's');
-        result = result.replace(regex, `$1"${value}"`);
-      }
-      if (fieldId === 'img_logo') {
-        result = result.replace(/https:\/\/i\.goopics\.net\/ok3cbg\.png/g, value);
-      }
-      if (fieldId === 'img_background') {
-        result = result.replace(/(background-image:url\()([^)]+)(\))/g, `$1${value}$3`);
-      }
-      if (fieldId === 'img_booster1') {
-        result = result.replace(/https:\/\/i\.goopics\.net\/ueiki4\.png/g, value);
-      }
-      if (fieldId === 'img_booster2') {
-        result = result.replace(/https:\/\/i\.goopics\.net\/61e1o1\.png/g, value);
-      }
-      if (fieldId === 'img_booster3') {
-        result = result.replace(/https:\/\/i\.goopics\.net\/cussu4\.png/g, value);
-      }
-      if (fieldId === 'yt_video_id') {
-        result = result.replace(/const YT_VIDEO_ID\s*=\s*'[^']*'/, `const YT_VIDEO_ID = '${value}'`);
-      }
-      if (fieldId === 'font_main') {
-        result = result.replace(/family=Bangers&family=Oswald[^"]*/, `family=${value}:wght@400;600;700&display=swap`);
-        result = result.replace(/'Oswald',sans-serif/g, `'${value}',sans-serif`);
-      }
-      if (fieldId === 'font_title') {
-        result = result.replace(/'Bangers',cursive/g, `'${value}',cursive`);
-      }
-      if (fieldId === 'price_booster1') {
-        result = result.replace(/(\{id:1,name:"Normal",price:)\d+/, `$1${value}`);
-      }
-      if (fieldId === 'price_booster2') {
-        result = result.replace(/(\{id:2,name:"Prestige",price:)\d+/, `$1${value}`);
-      }
-      if (fieldId === 'price_booster3') {
-        result = result.replace(/(\{id:3,name:"Légendaire",price:)\d+/, `$1${value}`);
-      }
-    }
-    return result;
-  }
-
-  // ── Sauvegarder sur GitHub ─────────────────────────────────────
-  async function saveToGitHub(token, changes) {
-    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
-
-    // Récupérer le fichier actuel + son SHA
-    const getRes = await fetch(apiUrl + `?ref=${GITHUB_BRANCH}`, {
-      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
-    });
-    if (!getRes.ok) throw new Error('Impossible de lire le fichier GitHub. Vérifie ton token.');
-    const fileData = await getRes.json();
-    const sha = fileData.sha;
-    const currentHtml = atob(fileData.content.replace(/\n/g, ''));
-
-    // Appliquer les modifications
-    const newHtml = applyChangesToHtml(currentHtml, changes);
-
-    // Commit
-    const putRes = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: '⚙️ Admin panel update',
-        content: btoa(unescape(encodeURIComponent(newHtml))),
-        sha,
-        branch: GITHUB_BRANCH
-      })
-    });
-    if (!putRes.ok) {
-      const err = await putRes.json();
-      throw new Error(err.message || 'Erreur GitHub');
-    }
-    return true;
-  }
-
-  // ── Construire le panel ────────────────────────────────────────
-  function buildPanel() {
-    const vals = getCurrentValues();
-    const panel = document.createElement('div');
-    panel.id = 'admin-panel-overlay';
-    panel.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:16px;';
-
-    const sections = {
-      'COULEURS': ADMIN_FIELDS.filter(f => f.id.startsWith('dark_')),
-      'IMAGES': ADMIN_FIELDS.filter(f => f.id.startsWith('img_')),
-      'MUSIQUE': ADMIN_FIELDS.filter(f => f.id === 'yt_video_id'),
-      'TYPOGRAPHIES': ADMIN_FIELDS.filter(f => f.id.startsWith('font_')),
-      'PRIX BOOSTERS': ADMIN_FIELDS.filter(f => f.id.startsWith('price_')),
-    };
-
-    let fieldsHtml = '';
-    for (const [section, fields] of Object.entries(sections)) {
-      fieldsHtml += `<div style="font-size:9px;color:#fbbf24;letter-spacing:3px;font-weight:700;text-transform:uppercase;margin:16px 0 8px;border-bottom:1px solid rgba(251,191,36,.2);padding-bottom:6px;">— ${section} —</div>`;
-      for (const f of fields) {
-        const v = vals[f.id] || '';
-        if (f.type === 'color') {
-          fieldsHtml += `
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-              <input type="color" id="af_${f.id}" value="${v}" style="width:36px;height:28px;border:2px solid #000;cursor:pointer;padding:2px;background:#1a1825;flex-shrink:0;"
-                oninput="window._adminLive('${f.id}', this.value)">
-              <label style="font-size:11px;color:#9d8ea0;flex:1;">${f.label}</label>
-              <span id="af_${f.id}_val" style="font-size:10px;color:#fffbeb;font-family:monospace;">${v}</span>
-            </div>`;
-        } else {
-          fieldsHtml += `
-            <div style="margin-bottom:8px;">
-              <label style="font-size:10px;color:#9d8ea0;display:block;margin-bottom:4px;">${f.label}</label>
-              <input type="${f.type === 'number' ? 'number' : 'text'}" id="af_${f.id}" value="${v}"
-                style="width:100%;background:#0f0e17;border:1px solid #000;color:#fffbeb;padding:7px 10px;font-size:11px;font-family:monospace;box-sizing:border-box;"
-                oninput="window._adminLive('${f.id}', this.value)">
-            </div>`;
-        }
-      }
-    }
-
-    panel.innerHTML = `
-      <div style="width:100%;max-width:520px;max-height:90vh;background:#1a1825;border:3px solid #000;box-shadow:6px 6px 0 #000;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="height:4px;background:linear-gradient(90deg,#fbbf24,#f43f5e,#a78bfa);flex-shrink:0;"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:2px solid #000;flex-shrink:0;">
-          <div style="font-family:'Bangers',cursive;font-size:18px;letter-spacing:2px;color:#fffbeb;">⚙️ PANEL ADMIN</div>
-          <button onclick="document.getElementById('admin-panel-overlay').remove()" style="background:transparent;border:none;color:#9d8ea0;font-size:20px;cursor:pointer;line-height:1;">✕</button>
-        </div>
-        <div style="flex:1;overflow-y:auto;padding:16px;scrollbar-width:thin;scrollbar-color:#fbbf24 #0f0e17;">
-          ${fieldsHtml}
-        </div>
-        <div style="padding:14px 16px;border-top:2px solid #000;flex-shrink:0;display:flex;flex-direction:column;gap:8px;">
-          <div>
-            <label style="font-size:10px;color:#9d8ea0;display:block;margin-bottom:4px;">🔑 GitHub Personal Access Token</label>
-            <input type="password" id="admin-gh-token" placeholder="ghp_xxxxxxxxxxxx"
-              style="width:100%;background:#0f0e17;border:1px solid #000;color:#fffbeb;padding:7px 10px;font-size:11px;font-family:monospace;box-sizing:border-box;">
-            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-              <input type="checkbox" id="admin-remember-token" style="cursor:pointer;">
-              <label for="admin-remember-token" style="font-size:10px;color:#9d8ea0;cursor:pointer;">Mémoriser le token sur cet appareil</label>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button id="admin-save-btn" onclick="window._adminSave()" style="flex:1;padding:11px;background:#fbbf24;color:#000;border:2px solid #000;box-shadow:3px 3px 0 #000;font-family:'Bangers',cursive;font-size:15px;letter-spacing:2px;cursor:pointer;">💾 SAUVEGARDER POUR TOUS</button>
-            <button onclick="document.getElementById('admin-panel-overlay').remove()" style="padding:11px 16px;background:transparent;color:#9d8ea0;border:1px solid #000;cursor:pointer;font-size:12px;">Annuler</button>
-          </div>
-          <div id="admin-save-status" style="font-size:10px;text-align:center;color:#9d8ea0;min-height:14px;"></div>
-        </div>
-      </div>`;
-
-    document.body.appendChild(panel);
-
-    // Charger le token mémorisé si présent
-    const savedToken = localStorage.getItem('_admin_gh_token');
-    if (savedToken) {
-      document.getElementById('admin-gh-token').value = savedToken;
-      document.getElementById('admin-remember-token').checked = true;
-    }
-  }
-
-  // ── Live preview ───────────────────────────────────────────────
-  window._adminLive = function(fieldId, value) {
-    const valEl = document.getElementById(`af_${fieldId}_val`);
-    if (valEl) valEl.textContent = value;
-    applyLive(fieldId, value);
-  };
-
-  // ── Sauvegarder ───────────────────────────────────────────────
-  window._adminSave = async function() {
-    const token = document.getElementById('admin-gh-token')?.value?.trim();
-    const remember = document.getElementById('admin-remember-token')?.checked;
-    if (!token) { document.getElementById('admin-save-status').textContent = '⚠️ Entre ton GitHub token.'; return; }
-    if (remember) localStorage.setItem('_admin_gh_token', token);
-    else localStorage.removeItem('_admin_gh_token');
-    const btn = document.getElementById('admin-save-btn');
-    const status = document.getElementById('admin-save-status');
-    btn.textContent = '⏳ Sauvegarde en cours…';
-    btn.disabled = true;
-    status.style.color = '#9d8ea0';
-    status.textContent = 'Connexion à GitHub…';
-
-    const changes = {};
-    for (const f of ADMIN_FIELDS) {
-      const el = document.getElementById(`af_${f.id}`);
-      if (el) changes[f.id] = el.value;
-    }
-
-    try {
-      await saveToGitHub(token, changes);
-      status.style.color = '#22c55e';
-      status.textContent = '✅ Sauvegardé ! GitHub Pages se met à jour dans ~1 minute.';
-      btn.textContent = '✅ SAUVEGARDÉ';
-    } catch(e) {
-      status.style.color = '#ef4444';
-      status.textContent = '❌ Erreur : ' + e.message;
-      btn.textContent = '💾 RÉESSAYER';
-      btn.disabled = false;
-    }
-  };
-
-  // ── Ouvrir le panel (avec code) ───────────────────────────────
-  let _adminAttempts = 0;
-  window._openAdminPanel = function() {
-    if (_adminAttempts >= 5) {
-      alert('Trop de tentatives.');
-      return;
-    }
-    const code = prompt('🔐 Code administrateur :');
-    if (!code) return;
-    if (code !== ADMIN_CODE) {
-      _adminAttempts++;
-      alert('Code incorrect.');
-      return;
-    }
-    _adminAttempts = 0;
-    buildPanel();
-  };
-
-})();
-
 // ─── FRIEND PICKER POUR TRADE DEPUIS MODAL CARTE ─────────────────
 function _showFriendPickerForTrade(card){
   const existing = document.getElementById('_ftp-overlay');
