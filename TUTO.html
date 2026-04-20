@@ -24,6 +24,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font
 #si-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 30%,rgba(90,40,180,.18) 0%,transparent 70%),radial-gradient(ellipse 60% 40% at 20% 80%,rgba(240,192,64,.06) 0%,transparent 60%)}
 .si-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:20px;padding:24px;text-align:center;max-width:460px;width:100%}
 .si-logo{font-family:'Cinzel',serif;font-size:clamp(1.5rem,6vw,2.2rem);font-weight:900;color:var(--gold);letter-spacing:.12em}
+.si-logo-img{width:clamp(90px,22vw,130px);height:auto;display:block;margin:0 auto;filter:drop-shadow(0 4px 18px rgba(240,192,64,.25))}
 .si-badge{font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.14em;color:var(--gold);background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.28);padding:4px 14px;border-radius:20px;text-transform:uppercase}
 .si-sub{font-size:.85rem;color:var(--sub);line-height:1.55;max-width:310px}
 .device-choice{display:flex;gap:14px;width:100%;max-width:360px}
@@ -384,7 +385,8 @@ body.mob .tuto-hl{border-radius:8px}
   <div id="si-bg"></div>
   <div class="si-inner">
     <div class="si-badge">✦ Tutoriel ✦</div>
-    <div class="si-logo">PWL TCG</div>
+    <div class="si-logo">DISCORD TCG</div>
+    <img class="si-logo-img" src="https://i.ibb.co/vC9SwWbg/db02f0c5-8f01-49c8-a74b-3eafd98b29fe.png" alt="Discord TCG logo">
     <p class="si-sub">Apprends à jouer en 1 partie guidée, pas à pas.</p>
     <div style="font-size:.78rem;color:var(--sub);letter-spacing:.08em;text-transform:uppercase;margin-bottom:-8px">Tu joues sur…</div>
     <div class="device-choice">
