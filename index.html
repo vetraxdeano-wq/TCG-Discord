@@ -2718,43 +2718,11 @@ function renderTabBoosters(th){
 function renderTabStats(th){
   const isMobile = window.innerWidth < 600;
 
-  // Données personnelles (depuis state)
-  const wins = state.wins || 0;
-  const losses = state.losses || 0;
-  const totalGames = wins + losses;
-  const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) + '%' : '—';
-  const winsPvp = state.winsPvp ?? 0;
-  const lossesPvp = state.lossesPvp ?? 0;
-  const gamesPvp = winsPvp + lossesPvp;
-  const winRatePvp = gamesPvp > 0 ? Math.round((winsPvp / gamesPvp) * 100) + '%' : '—';
-  const winsPve = state.winsPve ?? 0;
-  const lossesPve = state.lossesPve ?? 0;
-  const gamesPve = winsPve + lossesPve;
-  const winRatePve = gamesPve > 0 ? Math.round((winsPve / gamesPve) * 100) + '%' : '—';
-  const longestStreak = state.longestWinStreak || '—';
-  const games10v10 = state.stats10v10Games || '—';
-  const pveGames = state.statsPveGames || '—';
-  const totalCardsPlayed = state.statsTotalCardsPlayed || '—';
-  const fightersPlayed = state.statsFightersPlayed || '—';
-  const spellsPlayed = state.statsSpellsPlayed || '—';
-  const commonPlayed = state.statsCommonPlayed || '—';
-  const uncommonPlayed = state.statsUncommonPlayed || '—';
-  const rarePlayed = state.statsRarePlayed || '—';
-  const mythicPlayed = state.statsMythicPlayed || '—';
-  // PVP par rareté
-  const pvpTotal = state.statsPvpCardsTotal || '—';
-  const pvpCommon = state.statsPvpCommon || '—';
-  const pvpUncommon = state.statsPvpUncommon || '—';
-  const pvpRare = state.statsPvpRare || '—';
-  const pvpMythic = state.statsPvpMythic || '—';
-  const boostersOpened = state.statsBoostersOpened || '—';
-  const normalBoosters = state.statsNormalBoosters || '—';
-  const prestigeBoosters = state.statsPrestigeBoosters || '—';
-  const legendBoosters = state.statsLegendBoosters || '—';
-  const piochesFlipped = state.statsPiochesFlipped || '—';
-  const coinsEarned = state.statsCoinsEarned !== undefined ? (state.statsCoinsEarned||0).toLocaleString('fr-FR') : '—';
+  // ══ Helpers ════════════════════════════════════════════════════════════════
+  const n = (v) => (v === undefined || v === null || v === '' ? '—' : v);
+  const num = (v) => (v === undefined || v === null || v === '' ? '—' : Number(v).toLocaleString('fr-FR'));
 
-  // ── Formatter une carte top : "#ID Nom (×count)" ──
+  // Formatter une carte top : "#ID Nom (×count)"
   const fmtTopCard = (entry) => {
     if (!entry || !entry.card_id) return '—';
     const card = (typeof ALL_CARDS !== 'undefined')
@@ -2764,70 +2732,223 @@ function renderTabStats(th){
     return `#${entry.card_id} · ${name} (×${entry.value})`;
   };
 
-  // ── Collection : % complétion ──
+  // Formatter durée en secondes -> "Xh Ym" ou "Xm Ys"
+  const fmtDuration = (sec) => {
+    if (sec === undefined || sec === null || sec === '' || isNaN(Number(sec))) return '—';
+    sec = Math.max(0, Math.floor(Number(sec)));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
+
+  // ══ Personnel (state) ═════════════════════════════════════════════════════
+  const winsPvp   = state.winsPvp   ?? 0;
+  const lossesPvp = state.lossesPvp ?? 0;
+  const winsPve   = state.winsPve   ?? 0;
+  const lossesPve = state.lossesPve ?? 0;
+  const wins10    = state.wins10v10   ?? 0;
+  const losses10  = state.losses10v10 ?? 0;
+
+  const gamesPvp   = winsPvp   + lossesPvp;
+  const gamesPve   = winsPve   + lossesPve;
+  const games10v10 = wins10    + losses10;
+  const gamesTotal = gamesPvp + gamesPve + games10v10;
+
+  // Plus longues séries
+  const longStreakTotal = state.longestWinStreak       ?? 0;
+  const longStreakPvp   = state.longestWinStreakPvp    ?? 0;
+  const longStreakPve   = state.longestWinStreakPve    ?? 0;
+  const longStreak10    = state.longestWinStreak10v10  ?? 0;
+
+  // Cartes jouées — totales et par mode
+  const cardsTotal   = state.statsTotalCardsPlayed ?? 0;
+  const cardsPvp     = state.statsCardsPvp         ?? 0;
+  const cardsPve     = state.statsCardsPve         ?? 0;
+  const cards10      = state.statsCards10v10       ?? 0;
+
+  // Fighters / Sorts
+  const fightersTotal = state.statsFightersPlayed ?? 0;
+  const fightersPvp   = state.statsFightersPvp    ?? 0;
+  const fightersPve   = state.statsFightersPve    ?? 0;
+  const fighters10    = state.statsFighters10v10  ?? 0;
+  const spellsTotal   = state.statsSpellsPlayed   ?? 0;
+  const spellsPvp     = state.statsSpellsPvp      ?? 0;
+  const spellsPve     = state.statsSpellsPve      ?? 0;
+  const spells10      = state.statsSpells10v10    ?? 0;
+
+  // Raretés totales
+  const cTotal  = state.statsCommonPlayed    ?? 0;
+  const ucTotal = state.statsUncommonPlayed  ?? 0;
+  const rTotal  = state.statsRarePlayed      ?? 0;
+  const mTotal  = state.statsMythicPlayed    ?? 0;
+
+  // Raretés PVP
+  const cPvp  = state.statsCommonPvp   ?? 0;
+  const ucPvp = state.statsUncommonPvp ?? 0;
+  const rPvp  = state.statsRarePvp     ?? 0;
+  const mPvp  = state.statsMythicPvp   ?? 0;
+
+  // Raretés PVE
+  const cPve  = state.statsCommonPve   ?? 0;
+  const ucPve = state.statsUncommonPve ?? 0;
+  const rPve  = state.statsRarePve     ?? 0;
+  const mPve  = state.statsMythicPve   ?? 0;
+
+  // Raretés 10v10
+  const c10  = state.statsCommon10v10   ?? 0;
+  const uc10 = state.statsUncommon10v10 ?? 0;
+  const r10  = state.statsRare10v10     ?? 0;
+  const m10  = state.statsMythic10v10   ?? 0;
+
+  // Temps de jeu
+  const timePlayed = state.statsTimePlayedSeconds;
+
+  // Collection
   let collectionPct = '—';
   if (typeof ALL_CARDS !== 'undefined' && ALL_CARDS.length > 0) {
     const owned = ALL_CARDS.filter(c => c.owned).length;
     collectionPct = Math.round((owned / ALL_CARDS.length) * 100) + '% (' + owned + '/' + ALL_CARDS.length + ')';
   }
 
+  // Boosters / coins
+  const boostersOpened   = state.statsBoostersOpened   ?? 0;
+  const normalBoosters   = state.statsNormalBoosters   ?? 0;
+  const prestigeBoosters = state.statsPrestigeBoosters ?? 0;
+  const legendBoosters   = state.statsLegendBoosters   ?? 0;
+  const freePiochas      = state.statsFreePiochasReturned ?? state.statsPiochesFlipped ?? 0;
+  const coinsEarned      = state.statsCoinsEarned;
+
+  // ══ Global (state.global*) ════════════════════════════════════════════════
+  const g = {
+    gamesTotal:  state.globalStatsTotalGames ?? 0,
+    gamesPvp:    state.globalStatsPvpGames   ?? 0,
+    gamesPve:    state.globalStatsPveGames   ?? 0,
+    games10v10:  state.globalStats10v10Games ?? 0,
+
+    longStreakTotal: state.globalLongestStreakTotal ?? 0,
+    longStreakPvp:   state.globalLongestStreakPvp   ?? 0,
+    longStreakPve:   state.globalLongestStreakPve   ?? 0,
+    longStreak10:    state.globalLongestStreak10v10 ?? 0,
+
+    cardsTotal: state.globalStatsTotalCardsPlayed ?? 0,
+    cardsPvp:   state.globalStatsCardsPvp         ?? 0,
+    cardsPve:   state.globalStatsCardsPve         ?? 0,
+    cards10:    state.globalStatsCards10v10       ?? 0,
+
+    fightersTotal: state.globalStatsFightersPlayed ?? 0,
+    fightersPvp:   state.globalStatsFightersPvp    ?? 0,
+    fightersPve:   state.globalStatsFightersPve    ?? 0,
+    fighters10:    state.globalStatsFighters10v10  ?? 0,
+    spellsTotal:   state.globalStatsSpellsPlayed   ?? 0,
+    spellsPvp:     state.globalStatsSpellsPvp      ?? 0,
+    spellsPve:     state.globalStatsSpellsPve      ?? 0,
+    spells10:      state.globalStatsSpells10v10    ?? 0,
+
+    cTotal:  state.globalStatsCommonPlayed   ?? 0,
+    ucTotal: state.globalStatsUncommonPlayed ?? 0,
+    rTotal:  state.globalStatsRarePlayed     ?? 0,
+    mTotal:  state.globalStatsMythicPlayed   ?? 0,
+
+    cPvp:  state.globalStatsCommonPvp   ?? 0,
+    ucPvp: state.globalStatsUncommonPvp ?? 0,
+    rPvp:  state.globalStatsRarePvp     ?? 0,
+    mPvp:  state.globalStatsMythicPvp   ?? 0,
+
+    cPve:  state.globalStatsCommonPve   ?? 0,
+    ucPve: state.globalStatsUncommonPve ?? 0,
+    rPve:  state.globalStatsRarePve     ?? 0,
+    mPve:  state.globalStatsMythicPve   ?? 0,
+
+    c10:  state.globalStatsCommon10v10   ?? 0,
+    uc10: state.globalStatsUncommon10v10 ?? 0,
+    r10:  state.globalStatsRare10v10     ?? 0,
+    m10:  state.globalStatsMythic10v10   ?? 0,
+
+    timePlayed: state.globalStatsTimePlayedSeconds,
+
+    boosters:          state.globalStatsBoostersOpened   ?? 0,
+    boostersNormal:    state.globalStatsNormalBoosters   ?? 0,
+    boostersPrestige:  state.globalStatsPrestigeBoosters ?? 0,
+    boostersLegend:    state.globalStatsLegendBoosters   ?? 0,
+    freePiochas:       state.globalStatsFreePiochasReturned ?? state.globalStatsPiochesFlipped ?? 0,
+    coinsEarned:       state.globalStatsCoinsEarned,
+  };
+
+  // ══ Lignes ═════════════════════════════════════════════════════════════════
   const statRows = [
-    // ── RÉSUMÉ COMBATS ──
-    { label: 'Parties jouées (total)', personal: totalGames > 0 ? totalGames : '—', global: state.globalStatsTotalGames || '—' },
-    { label: 'Victoires', personal: wins > 0 ? wins : '—', global: '—' },
-    { label: 'Défaites', personal: losses > 0 ? losses : '—', global: '—' },
-    { label: 'Taux de victoire', personal: winRate, global: '—' },
-    { label: 'Meilleure série de victoires', personal: longestStreak, global: '—' },
-    { label: 'Parties 10v10', personal: games10v10, global: state.globalStats10v10Games || '—' },
-    { label: 'Parties vs IA (PvE)', personal: pveGames, global: state.globalStatsPveGames || '—' },
+    // ─── STATISTIQUES GLOBALES (total = PVE+PVP+10v10) ───
+    { label: '📊 STATISTIQUES GLOBALES', header: true },
+    { label: 'Parties jouées',                personal: num(gamesTotal),        global: num(g.gamesTotal) },
+    { label: 'Meilleure série de victoires',  personal: num(longStreakTotal),   global: num(g.longStreakTotal) },
+    { label: 'Cartes jouées',                 personal: num(cardsTotal),        global: num(g.cardsTotal) },
+    { label: 'Communes jouées',               personal: num(cTotal),            global: num(g.cTotal) },
+    { label: 'Peu Communes jouées',           personal: num(ucTotal),           global: num(g.ucTotal) },
+    { label: 'Rares jouées',                  personal: num(rTotal),            global: num(g.rTotal) },
+    { label: 'Mythiques jouées',              personal: num(mTotal),            global: num(g.mTotal) },
+    { label: 'Carte la + jouée',              personal: fmtTopCard(state.topCardTotalPlays), global: fmtTopCard(state.globalTopCardTotalPlays) },
+    { label: 'Carte la + victorieuse',        personal: fmtTopCard(state.topCardTotalWins),  global: fmtTopCard(state.globalTopCardTotalWins) },
+    { label: 'Plus longue série de victoire', personal: num(longStreakTotal),   global: num(g.longStreakTotal) },
+    { label: 'Fighters joués',                personal: num(fightersTotal),     global: num(g.fightersTotal) },
+    { label: 'Sorts joués',                   personal: num(spellsTotal),       global: num(g.spellsTotal) },
+    { label: 'Temps de jeu',                  personal: fmtDuration(timePlayed),global: fmtDuration(g.timePlayed) },
 
-    // ── PVP ──
-    { label: '— Mode PVP —', personal: '', global: '', separator: true },
-    { label: 'Parties PVP', personal: gamesPvp > 0 ? gamesPvp : '—', global: '—' },
-    { label: 'Victoires PVP', personal: winsPvp > 0 ? winsPvp : '—', global: '—' },
-    { label: 'Défaites PVP', personal: lossesPvp > 0 ? lossesPvp : '—', global: '—' },
-    { label: 'Taux de victoire PVP', personal: winRatePvp, global: '—' },
-    { label: 'Cartes jouées en PVP', personal: pvpTotal, global: state.globalStatsPvpCardsTotal || '—' },
-    { label: 'Communes (PVP)', personal: pvpCommon, global: state.globalStatsPvpCommon || '—' },
-    { label: 'Peu Communes (PVP)', personal: pvpUncommon, global: state.globalStatsPvpUncommon || '—' },
-    { label: 'Rares (PVP)', personal: pvpRare, global: state.globalStatsPvpRare || '—' },
-    { label: 'Mythiques (PVP)', personal: pvpMythic, global: state.globalStatsPvpMythic || '—' },
-    { label: 'Carte la + jouée (PVP)', personal: fmtTopCard(state.topCardPvpPlays), global: fmtTopCard(state.globalTopCardPvpPlays) },
-    { label: 'Carte la + victorieuse (PVP)', personal: fmtTopCard(state.topCardPvpWins),  global: fmtTopCard(state.globalTopCardPvpWins) },
+    // ─── COLLECTION ───
+    { label: '🗂 COLLECTION', header: true },
+    { label: 'Complétion collection',         personal: collectionPct,          global: '—' },
+    { label: 'Boosters ouverts au total',     personal: num(boostersOpened),    global: num(g.boosters) },
+    { label: 'Boosters Normaux',              personal: num(normalBoosters),    global: num(g.boostersNormal) },
+    { label: 'Boosters Prestige',             personal: num(prestigeBoosters),  global: num(g.boostersPrestige) },
+    { label: 'Boosters Légendaires',          personal: num(legendBoosters),    global: num(g.boostersLegend) },
+    { label: 'Pioches Gratuites retournées',  personal: num(freePiochas),       global: num(g.freePiochas) },
+    { label: 'Coins gagnés',                  personal: num(coinsEarned),       global: num(g.coinsEarned) },
 
-    // ── PVE ──
-    { label: '— Mode PVE —', personal: '', global: '', separator: true },
-    { label: 'Victoires PVE', personal: winsPve > 0 ? winsPve : '—', global: '—' },
-    { label: 'Défaites PVE', personal: lossesPve > 0 ? lossesPve : '—', global: '—' },
-    { label: 'Taux de victoire PVE', personal: winRatePve, global: '—' },
-    { label: 'Carte la + jouée (PVE)', personal: fmtTopCard(state.topCardPvePlays), global: fmtTopCard(state.globalTopCardPvePlays) },
-    { label: 'Carte la + victorieuse (PVE)', personal: fmtTopCard(state.topCardPveWins),  global: fmtTopCard(state.globalTopCardPveWins) },
+    // ─── MODE 10v10 ───
+    { label: '⚔️ MODE 10v10', header: true },
+    { label: 'Parties jouées',                personal: num(games10v10),        global: num(g.games10v10) },
+    { label: 'Meilleure série de victoires',  personal: num(longStreak10),      global: num(g.longStreak10) },
+    { label: 'Cartes jouées',                 personal: num(cards10),           global: num(g.cards10) },
+    { label: 'Communes jouées',               personal: num(c10),               global: num(g.c10) },
+    { label: 'Peu Communes jouées',           personal: num(uc10),              global: num(g.uc10) },
+    { label: 'Rares jouées',                  personal: num(r10),               global: num(g.r10) },
+    { label: 'Mythiques jouées',              personal: num(m10),               global: num(g.m10) },
+    { label: 'Carte la + jouée',              personal: fmtTopCard(state.topCard10v10Plays), global: fmtTopCard(state.globalTopCard10v10Plays) },
+    { label: 'Carte la + victorieuse',        personal: fmtTopCard(state.topCard10v10Wins),  global: fmtTopCard(state.globalTopCard10v10Wins) },
+    { label: 'Plus longue série de victoire', personal: num(longStreak10),      global: num(g.longStreak10) },
+    { label: 'Fighters joués',                personal: num(fighters10),        global: num(g.fighters10) },
+    { label: 'Sorts joués',                   personal: num(spells10),          global: num(g.spells10) },
 
-    // ── CARTES (TOUS MODES CONFONDUS) ──
-    { label: '— Cartes jouées (tous modes) —', personal: '', global: '', separator: true },
-    { label: 'Cartes jouées (total)', personal: totalCardsPlayed, global: state.globalStatsTotalCardsPlayed || '—' },
-    { label: 'Fighters joués', personal: fightersPlayed, global: state.globalStatsFightersPlayed || '—' },
-    { label: 'Sorts joués', personal: spellsPlayed, global: state.globalStatsSpellsPlayed || '—' },
-    { label: 'Cartes Communes', personal: commonPlayed, global: state.globalStatsCommonPlayed || '—' },
-    { label: 'Cartes Peu Communes', personal: uncommonPlayed, global: state.globalStatsUncommonPlayed || '—' },
-    { label: 'Cartes Rares', personal: rarePlayed, global: state.globalStatsRarePlayed || '—' },
-    { label: 'Cartes Mythiques', personal: mythicPlayed, global: state.globalStatsMythicPlayed || '—' },
+    // ─── MODE PVP ───
+    { label: '🆚 MODE PVP', header: true },
+    { label: 'Parties jouées',                personal: num(gamesPvp),          global: num(g.gamesPvp) },
+    { label: 'Meilleure série de victoires',  personal: num(longStreakPvp),     global: num(g.longStreakPvp) },
+    { label: 'Cartes jouées',                 personal: num(cardsPvp),          global: num(g.cardsPvp) },
+    { label: 'Communes jouées',               personal: num(cPvp),              global: num(g.cPvp) },
+    { label: 'Peu Communes jouées',           personal: num(ucPvp),             global: num(g.ucPvp) },
+    { label: 'Rares jouées',                  personal: num(rPvp),              global: num(g.rPvp) },
+    { label: 'Mythiques jouées',              personal: num(mPvp),              global: num(g.mPvp) },
+    { label: 'Carte la + jouée',              personal: fmtTopCard(state.topCardPvpPlays), global: fmtTopCard(state.globalTopCardPvpPlays) },
+    { label: 'Carte la + victorieuse',        personal: fmtTopCard(state.topCardPvpWins),  global: fmtTopCard(state.globalTopCardPvpWins) },
+    { label: 'Plus longue série de victoire', personal: num(longStreakPvp),     global: num(g.longStreakPvp) },
+    { label: 'Fighters joués',                personal: num(fightersPvp),       global: num(g.fightersPvp) },
+    { label: 'Sorts joués',                   personal: num(spellsPvp),         global: num(g.spellsPvp) },
 
-    // ── COLLECTION ──
-    { label: '— Collection —', personal: '', global: '', separator: true },
-    { label: 'Complétion', personal: collectionPct, global: '—' },
-
-    // ── BOOSTERS ──
-    { label: '— Boosters —', personal: '', global: '', separator: true },
-    { label: 'Boosters ouverts (total)', personal: boostersOpened, global: state.globalStatsBoostersOpened || '—' },
-    { label: 'Boosters Normaux', personal: normalBoosters, global: state.globalStatsNormalBoosters || '—' },
-    { label: 'Boosters Prestige', personal: prestigeBoosters, global: state.globalStatsPrestigeBoosters || '—' },
-    { label: 'Boosters Légendaires', personal: legendBoosters, global: state.globalStatsLegendBoosters || '—' },
-
-    // ── DIVERS ──
-    { label: '— Divers —', personal: '', global: '', separator: true },
-    { label: 'Pioches retournées', personal: piochesFlipped, global: state.globalStatsPiochesFlipped || '—' },
-    { label: 'Coins gagnés', personal: coinsEarned, global: state.globalStatsCoinsEarned !== undefined ? (state.globalStatsCoinsEarned||0).toLocaleString('fr-FR') : '—' },
+    // ─── MODE PVE ───
+    { label: '🤖 MODE PVE', header: true },
+    { label: 'Parties jouées',                personal: num(gamesPve),          global: num(g.gamesPve) },
+    { label: 'Meilleure série de victoires',  personal: num(longStreakPve),     global: num(g.longStreakPve) },
+    { label: 'Cartes jouées',                 personal: num(cardsPve),          global: num(g.cardsPve) },
+    { label: 'Communes jouées',               personal: num(cPve),              global: num(g.cPve) },
+    { label: 'Peu Communes jouées',           personal: num(ucPve),             global: num(g.ucPve) },
+    { label: 'Rares jouées',                  personal: num(rPve),              global: num(g.rPve) },
+    { label: 'Mythiques jouées',              personal: num(mPve),              global: num(g.mPve) },
+    { label: 'Carte la + jouée',              personal: fmtTopCard(state.topCardPvePlays), global: fmtTopCard(state.globalTopCardPvePlays) },
+    { label: 'Carte la + victorieuse',        personal: fmtTopCard(state.topCardPveWins),  global: fmtTopCard(state.globalTopCardPveWins) },
+    { label: 'Plus longue série de victoire', personal: num(longStreakPve),     global: num(g.longStreakPve) },
+    { label: 'Fighters joués',                personal: num(fightersPve),       global: num(g.fightersPve) },
+    { label: 'Sorts joués',                   personal: num(spellsPve),         global: num(g.spellsPve) },
   ];
 
   return `
@@ -2851,9 +2972,9 @@ function renderTabStats(th){
         </div>
 
         <!-- Rows -->
-        ${statRows.map((row, idx) => row.separator ? `
-          <div style="display:grid;grid-template-columns:1fr ${isMobile?'80px 80px':'140px 140px'};border-bottom:1px solid ${th.border};background:${th.bgTertiary}40;">
-            <div style="padding:${isMobile?'4px 10px':'5px 16px'};font-size:${isMobile?'8px':'9px'};color:${th.textMuted};letter-spacing:2px;text-transform:uppercase;font-weight:600;font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${row.label}</div>
+        ${statRows.map((row, idx) => row.header ? `
+          <div style="display:grid;grid-template-columns:1fr ${isMobile?'80px 80px':'140px 140px'};border-bottom:2px solid #000;border-top:2px solid #000;background:linear-gradient(90deg,${th.accent}22,${th.accent}08);">
+            <div style="padding:${isMobile?'8px 10px':'10px 16px'};font-size:${isMobile?'10px':'12px'};color:${th.accent};letter-spacing:3px;text-transform:uppercase;font-weight:900;font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${row.label}</div>
             <div style="border-left:1px solid ${th.border};"></div>
             <div style="border-left:1px solid ${th.border};"></div>
           </div>
@@ -5083,7 +5204,10 @@ function bindGame(){
       // ── Stats Supabase : pioche retournée ──
       (async () => {
         const db = window.db;
-        if (db && myId) await db.rpc('increment_stat', { p_user_id: myId, p_field: 'pioches_flipped' });
+        if (db && myId) {
+          await db.rpc('increment_stat', { p_user_id: myId, p_field: 'pioches_flipped' });
+          await db.rpc('increment_stat', { p_user_id: myId, p_field: 'free_piochas_returned' });
+        }
       })();
 
       setTimeout(async ()=>{
@@ -5676,8 +5800,14 @@ function startCoinsPolling(userId) {
 async function loadPlayerStats(userId) {
   const db = window.db;
   if (!db || !userId) return;
-  // Wins/losses depuis players
-  const { data } = await db.from('players').select('wins, losses, wins_pvp, wins_pve, losses_pvp, losses_pve, longest_win_streak').eq('id', userId).single();
+
+  // ─── Wins / losses + séries depuis players ──────────────────────────────
+  const { data } = await db.from('players').select(
+    'wins, losses, wins_pvp, wins_pve, losses_pvp, losses_pve, ' +
+    'wins_10v10, losses_10v10, ' +
+    'longest_win_streak, longest_win_streak_pvp, longest_win_streak_pve, longest_win_streak_10v10, ' +
+    'current_win_streak'
+  ).eq('id', userId).single();
   if (data) setState({
     wins: data.wins ?? 0,
     losses: data.losses ?? 0,
@@ -5685,14 +5815,23 @@ async function loadPlayerStats(userId) {
     winsPve: data.wins_pve ?? 0,
     lossesPvp: data.losses_pvp ?? 0,
     lossesPve: data.losses_pve ?? 0,
-    longestWinStreak: data.longest_win_streak ?? 0,
+    wins10v10:   data.wins_10v10   ?? 0,
+    losses10v10: data.losses_10v10 ?? 0,
+    longestWinStreak:       data.longest_win_streak        ?? 0,
+    longestWinStreakPvp:    data.longest_win_streak_pvp    ?? 0,
+    longestWinStreakPve:    data.longest_win_streak_pve    ?? 0,
+    longestWinStreak10v10:  data.longest_win_streak_10v10  ?? 0,
+    currentWinStreak:       data.current_win_streak        ?? 0,
   });
-  // Stats détaillées personnelles (table `stats`)
+
+  // ─── Stats détaillées personnelles (table `stats`) ──────────────────────
   const { data: s } = await db.from('stats').select('*').eq('user_id', userId).single();
   if (s) {
     setState({
+      // Totaux (tous modes)
       stats10v10Games:       s.games_10v10,
       statsPveGames:         s.games_pve,
+      statsPvpGames:         s.games_pvp,
       statsTotalCardsPlayed: s.cards_played_total,
       statsFightersPlayed:   s.cards_fighters_played,
       statsSpellsPlayed:     s.cards_spells_played,
@@ -5700,27 +5839,55 @@ async function loadPlayerStats(userId) {
       statsUncommonPlayed:   s.cards_uncommon,
       statsRarePlayed:       s.cards_rare,
       statsMythicPlayed:     s.cards_mythic,
-      statsBoostersOpened:   s.boosters_total,
-      statsNormalBoosters:   s.boosters_normal,
-      statsPrestigeBoosters: s.boosters_prestige,
-      statsLegendBoosters:   s.boosters_legendary,
-      statsPiochesFlipped:   s.pioches_flipped,
-      statsCoinsEarned:      s.coins_earned,
-      // PVP-only (si colonnes présentes — sinon undefined → affichera '—')
-      statsPvpCardsTotal:    s.pvp_cards_total,
-      statsPvpCommon:        s.pvp_cards_common,
-      statsPvpUncommon:      s.pvp_cards_uncommon,
-      statsPvpRare:          s.pvp_cards_rare,
-      statsPvpMythic:        s.pvp_cards_mythic,
+      statsTimePlayedSeconds: s.time_played_seconds,
+
+      // Par mode — PVP
+      statsCardsPvp:     s.cards_played_pvp,
+      statsFightersPvp:  s.cards_fighters_pvp,
+      statsSpellsPvp:    s.cards_spells_pvp,
+      statsCommonPvp:    s.cards_common_pvp,
+      statsUncommonPvp:  s.cards_uncommon_pvp,
+      statsRarePvp:      s.cards_rare_pvp,
+      statsMythicPvp:    s.cards_mythic_pvp,
+
+      // Par mode — PVE
+      statsCardsPve:     s.cards_played_pve,
+      statsFightersPve:  s.cards_fighters_pve,
+      statsSpellsPve:    s.cards_spells_pve,
+      statsCommonPve:    s.cards_common_pve,
+      statsUncommonPve:  s.cards_uncommon_pve,
+      statsRarePve:      s.cards_rare_pve,
+      statsMythicPve:    s.cards_mythic_pve,
+
+      // Par mode — 10v10
+      statsCards10v10:     s.cards_played_10v10,
+      statsFighters10v10:  s.cards_fighters_10v10,
+      statsSpells10v10:    s.cards_spells_10v10,
+      statsCommon10v10:    s.cards_common_10v10,
+      statsUncommon10v10:  s.cards_uncommon_10v10,
+      statsRare10v10:      s.cards_rare_10v10,
+      statsMythic10v10:    s.cards_mythic_10v10,
+
+      // Boosters / coins / pioches
+      statsBoostersOpened:     s.boosters_total,
+      statsNormalBoosters:     s.boosters_normal,
+      statsPrestigeBoosters:   s.boosters_prestige,
+      statsLegendBoosters:     s.boosters_legendary,
+      statsPiochesFlipped:     s.pioches_flipped,
+      statsFreePiochasReturned: s.free_piochas_returned,
+      statsCoinsEarned:        s.coins_earned,
     });
   }
-  // Stats globales
+
+  // ─── Stats globales ─────────────────────────────────────────────────────
   const { data: g } = await db.from('stats_global').select('*').eq('id', 1).single();
   if (g) {
     setState({
       globalStatsTotalGames:       g.games_total,
       globalStats10v10Games:       g.games_10v10,
       globalStatsPveGames:         g.games_pve,
+      globalStatsPvpGames:         g.games_pvp,
+
       globalStatsTotalCardsPlayed: g.cards_played_total,
       globalStatsFightersPlayed:   g.cards_fighters_played,
       globalStatsSpellsPlayed:     g.cards_spells_played,
@@ -5728,61 +5895,120 @@ async function loadPlayerStats(userId) {
       globalStatsUncommonPlayed:   g.cards_uncommon,
       globalStatsRarePlayed:       g.cards_rare,
       globalStatsMythicPlayed:     g.cards_mythic,
-      globalStatsBoostersOpened:   g.boosters_total,
-      globalStatsNormalBoosters:   g.boosters_normal,
-      globalStatsPrestigeBoosters: g.boosters_prestige,
-      globalStatsLegendBoosters:   g.boosters_legendary,
-      globalStatsPiochesFlipped:   g.pioches_flipped,
-      globalStatsCoinsEarned:      g.coins_earned,
-      globalStatsPvpCardsTotal:    g.pvp_cards_total,
-      globalStatsPvpCommon:        g.pvp_cards_common,
-      globalStatsPvpUncommon:      g.pvp_cards_uncommon,
-      globalStatsPvpRare:          g.pvp_cards_rare,
-      globalStatsPvpMythic:        g.pvp_cards_mythic,
+      globalStatsTimePlayedSeconds: g.time_played_seconds,
+
+      globalStatsCardsPvp:     g.cards_played_pvp,
+      globalStatsFightersPvp:  g.cards_fighters_pvp,
+      globalStatsSpellsPvp:    g.cards_spells_pvp,
+      globalStatsCommonPvp:    g.cards_common_pvp,
+      globalStatsUncommonPvp:  g.cards_uncommon_pvp,
+      globalStatsRarePvp:      g.cards_rare_pvp,
+      globalStatsMythicPvp:    g.cards_mythic_pvp,
+
+      globalStatsCardsPve:     g.cards_played_pve,
+      globalStatsFightersPve:  g.cards_fighters_pve,
+      globalStatsSpellsPve:    g.cards_spells_pve,
+      globalStatsCommonPve:    g.cards_common_pve,
+      globalStatsUncommonPve:  g.cards_uncommon_pve,
+      globalStatsRarePve:      g.cards_rare_pve,
+      globalStatsMythicPve:    g.cards_mythic_pve,
+
+      globalStatsCards10v10:     g.cards_played_10v10,
+      globalStatsFighters10v10:  g.cards_fighters_10v10,
+      globalStatsSpells10v10:    g.cards_spells_10v10,
+      globalStatsCommon10v10:    g.cards_common_10v10,
+      globalStatsUncommon10v10:  g.cards_uncommon_10v10,
+      globalStatsRare10v10:      g.cards_rare_10v10,
+      globalStatsMythic10v10:    g.cards_mythic_10v10,
+
+      globalLongestStreakTotal:  g.longest_streak_total,
+      globalLongestStreakPvp:    g.longest_streak_pvp,
+      globalLongestStreakPve:    g.longest_streak_pve,
+      globalLongestStreak10v10:  g.longest_streak_10v10,
+
+      globalStatsBoostersOpened:     g.boosters_total,
+      globalStatsNormalBoosters:     g.boosters_normal,
+      globalStatsPrestigeBoosters:   g.boosters_prestige,
+      globalStatsLegendBoosters:     g.boosters_legendary,
+      globalStatsPiochesFlipped:     g.pioches_flipped,
+      globalStatsFreePiochasReturned: g.free_piochas_returned,
+      globalStatsCoinsEarned:        g.coins_earned,
     });
   }
 
-  // ─── CARTES TOP (joueur) depuis card_plays ─────────────────────
+  // ─── CARTES TOP (joueur) depuis card_plays ──────────────────────────────
   // Table : card_plays(user_id, card_id, mode, plays, wins)
-  // mode ∈ {'pvp','pve'}
+  // mode ∈ {'pvp','pve','10v10'}
   try {
     const { data: myPlays } = await db.from('card_plays')
       .select('card_id, mode, plays, wins')
       .eq('user_id', userId);
     if (myPlays && myPlays.length > 0) {
-      const topFor = (mode, field) => {
-        const rows = myPlays.filter(r => r.mode === mode && (r[field] || 0) > 0);
+      const topFor = (filterFn, field) => {
+        const rows = myPlays.filter(r => filterFn(r) && (r[field] || 0) > 0);
         if (rows.length === 0) return null;
         rows.sort((a,b) => (b[field]||0) - (a[field]||0));
         return { card_id: rows[0].card_id, value: rows[0][field] };
       };
+      // Top par mode
+      const byMode = (m) => (r) => r.mode === m;
+      // Top total : agréger par card_id
+      const aggAll = (field) => {
+        const m = new Map();
+        for (const r of myPlays) {
+          m.set(r.card_id, (m.get(r.card_id) || 0) + (r[field] || 0));
+        }
+        let best = null;
+        for (const [card_id, value] of m.entries()) {
+          if (value > 0 && (!best || value > best.value)) best = { card_id, value };
+        }
+        return best;
+      };
       setState({
-        topCardPvpPlays: topFor('pvp', 'plays'),
-        topCardPvePlays: topFor('pve', 'plays'),
-        topCardPvpWins:  topFor('pvp', 'wins'),
-        topCardPveWins:  topFor('pve', 'wins'),
+        topCardPvpPlays:   topFor(byMode('pvp'),   'plays'),
+        topCardPvePlays:   topFor(byMode('pve'),   'plays'),
+        topCard10v10Plays: topFor(byMode('10v10'), 'plays'),
+        topCardPvpWins:    topFor(byMode('pvp'),   'wins'),
+        topCardPveWins:    topFor(byMode('pve'),   'wins'),
+        topCard10v10Wins:  topFor(byMode('10v10'), 'wins'),
+        topCardTotalPlays: aggAll('plays'),
+        topCardTotalWins:  aggAll('wins'),
       });
     }
   } catch(e) { /* table absente → stats silencieusement masquées */ }
 
-  // ─── CARTES TOP (global) depuis card_plays_global (vue/table agrégée) ──
-  // Option simple côté Supabase : une VIEW qui agrège SUM(plays), SUM(wins)
-  // par (card_id, mode), ou une table matérialisée maintenue par trigger.
+  // ─── CARTES TOP (global) depuis card_plays_global (vue agrégée) ─────────
   try {
     const { data: gPlays } = await db.from('card_plays_global')
       .select('card_id, mode, plays, wins');
     if (gPlays && gPlays.length > 0) {
-      const topFor = (mode, field) => {
-        const rows = gPlays.filter(r => r.mode === mode && (r[field] || 0) > 0);
+      const topFor = (filterFn, field) => {
+        const rows = gPlays.filter(r => filterFn(r) && (r[field] || 0) > 0);
         if (rows.length === 0) return null;
         rows.sort((a,b) => (b[field]||0) - (a[field]||0));
         return { card_id: rows[0].card_id, value: rows[0][field] };
       };
+      const byMode = (m) => (r) => r.mode === m;
+      const aggAll = (field) => {
+        const m = new Map();
+        for (const r of gPlays) {
+          m.set(r.card_id, (m.get(r.card_id) || 0) + (r[field] || 0));
+        }
+        let best = null;
+        for (const [card_id, value] of m.entries()) {
+          if (value > 0 && (!best || value > best.value)) best = { card_id, value };
+        }
+        return best;
+      };
       setState({
-        globalTopCardPvpPlays: topFor('pvp', 'plays'),
-        globalTopCardPvePlays: topFor('pve', 'plays'),
-        globalTopCardPvpWins:  topFor('pvp', 'wins'),
-        globalTopCardPveWins:  topFor('pve', 'wins'),
+        globalTopCardPvpPlays:   topFor(byMode('pvp'),   'plays'),
+        globalTopCardPvePlays:   topFor(byMode('pve'),   'plays'),
+        globalTopCard10v10Plays: topFor(byMode('10v10'), 'plays'),
+        globalTopCardPvpWins:    topFor(byMode('pvp'),   'wins'),
+        globalTopCardPveWins:    topFor(byMode('pve'),   'wins'),
+        globalTopCard10v10Wins:  topFor(byMode('10v10'), 'wins'),
+        globalTopCardTotalPlays: aggAll('plays'),
+        globalTopCardTotalWins:  aggAll('wins'),
       });
     }
   } catch(e) { /* silent */ }
