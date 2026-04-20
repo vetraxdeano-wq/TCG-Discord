@@ -1707,8 +1707,10 @@ function buildHumanPioche(){
 let G={};
 function mkP(){return{hp:20,hpMax:20,fighter:null,hand:[],pioche:[],actives:[],sortJoue:false,skipAtq:false,noSpellThisTurn:false};}
 function initGame(skipDeal){
+  const prevStart = (skipDeal && G && G._startedAt) ? G._startedAt : Date.now();
   G={turn:1,phase:'choose_fighter',human:mkP(),bot:mkP(),ended:false,fp:Math.random()<.5?'human':'bot',
-     stats:{dmgByCard:{},totalDmgH:0,totalDmgB:0,turns:0}};
+     stats:{dmgByCard:{},totalDmgH:0,totalDmgB:0,turns:0},
+     _startedAt: prevStart};
   if(!skipDeal){
     const hd=buildPioche(),bd=buildPioche();
     G.human.hand=hd.slice(0,5);G.human.pioche=hd.slice(5);
@@ -2593,12 +2595,16 @@ function humanPlayCard(idx){
     (async()=>{
       if(!_db||!_currentUser)return;
       const myId=_currentUser.id;
-      const inc=(field,amount=1)=>_db.rpc('increment_stat',{p_user_id:myId,p_field:field,p_amount:amount});
-      const rarMap={C:'cards_common',PC:'cards_uncommon',R:'cards_rare',M:'cards_mythic'};
-      await inc('cards_played_total');
-      await inc('cards_fighters_played');
-      if(rarMap[c.rarete]) await inc(rarMap[c.rarete]);
+      await _db.rpc('register_card_play', {
+        p_user_id: myId,
+        p_card_id: parseInt(c.id),
+        p_mode: '10v10',
+        p_card_type: 'fighter',
+        p_rarity: c.rarete || null,
+      });
     })();
+    // Mémoriser le dernier fighter joué (pour register_card_win en fin de match)
+    G._myLastFighterId = parseInt(c.id);
     return;
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
@@ -2612,11 +2618,13 @@ function humanPlayCard(idx){
     (async()=>{
       if(!_db||!_currentUser)return;
       const myId=_currentUser.id;
-      const inc=(field,amount=1)=>_db.rpc('increment_stat',{p_user_id:myId,p_field:field,p_amount:amount});
-      const rarMap={C:'cards_common',PC:'cards_uncommon',R:'cards_rare',M:'cards_mythic'};
-      await inc('cards_played_total');
-      await inc('cards_spells_played');
-      if(rarMap[c.rarete]) await inc(rarMap[c.rarete]);
+      await _db.rpc('register_card_play', {
+        p_user_id: myId,
+        p_card_id: parseInt(c.id),
+        p_mode: '10v10',
+        p_card_type: 'sort',
+        p_rarity: c.rarete || null,
+      });
     })();
     if(!document.getElementById('remove-choice-modal')){G.phase='attack';render();resetChrono();}
   }
@@ -3354,18 +3362,47 @@ async function saveGameResult(isWin,coinsGained,xpGained){
   if(!_db||!_currentUser)return;
   const myId=_currentUser.id;
   try{
-    const col=isWin?'wins':'losses';
-    const {data:p}=await _db.from('players').select('wins,losses,coins,xp').eq('id',myId).single();
+    // Coins + XP (wins/losses/streaks gérés par register_match_result)
+    const {data:p}=await _db.from('players').select('coins,xp').eq('id',myId).single();
     if(p){
-      const updates={[col]:(p[col]||0)+1,coins:(p.coins||0)+coinsGained,xp:(p.xp||0)+xpGained};
-      await _db.from('players').update(updates).eq('id',myId);
+      await _db.from('players').update({
+        coins:(p.coins||0)+coinsGained,
+        xp:(p.xp||0)+xpGained,
+      }).eq('id',myId);
     }
     console.log(`[10v10] ${isWin?'Victoire':'Défaite'} — +${coinsGained} coins +${xpGained} XP`);
-    // ── Stats Supabase ──
-    const inc = (field, amount=1) => _db.rpc('increment_stat', { p_user_id: myId, p_field: field, p_amount: amount });
-    await inc('games_total');
-    await inc('games_10v10');
-    if(coinsGained > 0) await inc('coins_earned', coinsGained);
+
+    // Résultat de match (wins/losses + séries + games_total + games_10v10)
+    await _db.rpc('register_match_result', {
+      p_user_id: myId,
+      p_mode: '10v10',
+      p_is_win: !!isWin,
+    });
+
+    // Coins gagnés (stats)
+    if(coinsGained > 0){
+      await _db.rpc('increment_stat', { p_user_id: myId, p_field: 'coins_earned', p_amount: coinsGained });
+    }
+
+    // Temps de jeu (secondes)
+    try {
+      const durMs = Math.max(0, Date.now() - (G._startedAt || Date.now()));
+      const durSec = Math.floor(durMs / 1000);
+      if(durSec > 0){
+        await _db.rpc('increment_stat', { p_user_id: myId, p_field: 'time_played_seconds', p_amount: durSec });
+      }
+    } catch(e){ /* silent */ }
+
+    // Carte la + victorieuse (dernier fighter ayant servi à la victoire)
+    if(isWin && G._myLastFighterId){
+      try {
+        await _db.rpc('register_card_win', {
+          p_user_id: myId,
+          p_card_id: G._myLastFighterId,
+          p_mode: '10v10',
+        });
+      } catch(e){ /* silent */ }
+    }
   }catch(e){console.error('[10v10] saveGameResult:',e);}
 }
 
