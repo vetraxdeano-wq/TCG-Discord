@@ -25,7 +25,6 @@
   /* Alias booster1 (compat) */
   --gold-bright: var(--gold);
   --gold-main: var(--gold);
-  --gold2: var(--gold2);
   --gold-deep: #b8860b;
   --gold-subtle: #5a4015;
   --myth-red: #ef4444;
@@ -4090,7 +4089,7 @@ function onZoneRevealComplete(){
       wrap.style.cssText='opacity:0;transition:opacity 350ms ease;text-align:center;width:100%;padding:0 24px;';
       ov.innerHTML=''; ov.appendChild(wrap);
       const inner=document.createElement('div');
-      inner.style.cssText='font-family:'Oswald',sans-serif;font-size:clamp(1.1rem,4.5vw,1.8rem);'+
+      inner.style.cssText='font-family:\'Oswald\',sans-serif;font-size:clamp(1.1rem,4.5vw,1.8rem);'+
         'color:#fca5a5;letter-spacing:.16em;';
       wrap.appendChild(inner);
       setTimeout(()=>wrap.style.opacity='1', 30);
@@ -4106,7 +4105,7 @@ function onZoneRevealComplete(){
       wrap.style.cssText='opacity:0;transition:opacity 350ms ease;text-align:center;width:100%;padding:0 28px;';
       ov.innerHTML=''; ov.appendChild(wrap);
       const inner=document.createElement('div');
-      inner.style.cssText='font-family:'Rubik',sans-serif;font-size:clamp(.9rem,3.4vw,1.3rem);'+
+      inner.style.cssText='font-family:\'Rubik\',sans-serif;font-size:clamp(.9rem,3.4vw,1.3rem);'+
         'color:#f5e8cc;line-height:1.55;font-style:italic;max-width:500px;margin:0 auto;';
       wrap.appendChild(inner);
       setTimeout(()=>wrap.style.opacity='1', 30);
@@ -4406,7 +4405,7 @@ function showCoinsDeductedPopup(amount) {
     'left:50%',
     'top:18%',
     'transform:translateX(-50%)',
-    'font-family:'Oswald',sans-serif',
+    'font-family:\'Oswald\',sans-serif',
     'font-size:1.6rem',
     'color:#f0c060',
     'letter-spacing:.08em',
