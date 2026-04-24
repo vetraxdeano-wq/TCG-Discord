@@ -2572,36 +2572,28 @@ function renderHand(){
     d.addEventListener('mouseenter',e=>{showTT(ttHTML,e);if(c.image_url)document.getElementById('hcard-tt').classList.add('hcard-tooltip-img');else document.getElementById('hcard-tt').classList.remove('hcard-tooltip-img');});
     d.addEventListener('mousemove',e=>moveTT(e));
     d.addEventListener('mouseleave',hideTT);
-    // Sur mobile : détection tap vs scroll. Tap (doigt posé puis relâché sans glisser)
-    // → ouvre la modal. Glisser → scroll horizontal de la main, aucune modal.
+    // Sur mobile : détection par durée uniquement.
+    // Contact < 1s → tap → ouvre la modal. Contact ≥ 1s → scroll, rien ne s'ouvre.
     (function(){
-      let startX=0,startY=0,startT=0,tracking=false;
-      d.addEventListener('pointerdown',e=>{
-        if(e.pointerType!=='touch')return;
+      let startT=0;
+      d.addEventListener('touchstart',e=>{
         if(!document.body.classList.contains('mobile'))return;
-        startX=e.clientX; startY=e.clientY; startT=Date.now(); tracking=true;
-      });
-      d.addEventListener('pointermove',e=>{
-        if(!tracking||e.pointerType!=='touch')return;
-        const dx=Math.abs(e.clientX-startX), dy=Math.abs(e.clientY-startY);
-        if(dx>10||dy>10){ tracking=false; } // scroll détecté : on abandonne
-      });
-      d.addEventListener('pointerup',e=>{
-        if(!tracking||e.pointerType!=='touch')return;
-        tracking=false;
-        const dx=Math.abs(e.clientX-startX), dy=Math.abs(e.clientY-startY);
+        startT=Date.now();
+      },{passive:true});
+      d.addEventListener('touchend',e=>{
+        if(!document.body.classList.contains('mobile'))return;
         const dt=Date.now()-startT;
-        if(dx<=10&&dy<=10&&dt<600){
+        if(dt<1000){
           e.stopPropagation();
+          e.preventDefault();
           showCardModal(c, i, dis, ttHTML, rarCol);
         }
       });
-      d.addEventListener('pointercancel',()=>{tracking=false;});
     })();
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
       if(document.body.classList.contains('mobile')){
-        // Géré par pointer events ci-dessus — rien à faire ici
+        // Géré par les handlers tap/scroll ci-dessus — rien à faire ici
       } else {
         if(TT.style.display==='flex'&&TT._srcCard===d){hideTT();TT._srcCard=null;}
         else{
