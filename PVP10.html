@@ -341,6 +341,17 @@ body.mobile .hcard{
   height:calc(12.5*var(--dvh));
   min-height:68px; max-height:96px;
 }
+/* Désactive le survol sur mobile — empêche l'image de "sauter" au tap */
+body.mobile .hcard:hover:not(.hc-dis){
+  transform:none!important;
+  box-shadow:none!important;
+}
+body.mobile .hcard:hover:not(.hc-dis) img{
+  filter:unset;
+}
+body.mobile .hcard.ct-hero:hover:not(.hc-dis) img{filter:drop-shadow(0 0 6px rgba(240,192,64,.5));}
+body.mobile .hcard.ct-ruse:hover:not(.hc-dis) img{filter:drop-shadow(0 0 6px rgba(244,114,182,.5));}
+body.mobile .hcard.ct-arcane:hover:not(.hc-dis) img{filter:drop-shadow(0 0 6px rgba(91,156,246,.5));}
 
 /* ── Tooltip ── */
 body.mobile .hcard-tooltip-img{
@@ -362,6 +373,21 @@ body.mobile .ht-stat-val{font-size:12px}
   align-items:flex-end;justify-content:center;
 }
 .mob-card-modal-overlay.open{display:flex}
+/* Flèches de navigation entre cartes de la main */
+.mob-modal-nav{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:44px;height:44px;border-radius:50%;
+  background:rgba(20,20,28,.88);border:1px solid var(--bdr2);
+  color:var(--txt);font-size:28px;line-height:1;
+  cursor:pointer;z-index:610;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 0 3px;
+  transition:opacity .15s,background .15s;
+}
+.mob-modal-nav:active{background:var(--gold);color:#000}
+.mob-modal-nav:disabled{opacity:.25;cursor:default;pointer-events:none}
+.mob-modal-nav-prev{left:10px}
+.mob-modal-nav-next{right:10px}
 .mob-card-modal{
   background:var(--s2);border:1px solid var(--bdr3);
   border-radius:20px 20px 0 0;
@@ -1479,6 +1505,8 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 
 <!-- Modale carte mobile -->
 <div class="mob-card-modal-overlay" id="mob-modal-overlay" onclick="closeCardModal(event)">
+  <button class="mob-modal-nav mob-modal-nav-prev" id="mob-modal-prev" onclick="event.stopPropagation();navCardModal(-1)">‹</button>
+  <button class="mob-modal-nav mob-modal-nav-next" id="mob-modal-next" onclick="event.stopPropagation();navCardModal(1)">›</button>
   <div class="mob-card-modal" id="mob-modal">
     <div class="mob-card-modal-header">
       <div>
@@ -2544,11 +2572,36 @@ function renderHand(){
     d.addEventListener('mouseenter',e=>{showTT(ttHTML,e);if(c.image_url)document.getElementById('hcard-tt').classList.add('hcard-tooltip-img');else document.getElementById('hcard-tt').classList.remove('hcard-tooltip-img');});
     d.addEventListener('mousemove',e=>moveTT(e));
     d.addEventListener('mouseleave',hideTT);
+    // Sur mobile : détection tap vs scroll. Tap (doigt posé puis relâché sans glisser)
+    // → ouvre la modal. Glisser → scroll horizontal de la main, aucune modal.
+    (function(){
+      let startX=0,startY=0,startT=0,tracking=false;
+      d.addEventListener('pointerdown',e=>{
+        if(e.pointerType!=='touch')return;
+        if(!document.body.classList.contains('mobile'))return;
+        startX=e.clientX; startY=e.clientY; startT=Date.now(); tracking=true;
+      });
+      d.addEventListener('pointermove',e=>{
+        if(!tracking||e.pointerType!=='touch')return;
+        const dx=Math.abs(e.clientX-startX), dy=Math.abs(e.clientY-startY);
+        if(dx>10||dy>10){ tracking=false; } // scroll détecté : on abandonne
+      });
+      d.addEventListener('pointerup',e=>{
+        if(!tracking||e.pointerType!=='touch')return;
+        tracking=false;
+        const dx=Math.abs(e.clientX-startX), dy=Math.abs(e.clientY-startY);
+        const dt=Date.now()-startT;
+        if(dx<=10&&dy<=10&&dt<600){
+          e.stopPropagation();
+          showCardModal(c, i, dis, ttHTML, rarCol);
+        }
+      });
+      d.addEventListener('pointercancel',()=>{tracking=false;});
+    })();
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
       if(document.body.classList.contains('mobile')){
-        // Ouverture immédiate au tap — pas de fermeture auto sur mouvement
-        showCardModal(c, i, dis, ttHTML, rarCol);
+        // Géré par pointer events ci-dessus — rien à faire ici
       } else {
         if(TT.style.display==='flex'&&TT._srcCard===d){hideTT();TT._srcCard=null;}
         else{
@@ -2772,6 +2825,7 @@ function toggleLog(){document.getElementById('logp').classList.toggle('expanded'
 
 /* ── Modale carte mobile ── */
 let _mobModalPlayFn=null;
+let _mobModalIdx=-1;
 function showCardModal(c, idx, disabled, ttHTML, rarCol){
   const overlay=document.getElementById('mob-modal-overlay');
   const rarEl=document.getElementById('mob-modal-rar');
@@ -2779,6 +2833,8 @@ function showCardModal(c, idx, disabled, ttHTML, rarCol){
   const imgEl=document.getElementById('mob-modal-img');
   const statsEl=document.getElementById('mob-modal-stats');
   const playBtn=document.getElementById('mob-modal-play');
+
+  _mobModalIdx=idx;
 
   rarEl.textContent=RLAB[c.rarete]||(c.type||'');
   rarEl.style.color=rarCol;
@@ -2818,6 +2874,24 @@ function showCardModal(c, idx, disabled, ttHTML, rarCol){
   }
 
   overlay.classList.add('open');
+
+  /* Flèches navigation : désactivées aux extrémités de la main */
+  const prevBtn=document.getElementById('mob-modal-prev');
+  const nextBtn=document.getElementById('mob-modal-next');
+  const handLen=(G&&G.human&&G.human.hand)?G.human.hand.length:0;
+  if(prevBtn)prevBtn.disabled=(idx<=0);
+  if(nextBtn)nextBtn.disabled=(idx>=handLen-1);
+}
+/* Naviguer entre les cartes en main depuis la modale */
+function navCardModal(dir){
+  if(_mobModalIdx<0||!G||!G.human||!G.human.hand)return;
+  const newIdx=_mobModalIdx+dir;
+  if(newIdx<0||newIdx>=G.human.hand.length)return;
+  const c=G.human.hand[newIdx];
+  const isFig=c.ct==='fighter';
+  const dis=G.phase==='choose_fighter'?!isFig:G.phase==='sort'?(c.ct!=='sort'||G.human.sortJoue):true;
+  const rarCol={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'}[c.rarete]||'#888';
+  showCardModal(c, newIdx, dis, '', rarCol);
 }
 function closeCardModal(e){
   if(e&&e.target!==document.getElementById('mob-modal-overlay'))return;
