@@ -1325,12 +1325,12 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
     <div class="wt-pill ww" id="wt"><div class="tdot"></div><span id="wt-txt">—</span></div>
     <div style="display:flex;align-items:center;gap:6px">
       <button id="theme-btn" onclick="toggleTheme()" style="background:var(--s3);border:1px solid var(--bdr2);color:var(--txt);padding:4px 10px;border-radius:20px;cursor:pointer;font-size:11px;font-family:'DM Mono',monospace;transition:all .2s">☀️ Clair</button>
-      <div id="_mc" style="display:flex;align-items:center;gap:6px;background:var(--s3);border:1px solid var(--bdr2);padding:4px 10px;border-radius:20px;">
-        <button id="_mc_btn" onclick="_mToggle()" style="background:none;border:none;font-size:14px;cursor:pointer;line-height:1;padding:0;color:var(--txt);" title="Musique">⏳</button>
+      <div id="_mc" style="display:flex;align-items:center;gap:4px;background:var(--s3);border:1px solid var(--bdr2);padding:3px 7px;border-radius:20px;">
+        <button id="_mc_btn" onclick="_mToggle()" style="background:none;border:none;font-size:11px;cursor:pointer;line-height:1;padding:0;color:var(--txt);" title="Musique">⏳</button>
         <input type="range" id="_mc_vol" min="0" max="100" value="25"
-          style="width:60px;accent-color:#f0c040;cursor:pointer;vertical-align:middle;"
+          style="width:44px;height:10px;accent-color:#f0c040;cursor:pointer;vertical-align:middle;"
           oninput="_mVol(this.value)">
-        <span id="_mc_pct" style="font-size:10px;color:#f0c040;min-width:28px;font-family:monospace;">25%</span>
+        <span id="_mc_pct" style="font-size:9px;color:#f0c040;min-width:22px;font-family:monospace;">25%</span>
       </div>
       <button id="layout-btn" onclick="toggleLayout()" style="background:var(--s3);border:1px solid var(--bdr2);color:var(--txt);padding:4px 10px;border-radius:20px;cursor:pointer;font-size:11px;font-family:'DM Mono',monospace;transition:all .2s">📱 Téléphone</button>
     </div>
@@ -2475,7 +2475,8 @@ function renderHand(){
     const d=document.createElement('div');
     const typeClass = c.ct==='fighter' ? 'ct-hero' : (c.type==='Ruse' ? 'ct-ruse' : 'ct-arcane');
     d.className=`hcard r${c.rarete} ${typeClass}${dis?' hc-dis':''}`;
-    d.onclick=dis?null:()=>humanPlayCard(i);
+    const _isMobile=document.body.classList.contains('mobile');
+    d.onclick=dis||_isMobile?null:()=>humanPlayCard(i);
 
     const rarCol={C:'#888',PC:'var(--PC)',R:'var(--R)',M:'var(--gold)'}[c.rarete]||'#888';
     if(c.image_url){
