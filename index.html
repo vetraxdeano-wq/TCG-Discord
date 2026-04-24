@@ -1428,8 +1428,8 @@ function renderDeckEdit(th){
     if(card.rarity==='mythic'||card.rarity==='rare'){
       if(qty>=2) return {ok:false,reason:'2 exemplaires max (Rare/Myth)'};
     }
-    // Max 2 Mythiques au total dans le deck
-    if(card.rarity==='mythic'&&mythCount>=2&&qty===0) return {ok:false,reason:'2 Mythiques max dans le deck'};
+    // Max 2 Mythiques au total dans le deck (doublons compris)
+    if(card.rarity==='mythic'&&mythCount>=2) return {ok:false,reason:'2 Mythiques max dans le deck'};
     return {ok:true};
   };
 
@@ -1586,7 +1586,7 @@ function renderDeckEdit(th){
           const maxCopies = (card.rarity==='mythic'||card.rarity==='rare') ? 2 : card.count;
           const canAddMore = chk.ok;
           const alreadyFull = !canAddMore && qty>0;
-          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" data-name="${card.name.toLowerCase().replace(/'/g,'&#39;').replace(/"/g,'&quot;')}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:${canAddMore||alreadyFull?'pointer':'default'};position:relative;overflow:visible;" title="${canAddMore?'Ajouter au deck':chk.reason}">
+          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" data-name="${card.name.toLowerCase().replace(/'/g,'&#39;').replace(/"/g,'&quot;')}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:pointer;position:relative;overflow:visible;" title="${canAddMore?'Voir la carte & ajouter':'Voir la carte — '+chk.reason}">
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}overflow:visible;">
               ${card.image_url
                 ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
@@ -4392,13 +4392,13 @@ function bindGame(){
     btn.addEventListener('click',(e)=>{e.stopPropagation();deleteDeck(btn.dataset.deckid);});
   });
 
-  // Ajouter une carte au deck (vue édition) — la suppression se fait uniquement via la bande deck
-  document.querySelectorAll('.db-add-card').forEach(el=>{
+  // Clic sur une carte de la collection → ouvre la vue preview en grand
+  // (ajout / annulation / navigation / compteurs gérés depuis la modale)
+  document.querySelectorAll('.db-add-card, .db-add-card-disabled').forEach(el=>{
     el.addEventListener('click',()=>{
-      addCardToDeck(el.dataset.cardid);
+      if (window.openDeckCardPreview) openDeckCardPreview(el.dataset.cardid);
     });
   });
-  // db-add-card-disabled : aucune action (deck plein ou limite atteinte)
 
   // Retirer une carte du deck (clic sur carte dans le deck)
   document.querySelectorAll('.db-deck-card').forEach(el=>{
@@ -4462,24 +4462,9 @@ function bindGame(){
         return;
       }
       if (mode === 'pvp') {
-        // Pour PvP, on a besoin d'au moins un deck complet (30 cartes) — pas forcément le par défaut
-        const db = window.db;
-        const myId = state.currentUser?.id;
-        if (!db || !myId) { showToast('Non connecté', '✗'); return; }
-        const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
-        if (!decksData || decksData.length === 0) {
-          showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
-          return;
-        }
-        const deckIds = decksData.map(d=>d.id);
-        const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
-        const totals = {};
-        (dc||[]).forEach(c=>{ totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
-        const hasComplete = Object.values(totals).some(t=>t>=30);
-        if (!hasComplete) {
-          showToast('Complète au moins un deck (30 cartes) avant de jouer en PvP', '⚠');
-          return;
-        }
+        // Même vérification que le PvE : deck par défaut valide (30 cartes + règles respectées)
+        const ok = await checkDefaultDeck();
+        if (!ok) return;
         window.location.href = 'PVP.html';
         return;
       }
@@ -5646,6 +5631,119 @@ function showToast(msg, icon='ℹ') {
   setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2500);
 }
 
+// ─── VALIDATION DE DECK (règles : 30 cartes, max 2 Mythiques, max 2 exemplaires Rare/Mythic) ──
+// Retourne { valid, errors:[{code,msg}], stats:{total,mythCount,rareOver,mythicOver} }
+function validateDeck(deck) {
+  const errors = [];
+  const cards = (deck && deck.cards) || [];
+  let total = 0;
+  let mythCount = 0;
+  const rareOver = []; // cartes Rares > 2
+  const mythicOver = []; // cartes Mythiques > 2
+  for (const c of cards) {
+    const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
+    total += c.quantity;
+    if (!card) continue;
+    if (card.rarity === 'mythic') {
+      mythCount += c.quantity;
+      if (c.quantity > 2) mythicOver.push({ name: card.name, qty: c.quantity });
+    }
+    if (card.rarity === 'rare' && c.quantity > 2) {
+      rareOver.push({ name: card.name, qty: c.quantity });
+    }
+  }
+  if (total !== 30) errors.push({ code: 'total', msg: `Le deck doit contenir exactement 30 cartes (actuellement ${total}/30)` });
+  if (mythCount > 2) errors.push({ code: 'mythTotal', msg: `Maximum 2 cartes Mythiques au total dans le deck (actuellement ${mythCount})` });
+  mythicOver.forEach(c => errors.push({ code: 'mythDup', msg: `"${c.name}" (Mythique) : max 2 exemplaires (actuellement ${c.qty})` }));
+  rareOver.forEach(c => errors.push({ code: 'rareDup', msg: `"${c.name}" (Rare) : max 2 exemplaires (actuellement ${c.qty})` }));
+  return { valid: errors.length === 0, errors, stats: { total, mythCount, rareOver, mythicOver } };
+}
+
+// ─── MODALE explicative des règles de deck ──────────────────────────
+// opts: { title, message, lines?:string[], icon?, confirmLabel?, cancelLabel?, onConfirm?, onCancel? }
+// Si onConfirm est fourni, affiche 2 boutons (Confirmer / Annuler). Sinon juste OK.
+function showDeckRuleModal(opts) {
+  // Éviter les doublons
+  const existing = document.getElementById('deck-rule-modal');
+  if (existing) existing.remove();
+
+  const th = t();
+  const title = opts.title || 'Règles du Deck Builder';
+  const icon = opts.icon || '🗂️';
+  const message = opts.message || '';
+  const lines = Array.isArray(opts.lines) ? opts.lines : [];
+  const hasConfirm = typeof opts.onConfirm === 'function';
+  const confirmLabel = opts.confirmLabel || 'OK';
+  const cancelLabel = opts.cancelLabel || 'Annuler';
+
+  const wrap = document.createElement('div');
+  wrap.id = 'deck-rule-modal';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .18s ease-out;';
+  wrap.innerHTML = `
+    <div style="width:100%;max-width:360px;background:${th.bgSecondary};border:2px solid #000;box-shadow:0 24px 80px rgba(0,0,0,.7);padding:20px;display:flex;flex-direction:column;gap:14px;animation:popIn .22s ease-out;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:26px;">${icon}</div>
+        <div style="font-family:'Luckiest Guy',cursive;font-size:15px;font-weight:400;color:${th.text};letter-spacing:.5px;line-height:1.15;flex:1;">${title}</div>
+      </div>
+      ${message ? `<div style="font-size:12px;color:${th.text};line-height:1.45;">${message}</div>` : ''}
+      ${lines.length > 0 ? `
+        <div style="background:${th.bgTertiary};border:1px solid ${th.border};padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+          ${lines.map(l => `<div style="font-size:11px;color:${th.textMuted};line-height:1.4;display:flex;gap:6px;align-items:flex-start;"><span style="color:${th.accent};flex-shrink:0;">•</span><span>${l}</span></div>`).join('')}
+        </div>` : ''}
+      <div style="background:${th.bgTertiary}80;border-left:3px solid ${th.accent};padding:8px 10px;">
+        <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px;">Rappel des règles</div>
+        <div style="font-size:11px;color:${th.textMuted};line-height:1.45;">30 cartes par deck · max 2 exemplaires d'une même carte Rare/Mythique · max 2 Mythiques au total</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        ${hasConfirm ? `<button id="drm-cancel" style="padding:9px 16px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px;">${cancelLabel}</button>` : ''}
+        <button id="drm-ok" style="padding:9px 18px;background:${hasConfirm ? th.accent : th.green};color:${hasConfirm ? '#fff' : '#000'};border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px;">${confirmLabel}</button>
+      </div>
+    </div>`;
+
+  // Animations injectées une seule fois
+  if (!document.getElementById('deck-rule-modal-anims')) {
+    const st = document.createElement('style');
+    st.id = 'deck-rule-modal-anims';
+    st.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes popIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}';
+    document.head.appendChild(st);
+  }
+
+  document.body.appendChild(wrap);
+
+  const close = () => wrap.remove();
+  wrap.querySelector('#drm-ok').addEventListener('click', () => {
+    close();
+    if (hasConfirm && opts.onConfirm) opts.onConfirm();
+  });
+  const cancelBtn = wrap.querySelector('#drm-cancel');
+  if (cancelBtn) cancelBtn.addEventListener('click', () => {
+    close();
+    if (opts.onCancel) opts.onCancel();
+  });
+  // Clic sur fond = annuler / fermer
+  wrap.addEventListener('click', (e) => {
+    if (e.target === wrap) {
+      close();
+      if (hasConfirm && opts.onCancel) opts.onCancel();
+    }
+  });
+}
+window.showDeckRuleModal = showDeckRuleModal;
+window.validateDeck = validateDeck;
+
+// Garde-fou anti-spam : ne montrer la modale qu'une fois par "type" de limite par session
+const _deckRuleShown = {};
+function showDeckRuleModalOnce(key, opts) {
+  if (_deckRuleShown[key]) {
+    // Déjà vu cette session → juste un toast discret
+    if (opts.toastMsg) showToast(opts.toastMsg, '⚠');
+    return;
+  }
+  _deckRuleShown[key] = true;
+  showDeckRuleModal(opts);
+}
+window.showDeckRuleModalOnce = showDeckRuleModalOnce;
+
 // ─── STARTER PACK — réclamer (source de vérité = Supabase, lié à l'ID joueur) ─
 window._claimStarterPack = async function(notifIdx) {
   const uid = state.currentUser?.id;
@@ -6494,7 +6592,8 @@ window.onPlayerWin = async function() {
 
 
 
-// Vérifie qu'un deck par défaut jouable (30 cartes) existe — affiche un toast sinon
+// Vérifie qu'un deck par défaut jouable (30 cartes + règles respectées) existe — affiche une modale claire sinon.
+// Retourne true si on peut lancer le jeu, false sinon. Ouvre le Deck Builder si besoin de correction.
 async function checkDefaultDeck() {
   const db = window.db;
   const myId = state.currentUser?.id;
@@ -6507,21 +6606,57 @@ async function checkDefaultDeck() {
     .single();
 
   if (!deck) {
-    showToast('Aucun deck par défaut — configure un deck dans le Deck Builder', '🗂️');
+    showDeckRuleModal({
+      title: 'Aucun deck par défaut',
+      icon: '🗂️',
+      message: 'Tu dois configurer un deck par défaut avant de jouer. Ouvre le Deck Builder dans l\'onglet Collection pour en créer un.',
+      confirmLabel: 'Ouvrir le Deck Builder',
+      onConfirm: () => setState({ tab: 1, showDeckBuilder: true, deckBuilderView: 'list' })
+    });
     return false;
   }
 
   const { data: dc } = await db.from('deck_cards')
-    .select('quantity')
+    .select('card_id, quantity')
     .eq('deck_id', deck.id);
 
-  const total = (dc || []).reduce((s, c) => s + c.quantity, 0);
-  if (total < 30) {
-    showToast(`Deck "${deck.name}" incomplet (${total}/30) — complète-le avant de jouer`, '⚠');
+  const deckForValidation = { cards: (dc || []).map(c => ({ card_id: c.card_id, quantity: c.quantity })) };
+  const validation = validateDeck(deckForValidation);
+
+  if (validation.valid) return true;
+
+  // Construire un message explicite selon les problèmes
+  const total = validation.stats.total;
+  const structuralErrors = validation.errors.filter(e => e.code !== 'total');
+
+  if (total < 30 && structuralErrors.length === 0) {
+    // Juste incomplet
+    showDeckRuleModal({
+      title: `Deck "${deck.name}" incomplet`,
+      icon: '⚠️',
+      message: `Ton deck contient seulement <b>${total}/30 cartes</b>. Complète-le dans le Deck Builder pour pouvoir jouer.`,
+      confirmLabel: 'Ouvrir le Deck Builder',
+      cancelLabel: 'Plus tard',
+      onConfirm: () => {
+        setState({ tab: 1, showDeckBuilder: true, deckBuilderView: 'edit', activeDeckId: deck.id });
+      }
+    });
     return false;
   }
 
-  return true;
+  // Violations structurelles (+ éventuellement total != 30)
+  showDeckRuleModal({
+    title: `Deck "${deck.name}" invalide`,
+    icon: '⚠️',
+    message: `Ton deck par défaut ne respecte pas les règles de jeu. Corrige-le avant de lancer une partie.`,
+    lines: validation.errors.map(e => e.msg),
+    confirmLabel: 'Ouvrir le Deck Builder',
+    cancelLabel: 'Plus tard',
+    onConfirm: () => {
+      setState({ tab: 1, showDeckBuilder: true, deckBuilderView: 'edit', activeDeckId: deck.id });
+    }
+  });
+  return false;
 }
 
 // coins refresh — interne uniquement
@@ -7177,21 +7312,9 @@ async function sendCombatRequest(toId, toName) {
   const myId = state.currentUser?.id;
   if (!myId || !toId) return;
 
-  // Vérifier qu'on a au moins un deck complet
-  const { data: decksData } = await db.from('decks').select('id').eq('player_id', myId);
-  if (!decksData || decksData.length === 0) {
-    showToast('Crée d\'abord un deck dans le Deck Builder', '🗂️');
-    return;
-  }
-  const deckIds = decksData.map(d=>d.id);
-  const { data: dc } = await db.from('deck_cards').select('deck_id, quantity').in('deck_id', deckIds);
-  const totals = {};
-  (dc||[]).forEach(c=>{ totals[c.deck_id] = (totals[c.deck_id]||0) + c.quantity; });
-  const hasComplete = Object.values(totals).some(t=>t>=30);
-  if (!hasComplete) {
-    showToast('Complète au moins un deck (30 cartes)', '⚠');
-    return;
-  }
+  // Vérification unifiée : deck par défaut valide (30 cartes + règles respectées)
+  const ok = await checkDefaultDeck();
+  if (!ok) return;
 
   // Pré-sélectionner cet ami sur la page PVP pour lancer directement le défi
   try {
@@ -7565,17 +7688,20 @@ async function setDefaultDeck(deckId) {
   showToast('Deck par défaut mis à jour', '⭐');
 }
 
+// Ajoute une carte au deck. L'UX (explication des limites) est portée par
+// openDeckCardPreview qui grise le bouton et affiche la raison. Les checks
+// ci-dessous restent comme filet de sécurité (double-clic, appels programmatiques).
 function addCardToDeck(cardId) {
   const decks = state.decks || [];
   const deck = decks.find(d=>d.id===state.activeDeckId);
-  if (!deck) return;
+  if (!deck) return false;
 
   const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(cardId));
-  if (!card || !card.owned) return;
+  if (!card || !card.owned) return false;
 
   const deckCards = deck.cards || [];
   const deckTotal = deckCards.reduce((s,c)=>s+c.quantity,0);
-  if (deckTotal >= 30) { showToast('30 cartes max dans un deck', '⚠'); return; }
+  if (deckTotal >= 30) { showToast('30 cartes max dans un deck', '⚠'); return false; }
 
   const mythCount = deckCards.reduce((s,c)=>{
     const cd=ALL_CARDS.find(x=>parseInt(x.id)===parseInt(c.card_id));
@@ -7585,16 +7711,14 @@ function addCardToDeck(cardId) {
   const existing = deckCards.find(c=>parseInt(c.card_id)===parseInt(cardId));
   const currentQty = existing ? existing.quantity : 0;
 
-  // Ne pas dépasser le nombre d'exemplaires possédés
   if (currentQty >= card.count) {
-    showToast(`Tu ne possèdes que ${card.count} exemplaire${card.count>1?'s':''} de cette carte`, '⚠'); return;
+    showToast(`Tu n'as que ${card.count} exemplaire${card.count>1?'s':''} de cette carte`, '⚠'); return false;
   }
-  // Règles de limite Rare/Mythic
   if ((card.rarity==='mythic'||card.rarity==='rare') && currentQty >= 2) {
-    showToast(`Max 2 exemplaires pour les ${card.rarity==='mythic'?'Mythiques':'Rares'}`, '⚠'); return;
+    showToast(`Max 2 exemplaires pour les ${card.rarity==='mythic'?'Mythiques':'Rares'}`, '⚠'); return false;
   }
-  if (card.rarity==='mythic' && mythCount >= 2 && currentQty === 0) {
-    showToast('Max 2 cartes Mythiques par deck', '⚠'); return;
+  if (card.rarity==='mythic' && mythCount >= 2) {
+    showToast('Max 2 Mythiques par deck', '⚠'); return false;
   }
 
   let newCards;
@@ -7606,6 +7730,7 @@ function addCardToDeck(cardId) {
 
   const updatedDecks = decks.map(d=>d.id===deck.id?{...d,cards:newCards}:d);
   setState({ decks: updatedDecks });
+  return true;
 }
 
 function removeCardFromDeck(cardId) {
@@ -7629,67 +7754,155 @@ function removeCardFromDeck(cardId) {
 }
 
 // ─── AUTO-FILL DECK ───────────────────────────────────────────────
+// Complète le deck existant (sans écraser) en respectant les règles :
+//   - 30 cartes max au total
+//   - max 2 exemplaires d'une même carte Rare/Mythique
+//   - max 2 Mythiques au total
 function autoFillDeck() {
   const decks = state.decks || [];
   const deck = decks.find(d => d.id === state.activeDeckId);
   if (!deck) return;
 
-  // Cartes possédées, triées par rareté décroissante (mythic > rare > uncommon > common)
+  // Point de départ : on CLONE le deck existant (quitte à le corriger
+  // s'il viole déjà une règle — ex. anciennement sauvegardé invalide).
+  const existingCards = (deck.cards || []).map(c => ({ ...c }));
+
+  // 1) Corriger les violations existantes : clamp des Rares/Mythiques à 2 exemplaires max
+  let clampedDuplicates = 0;
+  for (const c of existingCards) {
+    const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
+    if (!card) continue;
+    const maxCopies = (card.rarity === 'mythic' || card.rarity === 'rare') ? 2 : card.count;
+    if (c.quantity > maxCopies) {
+      clampedDuplicates += (c.quantity - maxCopies);
+      c.quantity = maxCopies;
+    }
+  }
+
+  // 2) Si on a > 2 Mythiques au total, on garde les 2 premières rencontrées,
+  //    et on retire les autres.
+  let removedExtraMythics = 0;
+  let mythSeen = 0;
+  const keptCards = [];
+  for (const c of existingCards) {
+    const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
+    if (card && card.rarity === 'mythic') {
+      if (mythSeen >= 2) {
+        removedExtraMythics += c.quantity;
+        continue; // on drop cette carte mythique en trop
+      }
+      // Accepter jusqu'à compléter 2 mythiques — si une seule mythique différente
+      // a 2 exemplaires ça compte pour 2 du compteur
+      const remainingMyth = 2 - mythSeen;
+      if (c.quantity > remainingMyth) {
+        removedExtraMythics += (c.quantity - remainingMyth);
+        c.quantity = remainingMyth;
+      }
+      mythSeen += c.quantity;
+    }
+    if (c.quantity > 0) keptCards.push(c);
+  }
+
+  // 3) Clamp sur la taille totale à 30 (retirer depuis la fin si trop)
+  let total = keptCards.reduce((s, c) => s + c.quantity, 0);
+  let trimmedOverflow = 0;
+  while (total > 30 && keptCards.length > 0) {
+    const last = keptCards[keptCards.length - 1];
+    last.quantity -= 1;
+    trimmedOverflow += 1;
+    total -= 1;
+    if (last.quantity <= 0) keptCards.pop();
+  }
+
+  let mythCount = keptCards.reduce((s, c) => {
+    const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
+    return s + (card && card.rarity === 'mythic' ? c.quantity : 0);
+  }, 0);
+
+  // 4) Complétion : ajouter des cartes possédées pour atteindre 30
   const rarityPriority = { mythic: 0, rare: 1, uncommon: 2, common: 3 };
   const ownedCards = ALL_CARDS
     .filter(c => c.owned && c.count > 0)
     .sort((a, b) => {
       const rDiff = rarityPriority[a.rarity] - rarityPriority[b.rarity];
       if (rDiff !== 0) return rDiff;
-      // À rareté égale, prioriser les cartes avec plus d'exemplaires
-      return b.count - a.count;
+      return b.count - a.count; // à rareté égale, cartes les plus nombreuses d'abord
     });
 
-  // Construire le deck en appliquant toutes les règles
-  let newCards = []; // [{card_id, quantity}]
-  let total = 0;
-  let mythCount = 0;
-
-  const qtyInNew = (cardId) => {
-    const e = newCards.find(c => parseInt(c.card_id) === parseInt(cardId));
+  const qtyInKept = (cardId) => {
+    const e = keptCards.find(c => parseInt(c.card_id) === parseInt(cardId));
     return e ? e.quantity : 0;
   };
 
   for (const card of ownedCards) {
     if (total >= 30) break;
-
-    // Combien d'exemplaires peut-on ajouter ?
-    let maxAdd = card.count; // limité par ce qu'on possède
-
-    // Rare/Mythic : max 2 exemplaires dans le deck
+    const already = qtyInKept(card.id);
+    let maxAdd = card.count - already; // on ne dépasse pas ce qu'on possède
     if (card.rarity === 'mythic' || card.rarity === 'rare') {
-      maxAdd = Math.min(maxAdd, 2);
+      maxAdd = Math.min(maxAdd, 2 - already);
     }
-
-    // Mythic : max 2 au total dans le deck
     if (card.rarity === 'mythic') {
       maxAdd = Math.min(maxAdd, 2 - mythCount);
     }
-
     if (maxAdd <= 0) continue;
-
-    // Limiter à ce qu'il reste à remplir
     const toAdd = Math.min(maxAdd, 30 - total);
     if (toAdd <= 0) continue;
 
-    newCards.push({ card_id: parseInt(card.id), quantity: toAdd, deck_id: deck.id });
+    const existing = keptCards.find(c => parseInt(c.card_id) === parseInt(card.id));
+    if (existing) {
+      existing.quantity += toAdd;
+    } else {
+      keptCards.push({ card_id: parseInt(card.id), quantity: toAdd, deck_id: deck.id });
+    }
     total += toAdd;
     if (card.rarity === 'mythic') mythCount += toAdd;
   }
 
+  const newCards = keptCards;
+
   if (total === 0) {
-    showToast('Aucune carte possédée pour remplir le deck', '⚠');
+    showDeckRuleModal({
+      title: 'Aucune carte à ajouter',
+      icon: '📭',
+      message: 'Tu ne possèdes encore aucune carte pour remplir ce deck. Ouvre des boosters dans la boutique pour obtenir tes premières cartes !',
+      confirmLabel: 'Compris'
+    });
     return;
   }
 
   const updatedDecks = decks.map(d => d.id === deck.id ? { ...d, cards: newCards } : d);
   setState({ decks: updatedDecks });
-  showToast(`Deck rempli automatiquement (${total}/30 cartes)`, total === 30 ? '✨' : '⚠');
+
+  // Feedback clair au joueur (modale si on a corrigé des violations, sinon toast simple)
+  const corrections = [];
+  if (clampedDuplicates > 0) corrections.push(`${clampedDuplicates} exemplaire${clampedDuplicates>1?'s':''} en trop retiré${clampedDuplicates>1?'s':''} (max 2 par carte Rare/Mythique)`);
+  if (removedExtraMythics > 0) corrections.push(`${removedExtraMythics} Mythique${removedExtraMythics>1?'s':''} retirée${removedExtraMythics>1?'s':''} (max 2 Mythiques par deck)`);
+  if (trimmedOverflow > 0) corrections.push(`${trimmedOverflow} carte${trimmedOverflow>1?'s':''} en trop retirée${trimmedOverflow>1?'s':''} (30 cartes max)`);
+
+  if (corrections.length > 0) {
+    // Il y avait des violations → on le signale clairement
+    showDeckRuleModal({
+      title: 'Deck corrigé et complété',
+      icon: '✨',
+      message: `Ton deck a été <b>ajusté pour respecter les règles</b> puis complété automatiquement (${total}/30 cartes, ${mythCount}/2 Mythiques).`,
+      lines: corrections,
+      confirmLabel: 'Parfait !'
+    });
+  } else if (total < 30) {
+    // Remplissage partiel (pas assez de cartes possédées)
+    showDeckRuleModal({
+      title: 'Deck partiellement rempli',
+      icon: '⚠️',
+      message: `Seulement <b>${total}/30 cartes</b> ajoutées — tu n'as pas encore assez de cartes dans ta collection pour remplir un deck complet.`,
+      lines: [
+        `${mythCount}/2 Mythiques dans le deck`,
+        'Ouvre plus de boosters pour obtenir de nouvelles cartes.'
+      ],
+      confirmLabel: 'Compris'
+    });
+  } else {
+    showToast(`Deck rempli automatiquement (${total}/30 · ${mythCount}/2 Myth.)`, '✨');
+  }
 }
 
 async function promptRenameDeck(deckId, currentName) {
@@ -7713,6 +7926,28 @@ async function saveDeck() {
 
   const cards = deck.cards || [];
   const deckTotal = cards.reduce((s,c)=>s+c.quantity,0);
+
+  // ── Validation préalable des règles (hors "30 cartes" — un deck partiel
+  //    reste sauvegardable, mais pas avec des violations de mythique/doublons).
+  const validation = validateDeck(deck);
+  const structuralErrors = validation.errors.filter(e => e.code !== 'total');
+  if (structuralErrors.length > 0) {
+    // Bloquer la sauvegarde et proposer une correction automatique
+    showDeckRuleModal({
+      title: 'Deck invalide — impossible de sauvegarder',
+      icon: '⚠️',
+      message: `Ton deck ne respecte pas les règles. Tu peux le <b>corriger automatiquement</b> (les excédents seront retirés et le deck sera complété si possible), ou retourner l'ajuster toi-même.`,
+      lines: structuralErrors.map(e => e.msg),
+      confirmLabel: '✨ Corriger auto',
+      cancelLabel: 'Je corrige moi-même',
+      onConfirm: () => {
+        autoFillDeck();
+        // Relancer la sauvegarde après correction
+        setTimeout(() => saveDeck(), 300);
+      }
+    });
+    return;
+  }
 
   try {
     // Supprimer toutes les cartes existantes
@@ -7996,6 +8231,257 @@ async function subscribeTradeNotifications() {
 }
 
 window.subscribeTradeNotifications = subscribeTradeNotifications;
+
+// ─── DECK BUILDER — APERÇU CARTE EN GRAND ──────────────────────────
+// Modale plein écran : carte en grand au centre, compteurs, bouton Ajouter,
+// flèches de navigation. La liste de cartes navigables = collection possédée
+// triée/filtrée selon l'état courant du deck builder (même que la grille).
+let _deckPreviewIdx = 0;
+let _deckPreviewList = [];
+
+function _buildDeckPreviewList() {
+  // Reproduit la même logique de filtre/tri que la grille du deck builder
+  const ownedCards = ALL_CARDS.filter(c => c.owned);
+  const typeFiltered = state.deckTypeFilter
+    ? ownedCards.filter(c => (c.type || 'Héro') === state.deckTypeFilter)
+    : ownedCards;
+  const searchQ = (state.deckSearch || '').toLowerCase().trim();
+  const _normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const searchFiltered = searchQ
+    ? typeFiltered.filter(c =>
+        _normalize(c.name.toLowerCase()).includes(_normalize(searchQ)) ||
+        String(parseInt(c.id)).includes(searchQ) ||
+        (c.id || '').toLowerCase().includes(searchQ)
+      )
+    : typeFiltered;
+  const RARITY_O = { mythic: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
+  const sorted = [...searchFiltered].sort((a, b) => {
+    const dir = state.deckSortDir === 'asc' ? 1 : -1;
+    const numSort = (field) => {
+      const va = a[field] ?? -1, vb = b[field] ?? -1;
+      return dir * (vb - va) || a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+    };
+    switch (state.deckSortBy) {
+      case 'name':      return dir * (a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+      case 'type':      return dir * (a.type || '').localeCompare(b.type || '', 'fr', { sensitivity: 'base' }) || (RARITY_O[a.rarity] ?? 9) - (RARITY_O[b.rarity] ?? 9);
+      case 'id':        return dir * (parseInt(a.id) - parseInt(b.id));
+      case 'attack':    return numSort('attack');
+      case 'defense':   return numSort('defense');
+      case 'precision': return numSort('precision');
+      case 'hp':        return numSort('hp');
+      default:          return dir * ((RARITY_O[a.rarity] ?? 9) - (RARITY_O[b.rarity] ?? 9)) || a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+    }
+  });
+  return sorted;
+}
+
+// Calcule l'état d'ajout d'une carte donnée (compteurs, raison si bloqué)
+function _getDeckPreviewStatus(card) {
+  const deck = (state.decks || []).find(d => d.id === state.activeDeckId);
+  const deckCards = (deck && deck.cards) || [];
+  const deckTotal = deckCards.reduce((s, c) => s + c.quantity, 0);
+  const mythCount = deckCards.reduce((s, c) => {
+    const cd = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
+    return s + (cd && cd.rarity === 'mythic' ? c.quantity : 0);
+  }, 0);
+  const existing = deckCards.find(c => parseInt(c.card_id) === parseInt(card.id));
+  const inDeck = existing ? existing.quantity : 0;
+  const maxInDeck = (card.rarity === 'mythic' || card.rarity === 'rare') ? 2 : card.count;
+
+  let canAdd = true;
+  let reason = '';
+  if (deckTotal >= 30) { canAdd = false; reason = 'Deck plein (30/30)'; }
+  else if (inDeck >= card.count) { canAdd = false; reason = `Tu n'as que ${card.count} exemplaire${card.count > 1 ? 's' : ''}`; }
+  else if ((card.rarity === 'mythic' || card.rarity === 'rare') && inDeck >= 2) { canAdd = false; reason = 'Max 2 exemplaires (Rare/Mythique)'; }
+  else if (card.rarity === 'mythic' && mythCount >= 2) { canAdd = false; reason = 'Max 2 Mythiques dans le deck'; }
+
+  return { inDeck, maxInDeck, owned: card.count, deckTotal, mythCount, canAdd, reason };
+}
+
+function openDeckCardPreview(cardId) {
+  // Si déjà ouvert, on saute juste à la bonne carte
+  const existingEl = document.getElementById('deck-card-preview');
+  _deckPreviewList = _buildDeckPreviewList();
+  const idx = _deckPreviewList.findIndex(c => parseInt(c.id) === parseInt(cardId));
+  if (idx < 0) return;
+  _deckPreviewIdx = idx;
+
+  if (existingEl) {
+    _renderDeckPreviewContent();
+    return;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.id = 'deck-card-preview';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;animation:fadeIn .18s ease-out;';
+  wrap.innerHTML = '<div id="dcp-content" style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;"></div>';
+  document.body.appendChild(wrap);
+
+  // Fermeture sur fond (hors contenu)
+  wrap.addEventListener('click', (e) => {
+    if (e.target === wrap) closeDeckCardPreview();
+  });
+
+  // Navigation clavier
+  const onKey = (e) => {
+    if (!document.getElementById('deck-card-preview')) { document.removeEventListener('keydown', onKey); return; }
+    if (e.key === 'Escape') closeDeckCardPreview();
+    else if (e.key === 'ArrowLeft') _deckPreviewNav(-1);
+    else if (e.key === 'ArrowRight') _deckPreviewNav(1);
+    else if (e.key === 'Enter' || e.key === ' ') _deckPreviewTryAdd();
+  };
+  document.addEventListener('keydown', onKey);
+  wrap._onKey = onKey;
+
+  // Swipe tactile pour navigation (mobile)
+  let touchStartX = null;
+  wrap.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  wrap.addEventListener('touchend', (e) => {
+    if (touchStartX === null) return;
+    const dx = (e.changedTouches[0].clientX - touchStartX);
+    touchStartX = null;
+    if (Math.abs(dx) > 60) _deckPreviewNav(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
+  _renderDeckPreviewContent();
+}
+
+function closeDeckCardPreview() {
+  const el = document.getElementById('deck-card-preview');
+  if (!el) return;
+  if (el._onKey) document.removeEventListener('keydown', el._onKey);
+  el.style.animation = 'fadeOut .15s ease both';
+  setTimeout(() => el.remove(), 160);
+}
+
+function _deckPreviewNav(dir) {
+  if (_deckPreviewList.length === 0) return;
+  _deckPreviewIdx = (_deckPreviewIdx + dir + _deckPreviewList.length) % _deckPreviewList.length;
+  _renderDeckPreviewContent();
+}
+
+function _deckPreviewTryAdd() {
+  const card = _deckPreviewList[_deckPreviewIdx];
+  if (!card) return;
+  const status = _getDeckPreviewStatus(card);
+  if (!status.canAdd) return;
+  const ok = addCardToDeck(card.id);
+  if (ok) {
+    // Re-render pour mettre à jour les compteurs + petit feedback visuel
+    _renderDeckPreviewContent(true);
+  }
+}
+
+function _renderDeckPreviewContent(flashAdded) {
+  const content = document.getElementById('dcp-content');
+  if (!content) return;
+  const card = _deckPreviewList[_deckPreviewIdx];
+  if (!card) { closeDeckCardPreview(); return; }
+
+  const th = t();
+  const status = _getDeckPreviewStatus(card);
+  const rarCol = RARITY_COLOR[card.rarity] || '#a78bfa';
+  const rarLabel = RARITY_LABEL[card.rarity] || '';
+
+  // Dimensions carte (ratio 2/3)
+  const vw = window.innerWidth, vh = window.innerHeight;
+  // Laisser de la place pour les compteurs (haut), le bouton (bas) et les flèches
+  const maxH = Math.round(vh * 0.58);
+  const maxW = Math.round(vw * 0.72);
+  const cardH = Math.min(maxH, Math.round(maxW * 1.5));
+  const cardW = Math.round(cardH / 1.5);
+
+  // Couleurs du bouton selon état
+  const btnBg = status.canAdd ? th.green : th.bgTertiary;
+  const btnColor = status.canAdd ? '#000' : th.textMuted;
+  const btnBorder = status.canAdd ? 'none' : `1px solid ${th.border}`;
+  const btnCursor = status.canAdd ? 'pointer' : 'not-allowed';
+
+  // Badge "DÉJÀ DANS LE DECK" si on a atteint la limite et que c'est un doublon
+  const showLimitBadge = !status.canAdd && status.inDeck > 0;
+
+  content.innerHTML = `
+    <!-- Bouton fermer en haut à droite -->
+    <button id="dcp-close" style="position:absolute;top:max(env(safe-area-inset-top,14px),14px);right:14px;width:42px;height:42px;background:rgba(0,0,0,.65);border:1px solid ${th.border};color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;">✕</button>
+
+    <!-- Ligne du haut : 3 compteurs -->
+    <div style="position:absolute;top:max(env(safe-area-inset-top,14px),14px);left:14px;right:70px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:2;pointer-events:none;">
+      <!-- Haut gauche : exemplaires dans le deck -->
+      <div style="background:rgba(0,0,0,.7);border:1px solid ${status.inDeck > 0 ? rarCol + '80' : th.border};padding:6px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:56px;">
+        <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Dans deck</div>
+        <div style="font-size:15px;font-weight:900;color:${status.inDeck >= status.maxInDeck ? th.red : (status.inDeck > 0 ? rarCol : th.text)};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${status.inDeck}/${status.maxInDeck}</div>
+      </div>
+      <!-- Centre : progression du deck -->
+      <div style="background:rgba(0,0,0,.7);border:1px solid ${status.deckTotal === 30 ? th.green + '80' : th.border};padding:6px 12px;display:flex;flex-direction:column;align-items:center;gap:1px;">
+        <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Deck</div>
+        <div style="font-size:15px;font-weight:900;color:${status.deckTotal === 30 ? th.green : th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${status.deckTotal}/30</div>
+      </div>
+      <!-- Haut droite : exemplaires possédés -->
+      <div style="background:rgba(0,0,0,.7);border:1px solid ${th.border};padding:6px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:56px;">
+        <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;">Possédées</div>
+        <div style="font-size:15px;font-weight:900;color:${th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">×${status.owned}</div>
+      </div>
+    </div>
+
+    <!-- Flèche gauche -->
+    <button id="dcp-prev" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:44px;height:64px;background:rgba(0,0,0,.6);border:1px solid ${th.border};color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;" aria-label="Précédent">‹</button>
+
+    <!-- Flèche droite -->
+    <button id="dcp-next" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:44px;height:64px;background:rgba(0,0,0,.6);border:1px solid ${th.border};color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;" aria-label="Suivant">›</button>
+
+    <!-- Carte centrale -->
+    <div id="dcp-card" style="width:${cardW}px;height:${cardH}px;position:relative;box-shadow:0 0 40px ${rarCol}55,0 0 80px rgba(0,0,0,.6);background:linear-gradient(135deg,${rarCol}30,${rarCol}10);border:2px solid ${rarCol}80;overflow:hidden;${flashAdded ? 'animation:dcpFlash .45s ease-out;' : ''}">
+      ${card.image_url
+        ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" draggable="false" />`
+        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
+      ${showLimitBadge ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:none;"><div style="text-align:center;font-size:16px;font-weight:900;color:#fbbf24;letter-spacing:1px;line-height:1.3;text-shadow:0 2px 8px #000;">LIMITE<br>ATTEINTE</div></div>` : ''}
+    </div>
+
+    <!-- Infos carte -->
+    <div style="margin-top:14px;text-align:center;max-width:${cardW + 20}px;padding:0 10px;">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:16px;font-weight:400;color:${th.text};letter-spacing:.5px;line-height:1.15;">${card.name}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
+        <span style="font-size:10px;font-weight:800;color:${rarCol};letter-spacing:.5px;text-transform:uppercase;">${rarLabel}</span>
+        <span style="font-size:10px;color:${th.textMuted};">·</span>
+        <span style="font-size:10px;color:${th.textMuted};font-weight:600;">#${parseInt(card.id)}</span>
+        ${card.type ? `<span style="font-size:10px;color:${th.textMuted};">·</span><span style="font-size:10px;color:${th.textMuted};font-weight:600;">${card.type}</span>` : ''}
+      </div>
+    </div>
+
+    <!-- Ligne des boutons -->
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;padding:0 14px;padding-bottom:max(env(safe-area-inset-bottom,14px),14px);">
+      <button id="dcp-cancel" style="padding:11px 18px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;">ANNULER</button>
+      <button id="dcp-add" ${status.canAdd ? '' : 'disabled'} style="padding:11px 22px;background:${btnBg};color:${btnColor};border:${btnBorder};font-size:12px;font-weight:900;cursor:${btnCursor};letter-spacing:.5px;opacity:${status.canAdd ? '1' : '.6'};">
+        ${status.canAdd ? '+ AJOUTER AU DECK' : (status.inDeck > 0 ? 'LIMITE ATTEINTE' : 'INDISPONIBLE')}
+      </button>
+    </div>
+    ${!status.canAdd ? `<div style="margin-top:8px;font-size:11px;color:${th.textMuted};text-align:center;padding:0 16px;">${status.reason}</div>` : ''}
+  `;
+
+  // Bindings
+  const close = content.querySelector('#dcp-close');
+  if (close) close.addEventListener('click', closeDeckCardPreview);
+  const prev = content.querySelector('#dcp-prev');
+  if (prev) prev.addEventListener('click', () => _deckPreviewNav(-1));
+  const next = content.querySelector('#dcp-next');
+  if (next) next.addEventListener('click', () => _deckPreviewNav(1));
+  const cancel = content.querySelector('#dcp-cancel');
+  if (cancel) cancel.addEventListener('click', closeDeckCardPreview);
+  const add = content.querySelector('#dcp-add');
+  if (add && status.canAdd) add.addEventListener('click', _deckPreviewTryAdd);
+}
+
+// Animations du preview (flash carte ajoutée + fadeOut)
+(function(){
+  if (document.getElementById('deck-card-preview-anims')) return;
+  const s = document.createElement('style');
+  s.id = 'deck-card-preview-anims';
+  s.textContent = '@keyframes dcpFlash{0%{box-shadow:0 0 40px rgba(52,211,153,.9),0 0 80px rgba(0,0,0,.6)}100%{box-shadow:0 0 40px rgba(167,139,250,.33),0 0 80px rgba(0,0,0,.6)}}';
+  document.head.appendChild(s);
+})();
+
+window.openDeckCardPreview = openDeckCardPreview;
+window.closeDeckCardPreview = closeDeckCardPreview;
 
 // ─── CARD 3D VIEWER ──────────────────────────────────────────────
 function openCard3DViewer(card) {
