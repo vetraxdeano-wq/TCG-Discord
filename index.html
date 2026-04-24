@@ -5660,7 +5660,7 @@ window._claimStarterPack = async function(notifIdx) {
   if (uid && window.db) {
     try {
       await window.db.from('players')
-        .update({ starter_pack_claimed: true })
+        .update({ starter_pack_claimed: true, pending_free_booster: 'booster_normal' })
         .eq('id', uid);
     } catch(e) {
       // En cas d'échec : on bloque, on ré-affiche la notif et on informe.
