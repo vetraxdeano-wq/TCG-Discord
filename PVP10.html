@@ -2547,26 +2547,8 @@ function renderHand(){
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
       if(document.body.classList.contains('mobile')){
-        // Ouvre la modal instantanément au tap
-        const startX=e.touches[0].clientX, startY=e.touches[0].clientY;
-        let opened=false;
-        const onMove=mv=>{
-          const dx=mv.touches[0].clientX-startX, dy=mv.touches[0].clientY-startY;
-          if(Math.abs(dx)>10||Math.abs(dy)>10){
-            // Scroll détecté : on ferme la modal si elle vient d'être ouverte
-            if(opened){ closeCardModal(); opened=false; }
-            d.removeEventListener('touchmove',onMove);
-          }
-        };
-        const onEnd=()=>{
-          d.removeEventListener('touchmove',onMove);
-          d.removeEventListener('touchend',onEnd);
-        };
-        d.addEventListener('touchmove',onMove,{passive:true});
-        d.addEventListener('touchend',onEnd,{once:true});
-        // Ouverture immédiate
+        // Ouverture immédiate au tap — pas de fermeture auto sur mouvement
         showCardModal(c, i, dis, ttHTML, rarCol);
-        opened=true;
       } else {
         if(TT.style.display==='flex'&&TT._srcCard===d){hideTT();TT._srcCard=null;}
         else{
