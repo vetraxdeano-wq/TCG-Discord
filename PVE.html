@@ -2490,22 +2490,28 @@ function renderHand(){
     d.addEventListener('mouseenter',e=>{showTT(ttHTML,e);if(c.image_url)document.getElementById('hcard-tt').classList.add('hcard-tooltip-img');else document.getElementById('hcard-tt').classList.remove('hcard-tooltip-img');});
     d.addEventListener('mousemove',e=>moveTT(e));
     d.addEventListener('mouseleave',hideTT);
+    // Sur mobile : détection par durée uniquement.
+    // Contact < 1s → tap → ouvre la modal. Contact ≥ 1s → scroll, rien ne s'ouvre.
+    (function(){
+      let startT=0;
+      d.addEventListener('touchstart',e=>{
+        if(!document.body.classList.contains('mobile'))return;
+        startT=Date.now();
+      },{passive:true});
+      d.addEventListener('touchend',e=>{
+        if(!document.body.classList.contains('mobile'))return;
+        const dt=Date.now()-startT;
+        if(dt<1000){
+          e.stopPropagation();
+          e.preventDefault();
+          showCardModal(c, i, dis, ttHTML, rarCol);
+        }
+      });
+    })();
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
       if(document.body.classList.contains('mobile')){
-        const _touchStartX=e.touches[0].clientX;
-        const _touchStartY=e.touches[0].clientY;
-        let _moved=false;
-        function _onMove(ev){
-          if(Math.abs(ev.touches[0].clientX-_touchStartX)>6||Math.abs(ev.touches[0].clientY-_touchStartY)>6) _moved=true;
-        }
-        function _onEnd(){
-          d.removeEventListener('touchmove',_onMove);
-          d.removeEventListener('touchend',_onEnd);
-          if(!_moved) showCardModal(c, i, dis, ttHTML, rarCol);
-        }
-        d.addEventListener('touchmove',_onMove,{passive:true});
-        d.addEventListener('touchend',_onEnd,{passive:true});
+        // Géré par les handlers tap/scroll ci-dessus — rien à faire ici
       } else {
         if(TT.style.display==='flex'&&TT._srcCard===d){hideTT();TT._srcCard=null;}
         else{
