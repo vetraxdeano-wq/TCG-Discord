@@ -1717,7 +1717,7 @@ async function autoOpenBooster() {
   // Déduire les coins
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
-  showCoinsDeductedPopup(150);
+  if (!window._isFreeBooster) showCoinsDeductedPopup(150);
 
   // Tirer les cartes
   boosterCards = pickWeightedCards(5);
@@ -4431,6 +4431,29 @@ function showCoinsDeductedPopup(amount) {
 async function deductBoosterCost() {
   const db = window._db;
   const myId = window._currentUserId;
+
+  // Fallback sessionStorage (posé par index.html juste avant la redirection)
+  // On vérifie en premier : si Supabase est lent, ça protège quand même
+  try {
+    const ss = sessionStorage.getItem('booster_free');
+    if (ss === '1') {
+      sessionStorage.removeItem('booster_free');
+      try { localStorage.removeItem('booster_free'); } catch(e) {}
+      window._isFreeBooster = true;
+      return true;
+    }
+    const ls = localStorage.getItem('booster_free');
+    if (ls) {
+      const obj = JSON.parse(ls);
+      if (obj.v === '1' && (Date.now() - obj.t) < 5 * 60 * 1000) {
+        localStorage.removeItem('booster_free');
+        window._isFreeBooster = true;
+        return true;
+      }
+      localStorage.removeItem('booster_free');
+    }
+  } catch(e) {}
+
   if (!db || !myId) return true; // pas connecté → laisser ouvrir
 
   // Vérifier si booster gratuit (flag en DB sur le joueur)
@@ -4442,10 +4465,12 @@ async function deductBoosterCost() {
   if (playerRow && playerRow.pending_free_booster) {
     // Consommer le flag → booster gratuit, aucune déduction
     try { await db.from('players').update({ pending_free_booster: null }).eq('id', myId); } catch(e) {}
+    window._isFreeBooster = true;
     return true;
   }
 
   // Booster payant
+  window._isFreeBooster = false;
   if (currentCoins < 150) return false;
   await db.from('players').update({ coins: currentCoins - 150 }).eq('id', myId);
   window._playerCoins = currentCoins - 150;
@@ -4476,7 +4501,7 @@ async function restart(){
   // 1. Déduire les coins en premier (avant tout reset visuel)
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
-  showCoinsDeductedPopup(150);
+  if (!window._isFreeBooster) showCoinsDeductedPopup(150);
 
   // 2. Reset état complet
   document.getElementById('doneOverlay').classList.remove('active');
