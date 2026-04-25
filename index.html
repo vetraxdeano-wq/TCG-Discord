@@ -841,6 +841,7 @@ let state = {
   _tradeRealtimeSub: null,
   // Leaderboard
   showLeaderboard: false,
+  leaderboardSort: 'cards',
   leaderboardPeriod: 'all',
   leaderboardData: [],
   leaderboardLoading: false,
@@ -3370,21 +3371,43 @@ function renderSettingsModal(th){
 // ─── LEADERBOARD MODAL ───────────────────────────────────────────
 function renderLeaderboardModal(th){
   const period = state.leaderboardPeriod || 'all';
-  const data = state.leaderboardData || [];
+  const sort   = state.leaderboardSort  || 'cards';
+  const data   = state.leaderboardData  || [];
   const loading = state.leaderboardLoading;
-  const myId = state.currentUser?.id;
+  const myId   = state.currentUser?.id;
 
-  const tabs = [
+  const periodTabs = [
     {id:'week', label:'Cette semaine'},
     {id:'month', label:'Ce mois'},
     {id:'all',  label:'All Time'},
   ];
 
+  const sortOpts = [
+    {id:'cards',  label:'🃏 Cartes'},
+    {id:'wins',   label:'⚔️ Victoires'},
+    {id:'wr',     label:'📊 Winrate'},
+    {id:'games',  label:'🎮 Parties'},
+    {id:'coins',  label:'🪙 Coins'},
+  ];
+
+  // Tri côté client selon sort actif
+  const sorted = [...data].sort((a,b)=>{
+    const wrA = (a.wins+a.losses)>0 ? a.wins/(a.wins+a.losses) : 0;
+    const wrB = (b.wins+b.losses)>0 ? b.wins/(b.wins+b.losses) : 0;
+    const gA  = (a.wins||0)+(a.losses||0);
+    const gB  = (b.wins||0)+(b.losses||0);
+    if(sort==='wins')   return (b.wins||0)-(a.wins||0) || (b.cards||0)-(a.cards||0);
+    if(sort==='wr')     return wrB-wrA || gB-gA;
+    if(sort==='games')  return gB-gA || (b.wins||0)-(a.wins||0);
+    if(sort==='coins')  return (b.coins||0)-(a.coins||0);
+    return (b.cards||0)-(a.cards||0) || (b.coins||0)-(a.coins||0); // default: cartes
+  });
+
   const medals = ['🥇','🥈','🥉'];
 
   return `
   <div id="lb-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;z-index:200;">
-    <div class="slide-up" style="width:100%;max-width:420px;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;display:flex;flex-direction:column;max-height:88vh;padding-bottom:max(env(safe-area-inset-bottom,0px),16px);">
+    <div class="slide-up" style="width:100%;max-width:420px;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;display:flex;flex-direction:column;max-height:92vh;padding-bottom:max(env(safe-area-inset-bottom,0px),16px);">
 
       <!-- Pull handle -->
       <div style="display:flex;justify-content:center;padding:10px 0 0;">
@@ -3392,26 +3415,36 @@ function renderLeaderboardModal(th){
       </div>
 
       <!-- Header -->
-      <div style="display:flex;align-items:center;gap:12px;padding:14px 16px 10px;flex-shrink:0;">
-        <div style="width:36px;height:36px;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid #000;box-shadow:2px 2px 0 #000;flex-shrink:0;">🏆</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px 8px;flex-shrink:0;">
+        <div style="width:34px;height:34px;background:linear-gradient(135deg,${th.accent},${th.accentAlt});display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid #000;box-shadow:2px 2px 0 #000;flex-shrink:0;">🏆</div>
         <div style="flex:1;">
-          <div style="font-family:'Luckiest Guy',cursive;font-size:16px;font-weight:400;color:${th.text};letter-spacing:1.5px;">CLASSEMENT</div>
-          <div style="font-size:9px;color:${th.textMuted};margin-top:1px;letter-spacing:.5px;">Meilleurs joueurs · ${period==='week'?'Cette semaine':period==='month'?'Ce mois':'Depuis toujours'}</div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:15px;font-weight:400;color:${th.text};letter-spacing:1.5px;">CLASSEMENT</div>
+          <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${period==='week'?'Cette semaine':period==='month'?'Ce mois':'Depuis toujours'} · Trié par ${sortOpts.find(s=>s.id===sort)?.label||'Cartes'}</div>
         </div>
-        <button id="lb-close" style="width:32px;height:32px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
+        <button id="lb-close" style="width:30px;height:30px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>
       </div>
 
       <!-- Period tabs -->
-      <div style="display:flex;gap:0;margin:0 16px 12px;background:${th.bgTertiary};border:2px solid #000;padding:3px;flex-shrink:0;">
-        ${tabs.map(tab=>`
-          <button class="lb-tab" data-period="${tab.id}" style="flex:1;padding:6px 4px;font-size:9px;font-weight:800;border:${period===tab.id?'2px solid #000':'2px solid transparent'};background:${period===tab.id?th.bg:'transparent'};color:${period===tab.id?th.text:th.textMuted};cursor:pointer;box-shadow:${period===tab.id?'2px 2px 0 #000':'none'};transition:all .15s;letter-spacing:.3px;text-transform:uppercase;">
+      <div style="display:flex;gap:0;margin:0 16px 8px;background:${th.bgTertiary};border:2px solid #000;padding:3px;flex-shrink:0;">
+        ${periodTabs.map(tab=>`
+          <button class="lb-tab" data-period="${tab.id}" style="flex:1;padding:5px 4px;font-size:8px;font-weight:800;border:${period===tab.id?'2px solid #000':'2px solid transparent'};background:${period===tab.id?th.bg:'transparent'};color:${period===tab.id?th.text:th.textMuted};cursor:pointer;box-shadow:${period===tab.id?'2px 2px 0 #000':'none'};transition:all .15s;letter-spacing:.3px;text-transform:uppercase;">
             ${tab.label}
           </button>`).join('')}
       </div>
 
+      <!-- Sort buttons -->
+      <div style="display:flex;gap:4px;margin:0 16px 8px;flex-shrink:0;overflow-x:auto;padding-bottom:2px;">
+        ${sortOpts.map(opt=>`
+          <button class="lb-sort" data-sort="${opt.id}" style="flex-shrink:0;padding:4px 8px;font-size:8px;font-weight:800;border:2px solid ${sort===opt.id?'#000':th.border};background:${sort===opt.id?th.accent+'22':th.bgTertiary};color:${sort===opt.id?th.accent:th.textMuted};cursor:pointer;white-space:nowrap;letter-spacing:.3px;box-shadow:${sort===opt.id?'1px 1px 0 #000':'none'};transition:all .15s;">
+            ${opt.label}
+          </button>`).join('')}
+      </div>
+
       <!-- Table header -->
-      <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px 52px;gap:4px;padding:6px 16px;flex-shrink:0;border-bottom:2px solid #000;margin:0 0 0;">
-        ${['#','Joueur','Victoires','W/R','Cartes','Coins'].map(h=>`<div style="font-size:8px;font-weight:900;color:${th.textMuted};letter-spacing:.6px;text-transform:uppercase;${h==='Joueur'?'':'text-align:center;'}">${h}</div>`).join('')}
+      <div style="display:grid;grid-template-columns:28px 1fr 46px 40px 40px 46px 46px;gap:3px;padding:5px 16px;flex-shrink:0;border-bottom:2px solid #000;">
+        ${['#','Joueur','🃏','⚔️','📊','🎮','🪙'].map((h,i)=>`<div style="font-size:8px;font-weight:900;color:${
+          (sort==='cards'&&i===2)||(sort==='wins'&&i===3)||(sort==='wr'&&i===4)||(sort==='games'&&i===5)||(sort==='coins'&&i===6)
+            ?th.accent:th.textMuted};letter-spacing:.4px;text-align:${i<=1?'left':'center'};">${h}</div>`).join('')}
       </div>
 
       <!-- Rows -->
@@ -3421,33 +3454,32 @@ function renderLeaderboardModal(th){
             <div style="width:20px;height:20px;border:2px solid ${th.accent};border-top-color:transparent;animation:spinRing1 .8s linear infinite;"></div>
             <span style="font-size:11px;color:${th.textMuted};">Chargement…</span>
           </div>` :
-          data.length === 0 ? `
+          sorted.length === 0 ? `
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 0;gap:10px;text-align:center;">
             <div style="font-size:36px;opacity:.25;">📊</div>
-            <div style="font-size:12px;font-weight:700;color:${th.text};">Aucune donnée disponible</div>
-            <div style="font-size:10px;color:${th.textMuted};">Jouez des parties pour apparaître ici !</div>
+            <div style="font-size:12px;font-weight:700;color:${th.text};">Aucune donnée</div>
           </div>` :
-          data.map((row, i) => {
+          sorted.map((row, i) => {
             const isMe = row.id === myId;
             const medal = medals[i] || '';
-            const wr = (row.wins + row.losses) > 0 ? Math.round(row.wins/(row.wins+row.losses)*100) : 0;
-            const rankColor = i === 0 ? '#fbbf24' : i === 1 ? '#94a3b8' : i === 2 ? '#f97316' : th.textMuted;
+            const games = (row.wins||0)+(row.losses||0);
+            const wr = games > 0 ? Math.round(row.wins/games*100) : 0;
+            const rankColor = i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#f97316':th.textMuted;
             return `
-            <div style="display:grid;grid-template-columns:32px 1fr 60px 50px 60px 52px;gap:4px;padding:9px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};${isMe?'position:relative;':''}align-items:center;">
+            <div style="display:grid;grid-template-columns:28px 1fr 46px 40px 40px 46px 46px;gap:3px;padding:7px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};position:relative;align-items:center;">
               ${isMe?`<div style="position:absolute;left:-16px;top:0;bottom:0;width:3px;background:${th.accent};"></div>`:''}
-              <div style="text-align:center;font-size:${medal?'14px':'11px'};font-weight:900;color:${rankColor};">${medal||('#'+(i+1))}</div>
-              <div style="display:flex;align-items:center;gap:7px;min-width:0;">
-                <div style="width:26px;height:26px;overflow:hidden;background:${th.surface};border:${isMe?'2px solid '+th.accent:'1px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-                  ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\'font-size:12px;display:flex;align-items:center;justify-content:center;width:100%;height:100%\\'>👤</span>'">`:'<span style="font-size:12px;">👤</span>'}
+              <div style="text-align:center;font-size:${medal?'13px':'10px'};font-weight:900;color:${rankColor};">${medal||('#'+(i+1))}</div>
+              <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+                <div style="width:22px;height:22px;overflow:hidden;background:${th.surface};border:${isMe?'2px solid '+th.accent:'1px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                  ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\'font-size:10px;display:flex;align-items:center;justify-content:center;width:100%;height:100%\\'>👤</span>'">`:'<span style="font-size:10px;">👤</span>'}
                 </div>
-                <div style="min-width:0;">
-                  <div style="font-size:11px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${row.discord_username||'Joueur'}${isMe?' (Toi)':''}</div>
-                </div>
+                <div style="font-size:10px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(row.discord_username||'Joueur').slice(0,12)}${isMe?' (Toi)':''}</div>
               </div>
-              <div style="text-align:center;font-size:12px;font-weight:900;color:${th.green};">${row.wins}</div>
-              <div style="text-align:center;font-size:11px;font-weight:700;color:${th.yellow};">${wr}%</div>
-              <div style="text-align:center;font-size:11px;font-weight:700;color:#818cf8;">${row.cards||0}</div>
-              <div style="text-align:center;font-size:10px;font-weight:900;color:${th.accent};">${(row.coins||0).toLocaleString('fr-FR')}</div>
+              <div style="text-align:center;font-size:11px;font-weight:${sort==='cards'?'900':'600'};color:${sort==='cards'?'#818cf8':th.textMuted};">${row.cards||0}</div>
+              <div style="text-align:center;font-size:11px;font-weight:${sort==='wins'?'900':'600'};color:${sort==='wins'?th.green:th.textMuted};">${row.wins||0}</div>
+              <div style="text-align:center;font-size:10px;font-weight:${sort==='wr'?'900':'600'};color:${sort==='wr'?'#fbbf24':th.textMuted};">${wr}%</div>
+              <div style="text-align:center;font-size:10px;font-weight:${sort==='games'?'900':'600'};color:${sort==='games'?th.accent:th.textMuted};">${games}</div>
+              <div style="text-align:center;font-size:9px;font-weight:${sort==='coins'?'900':'600'};color:${sort==='coins'?'#f59e0b':th.textMuted};">${(row.coins||0)>999?((row.coins/1000).toFixed(1)+'k'):(row.coins||0)}</div>
             </div>`;
           }).join('')
         }
@@ -4454,6 +4486,9 @@ function bindGame(){
       setState({leaderboardPeriod:period, leaderboardData:[], leaderboardLoading:true});
       loadLeaderboard(period);
     });
+  });
+  document.querySelectorAll('.lb-sort').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({leaderboardSort:btn.dataset.sort}));
   });
 
   // ── Tutorial ──
