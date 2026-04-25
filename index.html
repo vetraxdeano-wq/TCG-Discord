@@ -8544,6 +8544,46 @@ function updateTradePreview() {
   }
 }
 
+// ── Retirer une carte de tous les decks d'un joueur après perte de possession ──
+// Appelée dès qu'un joueur perd une carte (trade, etc.)
+// Si le retrait rend un deck incomplet (<30 cartes), le joueur le verra au
+// prochain lancement (notification déjà gérée par validateDeckForPlay).
+async function _removeCardFromAllDecks(db, playerId, cardId) {
+  try {
+    const cid = parseInt(cardId);
+    // 1. Récupérer tous les decks du joueur
+    const { data: decks, error: de } = await db.from('decks')
+      .select('id').eq('player_id', playerId);
+    if (de || !decks || decks.length === 0) return;
+
+    const deckIds = decks.map(d => d.id);
+
+    // 2. Trouver les deck_cards concernées (quantity ≥ 1 pour cette carte)
+    const { data: rows, error: re } = await db.from('deck_cards')
+      .select('deck_id, quantity')
+      .in('deck_id', deckIds)
+      .eq('card_id', cid);
+    if (re || !rows || rows.length === 0) return;
+
+    // 3. Pour chaque deck contenant la carte, la retirer (quantity - 1, ou delete si = 1)
+    for (const row of rows) {
+      if (row.quantity > 1) {
+        await db.from('deck_cards')
+          .update({ quantity: row.quantity - 1 })
+          .eq('deck_id', row.deck_id)
+          .eq('card_id', cid);
+      } else {
+        await db.from('deck_cards')
+          .delete()
+          .eq('deck_id', row.deck_id)
+          .eq('card_id', cid);
+      }
+    }
+  } catch(e) {
+    console.warn('[_removeCardFromAllDecks]', e);
+  }
+}
+
 window.respondTrade = async function respondTrade(tradeId, accept) {
   const db = window.db;
   const myId = state.currentUser?.id;
@@ -8569,11 +8609,16 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
     } else {
       await db.from('player_cards').delete().eq('player_id', myId).eq('card_id', incoming.to_card_id);
     }
+    // Retirer la carte cédée de tous les decks du joueur
+    await _removeCardFromAllDecks(db, myId, incoming.to_card_id);
+
     if (theirCards.quantity > 1) {
       await db.from('player_cards').update({ quantity: theirCards.quantity - 1 }).eq('player_id', incoming.from_id).eq('card_id', incoming.from_card_id);
     } else {
       await db.from('player_cards').delete().eq('player_id', incoming.from_id).eq('card_id', incoming.from_card_id);
     }
+    // Retirer la carte cédée de tous les decks de l'expéditeur
+    await _removeCardFromAllDecks(db, incoming.from_id, incoming.from_card_id);
 
     // Donner les cartes aux deux joueurs
     const upsertMy = await db.from('player_cards').select('quantity').eq('player_id', myId).eq('card_id', incoming.from_card_id).single();
