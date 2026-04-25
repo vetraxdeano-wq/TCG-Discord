@@ -1117,7 +1117,7 @@ function renderGame(th){
         <!-- Messages -->
         <button id="btn-messages" style="position:relative;width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:${MSG_COUNT>0?th.accent+'14':'transparent'};border:1px solid ${MSG_COUNT>0?th.accent+'35':th.border};color:${MSG_COUNT>0?th.accent:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
           ${SVG.chat}
-          ${MSG_COUNT>0?`<div style="position:absolute;top:-3px;right:-3px;min-width:13px;height:13px;background:${th.accent};color:#fff;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;border:1px solid ${th.bgSecondary};">${MSG_COUNT}</div>`:''}
+          ${MSG_COUNT>0?`<div style="position:absolute;top:-3px;right:-3px;min-width:13px;height:13px;background:${th.accent};color:#000;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;border:1px solid ${th.bgSecondary};">${MSG_COUNT}</div>`:''}
         </button>
         <!-- Friends -->
         <button id="btn-friends" style="width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:transparent;border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">${SVG.users}</button>
@@ -1342,7 +1342,7 @@ function renderDeckList(th){
         <div style="font-family:'Luckiest Guy',cursive;font-size:14px;font-weight:400;color:${th.text};letter-spacing:1px;">Deck Builder</div>
         <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${decks.length} deck${decks.length>1?'s':''} · max 30 cartes</div>
       </div>
-      <button id="db-new" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 16px ${th.accentGlow};">＋ NOUVEAU</button>
+      <button id="db-new" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:${th.accent};color:#000;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 16px ${th.accentGlow};">＋ NOUVEAU</button>
     </div>
     <!-- List -->
     <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">
@@ -1465,7 +1465,7 @@ function renderDeckEdit(th){
               ${card.image_url
                 ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;position:absolute;inset:0;" />`
                 : `🃏`}
-              ${entry.quantity>1?`<div style="position:absolute;top:-3px;right:-3px;width:${window.innerWidth<600?14:18}px;height:${window.innerWidth<600?14:18}px;background:${th.accent};color:#fff;font-size:${window.innerWidth<600?7:9}px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">×${entry.quantity}</div>`:''}
+              ${entry.quantity>1?`<div style="position:absolute;top:-3px;right:-3px;width:${window.innerWidth<600?14:18}px;height:${window.innerWidth<600?14:18}px;background:${th.accent};color:#000;font-size:${window.innerWidth<600?7:9}px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">×${entry.quantity}</div>`:''}
               <div style="position:absolute;bottom:2px;font-size:${window.innerWidth<600?6:8}px;color:${card.color};font-weight:700;z-index:2;${card.image_url?'text-shadow:0 0 4px #000;':''}">◆</div>
             </div>`;
           }).join('')}
@@ -1586,19 +1586,25 @@ function renderDeckEdit(th){
           const maxCopies = (card.rarity==='mythic'||card.rarity==='rare') ? 2 : card.count;
           const canAddMore = chk.ok;
           const alreadyFull = !canAddMore && qty>0;
-          return `<div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" data-name="${card.name.toLowerCase().replace(/'/g,'&#39;').replace(/"/g,'&quot;')}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:pointer;position:relative;overflow:visible;" title="${canAddMore?'Voir la carte & ajouter':'Voir la carte — '+chk.reason}">
-            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}overflow:visible;">
-              ${card.image_url
-                ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
-                : `🃏`}
+          return `<div class="db-card-cell" data-cardid="${card.id}" data-name="${card.name.toLowerCase().replace(/'/g,'&#39;').replace(/"/g,'&quot;')}" style="display:flex;flex-direction:column;gap:3px;">
+            <div class="${canAddMore?'db-add-card':'db-add-card-disabled'}" data-cardid="${card.id}" data-name="${card.name.toLowerCase().replace(/'/g,'&#39;').replace(/"/g,'&quot;')}" style="background:${qty>0?card.color+'25':th.bgSecondary};border:1px solid ${qty>0?card.color+'80':th.border};aspect-ratio:2/3;display:flex;flex-direction:column;align-items:center;padding:0;cursor:pointer;position:relative;overflow:visible;" title="${canAddMore?'Voir la carte & ajouter':'Voir la carte — '+chk.reason}">
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;${card.image_url?'':'background:linear-gradient(135deg,'+card.color+'30,'+card.color+'10);'}overflow:visible;">
+                ${card.image_url
+                  ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
+                  : `🃏`}
+              </div>
+              <!-- Compteur deck (en haut à droite) -->
+              ${qty>0?`<div style="position:absolute;top:1px;right:1px;min-width:clamp(13px,2.2vw,18px);height:clamp(13px,2.2vw,18px);background:${th.accent};color:#000;font-size:clamp(7px,1.4vw,10px);font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:3;">${qty}</div>`:''}
+              <!-- Exemplaires possédés (en bas à gauche) -->
+              <div style="position:absolute;bottom:1px;left:1px;font-size:clamp(7px,1.4vw,10px);font-weight:800;color:rgba(255,255,255,.85);text-shadow:0 0 3px #000;z-index:3;">×${card.count}</div>
+              <!-- Overlay DÉJÀ DANS LE DECK -->
+              ${alreadyFull?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fff;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DÉJÀ<br>DANS<br>LE DECK</div></div>`
+              :!canAddMore?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fbbf24;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DECK<br>PLEIN</div></div>`:``}
             </div>
-            <!-- Compteur deck (en haut à droite) -->
-            ${qty>0?`<div style="position:absolute;top:1px;right:1px;min-width:clamp(13px,2.2vw,18px);height:clamp(13px,2.2vw,18px);background:${th.accent};color:#fff;font-size:clamp(7px,1.4vw,10px);font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:3;">${qty}</div>`:''}
-            <!-- Exemplaires possédés (en bas à gauche) -->
-            <div style="position:absolute;bottom:1px;left:1px;font-size:clamp(7px,1.4vw,10px);font-weight:800;color:rgba(255,255,255,.85);text-shadow:0 0 3px #000;z-index:3;">×${card.count}</div>
-            <!-- Overlay DÉJÀ DANS LE DECK -->
-            ${alreadyFull?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fff;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DÉJÀ<br>DANS<br>LE DECK</div></div>`
-            :!canAddMore?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fbbf24;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DECK<br>PLEIN</div></div>`:``}
+            <!-- Bouton Ajout Rapide sous la carte -->
+            ${canAddMore
+              ? `<button class="db-quick-add" data-cardid="${card.id}" style="padding:3px 2px;background:${th.accent};color:#000;border:none;font-size:clamp(7px,1.3vw,9px);font-weight:900;cursor:pointer;letter-spacing:.3px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Ajouter directement au deck">+ Ajout rapide</button>`
+              : `<div style="padding:3px 2px;background:${th.bgTertiary};color:${th.textFaint};font-size:clamp(7px,1.3vw,9px);font-weight:700;letter-spacing:.3px;line-height:1;text-transform:uppercase;text-align:center;white-space:nowrap;border:1px solid ${th.border};">— —</div>`}
           </div>`;
         }).join('')})()}
       </div>
@@ -1758,7 +1764,7 @@ function renderTradeModal(th){
           </div>
         </div>` : ''}
 
-        <button id="trade-confirm-send" ${canSend?'':'disabled'} style="padding:12px;background:${canSend?th.accent:th.surface};color:${canSend?'#fff':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${canSend?'pointer':'default'};opacity:${canSend?1:.5};flex-shrink:0;">
+        <button id="trade-confirm-send" ${canSend?'':'disabled'} style="padding:12px;background:${canSend?th.accent:th.surface};color:${canSend?'#000':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${canSend?'pointer':'default'};opacity:${canSend?1:.5};flex-shrink:0;">
           Proposer l'échange →
         </button>
         <div style="margin-top:10px;font-size:9px;color:${th.textFaint};text-align:center;">Si ${friendName} ne possède pas la carte demandée, il ne pourra que décliner.</div>
@@ -1785,7 +1791,7 @@ function renderTradeModal(th){
           <div style="font-family:'Luckiest Guy',cursive;font-size:13px;font-weight:400;color:${th.text};letter-spacing:.5px;">Proposer un échange</div>
           <div style="font-size:9px;color:${th.textMuted};">avec ${friendName} · même rareté · 1 contre 1</div>
         </div>
-        ${myCard ? `<button id="trade-send" style="padding:7px 14px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;">Envoyer →</button>` : ''}
+        ${myCard ? `<button id="trade-send" style="padding:7px 14px;background:${th.accent};color:#000;border:none;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;">Envoyer →</button>` : ''}
       </div>
       ${myCard ? `
       <div style="background:${th.bgTertiary};padding:8px 10px;display:flex;align-items:center;gap:8px;border:1px solid ${myCard.color}50;">
@@ -2125,7 +2131,7 @@ function renderTabCollection(th){
             <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${th.accent},${th.accentAlt});"></div>
           </div>
         </div>
-        <button id="btn-open-deckbuilder" style="padding:7px 14px;flex-shrink:0;background:${th.accent};color:#fff;border:none;cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.5px;">OUVRIR</button>
+        <button id="btn-open-deckbuilder" style="padding:7px 14px;flex-shrink:0;background:${th.accent};color:#000;border:none;cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.5px;">OUVRIR</button>
       </div>
     </div>
     <!-- Filters -->
@@ -2215,7 +2221,7 @@ function renderCollCard(card,th,x,y,CW,CH){
   const imgW = Math.round(CW * oversize);
   const imgH = Math.round(CH * oversize);
   return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;overflow:visible;display:flex;align-items:center;justify-content:center;">
-    ${card.count>1?`<div style="position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;background:${th.accent};color:#fff;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">x${card.count}</div>`:''}
+    ${card.count>1?`<div style="position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;background:${th.accent};color:#000;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">x${card.count}</div>`:''}
     ${card.image_url
       ? `<img src="${card.image_url}" style="width:${imgW}px;height:${imgH}px;object-fit:contain;display:block;flex-shrink:0;" />`
       : `<div style="width:${imgW}px;height:${imgH}px;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
@@ -2235,14 +2241,14 @@ function renderCardDetailModal(card,th){
   let cardW, cardH, layout;
 
   if (isMobile) {
-    // Mobile : image ~60% hauteur dispo, plus grande
+    // Mobile : image plus grande
     const availH = vh - 32;
-    cardH = Math.round(Math.min(availH * 0.60, vw * 0.72));
+    cardH = Math.round(Math.min(availH * 0.68, vw * 0.82));
     cardW = Math.round(cardH * 0.667);
     layout = 'vertical';
   } else {
-    // Desktop : image plus grande — max 40% largeur, jamais plus de 280px
-    const maxCardW = Math.min(vw * 0.40, 280);
+    // Desktop : image bien plus grande — max 48% largeur, jusqu'à 380px
+    const maxCardW = Math.min(vw * 0.48, 380);
     cardW = Math.round(maxCardW);
     cardH = Math.round(cardW * 1.5);
     layout = 'horizontal';
@@ -2255,52 +2261,52 @@ function renderCardDetailModal(card,th){
       : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />`;
 
   const infoRows = card.owned ? `
-    <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'12px':'16px'};font-weight:400;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-    <div style="font-size:${isMobile?'8px':'9px'};color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:1px;">◆ ${RARITY_LABEL[card.rarity]}</div>
+    <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'16px':'22px'};font-weight:400;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+    <div style="font-size:${isMobile?'10px':'12px'};color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:2px;">◆ ${RARITY_LABEL[card.rarity]}</div>
     ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
-    <div style="display:flex;justify-content:space-between;padding:${isMobile?'2':'5'}px 0;border-bottom:1px solid ${th.border};">
-      <span style="font-size:${isMobile?'8':'10'}px;color:${th.textMuted};">${r.l}</span>
-      <span style="font-size:${isMobile?'8':'10'}px;font-weight:600;color:${th.text};">${r.v}</span>
+    <div style="display:flex;justify-content:space-between;padding:${isMobile?'4':'7'}px 0;border-bottom:1px solid ${th.border};">
+      <span style="font-size:${isMobile?'11':'13'}px;color:${th.textMuted};">${r.l}</span>
+      <span style="font-size:${isMobile?'11':'13'}px;font-weight:600;color:${th.text};">${r.v}</span>
     </div>`).join('')}
-    <div style="background:${th.bgSecondary};padding:${isMobile?'4':'10'}px 12px;border:2px solid #000;">
-      <div style="font-size:8px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Possession</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-        <span style="font-size:9px;color:${th.textMuted};">Exemplaires</span>
-        <span style="font-size:12px;font-weight:800;color:${th.green};">×${card.count}</span>
+    <div style="background:${th.bgSecondary};padding:${isMobile?'8':'12'}px 14px;border:2px solid #000;">
+      <div style="font-size:${isMobile?'10':'11'}px;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Possession</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+        <span style="font-size:${isMobile?'11':'12'}px;color:${th.textMuted};">Exemplaires</span>
+        <span style="font-size:${isMobile?'14':'15'}px;font-weight:800;color:${th.green};">×${card.count}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
-        <span style="font-size:9px;color:${th.textMuted};">Détenteurs</span>
-        <span style="font-size:11px;font-weight:800;color:${th.accent};">${card.myRank ? card.myRank + '/' + card.globalOwners : card.globalOwners + ' joueur' + (card.globalOwners>1?'s':'')}</span>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <span style="font-size:${isMobile?'11':'12'}px;color:${th.textMuted};">Détenteurs</span>
+        <span style="font-size:${isMobile?'13':'14'}px;font-weight:800;color:${th.accent};">${card.myRank ? card.myRank + '/' + card.globalOwners : card.globalOwners + ' joueur' + (card.globalOwners>1?'s':'')}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:1px;">
-        <span style="font-size:9px;color:${th.textMuted};">Dernier exemplaire obtenu le</span>
-        <span style="font-size:9px;font-weight:600;color:${th.text};">${fmtDate(card.obtainedAt)}</span>
+      <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+        <span style="font-size:${isMobile?'11':'12'}px;color:${th.textMuted};">Dernier exemplaire obtenu le</span>
+        <span style="font-size:${isMobile?'11':'12'}px;font-weight:600;color:${th.text};">${fmtDate(card.obtainedAt)}</span>
       </div>
       <div style="display:flex;justify-content:space-between;">
-        <span style="font-size:9px;color:${th.textMuted};">À</span>
-        <span style="font-size:9px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
+        <span style="font-size:${isMobile?'11':'12'}px;color:${th.textMuted};">À</span>
+        <span style="font-size:${isMobile?'11':'12'}px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
       </div>
     </div>
-    <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'8':'10'}px;background:${th.accent};color:#fff;border:none;font-size:${isMobile?'10':'11'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
-    <button id="btn-propose-trade" data-cardid="${card.id}" style="padding:${isMobile?'7':'9'}px;background:transparent;color:${th.accent};border:2px solid ${th.accent}50;font-size:${isMobile?'9':'10'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;width:100%;margin-top:4px;transition:all .18s;">🔄 PROPOSER EN ÉCHANGE</button>
+    <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'11':'13'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'14'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
+    <button id="btn-propose-trade" data-cardid="${card.id}" style="padding:${isMobile?'9':'11'}px;background:transparent;color:${th.accent};border:2px solid ${th.accent}50;font-size:${isMobile?'11':'12'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;width:100%;margin-top:4px;transition:all .18s;">🔄 PROPOSER EN ÉCHANGE</button>
   ` : `
-    <div style="font-family:'Luckiest Guy',cursive;font-size:15px;font-weight:400;color:${th.textMuted};letter-spacing:2px;">???</div>
-    <div style="font-size:10px;color:${th.textFaint};margin-top:3px;">Carte mystère</div>
-    <div style="background:${th.bgSecondary};padding:10px 12px;border:2px solid #000;display:flex;flex-direction:column;gap:5px;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'18px':'22px'};font-weight:400;color:${th.textMuted};letter-spacing:2px;">???</div>
+    <div style="font-size:${isMobile?'11':'13'}px;color:${th.textFaint};margin-top:4px;">Carte mystère</div>
+    <div style="background:${th.bgSecondary};padding:${isMobile?'10':'14'}px 14px;border:2px solid #000;display:flex;flex-direction:column;gap:7px;">
       ${[{l:"ID",v:`#${card.id}`},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"Nom",v:"— — — —"},{l:"Rareté",v:"— — —"}].map(r=>`
       <div style="display:flex;justify-content:space-between;">
-        <span style="font-size:9px;color:${th.textMuted};">${r.l}</span>
-        <span style="font-size:9px;color:${r.l==="ID"||r.l==="Set"?th.text:th.textFaint};">${r.v}</span>
+        <span style="font-size:${isMobile?'11':'12'}px;color:${th.textMuted};">${r.l}</span>
+        <span style="font-size:${isMobile?'11':'12'}px;color:${r.l==="ID"||r.l==="Set"?th.text:th.textFaint};">${r.v}</span>
       </div>`).join('')}
     </div>
-    <div style="font-size:9px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;">Ouvre des boosters pour la trouver !</div>
-    <button onclick="setState({collSelectedCard:null, tab:2})" style="padding:8px;background:${th.accent};color:#fff;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;width:100%;">→ ALLER AUX BOOSTERS</button>
+    <div style="font-size:${isMobile?'11':'12'}px;color:${th.textFaint};text-align:center;line-height:1.5;font-style:italic;">Ouvre des boosters pour la trouver !</div>
+    <button onclick="setState({collSelectedCard:null, tab:2})" style="padding:${isMobile?'10':'12'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'13'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;width:100%;">→ ALLER AUX BOOSTERS</button>
   `;
 
   if (layout === 'vertical') {
     // ── MOBILE : plein écran, image grande, infos compactes en bas ──
-    // Image = 62% de la hauteur écran
-    const mobileCardH = Math.round(vh * 0.62);
+    // Image = 72% de la hauteur écran (plus grande)
+    const mobileCardH = Math.round(vh * 0.72);
     const mobileCardW = Math.round(mobileCardH * 0.667);
     const mobileImgContent = card.owned && card.image_url
       ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
@@ -2320,11 +2326,11 @@ function renderCardDetailModal(card,th){
         <div style="max-height:${mobileCardH}px;aspect-ratio:2/3;position:relative;display:flex;align-items:center;justify-content:center;flex:1;min-height:0;">
           ${mobileImgContent}
         </div>
-        ${card.owned && card.image_url ? `<div style="font-size:9px;color:rgba(255,255,255,.35);letter-spacing:.8px;text-align:center;font-weight:600;">✦ Appuie pour observer la carte en 3D</div>` : ''}
+        ${card.owned && card.image_url ? `<div style="font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.8px;text-align:center;font-weight:600;">✦ Appuie pour observer la carte en 3D</div>` : ''}
       </div>
 
       <!-- Infos compactes en bas -->
-      <div style="flex-shrink:0;width:100%;background:${th.bgSecondary};border-top:2px solid #000;padding:10px 14px 16px;display:flex;flex-direction:column;gap:5px;max-height:38vh;overflow:hidden;">
+      <div style="flex-shrink:0;width:100%;background:${th.bgSecondary};border-top:2px solid #000;padding:12px 16px 18px;display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:hidden;">
         ${infoRows}
       </div>
     </div>`;
@@ -2333,21 +2339,21 @@ function renderCardDetailModal(card,th){
   // ── DESKTOP : image à gauche, infos à droite, pas de scroll ──
   return `
   <div id="card-modal-bg" style="position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
-    <div style="display:flex;gap:20px;align-items:center;max-width:min(580px,calc(100vw - 48px));width:100%;">
+    <div style="display:flex;gap:28px;align-items:center;max-width:min(820px,calc(100vw - 48px));width:100%;">
 
       <!-- Image carte -->
       <div id="card-img-trigger" style="flex-shrink:0;cursor:zoom-in;" title="Agrandir">
         <div style="width:${cardW}px;height:${cardH}px;position:relative;display:flex;align-items:center;justify-content:center;">
           ${imgContent}
         </div>
-        <div style="text-align:center;margin-top:6px;font-size:8px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
-        ${card.owned && card.image_url ? `<div style="text-align:center;margin-top:3px;font-size:8px;color:rgba(255,255,255,.3);letter-spacing:.5px;">✦ Appuie pour observer la carte en 3D</div>` : ''}
+        <div style="text-align:center;margin-top:8px;font-size:11px;color:${th.textFaint};letter-spacing:.5px;">Appuyer pour agrandir</div>
+        ${card.owned && card.image_url ? `<div style="text-align:center;margin-top:4px;font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.5px;">✦ Appuie pour observer la carte en 3D</div>` : ''}
       </div>
 
       <!-- Panel infos -->
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
         <div style="display:flex;justify-content:flex-end;">
-          <button id="card-modal-close" style="width:28px;height:28px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
+          <button id="card-modal-close" style="width:34px;height:34px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;">${SVG.x}</button>
         </div>
         ${infoRows}
       </div>
@@ -3028,7 +3034,7 @@ function renderMessagesModal(th){
         return allItems.map(item=>{
           if(item._type === 'msg') return `
             <div style="display:flex;flex-direction:${item.from===myId?'row-reverse':'row'};gap:6px;align-items:flex-end;">
-              <div style="max-width:75%;background:${item.from===myId?th.accent:th.bgTertiary};color:${item.from===myId?'#fff':th.text};padding:8px 12px;border-radius:${item.from===myId?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${item.text}</div>
+              <div style="max-width:75%;background:${item.from===myId?th.accent:th.bgTertiary};color:${item.from===myId?'#000':th.text};padding:8px 12px;border-radius:${item.from===myId?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${item.text}</div>
             </div>`;
 
           // ── Trade card ──
@@ -3117,7 +3123,7 @@ function renderMessagesModal(th){
     <div style="display:flex;gap:8px;padding-top:10px;flex-shrink:0;align-items:center;">
       <button id="msg-trade-btn" data-fid="${friend.id}" style="width:36px;height:36px;background:${th.accent}15;color:${th.accent};border:1px solid ${th.accent}40;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s;" title="Proposer un échange">🔄</button>
       <input id="msg-input" placeholder="Message..." style="flex:1;padding:10px 14px;background:${th.bgTertiary};border:2px solid #000;color:${th.text};font-size:12px;outline:none;transition:border-color .18s;" onfocus="this.style.borderColor='rgba(56,189,248,.35)'" onblur="this.style.borderColor=''"/>
-      <button id="msg-send" style="width:36px;height:36px;background:${th.accent};color:#fff;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s;">↑</button>
+      <button id="msg-send" style="width:36px;height:36px;background:${th.accent};color:#000;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s;">↑</button>
     </div>`;
   })() : `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
@@ -3466,7 +3472,7 @@ function renderHowToModal(th){
       '</div>' +
       '<div style="flex:1;overflow-y:auto;padding:14px 16px 24px;display:flex;flex-direction:column;gap:10px;">' +
         rows +
-        '<button onclick="setState({showHowTo:false,showTutorial:true,tutorialStep:0})" style="padding:12px;background:' + th.accent + ';color:#fff;border:none;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.5px;margin-top:4px;">→ LANCER LE TUTORIEL</button>' +
+        '<button onclick="setState({showHowTo:false,showTutorial:true,tutorialStep:0})" style="padding:12px;background:' + th.accent + ';color:#000;border:none;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.5px;margin-top:4px;">→ LANCER LE TUTORIEL</button>' +
       '</div>' +
     '</div></div>'
   );
@@ -3766,7 +3772,7 @@ function renderAddFriendModal(th){
       </div>
       <div id="friend-search-results" style="margin-bottom:12px;"></div>
       <div style="display:flex;gap:8px;">
-        <button id="btn-search-friend" style="flex:1;padding:10px;background:${th.accent};color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;">RECHERCHER</button>
+        <button id="btn-search-friend" style="flex:1;padding:10px;background:${th.accent};color:#000;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;">RECHERCHER</button>
         <button id="btn-cancel-add-friend" style="padding:10px 16px;background:transparent;color:${th.textMuted};border:2px solid #000;font-size:11px;font-weight:700;cursor:pointer;transition:all .18s;">Annuler</button>
       </div>
     </div>
@@ -4307,7 +4313,7 @@ function bindGame(){
       state.deckSearch = dbSearchInput.value;
       // Mise à jour directe sans re-render complet pour garder le focus
       const searchQ = dbSearchInput.value.toLowerCase().trim();
-      document.querySelectorAll('.db-add-card,.db-add-card-disabled').forEach(el=>{
+      document.querySelectorAll('.db-card-cell').forEach(el=>{
         const rawName = el.getAttribute('data-name') || '';
         // Normaliser : supprimer les accents pour une recherche insensible aux diacritiques
         const normalize = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'');
@@ -4332,7 +4338,7 @@ function bindGame(){
           state.deckSearch = '';
           state._dbSearchFocused = false;
           x.remove();
-          document.querySelectorAll('.db-add-card,.db-add-card-disabled').forEach(el=>{ el.style.display=''; });
+          document.querySelectorAll('.db-card-cell').forEach(el=>{ el.style.display=''; });
         });
       } else if(clearBtn && !dbSearchInput.value){
         clearBtn.remove();
@@ -4397,6 +4403,15 @@ function bindGame(){
   document.querySelectorAll('.db-add-card, .db-add-card-disabled').forEach(el=>{
     el.addEventListener('click',()=>{
       if (window.openDeckCardPreview) openDeckCardPreview(el.dataset.cardid);
+    });
+  });
+
+  // Bouton "Ajout rapide" sous chaque carte → ajoute directement au deck
+  // sans ouvrir la modale d'aperçu
+  document.querySelectorAll('.db-quick-add').forEach(el=>{
+    el.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      addCardToDeck(el.dataset.cardid);
     });
   });
 
@@ -5696,7 +5711,7 @@ function showDeckRuleModal(opts) {
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
         ${hasConfirm ? `<button id="drm-cancel" style="padding:9px 16px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px;">${cancelLabel}</button>` : ''}
-        <button id="drm-ok" style="padding:9px 18px;background:${hasConfirm ? th.accent : th.green};color:${hasConfirm ? '#fff' : '#000'};border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px;">${confirmLabel}</button>
+        <button id="drm-ok" style="padding:9px 18px;background:${hasConfirm ? th.accent : th.green};color:#000;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px;">${confirmLabel}</button>
       </div>
     </div>`;
 
@@ -6941,7 +6956,7 @@ async function subscribeMessagesGlobal(myId) {
         const th = t();
         const isMine = displayFromId === myId;
         div.style.cssText = `display:flex;flex-direction:${isMine?'row-reverse':'row'};gap:6px;align-items:flex-end;`;
-        div.innerHTML = `<div style="max-width:75%;background:${isMine?th.accent:th.bgTertiary};color:${isMine?'#fff':th.text};padding:8px 12px;border-radius:${isMine?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${m.text.replace(/</g,'&lt;')}</div>`;
+        div.innerHTML = `<div style="max-width:75%;background:${isMine?th.accent:th.bgTertiary};color:${isMine?'#000':th.text};padding:8px 12px;border-radius:${isMine?'14px 14px 4px 14px':'14px 14px 14px 4px'};font-size:12px;line-height:1.4;">${m.text.replace(/</g,'&lt;')}</div>`;
         list.appendChild(div);
         list.scrollTop = list.scrollHeight;
       }
@@ -8383,15 +8398,15 @@ function _renderDeckPreviewContent(flashAdded) {
   const rarCol = RARITY_COLOR[card.rarity] || '#a78bfa';
   const rarLabel = RARITY_LABEL[card.rarity] || '';
 
-  // Dimensions carte (ratio 2/3)
+  // Dimensions carte (ratio 2/3) — bien plus grande
   const vw = window.innerWidth, vh = window.innerHeight;
-  // Budget vertical : compteurs (~55px) + gap + carte + gap + infos (~48px) + boutons (~65px)
-  const maxH = Math.round(vh * 0.58);
-  const maxW = Math.round(vw * 0.72);
+  // Budget vertical : compteurs (~65px) + gap + carte + gap + infos (~58px) + boutons (~75px)
+  const maxH = Math.round(vh * 0.72);
+  const maxW = Math.round(vw * 0.85);
   const cardH = Math.min(maxH, Math.round(maxW * 1.5));
   const cardW = Math.round(cardH / 1.5);
   // Largeur de la colonne centrale (carte + compteurs au-dessus)
-  const colW = Math.max(cardW, 260);
+  const colW = Math.max(cardW, 340);
 
   // Couleurs du bouton selon état — utilise l'accent du thème (orange/ambre)
   const btnBg = status.canAdd ? th.accent : th.bgTertiary;
@@ -8404,33 +8419,33 @@ function _renderDeckPreviewContent(flashAdded) {
 
   content.innerHTML = `
     <!-- Bouton fermer en haut à droite de l'écran -->
-    <button id="dcp-close" style="position:absolute;top:max(env(safe-area-inset-top,14px),14px);right:14px;width:42px;height:42px;background:rgba(0,0,0,.65);border:1px solid ${th.border};color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;">✕</button>
+    <button id="dcp-close" style="position:absolute;top:max(env(safe-area-inset-top,14px),14px);right:14px;width:48px;height:48px;background:rgba(0,0,0,.65);border:1px solid ${th.border};color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;">✕</button>
 
     <!-- Flèche gauche (positionnée à côté de la carte) -->
-    <button id="dcp-prev" style="position:absolute;left:calc(50% - ${Math.round(colW/2) + 52}px);top:50%;transform:translateY(-50%);width:44px;height:64px;background:rgba(0,0,0,.6);border:1px solid ${th.border};color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;" aria-label="Précédent">‹</button>
+    <button id="dcp-prev" style="position:absolute;left:calc(50% - ${Math.round(colW/2) + 60}px);top:50%;transform:translateY(-50%);width:52px;height:76px;background:rgba(0,0,0,.6);border:1px solid ${th.border};color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;" aria-label="Précédent">‹</button>
 
     <!-- Flèche droite (positionnée à côté de la carte) -->
-    <button id="dcp-next" style="position:absolute;left:calc(50% + ${Math.round(colW/2) + 8}px);top:50%;transform:translateY(-50%);width:44px;height:64px;background:rgba(0,0,0,.6);border:1px solid ${th.border};color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;" aria-label="Suivant">›</button>
+    <button id="dcp-next" style="position:absolute;left:calc(50% + ${Math.round(colW/2) + 8}px);top:50%;transform:translateY(-50%);width:52px;height:76px;background:rgba(0,0,0,.6);border:1px solid ${th.border};color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;" aria-label="Suivant">›</button>
 
     <!-- Colonne centrale : compteurs + carte + infos + boutons, tous à largeur de la carte -->
-    <div style="width:${colW}px;max-width:92vw;display:flex;flex-direction:column;align-items:center;gap:10px;">
+    <div style="width:${colW}px;max-width:94vw;display:flex;flex-direction:column;align-items:center;gap:12px;">
 
       <!-- Compteurs juste au-dessus de la carte -->
-      <div style="width:100%;display:flex;justify-content:space-between;align-items:stretch;gap:8px;">
+      <div style="width:100%;display:flex;justify-content:space-between;align-items:stretch;gap:10px;">
         <!-- Gauche : exemplaires dans le deck -->
-        <div style="background:rgba(0,0,0,.7);border:1px solid ${status.inDeck > 0 ? rarCol + '80' : th.border};padding:6px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;flex:1;min-width:0;">
-          <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Dans deck</div>
-          <div style="font-size:15px;font-weight:900;color:${status.inDeck >= status.maxInDeck ? th.red : (status.inDeck > 0 ? rarCol : th.text)};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${status.inDeck}/${status.maxInDeck}</div>
+        <div style="background:rgba(0,0,0,.7);border:1px solid ${status.inDeck > 0 ? rarCol + '80' : th.border};padding:8px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;min-width:0;">
+          <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Dans deck</div>
+          <div style="font-size:19px;font-weight:900;color:${status.inDeck >= status.maxInDeck ? th.red : (status.inDeck > 0 ? rarCol : th.text)};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${status.inDeck}/${status.maxInDeck}</div>
         </div>
         <!-- Centre : progression du deck -->
-        <div style="background:rgba(0,0,0,.7);border:1px solid ${status.deckTotal === 30 ? th.green + '80' : th.border};padding:6px 12px;display:flex;flex-direction:column;align-items:center;gap:1px;flex:1;min-width:0;">
-          <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Deck</div>
-          <div style="font-size:15px;font-weight:900;color:${status.deckTotal === 30 ? th.green : th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${status.deckTotal}/30</div>
+        <div style="background:rgba(0,0,0,.7);border:1px solid ${status.deckTotal === 30 ? th.green + '80' : th.border};padding:8px 14px;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;">
+          <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Deck</div>
+          <div style="font-size:19px;font-weight:900;color:${status.deckTotal === 30 ? th.green : th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${status.deckTotal}/30</div>
         </div>
         <!-- Droite : exemplaires possédés -->
-        <div style="background:rgba(0,0,0,.7);border:1px solid ${th.border};padding:6px 10px;display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:1;min-width:0;">
-          <div style="font-size:8px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Possédées</div>
-          <div style="font-size:15px;font-weight:900;color:${th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">×${status.owned}</div>
+        <div style="background:rgba(0,0,0,.7);border:1px solid ${th.border};padding:8px 12px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:1;min-width:0;">
+          <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Possédées</div>
+          <div style="font-size:19px;font-weight:900;color:${th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">×${status.owned}</div>
         </div>
       </div>
 
@@ -8438,29 +8453,29 @@ function _renderDeckPreviewContent(flashAdded) {
       <div id="dcp-card" style="width:${cardW}px;height:${cardH}px;position:relative;box-shadow:0 0 40px ${rarCol}55,0 0 80px rgba(0,0,0,.6);background:linear-gradient(135deg,${rarCol}30,${rarCol}10);border:2px solid ${rarCol}80;overflow:hidden;${flashAdded ? 'animation:dcpFlash .45s ease-out;' : ''}">
         ${card.image_url
           ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" draggable="false" />`
-          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;">🃏</div>`}
-        ${showLimitBadge ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:none;"><div style="text-align:center;font-size:16px;font-weight:900;color:${th.accent};letter-spacing:1px;line-height:1.3;text-shadow:0 2px 8px #000;">LIMITE<br>ATTEINTE</div></div>` : ''}
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:96px;">🃏</div>`}
+        ${showLimitBadge ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:none;"><div style="text-align:center;font-size:20px;font-weight:900;color:${th.accent};letter-spacing:1px;line-height:1.3;text-shadow:0 2px 8px #000;">LIMITE<br>ATTEINTE</div></div>` : ''}
       </div>
 
       <!-- Infos carte -->
       <div style="text-align:center;padding:0 10px;">
-        <div style="font-family:'Luckiest Guy',cursive;font-size:16px;font-weight:400;color:${th.text};letter-spacing:.5px;line-height:1.15;">${card.name}</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
-          <span style="font-size:10px;font-weight:800;color:${rarCol};letter-spacing:.5px;text-transform:uppercase;">${rarLabel}</span>
-          <span style="font-size:10px;color:${th.textMuted};">·</span>
-          <span style="font-size:10px;color:${th.textMuted};font-weight:600;">#${parseInt(card.id)}</span>
-          ${card.type ? `<span style="font-size:10px;color:${th.textMuted};">·</span><span style="font-size:10px;color:${th.textMuted};font-weight:600;">${card.type}</span>` : ''}
+        <div style="font-family:'Luckiest Guy',cursive;font-size:20px;font-weight:400;color:${th.text};letter-spacing:.5px;line-height:1.15;">${card.name}</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:800;color:${rarCol};letter-spacing:.5px;text-transform:uppercase;">${rarLabel}</span>
+          <span style="font-size:13px;color:${th.textMuted};">·</span>
+          <span style="font-size:13px;color:${th.textMuted};font-weight:600;">#${parseInt(card.id)}</span>
+          ${card.type ? `<span style="font-size:13px;color:${th.textMuted};">·</span><span style="font-size:13px;color:${th.textMuted};font-weight:600;">${card.type}</span>` : ''}
         </div>
       </div>
 
       <!-- Boutons -->
-      <div style="display:flex;gap:10px;align-items:center;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);">
-        <button id="dcp-cancel" style="padding:11px 18px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;">ANNULER</button>
-        <button id="dcp-add" ${status.canAdd ? '' : 'disabled'} style="padding:11px 22px;background:${btnBg};color:${btnColor};border:${btnBorder};font-size:12px;font-weight:900;cursor:${btnCursor};letter-spacing:.5px;opacity:${status.canAdd ? '1' : '.6'};">
+      <div style="display:flex;gap:12px;align-items:center;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);">
+        <button id="dcp-cancel" style="padding:14px 22px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.5px;">ANNULER</button>
+        <button id="dcp-add" ${status.canAdd ? '' : 'disabled'} style="padding:14px 28px;background:${btnBg};color:${btnColor};border:${btnBorder};font-size:15px;font-weight:900;cursor:${btnCursor};letter-spacing:.5px;opacity:${status.canAdd ? '1' : '.6'};">
           ${status.canAdd ? '+ AJOUTER AU DECK' : (status.inDeck > 0 ? 'LIMITE ATTEINTE' : 'INDISPONIBLE')}
         </button>
       </div>
-      ${!status.canAdd ? `<div style="font-size:11px;color:${th.textMuted};text-align:center;padding:0 16px;margin-top:-4px;">${status.reason}</div>` : ''}
+      ${!status.canAdd ? `<div style="font-size:13px;color:${th.textMuted};text-align:center;padding:0 16px;margin-top:-4px;">${status.reason}</div>` : ''}
     </div>
   `;
 
