@@ -804,6 +804,7 @@ let state = {
   collShowOwned: "all",
   collSetOpen: false,
   collSelectedCard: null,
+  collScrollTop: 0,
   showMessages: false,
   activeConvId: null,
   messages: {},
@@ -2202,7 +2203,7 @@ function renderTabCollection(th){
       const ROWS = Math.ceil(cards.length / COLS);
       const gridH = ROWS * CH + (ROWS-1) * GAP;
       if(cards.length===0) return `<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:${th.textMuted};font-size:12px;"><div style="font-size:32px;">🔍</div>Aucune carte</div>`;
-      return `<div style="flex:1;overflow-y:auto;padding:${PAD}px;">
+      return `<div id="coll-grid-scroll" style="flex:1;overflow-y:auto;padding:${PAD}px;">
         <div style="position:relative;width:${availW}px;height:${gridH}px;">
           ${cards.map((c,i)=>{
             const col=i%COLS, row=Math.floor(i/COLS);
@@ -4266,7 +4267,12 @@ function bindGame(){
   document.querySelectorAll('.coll-card').forEach(el=>{
     el.addEventListener('click',()=>{
       const card = ALL_CARDS.find(c=>c.id===el.dataset.cardid);
-      if(card) setState({collSelectedCard:card});
+      if(card) {
+        // Sauvegarder la position de scroll avant d'ouvrir le modal
+        const scrollEl = document.getElementById('coll-grid-scroll');
+        const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+        setState({collSelectedCard:card, collScrollTop:scrollTop});
+      }
     });
     if(!el.style.filter){ // owned
       el.addEventListener('mouseenter',()=>{el.style.transform='translateY(-3px) scale(1.03)';el.style.boxShadow=`0 8px 20px rgba(0,0,0,.3)`;});
@@ -4279,9 +4285,21 @@ function bindGame(){
 
   // Card modal close
   const cardModalBg = document.getElementById('card-modal-bg');
-  if(cardModalBg) cardModalBg.addEventListener('click',(e)=>{if(e.target===cardModalBg)setState({collSelectedCard:null});});
+  if(cardModalBg) cardModalBg.addEventListener('click',(e)=>{if(e.target===cardModalBg) _closeCardModal();});
   const cardModalClose = document.getElementById('card-modal-close');
-  if(cardModalClose) cardModalClose.addEventListener('click',()=>setState({collSelectedCard:null}));
+  if(cardModalClose) cardModalClose.addEventListener('click', _closeCardModal);
+
+  function _closeCardModal(){
+    const savedScroll = state.collScrollTop || 0;
+    setState({collSelectedCard:null});
+    // Restaurer le scroll après le re-render
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        const scrollEl = document.getElementById('coll-grid-scroll');
+        if(scrollEl) scrollEl.scrollTop = savedScroll;
+      });
+    });
+  }
 
   // Clic sur l'image de la carte → viewer 3D plein écran
   const cardImgTrigger = document.getElementById('card-img-trigger');
