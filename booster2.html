@@ -1416,51 +1416,18 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 <div class="rare-flash" id="rareFlash"></div>
 <div class="lightning" id="lightning"></div>
 <div class="fullscreen-bg" id="fsBg"></div>
-<!-- YT audio player caché — continuité musique depuis index.html -->
-<div id="yt-audio-player-b2" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+<!-- YT audio player caché — playlist Supabase -->
+<div id="bg-audio-player" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
 
 <div class="title">
   <span class="cmx-title-main">Booster Prestige</span>
-  <!-- Bouton musique -->
-  <button id="music-btn-booster" onclick="window._b2MusicToggle(event)"
+  <!-- Bouton musique — popup généré dynamiquement -->
+  <button id="music-btn-booster" onclick="window._b2MusicBtnClick(event)"
     title="Musique"
     style="display:flex;align-items:center;gap:5px;background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.55);padding:4px 10px;cursor:pointer;font-size:9px;font-family:inherit;font-weight:700;letter-spacing:.5px;transition:all .18s;">
     <span id="music-btn-icon">♪</span>
     <span id="music-btn-label">—%</span>
   </button>
-</div>
-
-<!-- Popup volume -->
-<div id="b2-vol-popup" style="display:none;position:fixed;top:46px;right:14px;z-index:10002;background:#1a1825;border:2px solid #000;box-shadow:3px 3px 0 #000;padding:0;min-width:200px;">
-  <div style="height:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
-  <div style="padding:10px 12px;">
-    <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">🎵 Musique Ambiante</div>
-    <button id="b2-music-toggle" onclick="window._b2ToggleOnOff()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#9d8ea0;cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.5px;">
-      <span id="b2-toggle-label">⏸ EN PAUSE</span>
-      <span id="b2-toggle-icon">🔇</span>
-    </button>
-  </div>
-  <div style="padding:0 12px 10px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <span style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Volume</span>
-      <span id="b2-vol-label" style="font-size:10px;font-weight:900;color:#fbbf24;">25%</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:11px;opacity:.5;">🔈</span>
-      <input id="b2-vol-slider" type="range" min="0" max="100" value="25"
-        oninput="window._b2PreviewVol(this.value)"
-        onchange="window._b2ApplyVol(this.value)"
-        style="width:100%;-webkit-appearance:none;appearance:none;height:4px;background:linear-gradient(90deg,#fbbf24 25%,rgba(255,255,255,.1) 25%);outline:none;border:none;cursor:pointer;accent-color:#fbbf24;">
-      <span style="font-size:11px;opacity:.8;">🔊</span>
-    </div>
-    <div style="display:flex;gap:4px;margin-top:10px;">
-      <button onclick="window._b2ApplyVol(0)"   style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;">0%</button>
-      <button onclick="window._b2ApplyVol(25)"  style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;">25%</button>
-      <button onclick="window._b2ApplyVol(50)"  style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;">50%</button>
-      <button onclick="window._b2ApplyVol(75)"  style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;">75%</button>
-      <button onclick="window._b2ApplyVol(100)" style="flex:1;padding:4px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#9d8ea0;font-size:9px;font-weight:700;cursor:pointer;">100%</button>
-    </div>
-  </div>
 </div>
 
 <!-- FLIP CARD -->
@@ -2946,6 +2913,7 @@ function loadYTApi(){
 }
 window.onYouTubeIframeAPIReady=function(){
   ytReady=true;
+  _bgInitPlayer(); // initialiser aussi le player ambiance playlist
 };
 loadYTApi();
 
@@ -4361,174 +4329,299 @@ async function restart(){
 </script>
 
 <script>
-// ─── MUSIQUE AMBIANTE — continuité depuis index.html ─────────────────
-// Même VIDEO_ID que index.html, reprend au timestamp sauvegardé
-(function(){
-  const YT_VID = 'WZH17pU1XeA';
-  let _player = null, _ready = false, _pendingPlay = false, _playing = false, _retryTimer = null;
+// ═══════════════════════════════════════════════════════════════════
+// SYSTÈME MUSIQUE — PLAYLIST ALÉATOIRE (table music_tracks Supabase)
+// Identique à index.html & booster1 — BroadcastChannel, skip, popup
+// ═══════════════════════════════════════════════════════════════════
 
-  // Charger l'API YT une seule fois
-  if(!window.YT || !window.YT.Player){
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  } else { _ready = true; }
+// ── État global ──────────────────────────────────────────────────
+let _bgPlayer      = null;
+let _bgReady       = false;
+let _bgPendingPlay = false;
+let _bgRetryTimer  = null;
+let _bgPlaying     = false;
+let _bgMusicVol    = 25;
 
-  window.onYouTubeIframeAPIReady = function(){
-    _ready = true;
-    _initPlayer();
-  };
+// Playlist depuis Supabase
+let _bgTracks      = [];
+let _bgTrackIdx    = -1;
 
-  function _initPlayer(){
-    const el = document.getElementById('yt-audio-player-b2');
-    if(!el || _player) return;
-    _player = new YT.Player('yt-audio-player-b2', {
-      videoId: YT_VID,
-      playerVars:{ autoplay:0, controls:0, loop:0, playlist:YT_VID, modestbranding:1, rel:0, playsinline:1, mute:0 },
-      events:{
-        onReady: function(e){
-          const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
-          const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
-          e.target.setVolume(savedVol);
-          if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
-          // seekTo peut déclencher la lecture — forcer pause si on ne doit pas jouer
-          if(_pendingPlay){ _pendingPlay=false; _doPlay(); }
-          else{ try{ e.target.pauseVideo(); }catch(ex){} }
-          setInterval(()=>{
-            try{ if(_player && _player.getCurrentTime){ const t=_player.getCurrentTime(); if(t>0) localStorage.setItem('music_pos', t.toFixed(1)); } }catch(ex){}
-          },5000);
-          _updateUI();
-        },
-        onStateChange: function(e){
-          if(!_playing) return;
-          if(e.data===YT.PlayerState.ENDED){
-            try{ _player.seekTo(0,true); _player.playVideo(); }catch(ex){}
-          } else if(e.data===YT.PlayerState.PAUSED){
-            setTimeout(()=>{ if(_playing){ try{ _player.playVideo(); }catch(ex){} } },300);
-          }
-        },
-        onError: function(){ if(_playing) setTimeout(_doPlay,2000); }
-      }
-    });
-  }
-
-  function _doPlay(){
-    if(!_player) return;
-    try{ const s=_player.getPlayerState?_player.getPlayerState():-1; if(s===1) return; _player.playVideo(); }catch(e){}
-  }
-
-  function _ensurePlay(){
-    if(_retryTimer) return;
-    _retryTimer = setInterval(()=>{
-      if(!_playing){ clearInterval(_retryTimer); _retryTimer=null; return; }
-      const s=_player?(_player.getPlayerState?_player.getPlayerState():-1):-1;
-      if(s===1){ clearInterval(_retryTimer); _retryTimer=null; return; }
-      _doPlay();
-    },800);
-    setTimeout(()=>{ if(_retryTimer){ clearInterval(_retryTimer); _retryTimer=null; } },15000);
-  }
-
-  function _startMusic(){
-    if(_playing) return;
-    _playing = true;
-    // Ne pas écrire localStorage ici — uniquement sur action utilisateur
-    if(!_ready||!_player){ _pendingPlay=true; if(_ready) _initPlayer(); return; }
-    _doPlay(); _ensurePlay();
-  }
-
-  function _stopMusic(){
-    _playing = false; _pendingPlay = false;
-    // Ne pas écrire localStorage ici — uniquement sur action utilisateur
-    if(_retryTimer){ clearInterval(_retryTimer); _retryTimer=null; }
-    if(_player){ try{ _player.pauseVideo(); }catch(e){} }
-  }
-
-  function _updateUI(){
-    const vol = parseInt(localStorage.getItem('music_volume')||'25');
-    const on  = _playing;
-    // Bouton titre
-    const btn   = document.getElementById('music-btn-booster');
-    const icon  = document.getElementById('music-btn-icon');
-    const label = document.getElementById('music-btn-label');
-    if(btn)  { btn.style.borderColor = on?'rgba(251,191,36,.4)':'rgba(255,255,255,.15)'; btn.style.color = on?'#fbbf24':'rgba(255,255,255,.55)'; }
-    if(icon)  icon.textContent = on?'♪':'♩';
-    if(label) label.textContent = vol+'%';
-    // Popup
-    const togLabel = document.getElementById('b2-toggle-label');
-    const togIcon  = document.getElementById('b2-toggle-icon');
-    const togBtn   = document.getElementById('b2-music-toggle');
-    if(togLabel) togLabel.textContent = on?'▶ EN LECTURE':'⏸ EN PAUSE';
-    if(togIcon)  togIcon.textContent  = on?'🔊':'🔇';
-    if(togBtn)   { togBtn.style.background=on?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'; togBtn.style.color=on?'#fbbf24':'#9d8ea0'; }
-    // Slider
-    const slider = document.getElementById('b2-vol-slider');
-    const vlabel = document.getElementById('b2-vol-label');
-    if(slider){ slider.value=vol; slider.style.background=`linear-gradient(90deg,#fbbf24 ${vol}%,rgba(255,255,255,.1) ${vol}%)`; }
-    if(vlabel) vlabel.textContent = vol+'%';
-  }
-
-  // ── API publique ──
-  window._b2MusicToggle = function(e){
-    e.stopPropagation();
-    const pop = document.getElementById('b2-vol-popup');
-    if(!pop) return;
-    const shown = pop.style.display!=='none';
-    pop.style.display = shown?'none':'block';
-    if(!shown){ _updateUI(); }
-    // Fermer en cliquant ailleurs
-    if(!shown){
-      setTimeout(()=>{
-        document.addEventListener('click', function close(ev){
-          if(!pop.contains(ev.target) && ev.target!==document.getElementById('music-btn-booster')){ pop.style.display='none'; document.removeEventListener('click',close); }
-        });
-      },50);
+// ── BroadcastChannel — évite doublon audio cross-onglets ─────────
+const _bgChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('tcg_music') : null;
+const _bgTabId   = Math.random().toString(36).slice(2);
+if(_bgChannel){
+  _bgChannel.onmessage = function(ev){
+    const msg=ev.data; if(!msg) return;
+    if(msg.type==='playing'&&msg.tabId!==_bgTabId){
+      if(_bgPlayer&&_bgPlaying) try{_bgPlayer.pauseVideo();}catch(e){}
+    }
+    if(msg.type==='stopped'&&msg.tabId!==_bgTabId){
+      if(_bgPlaying&&_bgPlayer) setTimeout(()=>{ if(_bgPlaying) _bgDoPlay(); },200);
     }
   };
+}
+function _bgBcastPlaying(){ if(_bgChannel) _bgChannel.postMessage({type:'playing',tabId:_bgTabId}); }
+function _bgBcastStopped(){ if(_bgChannel) _bgChannel.postMessage({type:'stopped',tabId:_bgTabId}); }
 
-  window._b2ToggleOnOff = function(){
-    if(_playing){ _stopMusic(); localStorage.setItem('music_on','0'); }
-    else { _startMusic(); localStorage.setItem('music_on','1'); }
-    _updateUI();
-  };
+// ── Charger la playlist depuis Supabase ──────────────────────────
+async function _bgLoadPlaylist(){
+  try{
+    const db=window._db; if(!db) return;
+    const {data,error}=await db.from('music_tracks').select('id,youtube_id,title,artist').order('id');
+    if(!error&&data&&data.length>0) _bgTracks=data;
+  }catch(e){}
+}
 
-  window._b2PreviewVol = function(val){
-    const v=parseInt(val);
-    const vlabel=document.getElementById('b2-vol-label');
-    const slider=document.getElementById('b2-vol-slider');
-    if(vlabel) vlabel.textContent=v+'%';
-    if(slider) slider.style.background=`linear-gradient(90deg,#fbbf24 ${v}%,rgba(255,255,255,.1) ${v}%)`;
-    if(_player&&_player.setVolume){ try{ _player.setVolume(v); }catch(e){} }
-  };
+// ── Piste aléatoire (différente de la précédente) ────────────────
+function _bgPickRandom(){
+  if(_bgTracks.length===0) return null;
+  if(_bgTracks.length===1) return 0;
+  let idx; do{ idx=Math.floor(Math.random()*_bgTracks.length); }while(idx===_bgTrackIdx);
+  return idx;
+}
 
-  window._b2ApplyVol = function(val){
-    const v=parseInt(val);
-    localStorage.setItem('music_volume',v);
-    if(_player&&_player.setVolume){ try{ _player.setVolume(v); }catch(e){} }
-    const label=document.getElementById('music-btn-label');
-    if(label) label.textContent=v+'%';
-    _updateUI();
-    if(v>0&&!_playing){ _startMusic(); localStorage.setItem('music_on','1'); }
-    if(v===0&&_playing){ _stopMusic(); localStorage.setItem('music_on','0'); }
-  };
+// ── Helpers préférences ──────────────────────────────────────────
+function _bgLoadVol(){ try{ return parseInt(localStorage.getItem('music_volume')||'25'); }catch(e){ return 25; } }
 
-  // Sauvegarder position avant de quitter
-  window.addEventListener('beforeunload',()=>{
-    try{
-      if(_player&&_player.getCurrentTime){ const t=_player.getCurrentTime(); if(t>0) localStorage.setItem('music_pos',t.toFixed(1)); }
-      localStorage.setItem('music_on',_playing?'1':'0');
-    }catch(e){}
+function _bgSavePrefs(on,vol){
+  try{ localStorage.setItem('music_on',on?'1':'0'); }catch(e){}
+  try{
+    const db=window._db, uid=window._currentUserId;
+    if(db&&uid) db.from('players').update({music_on:on,music_volume:vol}).eq('id',uid).then(()=>{}).catch(()=>{});
+  }catch(x){}
+}
+
+async function _bgLoadPrefsFromSupabase(){
+  try{
+    let tries=0;
+    while(!window._db&&tries++<30) await new Promise(r=>setTimeout(r,100));
+    const db=window._db; if(!db) return;
+    const uid=window._currentUserId;
+    if(!uid) return;
+    const {data}=await db.from('players').select('music_on,music_volume').eq('id',uid).single();
+    if(!data) return;
+    if(data.music_on!==null&&data.music_on!==undefined)
+      try{ localStorage.setItem('music_on',data.music_on?'1':'0'); }catch(e){}
+    if(data.music_volume!==null&&!isNaN(data.music_volume)){
+      _bgMusicVol=data.music_volume;
+      try{ localStorage.setItem('music_volume',String(data.music_volume)); }catch(e){}
+      if(_bgPlayer&&_bgPlayer.setVolume) try{ _bgPlayer.setVolume(data.music_volume); }catch(e){}
+    }
+    const shouldPlay=data.music_on===true||data.music_on===1;
+    if(shouldPlay&&!_bgPlaying) bgAudioPlay();
+    else if(!shouldPlay&&_bgPlaying) bgAudioStop();
+    _bgUpdateBtn();
+  }catch(e){}
+}
+
+// ── Lancer la piste courante ─────────────────────────────────────
+function _bgDoPlayTrack(){
+  if(!_bgPlayer||_bgTrackIdx<0||_bgTrackIdx>=_bgTracks.length) return;
+  const track=_bgTracks[_bgTrackIdx];
+  try{ _bgPlayer.loadVideoById({videoId:track.youtube_id,suggestedQuality:'small'}); _bgBcastPlaying(); _bgUpdateTrackDisplay(); }catch(e){}
+}
+
+function _bgDoPlay(){
+  if(!_bgPlayer) return;
+  try{ const s=_bgPlayer.getPlayerState?_bgPlayer.getPlayerState():-1; if(s===1) return; _bgPlayer.playVideo(); _bgBcastPlaying(); }catch(e){}
+}
+
+function _bgEnsurePlay(){
+  if(_bgRetryTimer) return;
+  _bgRetryTimer=setInterval(()=>{
+    if(!_bgPlaying){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; return; }
+    const s=_bgPlayer?(_bgPlayer.getPlayerState?_bgPlayer.getPlayerState():-1):-1;
+    if(s===1){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; return; }
+    _bgDoPlay();
+  },800);
+  setTimeout(()=>{ if(_bgRetryTimer){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; } },15000);
+}
+
+// ── Skip ─────────────────────────────────────────────────────────
+function _bgSkipNext(){
+  if(_bgTracks.length===0) return;
+  _bgTrackIdx=_bgPickRandom();
+  if(_bgTrackIdx===null) return;
+  if(!_bgReady||!_bgPlayer) return;
+  _bgDoPlayTrack(); _bgEnsurePlay(); _bgUpdateTrackDisplay();
+}
+window.musicSkip=_bgSkipNext;
+
+// ── Affichage piste ──────────────────────────────────────────────
+function _bgUpdateTrackDisplay(){
+  const te=document.getElementById('music-track-title'), ae=document.getElementById('music-track-artist');
+  if(_bgTrackIdx>=0&&_bgTrackIdx<_bgTracks.length){
+    const t=_bgTracks[_bgTrackIdx];
+    if(te) te.textContent=t.title||'—'; if(ae) ae.textContent=t.artist||'';
+  } else { if(te) te.textContent='—'; if(ae) ae.textContent=''; }
+}
+
+// ── play / stop / toggle ─────────────────────────────────────────
+function bgAudioPlay(){
+  if(_bgPlaying) return;
+  _bgPlaying=true; _bgMusicVol=_bgLoadVol();
+  _bgSavePrefs(true,_bgMusicVol); _bgUpdateBtn();
+  if(!_bgReady||!_bgPlayer){ _bgPendingPlay=true; return; }
+  if(_bgTrackIdx<0) _bgTrackIdx=_bgPickRandom()??0;
+  if(_bgTracks.length>0) _bgDoPlayTrack(); else _bgDoPlay();
+  _bgEnsurePlay();
+}
+function bgAudioStop(){
+  _bgPlaying=false; _bgPendingPlay=false;
+  _bgSavePrefs(false,_bgMusicVol);
+  if(_bgRetryTimer){ clearInterval(_bgRetryTimer);_bgRetryTimer=null; }
+  if(_bgPlayer){ try{_bgPlayer.pauseVideo();}catch(e){} }
+  _bgBcastStopped(); _bgUpdateBtn();
+}
+
+// ── Bouton topbar ────────────────────────────────────────────────
+function _bgUpdateBtn(){
+  const vol=_bgLoadVol();
+  const btn=document.getElementById('music-btn-booster');
+  const icon=document.getElementById('music-btn-icon');
+  const lbl=document.getElementById('music-btn-label');
+  if(btn){ btn.style.borderColor=_bgPlaying?'rgba(251,191,36,.4)':'rgba(255,255,255,.15)'; btn.style.color=_bgPlaying?'#fbbf24':'rgba(255,255,255,.55)'; }
+  if(icon) icon.textContent=_bgPlaying?'♪':'♩';
+  if(lbl) lbl.textContent=vol+'%';
+}
+
+// ── Popup dynamique (identique index / booster1) ─────────────────
+window._b2MusicBtnClick=function(e){
+  e.stopPropagation();
+  const existing=document.getElementById('b2-music-popup');
+  if(existing){ existing.remove(); return; }
+  const btn=document.getElementById('music-btn-booster');
+  const rect=btn.getBoundingClientRect();
+  const vol=_bgLoadVol(); const on=_bgPlaying;
+  const track=(_bgTracks&&_bgTrackIdx>=0&&_bgTrackIdx<_bgTracks.length)?_bgTracks[_bgTrackIdx]:null;
+
+  const pop=document.createElement('div');
+  pop.id='b2-music-popup';
+  pop.style.cssText=`position:fixed;top:${rect.bottom+6}px;right:${window.innerWidth-rect.right}px;z-index:10002;background:#1a1825;border:2px solid #000;box-shadow:3px 3px 0 #000,0 0 20px rgba(0,0,0,.6);min-width:200px;opacity:0;transform:translateY(-6px) scale(.97);transition:opacity .18s,transform .18s;`;
+  pop.innerHTML=`
+    <div style="height:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
+    <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.6);">
+      <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">🎵 Musique Ambiante</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;min-width:0;">
+        <div style="flex:1;min-width:0;">
+          <div id="music-track-title" style="font-size:10px;font-weight:900;color:#fbbf24;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track?track.title||'—':'—'}</div>
+          <div id="music-track-artist" style="font-size:8px;color:#9d8ea0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track?track.artist||'':''}</div>
+        </div>
+        <button onclick="window.musicSkip()" title="Piste suivante"
+          style="flex-shrink:0;padding:4px 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#9d8ea0;cursor:pointer;font-size:13px;line-height:1;"
+          onmouseover="this.style.color='#fbbf24';this.style.borderColor='rgba(251,191,36,.4)'"
+          onmouseout="this.style.color='#9d8ea0';this.style.borderColor='rgba(255,255,255,.1)'">⏭</button>
+      </div>
+      <button id="music-toggle-btn" onclick="window._b2ToggleOnOff()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:${on?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'};border:1px solid ${on?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'};color:${on?'#fbbf24':'#9d8ea0'};cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.5px;">
+        <span>${on?'▶ EN LECTURE':'⏸ EN PAUSE'}</span>
+        <span style="font-size:14px;">${on?'🔊':'🔇'}</span>
+      </button>
+    </div>
+    <div style="padding:12px 12px 10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Volume</span>
+        <span id="music-vol-label" style="font-size:10px;font-weight:900;color:#fbbf24;min-width:32px;text-align:right;">${vol}%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;opacity:.5;">🔈</span>
+        <div style="flex:1;position:relative;height:20px;display:flex;align-items:center;">
+          <input id="music-vol-slider" type="range" min="0" max="100" value="${vol}"
+            oninput="window._b2PreviewVol(this.value)"
+            onchange="window._b2ApplyVol(this.value)"
+            style="width:100%;-webkit-appearance:none;appearance:none;height:4px;background:linear-gradient(90deg,#fbbf24 ${vol}%,rgba(255,255,255,.1) ${vol}%);outline:none;border:none;cursor:pointer;accent-color:#fbbf24;">
+        </div>
+        <span style="font-size:11px;opacity:.8;">🔊</span>
+      </div>
+      <div style="display:flex;gap:4px;margin-top:10px;">
+        ${[0,25,50,75,100].map(v=>`<button onclick="window._b2ApplyVol(${v})" style="flex:1;padding:4px 0;background:${vol===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'};border:1px solid ${vol===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'};color:${vol===v?'#fbbf24':'#9d8ea0'};font-size:9px;font-weight:700;cursor:pointer;">${v}%</button>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(pop);
+  requestAnimationFrame(()=>{ pop.style.opacity='1'; pop.style.transform='translateY(0) scale(1)'; });
+  const close=(ev)=>{ if(!pop.contains(ev.target)&&ev.target!==btn){ pop.remove(); document.removeEventListener('click',close); } };
+  setTimeout(()=>document.addEventListener('click',close),50);
+};
+
+window._b2ToggleOnOff=function(){
+  const wasOn=_bgPlaying;
+  if(wasOn) bgAudioStop(); else bgAudioPlay();
+  const nowOn=!wasOn;
+  const btn=document.getElementById('music-toggle-btn');
+  if(btn){ btn.innerHTML=`<span>${nowOn?'▶ EN LECTURE':'⏸ EN PAUSE'}</span><span style="font-size:14px;">${nowOn?'🔊':'🔇'}</span>`; btn.style.background=nowOn?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'; btn.style.borderColor=nowOn?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'; btn.style.color=nowOn?'#fbbf24':'#9d8ea0'; }
+};
+window._b2PreviewVol=function(val){
+  const v=parseInt(val);
+  const label=document.getElementById('music-vol-label'), slider=document.getElementById('music-vol-slider');
+  if(label) label.textContent=v+'%';
+  if(slider) slider.style.background=`linear-gradient(90deg,#fbbf24 ${v}%,rgba(255,255,255,.1) ${v}%)`;
+  if(_bgPlayer&&_bgPlayer.setVolume) try{ _bgPlayer.setVolume(v); }catch(e){}
+  if(window.ytPlayer&&window.ytPlayer.setVolume) try{ window.ytPlayer.setVolume(Math.min(v,70)); }catch(e){}
+};
+window._b2ApplyVol=function(val){
+  const v=parseInt(val); _bgMusicVol=v;
+  try{ localStorage.setItem('music_volume',v); }catch(e){}
+  if(_bgPlayer&&_bgPlayer.setVolume) try{ _bgPlayer.setVolume(v); }catch(e){}
+  _bgSavePrefs(_bgPlaying,v); _bgUpdateBtn();
+  const slider=document.getElementById('music-vol-slider'), label=document.getElementById('music-vol-label');
+  if(slider){ slider.value=v; slider.style.background=`linear-gradient(90deg,#fbbf24 ${v}%,rgba(255,255,255,.1) ${v}%)`; }
+  if(label) label.textContent=v+'%';
+  const pop=document.getElementById('b2-music-popup');
+  if(pop){ pop.querySelectorAll('[onclick^="window._b2ApplyVol"]').forEach(b=>{ const bv=parseInt(b.getAttribute('onclick').match(/\d+/)[0]); b.style.background=bv===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'; b.style.borderColor=bv===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'; b.style.color=bv===v?'#fbbf24':'#9d8ea0'; }); }
+  if(v===0&&_bgPlaying) bgAudioStop();
+};
+
+// ── Initialiser le player YT ambiance (appelé par onYouTubeIframeAPIReady) ──
+function _bgInitPlayer(){
+  const container=document.getElementById('bg-audio-player');
+  if(!container||container._bgInit) return;
+  container._bgInit=true;
+  const frame=document.createElement('div'); frame.id='_bgYtFrame2'; container.appendChild(frame);
+  _bgPlayer=new YT.Player('_bgYtFrame2',{
+    videoId:'',
+    playerVars:{autoplay:0,controls:0,loop:0,modestbranding:1,rel:0,playsinline:1,mute:0},
+    events:{
+      onReady:function(e){
+        _bgReady=true;
+        e.target.setVolume(_bgLoadVol());
+        try{ e.target.pauseVideo(); }catch(ex){}
+        if(_bgPendingPlay){
+          _bgPendingPlay=false;
+          if(_bgTrackIdx<0) _bgTrackIdx=_bgPickRandom()??0;
+          if(_bgTracks.length>0) _bgDoPlayTrack(); else _bgDoPlay();
+          _bgEnsurePlay();
+        }
+      },
+      onStateChange:function(e){
+        if(!_bgPlaying) return;
+        if(e.data===YT.PlayerState.ENDED){ _bgSkipNext(); }
+        else if(e.data===YT.PlayerState.PAUSED){ setTimeout(()=>{ if(_bgPlaying){ try{_bgPlayer.playVideo();}catch(ex){} } },300); }
+      },
+      onError:function(){ if(_bgPlaying) setTimeout(_bgSkipNext,1000); }
+    }
   });
+}
 
-  // Auto-démarrer si music_on=1 dans localStorage
-  document.addEventListener('DOMContentLoaded',()=>{
-    if(_ready) _initPlayer();
-    const shouldPlay = localStorage.getItem('music_on') === '1';
-    if(shouldPlay){ _startMusic(); }
-    document.addEventListener('click',()=>{ if(_playing&&_player){ try{ const s=_player.getPlayerState(); if(s!==1) _doPlay(); }catch(e){} } },{once:true});
-    _updateUI();
-  });
+// ── Sauvegarder avant de quitter ────────────────────────────────
+window.addEventListener('beforeunload',()=>{
+  try{ localStorage.setItem('music_on',_bgPlaying?'1':'0'); }catch(e){}
+});
 
-})();
+// ── DOMContentLoaded : charger prefs Supabase puis démarrer ─────
+document.addEventListener('DOMContentLoaded',()=>{
+  _bgUpdateBtn();
+  (async()=>{
+    await _bgLoadPrefsFromSupabase();
+    // Fallback localStorage si pas de session Supabase
+    if(!_bgPlaying&&localStorage.getItem('music_on')==='1'){
+      _bgPendingPlay=true; _bgPlaying=true; _bgUpdateBtn();
+    }
+    await _bgLoadPlaylist();
+    if(_bgTracks.length>0&&_bgTrackIdx<0) _bgTrackIdx=_bgPickRandom()??0;
+    if(_bgPlaying&&_bgPlayer&&_bgTracks.length>0) _bgDoPlayTrack();
+  })();
+  document.addEventListener('click',()=>{ if(_bgPlaying&&_bgPlayer) try{const s=_bgPlayer.getPlayerState();if(s!==1)_bgDoPlay();}catch(e){} },{once:true});
+  document.addEventListener('touchstart',()=>{ if(_bgPlaying&&_bgPlayer) try{const s=_bgPlayer.getPlayerState();if(s!==1)_bgDoPlay();}catch(e){} },{once:true,passive:true});
+});
 </script>
 </body>
 </html>
