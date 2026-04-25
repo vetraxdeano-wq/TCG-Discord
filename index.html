@@ -5497,14 +5497,43 @@ async function loadPlayerRankOnly(userId) {
   const db = window.db;
   if (!db || !userId) return;
   try {
-    // Récupérer les wins du joueur
-    const { data: me } = await db.from('players').select('wins').eq('id', userId).single();
-    if (!me) return;
-    // Compter combien de joueurs ont PLUS de victoires
-    const { count } = await db.from('players')
-      .select('*', { count: 'exact', head: true })
-      .gt('wins', me.wins ?? 0);
-    const rank = (count ?? 0) + 1;
+    const HEADERS = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Accept': 'application/json',
+    };
+
+    // Nombre de cartes distinctes du joueur connecté
+    const myCardsResp = await fetch(
+      SUPABASE_URL + '/rest/v1/player_cards?select=card_id&player_id=eq.' + userId + '&limit=10000',
+      { headers: HEADERS }
+    );
+    const myCards = myCardsResp.ok ? await myCardsResp.json() : [];
+    const myCardCount = new Set(myCards.map(r => r.card_id)).size;
+
+    // Nombre de joueurs avec PLUS de cartes distinctes
+    // On doit compter côté JS — pas de COUNT DISTINCT sur une colonne étrangère via REST
+    const allCardsResp = await fetch(
+      SUPABASE_URL + '/rest/v1/player_cards?select=player_id,card_id&limit=50000',
+      { headers: HEADERS }
+    );
+    const allCards = allCardsResp.ok ? await allCardsResp.json() : [];
+
+    // Construire map player_id → nb cartes distinctes
+    const cardMap = {};
+    (allCards||[]).forEach(r => {
+      if(!r.player_id) return;
+      if(!cardMap[r.player_id]) cardMap[r.player_id] = new Set();
+      cardMap[r.player_id].add(r.card_id);
+    });
+
+    // Rang = nb de joueurs avec plus de cartes + 1
+    let above = 0;
+    Object.values(cardMap).forEach(s => {
+      if(s.size > myCardCount) above++;
+    });
+    // Si le joueur n'est pas dans la map (0 cartes), above = nombre total de joueurs avec des cartes
+    const rank = above + 1;
     setState({ playerRank: rank });
   } catch(e) { /* silencieux */ }
 }
