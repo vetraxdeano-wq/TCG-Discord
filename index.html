@@ -4415,9 +4415,16 @@ function bindGame(){
 
   const dbClearAll = document.getElementById('db-clear-all');
   if(dbClearAll) dbClearAll.addEventListener('click',()=>{
-    if(!state.currentDeck?.id) return;
+    const deckId = state.activeDeckId;
+    if(!deckId) return;
+    const deck = (state.decks||[]).find(d=>d.id===deckId);
+    if(!deck) return;
     if(!confirm('Retirer toutes les cartes du deck ?')) return;
-    setState({deckCards:[]});
+    // Vider les cartes dans le state local (sans toucher Supabase — l'user doit SAVE)
+    const updatedDecks = (state.decks||[]).map(d=>
+      d.id===deckId ? {...d, cards:[]} : d
+    );
+    setState({decks: updatedDecks});
   });
 
   // Sélection automatique du deck
