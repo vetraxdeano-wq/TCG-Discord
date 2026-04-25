@@ -3519,6 +3519,10 @@ function renderLeaderboardModal(th){
             const rankColor = i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#f97316':th.textMuted;
             const lvlInfo = computeLevel(row.xp||0);
             const lvl = lvlInfo.level;
+            const _ts = row.time_secs || 0;
+            const _th = Math.floor(_ts / 3600);
+            const _tm = Math.floor((_ts % 3600) / 60);
+            const timeTxt = _ts > 0 ? (_th > 0 ? _th + 'h ' : '') + _tm + 'min' : '';
             return `
             <div style="display:grid;grid-template-columns:28px 1fr 36px 36px 36px 36px 36px 36px;gap:2px;padding:7px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};position:relative;align-items:center;">
               ${isMe?`<div style="position:absolute;left:-16px;top:0;bottom:0;width:3px;background:${th.accent};"></div>`:''}
@@ -3530,7 +3534,7 @@ function renderLeaderboardModal(th){
                   </div>
                   <div style="font-size:10px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${(row.discord_username||'Joueur').slice(0,11)}${isMe?' ✦':''}</div>
                 </div>
-                ${row.time_secs>0?(()=>{const h=Math.floor(row.time_secs/3600);const m=Math.floor((row.time_secs%3600)/60);return `<div style="font-size:8px;color:${th.textFaint};padding-left:25px;">${h>0?h+'h ':''}${m}min</div>`})():''}
+                ${timeTxt?`<div style="font-size:8px;color:${th.textFaint};padding-left:25px;">${timeTxt}</div>`:''}
               </div>
               <div style="text-align:center;font-size:10px;font-weight:${sort==='cards'?'900':'600'};color:${sort==='cards'?'#818cf8':th.textMuted};">${row.cards||0}</div>
               <div style="text-align:center;font-size:10px;font-weight:${sort==='wins'?'900':'600'};color:${sort==='wins'?th.green:th.textMuted};">${row.wins||0}</div>
