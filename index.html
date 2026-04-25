@@ -327,6 +327,29 @@ let ALL_CARDS = [];
 // Pioche & Trade : localStorage (pas cross-device mais ok)
 // Boosters Prestige/Légendaire : Supabase (cross-device, par compte)
 function _dailyKey(userId){ return 'daily_' + userId; }
+
+function _weekStr(){
+  const d = new Date();
+  // Numéro de semaine ISO (lundi = début)
+  const jan4 = new Date(d.getFullYear(), 0, 4);
+  const startOfWeek = new Date(jan4);
+  startOfWeek.setDate(jan4.getDate() - (jan4.getDay()||7) + 1);
+  const weekNum = Math.floor((d - startOfWeek) / 604800000) + 1;
+  return d.getFullYear() + '-W' + String(weekNum).padStart(2,'0');
+}
+function _weeklyKey(userId){ return 'weekly_' + userId; }
+function getWeeklyData(userId){
+  try{
+    const raw = JSON.parse(localStorage.getItem(_weeklyKey(userId))||'{}');
+    // Reset si semaine différente
+    if(raw._week !== _weekStr()) return {_week: _weekStr()};
+    return raw;
+  }catch(e){ return {_week: _weekStr()}; }
+}
+function setWeeklyData(userId, patch){
+  const cur = getWeeklyData(userId);
+  localStorage.setItem(_weeklyKey(userId), JSON.stringify({...cur, ...patch}));
+}
 // FIX : on utilise la date LOCALE (et non UTC), pour que le reset de la pioche
 // se cale sur minuit heure du joueur, et pas sur minuit UTC.
 // Bug précédent : toISOString() = UTC → à minuit Paris (22h ou 23h UTC selon DST),
@@ -3684,9 +3707,155 @@ function renderTutorialModal(th){
 
 // ─── QUESTS MODAL ────────────────────────────────────────────────
 function renderQuestsModal(th){
+  const userId = state.currentUser?.id;
   const streak = state.loginStreak || 0;
   const STREAK_COINS = [25,50,75,100,125,150,200];
+  const today = _todayStr();
+
+  // Helper progress
+  function getDQProgress(questId){
+    if(!userId) return {progress:0,done:false};
+    const d = getDailyData(userId);
+    const today2 = _todayStr();
+    return {
+      progress: (d['dq_'+questId+'_date']===today2) ? (d['dq_'+questId]||0) : 0,
+      done:     (d['dq_'+questId+'_done_date']===today2) ? !!d['dq_'+questId+'_done'] : false,
+    };
+  }
+  function getWQProgress(questId){
+    if(!userId) return {progress:0,done:false};
+    const w = getWeeklyData(userId);
+    return { progress: w['wq_'+questId]||0, done: !!w['wq_'+questId+'_done'] };
+  }
+
   const todayDone = state.firstWinTodayDone || false;
+  const days = Array.from({length:7},(_,i)=>({
+    dayNum:i+1, done:streak>i, isToday:streak===i, coins:STREAK_COINS[i]
+  }));
+
+  const coinSVG = `<svg width="10" height="10" viewBox="0 0 24 24" fill="${th.yellow}"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>`;
+
+  function questRow(icon, label, coins, xp, progress, target, done, accent){
+    const pct = Math.min(100, Math.round(progress/target*100));
+    const col = done ? th.green : accent || th.accent;
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${done?'rgba(34,197,94,.12)':th.bgSecondary};border:2px solid ${done?th.green:'#000'};margin-bottom:6px;position:relative;overflow:hidden;transition:all .2s;">
+      ${done?`<div style="position:absolute;top:0;left:0;right:0;height:100%;background:linear-gradient(90deg,rgba(34,197,94,.06),transparent);pointer-events:none;"></div>`:''}
+      <div style="width:36px;height:36px;background:${done?'rgba(34,197,94,.2)':'rgba(255,255,255,.04)'};border:2px solid ${done?th.green:th.border};display:flex;align-items:center;justify-content:center;font-size:${done?'20px':'17px'};flex-shrink:0;">${done?'✅':icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:800;color:${done?th.green:th.text};margin-bottom:3px;display:flex;align-items:center;gap:5px;">
+          ${label}
+          ${done?`<span style="font-size:7px;font-weight:900;background:${th.green};color:#000;padding:1px 5px;letter-spacing:.5px;">COMPLÉTÉ</span>`:''}
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <div style="flex:1;height:4px;background:${th.bg};overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${col};transition:width .4s;"></div>
+          </div>
+          <span style="font-size:8px;font-weight:700;color:${done?th.green:th.textMuted};flex-shrink:0;">${done?'✓':progress+'/'+target}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;opacity:${done?.5:1};">
+        <div style="display:flex;align-items:center;gap:2px;font-size:12px;font-weight:900;color:${th.yellow};">${coinSVG}+${coins}</div>
+        <div style="font-size:9px;font-weight:800;color:#a78bfa;">✨ +${xp} XP</div>
+      </div>
+    </div>`;
+  }
+
+  // Données quêtes quotidiennes
+  const dqFirstWin = { progress: todayDone?1:0, done: todayDone };
+  const dqBooster  = getDQProgress('open_booster');
+  const dqPioche   = getDQProgress('pioche');
+  const dqTrade    = getDQProgress('trade');
+
+  // Données quêtes hebdomadaires
+  const wqDaily12  = getWQProgress('daily_12');
+  const wqWins    = getWQProgress('wins_15');
+  const wqBoosters= getWQProgress('boosters_10');
+  const wqTrades  = getWQProgress('trades_5');
+
+  return `
+  <div id="quests-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;z-index:150;">
+    <div class="slide-up" style="width:100%;max-width:420px;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;display:flex;flex-direction:column;max-height:92vh;padding-bottom:max(env(safe-area-inset-bottom,0px),16px);">
+
+      <div style="display:flex;justify-content:center;padding:10px 0 0;">
+        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px 10px;flex-shrink:0;">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#f43f5e);border:2px solid #000;box-shadow:2px 2px 0 #000;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">📜</div>
+        <div style="flex:1;">
+          <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:${th.text};letter-spacing:1.5px;">QUÊTES & RÉCOMPENSES</div>
+          <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">Connexions · Quotidiennes · Hebdomadaires</div>
+        </div>
+        <button id="quests-close" style="width:32px;height:32px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:12px;">
+
+        <!-- ── STREAK ── -->
+        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;">
+          <div style="height:3px;background:linear-gradient(90deg,#f59e0b,#f43f5e,#f59e0b);"></div>
+          <div style="padding:12px 12px 10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:16px;">🔥</span>
+              <div style="flex:1;">
+                <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.8px;">STREAK DE CONNEXION</div>
+              </div>
+              <div style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);padding:2px 8px;flex-shrink:0;">
+                <span style="font-size:10px;font-weight:900;color:#f59e0b;">🔥 Jour ${Math.max(streak,1)}</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
+              ${days.map(d=>`
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;background:${d.done?'rgba(245,158,11,.1)':d.isToday?'rgba(245,158,11,.06)':th.bgSecondary};border:${d.done?'2px solid rgba(245,158,11,.6)':d.isToday?'2px dashed rgba(245,158,11,.4)':'1px solid '+th.border};">
+                <span style="font-size:${d.done?'12px':'10px'};">${d.done?'✅':d.isToday?'🎁':'🔒'}</span>
+                <div style="font-size:7px;font-weight:900;color:${d.done?'#f59e0b':d.isToday?'#f59e0b':th.textFaint};">J${d.dayNum}</div>
+                <div style="font-size:7px;font-weight:700;color:${d.done||d.isToday?th.yellow:th.textFaint};">+${d.coins}</div>
+              </div>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- ── QUÊTES QUOTIDIENNES ── -->
+        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;">
+          <div style="height:3px;background:linear-gradient(90deg,${th.green},#38bdf8,${th.green});"></div>
+          <div style="padding:12px 12px 10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:16px;">⚔️</span>
+              <div>
+                <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.8px;">QUÊTES QUOTIDIENNES</div>
+                <div style="font-size:8px;color:${th.textMuted};">Reset à minuit</div>
+              </div>
+            </div>
+            ${questRow('🏆','Première victoire du jour',100,20,dqFirstWin.progress,1,dqFirstWin.done,th.green)}
+            ${questRow('📦','Ouvrir 1 booster',50,30,dqBooster.progress,1,dqBooster.done,'#f59e0b')}
+            ${questRow('🃏','Piocher 1 carte gratuite',25,40,dqPioche.progress,1,dqPioche.done,'#38bdf8')}
+            ${questRow('🔄','Proposer un échange',30,60,dqTrade.progress,1,dqTrade.done,'#a78bfa')}
+          </div>
+        </div>
+
+        <!-- ── QUÊTES HEBDOMADAIRES ── -->
+        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;">
+          <div style="height:3px;background:linear-gradient(90deg,#f43f5e,#a78bfa,#f43f5e);"></div>
+          <div style="padding:12px 12px 10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:16px;">🏅</span>
+              <div>
+                <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.8px;">QUÊTES HEBDOMADAIRES</div>
+                <div style="font-size:8px;color:${th.textMuted};">Reset le lundi · Meilleures récompenses</div>
+              </div>
+            </div>
+            ${questRow('📋','Compléter 12 quêtes quotidiennes',250,180,wqDaily12.progress,12,wqDaily12.done,'#f59e0b')}
+            ${questRow('⚔️','Remporter 15 matchs',500,300,wqWins.progress,15,wqWins.done,th.green)}
+            ${questRow('📦','Ouvrir 10 boosters',350,200,wqBoosters.progress,10,wqBoosters.done,'#f59e0b')}
+            ${questRow('🔄','Effectuer 5 échanges',300,250,wqTrades.progress,5,wqTrades.done,'#a78bfa')}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>`;
+}
 
   // Streak jours visuels
   const days = Array.from({length:7},(_,i)=>{
@@ -5130,6 +5299,9 @@ function bindGame(){
         }
         requestAnimationFrame(animTear);
 
+        // Quêtes booster
+        progressDailyQuest('open_booster');
+        progressWeeklyQuest('boosters_10');
         setTimeout(()=>{ window.location.href = href; }, tierCfg.totalDur);
       }, tierCfg.tensionDur);
     }
@@ -5376,6 +5548,8 @@ function bindGame(){
         }
 
         setState({piocheResult: drawn});
+        // ── Quêtes ──
+        progressDailyQuest('pioche');
       },700);
     });
   });
@@ -6782,6 +6956,7 @@ async function checkLoginStreak(userId) {
   }).eq('id', userId);
 
   setState({ loginStreak: newStreak, lastLoginDate: today, firstWinTodayDone: firstWinDate === today });
+
 }
 
 // Appelée par le système de jeu après chaque victoire
@@ -6808,11 +6983,114 @@ window.onPlayerWin = async function() {
   showXpToast(20, '1ère victoire du jour');
   await db.from('players').update({ first_win_date: today }).eq('id', userId);
   setState({ firstWinTodayDone: true });
+  // Marquer la quête quotidienne 1ère victoire comme complétée
+  setDailyData(userId, {
+    'dq_first_win': 1, 'dq_first_win_date': today,
+    'dq_first_win_done': true, 'dq_first_win_done_date': today,
+  });
+  // Quête hebdomadaire victoires
+  progressWeeklyQuest('wins_15');
+  // Incrémenter le compteur hebdo "3 quêtes quotidiennes complétées"
+  _checkDailyQuestCountForWeekly(userId);
 };
 
 
 
-// Vérifie qu'un deck par défaut jouable (30 cartes + règles respectées) existe — affiche une modale claire sinon.
+// ─── SYSTÈME DE QUÊTES FONCTIONNEL ───────────────────────────────
+
+// Définitions des quêtes
+const DAILY_QUESTS = [
+  { id:'first_win',    label:'Première victoire du jour', icon:'🏆', target:1,  coins:100, xp:20,  tracked:false }, // gérée séparément
+  { id:'open_booster', label:'Ouvrir 1 booster',         icon:'📦', target:1,  coins:50,  xp:30 },
+  { id:'pioche',       label:'Piocher 1 carte',           icon:'🃏', target:1,  coins:25,  xp:40 },
+  { id:'trade',        label:'Proposer un échange',       icon:'🔄', target:1,  coins:30,  xp:60 },
+];
+
+const WEEKLY_QUESTS = [
+  { id:'daily_12',   label:'Compléter 12 quêtes quotidiennes', icon:'📋', target:12, coins:250, xp:180 },
+  { id:'wins_15',    label:'Remporter 15 matchs',             icon:'⚔️', target:15, coins:500, xp:300 },
+  { id:'boosters_10',label:'Ouvrir 10 boosters',              icon:'📦', target:10, coins:350, xp:200 },
+  { id:'trades_5',   label:'Effectuer 5 échanges',            icon:'🔄', target:5,  coins:300, xp:250 },
+];
+
+// Compte le nb de quêtes quotidiennes complétées aujourd'hui et incrémente le weekly daily_3
+function _checkDailyQuestCountForWeekly(userId) {
+  if (!userId) return;
+  // Chaque quête quotidienne complétée incrémente le compteur hebdo de 1
+  // La quête hebdo target = 12 (= 3 fois toutes les quêtes quotidiennes sur la semaine)
+  progressWeeklyQuest('daily_12');
+}
+
+// Incrémenter un compteur de quête quotidienne et déclencher la récompense si complète
+async function progressDailyQuest(questId) {
+  const userId = state.currentUser?.id;
+  if (!userId) return;
+  const d = getDailyData(userId);
+  const today = _todayStr();
+
+  const questKey = 'dq_' + questId;
+  const doneKey  = 'dq_' + questId + '_done';
+
+  // Vérifier que c'est bien aujourd'hui (reset auto)
+  const progress = (d[questKey + '_date'] === today) ? (d[questKey] || 0) : 0;
+  const done     = (d[doneKey + '_date'] === today) ? d[doneKey] : false;
+  if (done) return; // déjà complétée
+
+  const quest = DAILY_QUESTS.find(q => q.id === questId);
+  if (!quest) return;
+
+  const newProgress = progress + 1;
+  setDailyData(userId, {
+    [questKey]: newProgress,
+    [questKey + '_date']: today,
+  });
+  setState({ _questUpdate: Date.now() }); // forcer re-render
+
+  if (newProgress >= quest.target) {
+    // Récompense !
+    setDailyData(userId, { [doneKey]: true, [doneKey + '_date']: today });
+    await grantCoins(userId, quest.coins, 'Quête : ' + quest.label);
+    showRewardToast('Quête : ' + quest.label, quest.coins, quest.icon);
+    await grantXp(userId, quest.xp, 'Quête : ' + quest.label);
+    showXpToast(quest.xp, 'Quête : ' + quest.label);
+    setState({ _questUpdate: Date.now() });
+    // Vérifier si 3 quêtes quotidiennes complétées ce jour → quête hebdo
+    _checkDailyQuestCountForWeekly(userId);
+  }
+}
+
+// Incrémenter un compteur de quête hebdomadaire
+async function progressWeeklyQuest(questId) {
+  const userId = state.currentUser?.id;
+  if (!userId) return;
+  const w = getWeeklyData(userId);
+
+  const questKey = 'wq_' + questId;
+  const doneKey  = 'wq_' + questId + '_done';
+
+  const progress = w[questKey] || 0;
+  if (w[doneKey]) return;
+
+  const quest = WEEKLY_QUESTS.find(q => q.id === questId);
+  if (!quest) return;
+
+  const newProgress = progress + 1;
+  setWeeklyData(userId, { [questKey]: newProgress });
+  setState({ _questUpdate: Date.now() });
+
+  if (newProgress >= quest.target) {
+    setWeeklyData(userId, { [doneKey]: true });
+    await grantCoins(userId, quest.coins, 'Quête semaine : ' + quest.label);
+    showRewardToast('Quête semaine : ' + quest.label, quest.coins, quest.icon);
+    await grantXp(userId, quest.xp, 'Quête semaine : ' + quest.label);
+    showXpToast(quest.xp, 'Quête semaine : ' + quest.label);
+    setState({ _questUpdate: Date.now() });
+  }
+}
+
+// Exposer pour les autres pages (booster, etc.)
+window.progressDailyQuest  = progressDailyQuest;
+window.progressWeeklyQuest = progressWeeklyQuest;
 // Retourne true si on peut lancer le jeu, false sinon. Ouvre le Deck Builder si besoin de correction.
 async function checkDefaultDeck() {
   const db = window.db;
@@ -8361,6 +8639,8 @@ async function sendTradeOffer(theirCardId) {
     startDailyTicker();
     setState({ showTrade: false, tradeMyCard: null, tradeStep: null, tradeWantedNum: null });
     showToast('Proposition envoyée !', '🔄');
+    progressDailyQuest('trade');
+    progressWeeklyQuest('trades_5');
     // Rafraîchir les trades dans la conv si elle est ouverte
     if (state.activeConvId === toId) loadConvTrades(toId);
   } catch(e) {
