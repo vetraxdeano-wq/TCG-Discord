@@ -5644,11 +5644,13 @@ async function loadLeaderboard(period){
     const rawPlayers = await playersResp.json();
     const rawCards   = cardsResp.ok ? await cardsResp.json() : [];
     const rawStats   = statsResp.ok ? await statsResp.json() : [];
-    console.log('[Leaderboard] joueurs:', rawPlayers?.length, '| cartes:', rawCards?.length, '| stats:', rawStats?.length);
+    console.log('[Leaderboard] joueurs:', rawPlayers?.length, '| cartes:', rawCards?.length, '| stats:', rawStats?.length, statsResp.ok ? 'OK' : 'ERREUR '+statsResp.status);
 
     // Map user_id → time_played_seconds
+    // Si stats vide ou absente : estimer via (wins+losses)*15min
     const timeMap = {};
-    (rawStats||[]).forEach(s=>{ if(s.user_id) timeMap[s.user_id] = s.time_played_seconds||0; });
+    const statsOk = rawStats && rawStats.length > 0;
+    (rawStats||[]).forEach(s=>{ if(s.user_id && s.time_played_seconds > 0) timeMap[s.user_id] = s.time_played_seconds; });
 
     // ── 2. Construire la map player_id → nb cartes distinctes ─────
     const cardCountMap = {};
@@ -5666,7 +5668,7 @@ async function loadLeaderboard(period){
       coins:  p.coins  ?? 0,
       xp:          p.xp ?? 0,
       cards:       cardCountMap[p.id] ? cardCountMap[p.id].size : 0,
-      time_secs:   timeMap[p.id] || 0,
+      time_secs:   timeMap[p.id] || ((p.wins||0)+(p.losses||0)) * 900, // 900s = 15min/partie si pas de stats
     }));
 
     // Assurer que le joueur connecté est présent
@@ -5712,15 +5714,13 @@ async function loadLeaderboard(period){
     // ── 5. Tri : cards desc, coins desc en départage ────────────────
     filtered.sort((a,b) => (b.cards - a.cards) || (b.coins - a.coins));
 
-    // ── 6. Rang du joueur connecté ─────────────────────────────────
+    // ── 6. Rang du joueur connecté — toujours sur ALL trié par cartes ──
+    // (indépendant du filtre période pour que le bouton RANG soit cohérent)
+    const allByCards = [...all].sort((a,b) => (b.cards - a.cards) || (b.coins - a.coins));
     let playerRank = null;
     if(myId){
-      const idx = filtered.findIndex(r => r.id === myId);
-      if(idx !== -1) playerRank = idx + 1;
-      else {
-        const gi = all.findIndex(r => r.id === myId);
-        if(gi !== -1) playerRank = gi + 1;
-      }
+      const idx = allByCards.findIndex(r => r.id === myId);
+      playerRank = idx !== -1 ? idx + 1 : null;
     }
 
     setState({leaderboardLoading:false, leaderboardData: filtered.slice(0,50), playerRank});
