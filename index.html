@@ -516,44 +516,68 @@ function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeStrin
 
 // ─── AMBIENT MUSIC ────────────────────────────────────────────────
 // ─── YOUTUBE AUDIO PLAYER ─────────────────────────────────────────
-// Musique : https://www.youtube.com/watch?v=niReTZnphks
-const YT_VIDEO_ID = 'WZH17pU1XeA';
-const YT_START_SEC = 0;
-let _ytPlayer = null;
-let _ytReady = false;
+// ═══════════════════════════════════════════════════════════════════
+// SYSTÈME MUSIQUE — PLAYLIST ALÉATOIRE (table music_tracks Supabase)
+// Comportement FIFA : piste aléatoire à chaque retour au menu, skip
+// ═══════════════════════════════════════════════════════════════════
+
+// ── État global ──────────────────────────────────────────────────
+let _ytPlayer      = null;
+let _ytReady       = false;
 let _ytPendingPlay = false;
 let _ytPlayRetryTimer = null;
-let audioPlaying = false;
+let audioPlaying   = false;
 
-// ── Singleton audio cross-pages via BroadcastChannel ──────────────
-// Évite que deux pages jouent en même temps
+// Playlist chargée depuis Supabase
+let _musicTracks   = [];  // [{id, youtube_id, title, artist}, ...]
+let _currentTrackIdx = -1; // index dans _musicTracks
+let _loadingTrack  = false;
+
+// ── BroadcastChannel — évite doublon audio cross-onglets ─────────
 const _musicChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('tcg_music') : null;
-const _musicTabId = Math.random().toString(36).slice(2);
-let _musicMaster = false; // cette tab est-elle la maîtresse du son ?
-
+const _musicTabId   = Math.random().toString(36).slice(2);
 if(_musicChannel){
   _musicChannel.onmessage = function(ev){
     const msg = ev.data;
     if(!msg) return;
-    // Une autre tab démarre → on se met en pause si on jouait
     if(msg.type === 'playing' && msg.tabId !== _musicTabId){
-      if(_ytPlayer && audioPlaying){
-        try { _ytPlayer.pauseVideo(); } catch(e) {}
-        // On ne change pas audioPlaying — si cette tab reprend le focus on relancera
-      }
+      if(_ytPlayer && audioPlaying) try{ _ytPlayer.pauseVideo(); }catch(e){}
     }
-    // Une autre tab s'arrête → on peut reprendre si on était maître
     if(msg.type === 'stopped' && msg.tabId !== _musicTabId){
-      if(audioPlaying && _ytPlayer){
-        setTimeout(()=>{ if(audioPlaying) _doPlay(); }, 200);
-      }
+      if(audioPlaying && _ytPlayer) setTimeout(()=>{ if(audioPlaying) _doPlay(); }, 200);
     }
   };
 }
-
 function _broadcastPlaying(){ if(_musicChannel) _musicChannel.postMessage({type:'playing', tabId:_musicTabId}); }
 function _broadcastStopped(){ if(_musicChannel) _musicChannel.postMessage({type:'stopped', tabId:_musicTabId}); }
 
+// ── Charger la playlist depuis Supabase ──────────────────────────
+async function _loadPlaylist(){
+  try{
+    const db = window.db;
+    if(!db) return;
+    const { data, error } = await db
+      .from('music_tracks')
+      .select('id, youtube_id, title, artist')
+      .order('id');
+    if(!error && data && data.length > 0){
+      _musicTracks = data;
+      console.log('[Music] Playlist chargée :', _musicTracks.length, 'pistes');
+    }
+  }catch(e){ console.warn('[Music] Impossible de charger la playlist :', e); }
+}
+
+// ── Choisir une piste aléatoire (différente de la précédente) ────
+function _pickRandomTrack(){
+  if(_musicTracks.length === 0) return null;
+  if(_musicTracks.length === 1) return 0;
+  let idx;
+  do { idx = Math.floor(Math.random() * _musicTracks.length); }
+  while(idx === _currentTrackIdx);
+  return idx;
+}
+
+// ── Charger l'API YouTube ────────────────────────────────────────
 (function loadYTApi(){
   if(window.YT && window.YT.Player){ _ytReady = true; return; }
   const tag = document.createElement('script');
@@ -565,61 +589,48 @@ window.onYouTubeIframeAPIReady = function(){
   _ytReady = true;
   const container = document.getElementById('yt-audio-player');
   if(!container) return;
+
+  // Démarrer avec une piste vide — on la changera via loadVideoById
   _ytPlayer = new YT.Player('yt-audio-player', {
-    videoId: YT_VIDEO_ID,
+    videoId: '',
     playerVars:{
-      autoplay: 0,
-      controls: 0,
-      loop: 0, // géré manuellement pour éviter relance non désirée
-      playlist: YT_VIDEO_ID,
-      start: YT_START_SEC,
-      modestbranding: 1,
-      rel: 0,
-      playsinline: 1,
-      mute: 0,
+      autoplay:0, controls:0, loop:0,
+      modestbranding:1, rel:0, playsinline:1, mute:0,
     },
     events:{
       onReady: function(e){
         const savedVol = parseInt(localStorage.getItem('music_volume')||'25');
         e.target.setVolume(savedVol);
-        // Restaurer la position sauvegardée dans tous les cas (même si muté)
-        // pour que la lecture reprenne là où elle s'était arrêtée
-        const savedPos = parseFloat(localStorage.getItem('music_pos')||'0');
-        if(savedPos > 2){ try{ e.target.seekTo(savedPos, true); }catch(ex){} }
-        if(audioPlaying){
-          if(_ytPendingPlay){ _ytPendingPlay = false; _doPlay(); }
-        } else {
-          // Forcer la pause — seekTo peut relancer la lecture sur certains browsers
-          _ytPendingPlay = false;
-          try{ e.target.pauseVideo(); }catch(ex){}
-        }
-        // Sauvegarder la position toutes les 5s (qu'on joue ou non)
-        setInterval(()=>{
-          try{
-            if(_ytPlayer && _ytPlayer.getCurrentTime){
-              const t = _ytPlayer.getCurrentTime();
-              if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
-            }
-          }catch(ex){}
-        }, 5000);
+        if(_ytPendingPlay){ _ytPendingPlay = false; _doPlayCurrentTrack(); }
+        else { try{ e.target.pauseVideo(); }catch(ex){} }
       },
       onStateChange: function(e){
-        if(!audioPlaying) return; // mute actif → ignorer tous les états
+        if(!audioPlaying) return;
         if(e.data === YT.PlayerState.ENDED){
-          // Fin de la vidéo → reprendre depuis le début (position reset naturelle)
-          try{ _ytPlayer.seekTo(0, true); _ytPlayer.playVideo(); }catch(ex){}
-          try{ localStorage.setItem('music_pos', '0'); }catch(ex){}
+          // Fin de piste → piste suivante automatiquement (comme FIFA)
+          _skipToNext();
         } else if(e.data === YT.PlayerState.PAUSED){
-          // Pause involontaire → relancer après 300ms
           setTimeout(()=>{ if(audioPlaying){ try{ _ytPlayer.playVideo(); }catch(ex){} } }, 300);
         }
       },
       onError: function(){
-        if(audioPlaying) setTimeout(_doPlay, 2000);
+        // Piste indisponible → skip automatique
+        if(audioPlaying) setTimeout(_skipToNext, 1000);
       },
     }
   });
 };
+
+// ── Lancer la piste courante ─────────────────────────────────────
+function _doPlayCurrentTrack(){
+  if(!_ytPlayer || _currentTrackIdx < 0 || _currentTrackIdx >= _musicTracks.length) return;
+  const track = _musicTracks[_currentTrackIdx];
+  try{
+    _ytPlayer.loadVideoById({ videoId: track.youtube_id, suggestedQuality: 'small' });
+    _broadcastPlaying();
+    _updateTrackDisplay();
+  }catch(e){}
+}
 
 function _doPlay(){
   if(!_ytPlayer) return;
@@ -642,6 +653,36 @@ function _ensurePlay(){
   setTimeout(()=>{ if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; } }, 15000);
 }
 
+// ── Skip → piste suivante ────────────────────────────────────────
+function _skipToNext(){
+  if(_musicTracks.length === 0) return;
+  _currentTrackIdx = _pickRandomTrack();
+  if(_currentTrackIdx === null) return;
+  if(!_ytReady || !_ytPlayer){ return; }
+  _doPlayCurrentTrack();
+  _ensurePlay();
+  _updateTrackDisplay();
+}
+
+// Exposé globalement pour le bouton skip du popup
+window.musicSkip = function(){
+  _skipToNext();
+};
+
+// ── Mettre à jour l'affichage du titre dans le popup ────────────
+function _updateTrackDisplay(){
+  const titleEl  = document.getElementById('music-track-title');
+  const artistEl = document.getElementById('music-track-artist');
+  if(_currentTrackIdx >= 0 && _currentTrackIdx < _musicTracks.length){
+    const t = _musicTracks[_currentTrackIdx];
+    if(titleEl)  titleEl.textContent  = t.title  || '—';
+    if(artistEl) artistEl.textContent = t.artist || '';
+  } else {
+    if(titleEl)  titleEl.textContent  = '—';
+    if(artistEl) artistEl.textContent = '';
+  }
+}
+
 // ─── PERSISTANCE PRÉFÉRENCE MUSIQUE ──────────────────────────────
 function _saveMusicPref(on){
   try{ localStorage.setItem('music_on', on ? '1' : '0'); }catch(e){}
@@ -650,14 +691,13 @@ function _saveMusicPref(on){
 }
 function _loadMusicPref(){ try{ var v=localStorage.getItem('music_on'); return v===null ? false : v==='1'; }catch(e){ return false; } }
 
-// ── Sync musique ↔ Supabase ──────────────────────────────────────
 async function _saveMusicPrefsToSupabase(on, vol){
   try{
     const db = window.db;
     const uid = state.currentUser?.id;
     if(!db||!uid) return;
     await db.from('players').update({ music_on: on, music_volume: vol }).eq('id', uid);
-  }catch(e){ /* colonne absente ou erreur réseau — silencieux */ }
+  }catch(e){}
 }
 
 async function _loadMusicPrefsFromSupabase(userId){
@@ -666,10 +706,8 @@ async function _loadMusicPrefsFromSupabase(userId){
     if(!db||!userId) return;
     const { data } = await db.from('players').select('music_on, music_volume').eq('id', userId).single();
     if(!data) return;
-    // Synchroniser localStorage avec les prefs Supabase (priorité Supabase = cross-device)
-    if(data.music_on !== null && data.music_on !== undefined){
+    if(data.music_on !== null && data.music_on !== undefined)
       try{ localStorage.setItem('music_on', data.music_on ? '1' : '0'); }catch(e){}
-    }
     if(data.music_volume !== null && data.music_volume !== undefined && !isNaN(data.music_volume)){
       try{ localStorage.setItem('music_volume', String(data.music_volume)); }catch(e){}
       state.musicVolume = data.music_volume;
@@ -677,40 +715,49 @@ async function _loadMusicPrefsFromSupabase(userId){
     }
     const shouldPlay = data.music_on === true || data.music_on === 1;
     state.musicOn = shouldPlay;
+    // Charger la playlist et choisir une piste aléatoire
+    await _loadPlaylist();
+    _currentTrackIdx = _pickRandomTrack() ?? 0;
     if(shouldPlay && !audioPlaying){ audioPlay(); }
     else if(!shouldPlay && audioPlaying){ audioStop(); }
-  }catch(e){ /* colonne absente — fallback localStorage */ }
+  }catch(e){}
 }
 
+// ── audioPlay / audioStop / audioToggle ─────────────────────────
 function audioPlay(){
   if(audioPlaying) return;
   audioPlaying = true;
   _saveMusicPref(true);
-  // Restaurer le volume sauvegardé (jamais 0) avant de jouer
   if(_ytPlayer && _ytPlayer.setVolume){
     const vol = parseInt(localStorage.getItem('music_volume')||'25');
     try{ _ytPlayer.setVolume(vol > 0 ? vol : 25); }catch(e){}
     state.musicVolume = vol > 0 ? vol : 25;
   }
   if(!_ytReady || !_ytPlayer){ _ytPendingPlay = true; return; }
-  _doPlay();
+
+  // Choisir une piste aléatoire à chaque fois qu'on revient au menu (comme FIFA)
+  if(_currentTrackIdx < 0){
+    _currentTrackIdx = _pickRandomTrack() ?? 0;
+  }
+  if(_musicTracks.length > 0){
+    _doPlayCurrentTrack();
+  } else {
+    _doPlay(); // fallback si playlist pas encore chargée
+  }
   _ensurePlay();
 }
+
 function audioStop(){
   audioPlaying = false;
   _ytPendingPlay = false;
   _saveMusicPref(false);
-  // NE PAS toucher à music_volume ici — le volume reste intact pour la prochaine lecture
   if(_ytPlayRetryTimer){ clearInterval(_ytPlayRetryTimer); _ytPlayRetryTimer=null; }
   if(_ytPlayer){
-    try{
-      const t = _ytPlayer.getCurrentTime ? _ytPlayer.getCurrentTime() : 0;
-      if(t > 0) localStorage.setItem('music_pos', t.toFixed(1));
-      _ytPlayer.pauseVideo();
-    } catch(e){}
+    try{ _ytPlayer.pauseVideo(); }catch(e){}
   }
   _broadcastStopped();
 }
+
 function audioToggle(){ if(audioPlaying) audioStop(); else audioPlay(); }
 
 window._setMusicVolume = function(val) {
@@ -3862,10 +3909,27 @@ function bindGame(){
     pop.id = 'music-vol-popup';
     pop.style.cssText = `position:fixed;top:${rect.bottom+6}px;right:${window.innerWidth-rect.right}px;z-index:10002;background:#1a1825;border:2px solid #000;box-shadow:3px 3px 0 #000,0 0 20px rgba(0,0,0,.6);padding:0;min-width:200px;opacity:0;transform:translateY(-6px) scale(.97);transition:opacity .18s,transform .18s;`;
 
+    // Piste en cours
+    const track = (_musicTracks && _currentTrackIdx >= 0 && _currentTrackIdx < _musicTracks.length)
+      ? _musicTracks[_currentTrackIdx] : null;
+
     pop.innerHTML = `
       <div style="height:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
+      <!-- En-tête : piste en cours + skip -->
       <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.6);">
-        <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;">🎵 Musique Ambiante</div>
+        <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">🎵 Musique Ambiante</div>
+        <!-- Piste en cours -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;min-width:0;">
+          <div style="flex:1;min-width:0;">
+            <div id="music-track-title" style="font-size:10px;font-weight:900;color:#fbbf24;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track ? track.title||'—' : '—'}</div>
+            <div id="music-track-artist" style="font-size:8px;color:#9d8ea0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track ? track.artist||'' : ''}</div>
+          </div>
+          <!-- Bouton skip -->
+          <button onclick="window.musicSkip()" title="Piste suivante"
+            style="flex-shrink:0;padding:4px 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#9d8ea0;cursor:pointer;font-size:13px;line-height:1;transition:all .15s;"
+            onmouseover="this.style.color='#fbbf24';this.style.borderColor='rgba(251,191,36,.4)'"
+            onmouseout="this.style.color='#9d8ea0';this.style.borderColor='rgba(255,255,255,.1)'">⏭</button>
+        </div>
         <!-- Toggle ON/OFF -->
         <button id="music-toggle-btn" onclick="window._toggleMusicFromPopup()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:${on?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'};border:1px solid ${on?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'};color:${on?'#fbbf24':'#9d8ea0'};cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.5px;transition:all .15s;">
           <span>${on ? '▶ EN LECTURE' : '⏸ EN PAUSE'}</span>
@@ -3878,7 +3942,6 @@ function bindGame(){
           <span style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Volume</span>
           <span id="music-vol-label" style="font-size:10px;font-weight:900;color:#fbbf24;min-width:32px;text-align:right;">${vol}%</span>
         </div>
-        <!-- Icônes + slider -->
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:11px;opacity:.5;">🔈</span>
           <div style="flex:1;position:relative;height:20px;display:flex;align-items:center;">
@@ -3889,7 +3952,6 @@ function bindGame(){
           </div>
           <span style="font-size:11px;opacity:.8;">🔊</span>
         </div>
-        <!-- Presets rapides -->
         <div style="display:flex;gap:4px;margin-top:10px;">
           ${[0,25,50,75,100].map(v=>`<button onclick="window._applyMusicVolume(${v})" style="flex:1;padding:4px 0;background:${vol===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'};border:1px solid ${vol===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'};color:${vol===v?'#fbbf24':'#9d8ea0'};font-size:9px;font-weight:700;cursor:pointer;">${v}%</button>`).join('')}
         </div>
