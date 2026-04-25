@@ -5229,6 +5229,8 @@ function bindGame(){
         await markBoosterUsed(_uid, bid); // Supabase + màj cache local immédiat
         startDailyTicker();
         render(); // Rafraîchir le compteur affiché
+        // Ticket à usage unique : autorise l'ouverture sur boosterX.html
+        try { sessionStorage.setItem('booster_ticket', JSON.stringify({ bid: bid, ts: Date.now() })); } catch(e) {}
         triggerBoosterOpen(bid, m.color, m.src, m.href);
       }
     });
@@ -5982,6 +5984,8 @@ window._claimStarterPack = async function(notifIdx) {
   // 3. Mirror localStorage + redirection booster
   try { localStorage.setItem('starter_claimed_' + (uid || ''), '1'); } catch(e) {}
   if (window.setBoosterFree) window.setBoosterFree();
+  // Ticket à usage unique : autorise l'ouverture sur booster1.html
+  try { sessionStorage.setItem('booster_ticket', JSON.stringify({ bid: 1, ts: Date.now() })); } catch(e) {}
   window.location.href = 'booster1.html';
 };
 
@@ -6651,8 +6655,13 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     try { await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId) } catch(e) {};
     setState({ showNotif: false, pendingLevelRewards: remaining, _claimedLevels: updatedClaimed });
     setTimeout(()=>{
-      if(rewardType === 'booster_legendaire') window.location.href = 'booster3.html';
-      else window.location.href = 'booster2.html';
+      if(rewardType === 'booster_legendaire') {
+        try { sessionStorage.setItem('booster_ticket', JSON.stringify({ bid: 3, ts: Date.now() })); } catch(e) {}
+        window.location.href = 'booster3.html';
+      } else {
+        try { sessionStorage.setItem('booster_ticket', JSON.stringify({ bid: 2, ts: Date.now() })); } catch(e) {}
+        window.location.href = 'booster2.html';
+      }
     }, 200);
   }
 };
