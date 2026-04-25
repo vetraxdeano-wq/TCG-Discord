@@ -1147,7 +1147,7 @@ function renderGame(th){
     {label:"Collection",icon:SVG.cards,id:1},
     {label:"Boosters",icon:SVG.package,id:2},
   ];
-  const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length + (state.pendingLevelRewards||[]).length + (state.welcomeNotifs||[]).length;
+  const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length + (state.pendingLevelRewards||[]).length + (state.welcomeNotifs||[]).length + (state.tradeResultNotifs||[]).length;
   const MSG_COUNT = state.msgNotifCount || 0;
 
   return `
@@ -2174,7 +2174,7 @@ function renderTabCollection(th){
       if(c.owned && c.name.toLowerCase().includes(q)) return true;
       return false;
     })
-    .sort((a,b)=>{const dir=state.collSortDir==="desc"?-1:1;if(state.collSortBy==="id") return dir*a.id.localeCompare(b.id,undefined,{numeric:true});if(state.collSortBy==="alpha") return dir*(a.name||"").localeCompare(b.name||"","fr",{sensitivity:"base"});return dir*(RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));});
+    .sort((a,b)=>{const dir=state.collSortDir==="desc"?-1:1;if(state.collSortBy==="id") return dir*a.id.localeCompare(b.id,undefined,{numeric:true});if(state.collSortBy==="alpha") return dir*(a.name||"").localeCompare(b.name||"","fr",{sensitivity:"base"});if(state.collSortBy==="count") return dir*((a.count||0)-(b.count||0));return dir*(RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));});
   const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
 
   return `
@@ -2209,6 +2209,7 @@ function renderTabCollection(th){
         <button class="sort-btn" data-sort="id" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='id'?th.accent+'22':'transparent'};color:${state.collSortBy==='id'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='id'?th.accent+'50':th.border};transition:all .15s;">ID</button>
         <button class="sort-btn" data-sort="rarity" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='rarity'?th.accent+'22':'transparent'};color:${state.collSortBy==='rarity'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='rarity'?th.accent+'50':th.border};transition:all .15s;">Rareté</button>
         <button class="sort-btn" data-sort="alpha" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='alpha'?th.accent+'22':'transparent'};color:${state.collSortBy==='alpha'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='alpha'?th.accent+'50':th.border};transition:all .15s;">A–Z</button>
+        <button class="sort-btn" data-sort="count" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='count'?th.accent+'22':'transparent'};color:${state.collSortBy==='count'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='count'?th.accent+'50':th.border};transition:all .15s;">Copies</button>
         <button id="sort-dir-btn" style="padding:5px 9px;font-size:12px;font-weight:900;background:${th.bgSecondary};color:${th.accent};border:1px solid ${th.accent+'50'};transition:all .15s;line-height:1;display:flex;align-items:center;" title="Inverser l'ordre">${state.collSortDir==='asc'?'↑':'↓'}</button>
         <div style="margin-left:auto;position:relative;">
           <div style="display:flex;gap:4px;margin-bottom:4px;">
@@ -6031,6 +6032,7 @@ function enterGame(user, coins) {
     _loadBoosterCache(user.id).then(()=>{ setState({}); });
     if (window.subscribeNotifications) window.subscribeNotifications();
     if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
+    if (window.subscribeFriendRequests) window.subscribeFriendRequests();
     // Souscrire aux messages en realtime dès l'entrée (pas seulement à l'ouverture d'une conv)
     subscribeMessagesGlobal(user.id);
     // Polling fallback toutes les 20s (notifs + trades entrants)
@@ -7105,6 +7107,7 @@ window.searchAndSendFriendRequest = searchAndSendFriendRequest;
 // ─── MESSAGES ─────────────────────────────────────────────────────
 let _msgRealtimeSub = null;
 let _notifRealtimeSub = null;
+let _friendReqSub = null;
 let _activeConvFriendId = null; // ref globale stable, survit aux re-renders
 
 // Souscription globale aux messages — s'active une seule fois à l'entrée dans le jeu
@@ -7310,9 +7313,24 @@ async function subscribeNotifications() {
       }
       if (n.type === 'trade_accepted' || n.type === 'trade_declined') {
         const isAccepted = n.type === 'trade_accepted';
+        // Enrichir le texte si absent : charger les cartes depuis le trade
+        let notifText = n.text || '';
+        if (!notifText && isAccepted) {
+          try {
+            let meta = {};
+            try { meta = JSON.parse(n.meta || '{}'); } catch(e) {}
+            const fromCard = meta.from_card || null;
+            const toCard   = meta.to_card   || null;
+            if (fromCard && toCard) {
+              notifText = `Tu as donné "${fromCard}" et reçu "${toCard}"`;
+            } else {
+              notifText = 'Échange complété avec succès.';
+            }
+          } catch(e) { notifText = 'Échange complété.'; }
+        }
         const prev = state.tradeResultNotifs || [];
-        setState({ tradeResultNotifs: [...prev, { id: n.id, accepted: isAccepted, from_id: n.from_id, text: n.text }] });
-        showToast(n.text || (isAccepted ? 'Échange accepté !' : 'Échange refusé'), isAccepted ? '🔄' : '✗');
+        setState({ tradeResultNotifs: [...prev, { id: n.id, accepted: isAccepted, from_id: n.from_id, text: notifText }] });
+        showToast(notifText || (isAccepted ? 'Échange accepté !' : 'Échange refusé'), isAccepted ? '🔄' : '✗');
         return;
       }
       if (n.type === 'combat_request') {
@@ -7384,6 +7402,47 @@ async function subscribeNotifications() {
 }
 
 window.subscribeNotifications = subscribeNotifications;
+
+// ─── REALTIME DEMANDES D'AMI ────────────────────────────────────────
+async function subscribeFriendRequests() {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) return;
+
+  if (_friendReqSub) { try { db.removeChannel(_friendReqSub); } catch(e){} }
+
+  _friendReqSub = db.channel('friend-req-rt-' + myId)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'friend_requests',
+      filter: `receiver_id=eq.${myId}`,
+    }, async payload => {
+      const req = payload.new;
+      if (!req || req.status !== 'pending') return;
+
+      // Charger le profil de l'expéditeur
+      const { data: sender } = await db.from('players')
+        .select('id, discord_username, avatar_url')
+        .eq('id', req.sender_id).single();
+
+      const newReq = {
+        request_id: req.id,
+        from_id: req.sender_id,
+        discord_username: sender?.discord_username || 'Joueur',
+        avatar_url: sender?.avatar_url || null,
+      };
+
+      // Éviter les doublons
+      const already = (state.friendRequestsIn || []).some(r => r.request_id === req.id);
+      if (already) return;
+
+      setState({ friendRequestsIn: [...(state.friendRequestsIn || []), newReq] });
+      showToast(`${newReq.discord_username} veut être ton ami !`, '👥');
+    })
+    .subscribe();
+}
+window.subscribeFriendRequests = subscribeFriendRequests;
 
 // ─── POLLING FALLBACK NOTIFICATIONS (toutes les 20s) ─────────────
 let _notifPollInterval = null;
@@ -8346,15 +8405,22 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
 
     await db.from('trades').update({ status: 'accepted' }).eq('id', tradeId);
 
-    // Notifier l'expéditeur
+    // Récap des cartes échangées pour la notification
+    const fromCardName = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.from_card_id))?.name || ('#'+incoming.from_card_id);
+    const toCardName   = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.to_card_id))?.name   || ('#'+incoming.to_card_id);
+    const tradeRecap = `Tu as donné "${toCardName}" et reçu "${fromCardName}"`;
+    const tradeMeta  = JSON.stringify({ from_card: fromCardName, to_card: toCardName });
+
+    // Notifier l'expéditeur avec récap
     try { await db.from('notifications').insert({
       user_id: incoming.from_id, type: 'trade_accepted', from_id: myId,
-      text: 'Ton échange a été accepté !', read: false,
+      text: `Échange accepté ! Tu as donné "${fromCardName}" et reçu "${toCardName}"`,
+      meta: JSON.stringify({ from_card: toCardName, to_card: fromCardName }),
+      read: false,
     }).then(()=>{}) } catch(e) {};
 
     // Recharger la collection
     if (window.loadCollection) window.loadCollection();
-    const fromCardName = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.from_card_id))?.name || '#'+incoming.from_card_id;
     showToast('Échange effectué ! Tu as reçu : ' + fromCardName, '🔄');
   } else {
     await db.from('trades').update({ status: 'declined' }).eq('id', tradeId);
