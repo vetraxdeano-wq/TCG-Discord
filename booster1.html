@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>TCG Discord — Ouverture de Booster</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Cinzel+Decorative:wght@700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Bebas+Neue&display=swap');
@@ -1775,8 +1778,64 @@ async function saveBoosterToCollection(cards) {
   console.log('[Booster] Collection sauvegardée');
 }
 
-// Charger dès que possible
-loadCardsFromSupabase();
+// ─── PROTECTION OUVERTURE LÉGITIME ───
+// Un ticket à usage unique est posé par index.html avant la redirection.
+// Toute autre arrivée (retour navigateur, bfcache, accès direct, F5) → erreur + retour menu.
+const BOOSTER_BID = 1;
+const TICKET_MAX_AGE_MS = 30000; // 30s : ticket périme rapidement
+
+function _consumeBoosterTicket() {
+  try {
+    const raw = sessionStorage.getItem('booster_ticket');
+    sessionStorage.removeItem('booster_ticket'); // consommation immédiate
+    if (!raw) return false;
+    const t = JSON.parse(raw);
+    return t && t.bid === BOOSTER_BID && (Date.now() - (t.ts || 0)) < TICKET_MAX_AGE_MS;
+  } catch(e) { return false; }
+}
+
+function _showInvalidOpenError() {
+  const msg = document.createElement('div');
+  msg.id = 'invalid-open-overlay';
+  msg.style.cssText = `
+    position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,8,18,.95);backdrop-filter:blur(12px);font-family:'Cinzel',serif;
+  `;
+  msg.innerHTML = `
+    <div style="padding:28px 36px;border-radius:6px;text-align:center;background:var(--noir-panel,#0c0a14);border:1px solid var(--gold-deep,#7a5a20);box-shadow:0 0 60px #c8953a30;max-width:88vw;">
+      <div style="font-size:.85rem;color:var(--gold-bright,#fbbf24);letter-spacing:.2em;margin-bottom:12px;">OUVERTURE INVALIDE</div>
+      <div style="font-size:.65rem;color:var(--text-muted,#9d8ea0);letter-spacing:.12em;margin-bottom:20px;line-height:1.6;">Pour ouvrir un booster, utilise le bouton<br><span style="color:var(--gold-main,#c8953a)">« Ouvrir un Booster »</span> depuis le menu.</div>
+      <div style="display:flex;justify-content:center;">
+        <button onclick="window.location.replace('index.html')" style="padding:8px 22px;border-radius:2px;background:var(--gold-subtle,rgba(200,149,58,.18));color:var(--gold-main,#c8953a);border:1px solid var(--gold-deep,#7a5a20);font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:.2em;cursor:pointer;">← Retour au menu</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(msg);
+}
+
+// Bloquer bfcache : toute restauration depuis le cache mémoire = retour menu
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    // Page restaurée depuis bfcache → état dangereux, ne pas réutiliser
+    window.location.replace('index.html');
+  }
+});
+// Forcer la non-mise-en-cache au pagehide (best-effort sur Android)
+window.addEventListener('pagehide', () => {
+  try { sessionStorage.removeItem('booster_ticket'); } catch(e) {}
+});
+
+// Charger dès que possible — uniquement si ticket valide
+if (_consumeBoosterTicket()) {
+  loadCardsFromSupabase();
+} else {
+  // Attendre que le DOM soit prêt pour afficher l'erreur
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _showInvalidOpenError);
+  } else {
+    _showInvalidOpenError();
+  }
+}
 
 const TE={'Héro':'⚔️','Ruse':'🌀','Arcane':'💀','Sort':'✨'};
 const RS={'COMMUNE':'★','PEU COMMMUNE':'★★','RARE':'★★★','MYTHIQUE':'★★★★'};
