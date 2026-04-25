@@ -1622,13 +1622,12 @@ function buildPioche(forBot){
 let _humanDeckFighters=[];
 let _humanDeckSpells=[];
 function buildHumanPioche(){
+  // Si aucun deck custom n'est chargé, fallback sur un deck aléatoire complet
   if(_humanDeckFighters.length===0 && _humanDeckSpells.length===0) return buildPioche(false);
-  let f=[..._humanDeckFighters];
-  while(f.length<10 && f.length>0) f.push({...f[Math.floor(Math.random()*f.length)]});
-  f=shuf(f).slice(0,10);
-  let s=[..._humanDeckSpells];
-  while(s.length<8 && s.length>0) s.push({...s[Math.floor(Math.random()*s.length)]});
-  s=shuf(s).slice(0,8);
+  // Sinon : utiliser STRICTEMENT le deck du joueur, sans rembourrage ni duplication
+  // Le joueur assume sa composition (ex: 1 fighter / 29 sorts = défaite probable)
+  const f=[..._humanDeckFighters];
+  const s=[..._humanDeckSpells];
   return shuf([...f,...s]);
 }
 let G={};
@@ -3329,12 +3328,9 @@ function buildOpponentPioche(){
     // Fallback : pioche aléatoire si le deck n'a pas été chargé
     return buildPioche(false);
   }
-  let f=[..._oppDeckFighters];
-  while(f.length<10 && f.length>0) f.push({...f[Math.floor(Math.random()*f.length)]});
-  f=shuf(f).slice(0,10);
-  let s=[..._oppDeckSpells];
-  while(s.length<8 && s.length>0) s.push({...s[Math.floor(Math.random()*s.length)]});
-  s=shuf(s).slice(0,8);
+  // Utiliser STRICTEMENT le deck de l'adversaire, sans rembourrage ni duplication
+  const f=[..._oppDeckFighters];
+  const s=[..._oppDeckSpells];
   return shuf([...f,...s]);
 }
 
