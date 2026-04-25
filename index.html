@@ -3438,6 +3438,7 @@ function renderLeaderboardModal(th){
     {id:'wr',     label:'📊 Winrate'},
     {id:'games',  label:'🎮 Parties'},
     {id:'coins',  label:'<svg width="11" height="11" viewBox="0 0 24 24" fill="#fbbf24" style="vertical-align:middle;margin-right:2px;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>Coins'},
+    {id:'level',  label:'⭐ Niveau'},
   ];
 
   // Tri côté client selon sort actif
@@ -3450,6 +3451,7 @@ function renderLeaderboardModal(th){
     if(sort==='wr')     return wrB-wrA || gB-gA;
     if(sort==='games')  return gB-gA || (b.wins||0)-(a.wins||0);
     if(sort==='coins')  return (b.coins||0)-(a.coins||0);
+    if(sort==='level')  return (b.xp||0)-(a.xp||0);
     return (b.cards||0)-(a.cards||0) || (b.coins||0)-(a.coins||0); // default: cartes
   });
 
@@ -3491,9 +3493,9 @@ function renderLeaderboardModal(th){
       </div>
 
       <!-- Table header -->
-      <div style="display:grid;grid-template-columns:28px 1fr 46px 40px 40px 46px 46px;gap:3px;padding:5px 16px;flex-shrink:0;border-bottom:2px solid #000;">
-        ${['#','Joueur','🃏','⚔️','📊','🎮','<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>'].map((h,i)=>`<div style="font-size:8px;font-weight:900;color:${
-          (sort==='cards'&&i===2)||(sort==='wins'&&i===3)||(sort==='wr'&&i===4)||(sort==='games'&&i===5)||(sort==='coins'&&i===6)
+      <div style="display:grid;grid-template-columns:28px 1fr 36px 36px 36px 36px 36px 36px;gap:2px;padding:5px 16px;flex-shrink:0;border-bottom:2px solid #000;">
+        ${['#','Joueur','🃏','⚔️','📊','🎮','<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>','⭐'].map((h,i)=>`<div style="font-size:8px;font-weight:900;color:${
+          (sort==='cards'&&i===2)||(sort==='wins'&&i===3)||(sort==='wr'&&i===4)||(sort==='games'&&i===5)||(sort==='coins'&&i===6)||(sort==='level'&&i===7)
             ?th.accent:th.textMuted};letter-spacing:.4px;text-align:${i<=1?'left':'center'};">${h}</div>`).join('')}
       </div>
 
@@ -3515,21 +3517,27 @@ function renderLeaderboardModal(th){
             const games = (row.wins||0)+(row.losses||0);
             const wr = games > 0 ? Math.round(row.wins/games*100) : 0;
             const rankColor = i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#f97316':th.textMuted;
+            const lvlInfo = computeLevel(row.xp||0);
+            const lvl = lvlInfo.level;
             return `
-            <div style="display:grid;grid-template-columns:28px 1fr 46px 40px 40px 46px 46px;gap:3px;padding:7px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};position:relative;align-items:center;">
+            <div style="display:grid;grid-template-columns:28px 1fr 36px 36px 36px 36px 36px 36px;gap:2px;padding:7px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};position:relative;align-items:center;">
               ${isMe?`<div style="position:absolute;left:-16px;top:0;bottom:0;width:3px;background:${th.accent};"></div>`:''}
               <div style="text-align:center;font-size:${medal?'13px':'10px'};font-weight:900;color:${rankColor};">${medal||('#'+(i+1))}</div>
-              <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-                <div style="width:22px;height:22px;overflow:hidden;background:${th.surface};border:${isMe?'2px solid '+th.accent:'1px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-                  ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\'font-size:10px;display:flex;align-items:center;justify-content:center;width:100%;height:100%\\'>👤</span>'">`:'<span style="font-size:10px;">👤</span>'}
+              <div style="display:flex;flex-direction:column;min-width:0;gap:1px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="width:20px;height:20px;overflow:hidden;background:${th.surface};border:${isMe?'2px solid '+th.accent:'1px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+                    ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\'font-size:9px;\\'>👤</span>'">`:'<span style="font-size:9px;">👤</span>'}
+                  </div>
+                  <div style="font-size:10px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${(row.discord_username||'Joueur').slice(0,11)}${isMe?' ✦':''}</div>
                 </div>
-                <div style="font-size:10px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(row.discord_username||'Joueur').slice(0,12)}${isMe?' (Toi)':''}</div>
+                ${row.time_secs>0?(()=>{const h=Math.floor(row.time_secs/3600);const m=Math.floor((row.time_secs%3600)/60);return `<div style="font-size:8px;color:${th.textFaint};padding-left:25px;">${h>0?h+'h ':''}${m}min</div>`})():''}
               </div>
-              <div style="text-align:center;font-size:11px;font-weight:${sort==='cards'?'900':'600'};color:${sort==='cards'?'#818cf8':th.textMuted};">${row.cards||0}</div>
-              <div style="text-align:center;font-size:11px;font-weight:${sort==='wins'?'900':'600'};color:${sort==='wins'?th.green:th.textMuted};">${row.wins||0}</div>
-              <div style="text-align:center;font-size:10px;font-weight:${sort==='wr'?'900':'600'};color:${sort==='wr'?'#fbbf24':th.textMuted};">${wr}%</div>
-              <div style="text-align:center;font-size:10px;font-weight:${sort==='games'?'900':'600'};color:${sort==='games'?th.accent:th.textMuted};">${games}</div>
+              <div style="text-align:center;font-size:10px;font-weight:${sort==='cards'?'900':'600'};color:${sort==='cards'?'#818cf8':th.textMuted};">${row.cards||0}</div>
+              <div style="text-align:center;font-size:10px;font-weight:${sort==='wins'?'900':'600'};color:${sort==='wins'?th.green:th.textMuted};">${row.wins||0}</div>
+              <div style="text-align:center;font-size:9px;font-weight:${sort==='wr'?'900':'600'};color:${sort==='wr'?'#fbbf24':th.textMuted};">${wr}%</div>
+              <div style="text-align:center;font-size:9px;font-weight:${sort==='games'?'900':'600'};color:${sort==='games'?th.accent:th.textMuted};">${games}</div>
               <div style="text-align:center;font-size:9px;font-weight:${sort==='coins'?'900':'600'};color:${sort==='coins'?'#f59e0b':th.textMuted};">${(row.coins||0)>999?((row.coins/1000).toFixed(1)+'k'):(row.coins||0)}</div>
+              <div style="text-align:center;font-size:10px;font-weight:${sort==='level'?'900':'600'};color:${sort==='level'?'#a78bfa':th.textMuted};">Niv ${lvl}</div>
             </div>`;
           }).join('')
         }
@@ -5615,13 +5623,13 @@ async function loadLeaderboard(period){
     // ── 1. Tous les joueurs ────────────────────────────────────────
     const playersUrl = SUPABASE_URL +
       '/rest/v1/players' +
-      '?select=id,discord_username,avatar_url,wins,losses,coins,first_win_date,last_streak_date' +
+      '?select=id,discord_username,avatar_url,wins,losses,coins,xp,first_win_date,last_streak_date' +
       '&order=coins.desc.nullslast&limit=500';
 
-    const [playersResp, cardsResp] = await Promise.all([
+    const [playersResp, cardsResp, statsResp] = await Promise.all([
       fetch(playersUrl, {headers: HEADERS}),
-      // Nombre de cartes distinctes par joueur (quantity>=1 = possédée, on compte 1 par card_id)
       fetch(SUPABASE_URL + '/rest/v1/player_cards?select=player_id,card_id&limit=50000', {headers: HEADERS}),
+      fetch(SUPABASE_URL + '/rest/v1/stats?select=user_id,time_played_seconds&limit=500', {headers: HEADERS}),
     ]);
 
     if(!playersResp.ok){
@@ -5631,7 +5639,12 @@ async function loadLeaderboard(period){
 
     const rawPlayers = await playersResp.json();
     const rawCards   = cardsResp.ok ? await cardsResp.json() : [];
-    console.log('[Leaderboard] joueurs:', rawPlayers?.length, '| lignes cartes:', rawCards?.length);
+    const rawStats   = statsResp.ok ? await statsResp.json() : [];
+    console.log('[Leaderboard] joueurs:', rawPlayers?.length, '| cartes:', rawCards?.length, '| stats:', rawStats?.length);
+
+    // Map user_id → time_played_seconds
+    const timeMap = {};
+    (rawStats||[]).forEach(s=>{ if(s.user_id) timeMap[s.user_id] = s.time_played_seconds||0; });
 
     // ── 2. Construire la map player_id → nb cartes distinctes ─────
     const cardCountMap = {};
@@ -5647,7 +5660,9 @@ async function loadLeaderboard(period){
       wins:   p.wins   ?? 0,
       losses: p.losses ?? 0,
       coins:  p.coins  ?? 0,
-      cards:  cardCountMap[p.id] ? cardCountMap[p.id].size : 0,
+      xp:          p.xp ?? 0,
+      cards:       cardCountMap[p.id] ? cardCountMap[p.id].size : 0,
+      time_secs:   timeMap[p.id] || 0,
     }));
 
     // Assurer que le joueur connecté est présent
