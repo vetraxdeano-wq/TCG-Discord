@@ -3652,12 +3652,14 @@ function renderLeaderboardModal(th){
             const rankColor = i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#f97316':th.textMuted;
             const lvlInfo = computeLevel(row.xp||0);
             const lvl = lvlInfo.level;
-            const _ts = row.time_secs || 0;
-            const _th = Math.floor(_ts / 3600);
-            const _tm = Math.floor((_ts % 3600) / 60);
-            const timeTxt = _ts > 0 ? (_th > 0 ? _th + 'h ' : '') + _tm + 'min' : '';
+
+            const topBg = i===0 ? 'linear-gradient(90deg,rgba(251,191,36,.13) 0%,rgba(251,191,36,.04) 60%,transparent 100%)'
+                         : i===1 ? 'linear-gradient(90deg,rgba(148,163,184,.11) 0%,rgba(148,163,184,.03) 60%,transparent 100%)'
+                         : i===2 ? 'linear-gradient(90deg,rgba(249,115,22,.11) 0%,rgba(249,115,22,.03) 60%,transparent 100%)'
+                         : isMe  ? th.accent+'08' : 'transparent';
+            const topBorder = i===0 ? th.accent+'40' : i===1 ? 'rgba(148,163,184,.3)' : i===2 ? 'rgba(249,115,22,.3)' : isMe ? th.accent+'30' : th.border;
             return `
-            <div style="display:grid;grid-template-columns:${sort==='cards'?'28px 1fr 24px 24px 24px 24px 36px':'28px 1fr 36px 36px 36px 36px 36px 36px'};gap:2px;padding:7px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};position:relative;align-items:center;">
+            <div style="display:grid;grid-template-columns:${sort==='cards'?'28px 1fr 24px 24px 24px 24px 36px':'28px 1fr 36px 36px 36px 36px 36px 36px'};gap:2px;padding:7px 0;border-bottom:1px solid ${topBorder};background:${topBg};position:relative;align-items:center;">
               ${isMe?`<div style="position:absolute;left:-16px;top:0;bottom:0;width:3px;background:${th.accent};"></div>`:''}
               <div style="text-align:center;font-size:${medal?'13px':'10px'};font-weight:900;color:${rankColor};">${medal||('#'+(i+1))}</div>
               <div style="display:flex;flex-direction:column;min-width:0;gap:1px;">
@@ -3667,7 +3669,6 @@ function renderLeaderboardModal(th){
                   </div>
                   <div style="font-size:10px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${(row.discord_username||'Joueur').slice(0,11)}${isMe?' ✦':''}</div>
                 </div>
-                ${timeTxt?`<div style="font-size:8px;color:${th.textFaint};padding-left:25px;">${timeTxt}</div>`:''}
               </div>
               ${sort==='cards' ? `
               <div style="text-align:center;font-size:9px;font-weight:600;color:#64748b;" title="Communes">${row.rc_common||0}</div>
