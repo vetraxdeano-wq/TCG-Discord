@@ -104,54 +104,62 @@ const RARITY_COLOR = {common:'#94a3b8',uncommon:'#22d3ee',rare:'#a78bfa',mythic:
 const RARITY_LABEL = {common:'Commune',uncommon:'Peu Commune',rare:'Rare',mythic:'Mythique'};
 
 async function init(){
-  // ── 1. Client Supabase : priorité window.db (index déjà auth) ─────
-  let _t = 0;
-  while(!window.supabase?.createClient && _t < 100){ await sleep(100); _t++; }
-  if(!window.supabase?.createClient){
-    render('<div style="text-align:center;padding:40px 20px;color:#ef4444;"><div style="font-size:24px;margin-bottom:10px;">⚠️</div><div style="font-size:12px;">Impossible de charger Supabase.<br>Vérifie ta connexion internet.</div><br><button onclick="location.reload()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">↺ Réessayer</button></div>');
-    return;
-  }
-
-  // Utiliser le client de l'index si disponible (évite les problèmes RLS/session)
-  if(window.db && typeof window.db.from === 'function'){
-    db = window.db;
-  } else {
-    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, detectSessionInUrl:true}});
-  }
-
-  // ── 2. Session ────────────────────────────────────────────────────
-  let session = null;
-  try{
-    const res = await db.auth.getSession();
-    session = res.data?.session;
-  }catch(e){ console.error('[MARKET] getSession error', e); }
-
-  // Fallback : lire le token Supabase dans localStorage (même clé que l'index)
-  if(!session?.user){
+  // ── 1. Récupérer la session depuis localStorage (même token que l'index) ──
+  // On lit le JWT directement — pas de client Supabase async qui peut rater la session
+  function _getStoredSession(){
     try{
       const key = 'sb-' + SUPABASE_URL.split('//')[1].split('.')[0] + '-auth-token';
       const raw = localStorage.getItem(key);
-      if(raw){ const parsed = JSON.parse(raw); if(parsed?.user) session = parsed; }
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      // Vérifier non expiré
+      if(parsed?.expires_at && parsed.expires_at * 1000 < Date.now()) return null;
+      if(parsed?.user) return parsed;
+      // Certains formats Supabase v2 wrappent dans .session ou .data
+      if(parsed?.session?.user) return parsed.session;
     }catch(e){}
+    return null;
   }
 
+  const session = _getStoredSession();
   if(!session?.user){
-    render('<div style="text-align:center;padding:40px 20px;"><div style="font-size:32px;margin-bottom:10px;">🔒</div><div style="font-size:13px;color:#94a3b8;">Connecte-toi depuis l\'index pour acc\u00e9der au march\u00e9.</div><br><button onclick="history.back()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">\u2190 Retour</button></div>');
+    render('<div style="text-align:center;padding:40px 20px;"><div style="font-size:32px;margin-bottom:10px;">🔒</div><div style="font-size:13px;color:#94a3b8;">Connecte-toi depuis l&#39;index pour accéder au marché.</div><br><button onclick="history.back()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">← Retour</button></div>');
     return;
   }
   currentUser = session.user;
 
-  // ── 3. Charger cartes + possession ───────────────────────────────
-  const [cardsRes, ownedRes] = await Promise.all([
-    db.from('cards').select('id,name,rarity,image_url,color').limit(2000),
-    db.from('player_cards').select('card_id,quantity').eq('player_id', currentUser.id).limit(2000),
-  ]);
-  allCards = cardsRes.data || [];
-  if(ownedRes.error) console.error('[MARKET] player_cards query error:', ownedRes.error);
+  // ── 2. Headers REST — JWT utilisateur pour respecter les RLS ─────────
+  // Même pattern que l'index (loadLeaderboard, loadPlayerRankOnly, etc.)
+  const userToken = session.access_token || SUPABASE_KEY;
+  const HEADERS = {
+    'apikey':        SUPABASE_KEY,
+    'Authorization': 'Bearer ' + userToken,
+    'Accept':        'application/json',
+  };
 
-  // Stocker les IDs en entiers pour comparaison normalisée (évite bug 016 vs 16)
-  (ownedRes.data||[]).forEach(r => myCards.add(String(parseInt(r.card_id))));
-  console.log('[MARKET] cartes chargées:', myCards.size, '| user:', currentUser.id);
+  // ── 3. Charger cartes + possession via REST direct ─────────────────
+  // REST API = pas de problème de session async, toujours synchrone
+  const [cardsResp, ownedResp] = await Promise.all([
+    fetch(SUPABASE_URL + '/rest/v1/cards?select=id,name,rarity,image_url,color&limit=2000', {headers: HEADERS}),
+    fetch(SUPABASE_URL + '/rest/v1/player_cards?select=card_id,quantity&player_id=eq.' + currentUser.id + '&limit=10000', {headers: HEADERS}),
+  ]);
+
+  allCards = cardsResp.ok ? (await cardsResp.json()) : [];
+  const ownedData = ownedResp.ok ? (await ownedResp.json()) : [];
+  if(!ownedResp.ok) console.error('[MARKET] player_cards REST error:', ownedResp.status, await ownedResp.text().catch(()=>''));
+
+  // Stocker les IDs normalisés en entiers
+  ownedData.forEach(r => myCards.add(String(parseInt(r.card_id))));
+  console.log('[MARKET] myCards:', myCards.size, 'cartes | user:', currentUser.id);
+
+  // Créer le client Supabase pour les opérations write (insert/update/delete stands)
+  let _t = 0;
+  while(!window.supabase?.createClient && _t < 50){ await sleep(100); _t++; }
+  if(window.supabase?.createClient){
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true}});
+    // Injecter la session pour les writes authentifiés
+    try{ await db.auth.setSession({access_token: userToken, refresh_token: session.refresh_token||''}); }catch(e){}
+  }
 
   // Assurer que la table market_stands existe (via insert silencieux)
   await loadStands();
@@ -181,12 +189,19 @@ init = async function(){
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
 async function loadStands(){
-  const { data } = await db
-    .from('market_stands')
-    .select('id,player_id,offer_ids,want_ids,updated_at,players(discord_username,avatar_url)')
-    .order('updated_at',{ascending:false})
-    .limit(100);
-  stands = data || [];
+  const userToken = (() => {
+    try{
+      const key='sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token';
+      const p=JSON.parse(localStorage.getItem(key)||'{}');
+      return p.access_token||SUPABASE_KEY;
+    }catch(e){return SUPABASE_KEY;}
+  })();
+  const HEADERS = {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+userToken,'Accept':'application/json'};
+  const resp = await fetch(
+    SUPABASE_URL + '/rest/v1/market_stands?select=id,player_id,offer_ids,want_ids,updated_at,players(discord_username,avatar_url)&order=updated_at.desc&limit=100',
+    {headers: HEADERS}
+  );
+  stands = resp.ok ? (await resp.json()) : [];
   myStand = stands.find(s => s.player_id === currentUser.id) || null;
 }
 
