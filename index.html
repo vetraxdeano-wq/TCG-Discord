@@ -5900,9 +5900,12 @@ async function loadLeaderboard(period){
       '?select=id,discord_username,avatar_url,wins,losses,coins,xp,first_win_date,last_streak_date' +
       '&order=coins.desc.nullslast&limit=500';
 
-    const [playersResp, cardsResp, statsResp] = await Promise.all([
+    const [playersResp, playerCardsResp, cardDefsResp, statsResp] = await Promise.all([
       fetch(playersUrl, {headers: HEADERS}),
-      fetch(SUPABASE_URL + '/rest/v1/player_cards?select=player_id,card_id&limit=50000', {headers: HEADERS}),
+      // player_cards : qui possède quoi
+      fetch(SUPABASE_URL + '/rest/v1/player_cards?select=player_id,card_id&limit=100000', {headers: HEADERS}),
+      // cards : définitions (id → rarity) — source de vérité pour les raretés
+      fetch(SUPABASE_URL + '/rest/v1/cards?select=id,rarity&limit=10000', {headers: HEADERS}),
       fetch(SUPABASE_URL + '/rest/v1/stats?select=user_id,time_played_seconds&limit=500', {headers: HEADERS}),
     ]);
 
@@ -5911,10 +5914,14 @@ async function loadLeaderboard(period){
       setState({leaderboardLoading:false, leaderboardData:[]}); return;
     }
 
-    const rawPlayers = await playersResp.json();
-    const rawCards   = cardsResp.ok ? await cardsResp.json() : [];
-    const rawStats   = statsResp.ok ? await statsResp.json() : [];
-    console.log('[Leaderboard] joueurs:', rawPlayers?.length, '| cartes:', rawCards?.length, '| stats:', rawStats?.length, statsResp.ok ? 'OK' : 'ERREUR '+statsResp.status);
+    const rawPlayers  = await playersResp.json();
+    const rawCards    = playerCardsResp.ok ? await playerCardsResp.json() : [];
+    const rawCardDefs = cardDefsResp.ok    ? await cardDefsResp.json()    : [];
+    const rawStats    = statsResp.ok       ? await statsResp.json()       : [];
+    console.log('[Leaderboard] joueurs:', rawPlayers?.length,
+      '| player_cards:', rawCards?.length,
+      '| card_defs:', rawCardDefs?.length,
+      '| stats:', rawStats?.length);
 
     // Map user_id → time_played_seconds
     // Si stats vide ou absente : estimer via (wins+losses)*15min
@@ -5923,14 +5930,24 @@ async function loadLeaderboard(period){
     (rawStats||[]).forEach(s=>{ if(s.user_id && s.time_played_seconds > 0) timeMap[s.user_id] = s.time_played_seconds; });
 
     // ── 2. Construire la map player_id → cartes + rarités ──────────
-    const cardCountMap  = {}; // player_id → Set(card_id)
+    const cardCountMap  = {}; // player_id → Set(card_id distincts)
     const raritySetMap  = {}; // player_id → {common:Set, uncommon:Set, rare:Set, mythic:Set}
 
-    // Map card_id → rarity depuis ALL_CARDS (clé = string pour sécurité)
+    // Map card_id → rarity depuis la table "cards" Supabase (source de vérité)
+    // Les valeurs de rarity dans Supabase peuvent être 'COMMUNE','PEU COMMMUNE','RARE','MYTHIQUE'
+    // ou 'common','uncommon','rare','mythic' selon la config — on normalise les deux
+    const RARITY_NORM = {
+      'COMMUNE':'common','PEU COMMMUNE':'uncommon','RARE':'rare','MYTHIQUE':'mythic',
+      'common':'common','uncommon':'uncommon','rare':'rare','mythic':'mythic',
+    };
     const cardRarityMap = {};
-    (ALL_CARDS||[]).forEach(c => {
-      if(c.id !== undefined) cardRarityMap[String(c.id)] = c.rarity;
+    (rawCardDefs||[]).forEach(c => {
+      if(c.id !== undefined && c.rarity !== undefined){
+        cardRarityMap[String(c.id)] = RARITY_NORM[c.rarity] || c.rarity.toLowerCase();
+      }
     });
+    console.log('[Leaderboard] cardRarityMap taille:', Object.keys(cardRarityMap).length,
+      '| exemple:', Object.entries(cardRarityMap).slice(0,3));
 
     (rawCards||[]).forEach(row => {
       if(!row.player_id) return;
