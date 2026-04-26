@@ -1620,8 +1620,11 @@ function buildHumanPioche(){
   if(_humanDeckFighters.length===0 && _humanDeckSpells.length===0) return buildPioche(false);
   // Sinon : utiliser STRICTEMENT le deck du joueur, sans rembourrage ni duplication
   // Le joueur assume sa composition (ex: 1 fighter / 29 sorts = défaite probable)
-  const f=[..._humanDeckFighters];
-  const s=[..._humanDeckSpells];
+  // ⚠️ IMPORTANT : cloner chaque carte ET reset hpCur sur les fighters,
+  // sinon les dégâts persistent entre parties via les références partagées
+  // de _humanDeckFighters (ce tableau n'est rempli qu'une fois au chargement).
+  const f=_humanDeckFighters.map(x=>({...x,hpCur:x.hpBase}));
+  const s=_humanDeckSpells.map(x=>({...x}));
   return shuf([...f,...s]);
 }
 let G={};
@@ -2544,8 +2547,9 @@ function humanPlayCard(idx){
   const c=G.human.hand[idx];if(!c)return;
   if(c.ct==='fighter'&&G.phase==='choose_fighter'){
     G.human.hand.splice(idx,1);
-    // Réinitialiser hpCur si corrompue (sécurité contre valeur négative ou NaN)
-    if(!c.hpCur||c.hpCur<=0)c.hpCur=c.hpBase||c.hp||10;
+    // Toujours réinitialiser hpCur quand un fighter entre sur le terrain
+    // (filet de sécurité contre les fuites de référence depuis _humanDeckFighters)
+    c.hpCur=c.hpBase||c.hp||10;
     G.human.fighter=c;
     addLog(`▶ ${c.nom}`,'sys','JOUEUR');
     if(!G.bot.fighter)botChooseFighter();
