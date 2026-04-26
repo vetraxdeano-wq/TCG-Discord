@@ -2065,7 +2065,6 @@ function renderTabPlay(th){
           onclick="setState({showLeaderboard:true,leaderboardPeriod:'all',leaderboardLoading:true});loadLeaderboard('all');">
           <span style="font-size:16px;line-height:1;">🏆</span>
           <span style="font-size:7px;font-weight:900;color:${th.accent};letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;">Classement</span>
-          ${state.playerRank?`<span style="font-size:8px;font-weight:900;color:${th.text};">#${state.playerRank}</span>`:''}
         </button>
         <!-- Top 3 rotatif -->
         <div style="flex:1;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);padding:5px 7px 4px;display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden;position:relative;">
@@ -4708,21 +4707,43 @@ function bindGame(){
     const SORTS  = ['cards','wins','level','coins','wr'];
     const LABELS = {cards:'🃏 Cartes',wins:'⚔️ Victoires',level:'⭐ Niveau',coins:'💰 Coins',wr:'📊 Win Rate'};
     let idx = 0;
-    function rotate(){
-      const slides = document.querySelectorAll('.lb-preview-slide');
+    let timer = null;
+
+    function getContainer(){ return document.getElementById('lb-preview-slides'); }
+
+    function applySlide(i){
+      const container = getContainer();
+      if(!container) return;
+      const slides = container.querySelectorAll('.lb-preview-slide');
       const dots   = document.querySelectorAll('.lb-dot');
       const label  = document.getElementById('lb-preview-label-text');
-      if(!slides.length) return;
-      slides[idx].style.display='none';
-      dots[idx].style.width='5px'; dots[idx].style.background='rgba(255,255,255,.15)';
-      idx=(idx+1)%SORTS.length;
-      slides[idx].style.display='flex';
-      dots[idx].style.width='12px'; dots[idx].style.background='#38bdf8';
-      if(label) label.textContent=LABELS[SORTS[idx]];
+      // Cacher TOUTES les slides, activer seulement la bonne
+      slides.forEach((s,si)=>{
+        s.style.display = si===i ? 'flex' : 'none';
+      });
+      dots.forEach((d,di)=>{
+        d.style.width  = di===i ? '12px' : '5px';
+        d.style.background = di===i ? '#38bdf8' : 'rgba(255,255,255,.15)';
+      });
+      if(label) label.textContent = LABELS[SORTS[i]];
     }
-    let timer=setInterval(rotate,4500);
-    // Redémarre proprement après chaque re-render
-    window._lbPreviewRestart=function(){ clearInterval(timer); idx=0; timer=setInterval(rotate,4500); };
+
+    function rotate(){
+      const container = getContainer();
+      if(!container || !container.querySelectorAll('.lb-preview-slide').length) return;
+      idx = (idx+1) % SORTS.length;
+      applySlide(idx);
+    }
+
+    function start(){
+      if(timer) clearInterval(timer);
+      idx = 0;
+      applySlide(0);
+      timer = setInterval(rotate, 4500);
+    }
+
+    start();
+    window._lbPreviewRestart = start;
   })();
   document.querySelectorAll('.lb-tab').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -6197,6 +6218,8 @@ function enterGame(user, coins) {
     if (window.subscribeNotifications) window.subscribeNotifications();
     if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
     if (window.subscribeFriendRequests) window.subscribeFriendRequests();
+    // Précharger le classement en arrière-plan dès l'entrée
+    loadLeaderboard('all');
     // Souscrire aux messages en realtime dès l'entrée (pas seulement à l'ouverture d'une conv)
     subscribeMessagesGlobal(user.id);
     // Polling fallback toutes les 20s (notifs + trades entrants)
