@@ -3805,24 +3805,24 @@ function renderQuestsModal(th){
     const pct = Math.min(100, Math.round(progress/target*100));
     const col = done ? th.green : accent || th.accent;
     return `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${done?'rgba(34,197,94,.12)':th.bgSecondary};border:2px solid ${done?th.green:'#000'};margin-bottom:6px;position:relative;overflow:hidden;transition:all .2s;">
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:${done?'rgba(34,197,94,.12)':th.bgSecondary};border:2px solid ${done?th.green:'#000'};margin-bottom:4px;position:relative;overflow:hidden;">
       ${done?`<div style="position:absolute;top:0;left:0;right:0;height:100%;background:linear-gradient(90deg,rgba(34,197,94,.06),transparent);pointer-events:none;"></div>`:''}
-      <div style="width:36px;height:36px;background:${done?'rgba(34,197,94,.2)':'rgba(255,255,255,.04)'};border:2px solid ${done?th.green:th.border};display:flex;align-items:center;justify-content:center;font-size:${done?'20px':'17px'};flex-shrink:0;">${done?'✅':icon}</div>
+      <div style="width:30px;height:30px;background:${done?'rgba(34,197,94,.2)':'rgba(255,255,255,.04)'};border:2px solid ${done?th.green:th.border};display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">${done?'✅':icon}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:11px;font-weight:800;color:${done?th.green:th.text};margin-bottom:3px;display:flex;align-items:center;gap:5px;">
+        <div style="font-size:10px;font-weight:800;color:${done?th.green:th.text};margin-bottom:2px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
           ${label}
-          ${done?`<span style="font-size:7px;font-weight:900;background:${th.green};color:#000;padding:1px 5px;letter-spacing:.5px;">COMPLÉTÉ</span>`:''}
+          ${done?`<span style="font-size:7px;font-weight:900;background:${th.green};color:#000;padding:1px 4px;letter-spacing:.5px;">COMPLÉTÉ</span>`:''}
         </div>
         <div style="display:flex;align-items:center;gap:4px;">
-          <div style="flex:1;height:4px;background:${th.bg};overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${col};transition:width .4s;"></div>
+          <div style="flex:1;height:3px;background:${th.bg};overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${col};"></div>
           </div>
-          <span style="font-size:8px;font-weight:700;color:${done?th.green:th.textMuted};flex-shrink:0;">${done?'✓':progress+'/'+target}</span>
+          <span style="font-size:7px;font-weight:700;color:${done?th.green:th.textMuted};flex-shrink:0;">${done?'✓':progress+'/'+target}</span>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;opacity:${done?.5:1};">
-        <div style="display:flex;align-items:center;gap:2px;font-size:12px;font-weight:900;color:${th.yellow};">${coinSVG}+${coins}</div>
-        <div style="font-size:9px;font-weight:800;color:#a78bfa;">✨ +${xp} XP</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex-shrink:0;opacity:${done?.5:1};">
+        <div style="display:flex;align-items:center;gap:2px;font-size:11px;font-weight:900;color:${th.yellow};">${coinSVG}+${coins}</div>
+        <div style="font-size:8px;font-weight:800;color:#a78bfa;">✨ +${xp} XP</div>
       </div>
     </div>`;
   }
@@ -3839,58 +3839,104 @@ function renderQuestsModal(th){
   const wqBoosters= getWQProgress('boosters_10');
   const wqTrades  = getWQProgress('trades_5');
 
+  // Détecter si on est sur un grand écran (PC) pour adapter la présentation
+  const isWide = typeof window !== 'undefined' && window.innerWidth >= 640;
+
   return `
-  <div id="quests-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;z-index:150;">
-    <div class="slide-up" style="width:100%;max-width:420px;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;display:flex;flex-direction:column;height:min(92vh,100%);max-height:92vh;padding-bottom:max(env(safe-area-inset-bottom,0px),16px);overflow:hidden;">
+  <div id="quests-bg" style="
+    position:absolute;inset:0;
+    background:rgba(0,0,0,.82);
+    backdrop-filter:blur(10px);
+    display:flex;
+    align-items:${isWide ? 'center' : 'flex-end'};
+    justify-content:center;
+    z-index:150;
+    padding:${isWide ? '16px' : '0'};
+    box-sizing:border-box;
+  ">
+    <div class="slide-up" style="
+      width:100%;
+      max-width:${isWide ? '560px' : '420px'};
+      background:${th.bgSecondary};
+      border:${isWide ? '3px solid #000' : 'none'};
+      border-top:4px solid #000;
+      border-left:3px solid #000;
+      border-right:3px solid #000;
+      box-shadow:-4px -4px 0 #000;
+      display:flex;
+      flex-direction:column;
+      /* Tient dans l'écran sans scroll externe — s'adapte à la hauteur dispo */
+      height:${isWide ? 'min(96vh,780px)' : 'min(94svh,100%)'};
+      max-height:${isWide ? 'min(96vh,780px)' : '94svh'};
+      padding-bottom:max(env(safe-area-inset-bottom,0px),${isWide?'0px':'12px'});
+      overflow:hidden;
+      box-sizing:border-box;
+    ">
 
-      <div style="display:flex;justify-content:center;padding:10px 0 0;">
-        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
-      </div>
+      <!-- Handle (mobile uniquement) -->
+      ${isWide ? '' : `
+      <div style="display:flex;justify-content:center;padding:8px 0 0;flex-shrink:0;">
+        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);border-radius:2px;"></div>
+      </div>`}
 
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px 10px;flex-shrink:0;">
-        <div style="width:36px;height:36px;background:linear-gradient(135deg,#f59e0b,#f43f5e);border:2px solid #000;box-shadow:2px 2px 0 #000;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">📜</div>
-        <div style="flex:1;">
-          <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:${th.text};letter-spacing:1.5px;">QUÊTES & RÉCOMPENSES</div>
+      <!-- Header fixe -->
+      <div style="
+        display:flex;align-items:center;gap:10px;
+        padding:${isWide?'14px 20px 12px':'10px 14px 8px'};
+        flex-shrink:0;
+        border-bottom:2px solid #000;
+      ">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#f59e0b,#f43f5e);border:2px solid #000;box-shadow:2px 2px 0 #000;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">📜</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:'Luckiest Guy',cursive;font-size:${isWide?'16px':'14px'};color:${th.text};letter-spacing:1.5px;white-space:nowrap;">QUÊTES & RÉCOMPENSES</div>
           <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">Connexions · Quotidiennes · Hebdomadaires</div>
         </div>
-        <button id="quests-close" style="width:32px;height:32px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
+        <button id="quests-close" style="width:30px;height:30px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0;">✕</button>
       </div>
 
-      <div style="flex:1;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:12px;">
+      <!-- Zone scrollable — flex:1 + min-height:0 = compression correcte -->
+      <div style="
+        flex:1;min-height:0;
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+        padding:${isWide?'12px 20px 16px':'10px 14px 10px'};
+        display:flex;flex-direction:column;gap:8px;
+      ">
 
         <!-- ── STREAK ── -->
-        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;">
+        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;flex-shrink:0;">
           <div style="height:3px;background:linear-gradient(90deg,#f59e0b,#f43f5e,#f59e0b);"></div>
-          <div style="padding:12px 12px 10px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:16px;">🔥</span>
+          <div style="padding:9px 12px 8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <span style="font-size:15px;">🔥</span>
               <div style="flex:1;">
-                <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.8px;">STREAK DE CONNEXION</div>
+                <div style="font-family:'Luckiest Guy',cursive;font-size:11px;color:${th.text};letter-spacing:.8px;">STREAK DE CONNEXION</div>
               </div>
-              <div style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);padding:2px 8px;flex-shrink:0;">
-                <span style="font-size:10px;font-weight:900;color:#f59e0b;">🔥 Jour ${Math.max(streak,1)}</span>
+              <div style="background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.4);padding:2px 7px;flex-shrink:0;">
+                <span style="font-size:9px;font-weight:900;color:#f59e0b;">🔥 Jour ${Math.max(streak,1)}</span>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
+            <!-- Grille 7 jours : taille fixe pour tenir en une ligne -->
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">
               ${days.map(d=>`
-              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;background:${d.done?'rgba(245,158,11,.1)':d.isToday?'rgba(245,158,11,.06)':th.bgSecondary};border:${d.done?'2px solid rgba(245,158,11,.6)':d.isToday?'2px dashed rgba(245,158,11,.4)':'1px solid '+th.border};">
-                <span style="font-size:${d.done?'12px':'10px'};">${d.done?'✅':d.isToday?'🎁':'🔒'}</span>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 1px;background:${d.done?'rgba(245,158,11,.1)':d.isToday?'rgba(245,158,11,.06)':th.bgSecondary};border:${d.done?'2px solid rgba(245,158,11,.6)':d.isToday?'2px dashed rgba(245,158,11,.4)':'1px solid '+th.border};">
+                <span style="font-size:11px;line-height:1;">${d.done?'✅':d.isToday?'🎁':'🔒'}</span>
                 <div style="font-size:7px;font-weight:900;color:${d.done?'#f59e0b':d.isToday?'#f59e0b':th.textFaint};">J${d.dayNum}</div>
-                <div style="font-size:7px;font-weight:700;color:${d.done||d.isToday?th.yellow:th.textFaint};">+${d.coins}</div>
+                <div style="font-size:6px;font-weight:700;color:${d.done||d.isToday?th.yellow:th.textFaint};">+${d.coins}</div>
               </div>`).join('')}
             </div>
           </div>
         </div>
 
         <!-- ── QUÊTES QUOTIDIENNES ── -->
-        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;">
+        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;flex-shrink:0;">
           <div style="height:3px;background:linear-gradient(90deg,${th.green},#38bdf8,${th.green});"></div>
-          <div style="padding:12px 12px 10px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:16px;">⚔️</span>
+          <div style="padding:9px 12px 8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <span style="font-size:14px;">⚔️</span>
               <div>
-                <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.8px;">QUÊTES QUOTIDIENNES</div>
-                <div style="font-size:8px;color:${th.textMuted};">Reset à minuit</div>
+                <div style="font-family:'Luckiest Guy',cursive;font-size:11px;color:${th.text};letter-spacing:.8px;">QUÊTES QUOTIDIENNES</div>
+                <div style="font-size:7px;color:${th.textMuted};">Reset à minuit</div>
               </div>
             </div>
             ${questRow('🏆','Première victoire du jour',100,20,dqFirstWin.progress,1,dqFirstWin.done,th.green)}
@@ -3901,14 +3947,14 @@ function renderQuestsModal(th){
         </div>
 
         <!-- ── QUÊTES HEBDOMADAIRES ── -->
-        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;">
+        <div style="background:${th.bgTertiary};border:2px solid #000;overflow:hidden;flex-shrink:0;">
           <div style="height:3px;background:linear-gradient(90deg,#f43f5e,#a78bfa,#f43f5e);"></div>
-          <div style="padding:12px 12px 10px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-              <span style="font-size:16px;">🏅</span>
+          <div style="padding:9px 12px 8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <span style="font-size:14px;">🏅</span>
               <div>
-                <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.8px;">QUÊTES HEBDOMADAIRES</div>
-                <div style="font-size:8px;color:${th.textMuted};">Reset le lundi · Meilleures récompenses</div>
+                <div style="font-family:'Luckiest Guy',cursive;font-size:11px;color:${th.text};letter-spacing:.8px;">QUÊTES HEBDOMADAIRES</div>
+                <div style="font-size:7px;color:${th.textMuted};">Reset le lundi · Meilleures récompenses</div>
               </div>
             </div>
             ${questRow('📋','Compléter 12 quêtes quotidiennes',250,180,wqDaily12.progress,12,wqDaily12.done,'#f59e0b')}
