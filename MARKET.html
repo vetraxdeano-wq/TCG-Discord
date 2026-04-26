@@ -349,9 +349,7 @@ async function saveStand(){
   const wantIds = rawWant.filter(id => !!getCard(id));
 
   if(offerIds.length === 0 && wantIds.length === 0){
-    alert('Aucune carte valide à enregistrer.
-Cartes proposées : uniquement celles que tu possèdes.
-Cartes recherchées : uniquement celles qui existent.');
+    alert('Aucune carte valide à enregistrer.\nCartes proposées : uniquement celles que tu possèdes.\nCartes recherchées : uniquement celles qui existent.');
     btn.disabled = false; btn.textContent = '💾 ENREGISTRER';
     return;
   }
