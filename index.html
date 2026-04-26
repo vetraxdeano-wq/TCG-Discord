@@ -1923,9 +1923,9 @@ function renderTradeModal(th){
 function renderTabPlay(th){
   const isMobile = window.innerWidth < 600;
   const modes=[
-    {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", img:"https://i.goopics.net/fxkzfv.png", color:th.accent,    available:true,  badge:"RANKED"},
-    {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", img:"https://i.goopics.net/weqlkg.png", color:th.green,     available:true,  badge:"SOLO"},
-    {id:"10v10", label:"INITIATION",sub:"Format 10 vs 10",    desc:"Choisis 10 cartes et affronte leur miroir", icon:"⚡", img:"https://i.ibb.co/pH6fd5b/10v1.png",  color:th.accent,    available:true,  badge:"NEW",  url:"PVP10.html"},
+    {id:"pvp",   label:"PvP",    sub:"Joueur vs Joueur",   desc:"Affronte d'autres joueurs en temps réel",  icon:"⚔️", img:"https://i.ibb.co/4g7xwgBZ/1.png", color:th.accent,    available:true,  badge:"RANKED"},
+    {id:"ia",    label:"vs IA",  sub:"Entraînement solo",  desc:"Perfectionne ta stratégie contre l'IA",    icon:"🤖", img:"https://i.ibb.co/DDjg5vJK/2.png", color:th.green,     available:true,  badge:"SOLO"},
+    {id:"10v10", label:"INITIATION",sub:"Format 10 vs 10",    desc:"Choisis 10 cartes et affronte leur miroir", icon:"⚡", img:"https://i.ibb.co/DHVsmTLf/3.png",  color:th.accent,    available:true,  badge:"NEW",  url:"PVP10.html"},
   ];
   const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
     ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
