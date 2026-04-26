@@ -2050,7 +2050,7 @@ function renderTabPlay(th){
                   <div style="width:28px;height:28px;border-radius:0;overflow:hidden;flex-shrink:0;border:1.5px solid ${isMe?th.accent:'#000'};display:flex;align-items:center;justify-content:center;background:${th.bgTertiary};">
                     ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`:'<span style="font-size:11px;">👤</span>'}
                   </div>
-                  <div style="font-size:9px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;">${(row.discord_username||'?').slice(0,9)}</div>
+                  <div style="font-size:9px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;">${row.discord_username||'?'}</div>
                   <div style="font-size:8px;font-weight:900;color:${th.textMuted};white-space:nowrap;">${val}</div>
                 </div>`;
               }).join('')
@@ -3841,7 +3841,7 @@ function renderQuestsModal(th){
 
   return `
   <div id="quests-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center;z-index:150;">
-    <div class="slide-up" style="width:100%;max-width:420px;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;display:flex;flex-direction:column;max-height:92vh;padding-bottom:max(env(safe-area-inset-bottom,0px),16px);">
+    <div class="slide-up" style="width:100%;max-width:420px;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;display:flex;flex-direction:column;height:min(92vh,100%);max-height:92vh;padding-bottom:max(env(safe-area-inset-bottom,0px),16px);overflow:hidden;">
 
       <div style="display:flex;justify-content:center;padding:10px 0 0;">
         <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
@@ -4706,8 +4706,10 @@ function bindGame(){
   (function setupLbPreviewRotation(){
     const SORTS  = ['cards','wins','level','coins','wr'];
     const LABELS = {cards:'🃏 Cartes',wins:'⚔️ Victoires',level:'⭐ Niveau',coins:'💰 Coins',wr:'📊 Win Rate'};
-    let idx = 0;
-    let timer = null;
+
+    // Timer global — une seule instance active à la fois
+    if(window._lbPreviewTimer) clearInterval(window._lbPreviewTimer);
+    window._lbPreviewIdx = 0;
 
     function getContainer(){ return document.getElementById('lb-preview-slides'); }
 
@@ -4717,10 +4719,7 @@ function bindGame(){
       const slides = container.querySelectorAll('.lb-preview-slide');
       const dots   = document.querySelectorAll('.lb-dot');
       const label  = document.getElementById('lb-preview-label-text');
-      // Cacher TOUTES les slides, activer seulement la bonne
-      slides.forEach((s,si)=>{
-        s.style.display = si===i ? 'flex' : 'none';
-      });
+      slides.forEach((s,si)=>{ s.style.display = si===i ? 'flex' : 'none'; });
       dots.forEach((d,di)=>{
         d.style.width  = di===i ? '12px' : '5px';
         d.style.background = di===i ? '#38bdf8' : 'rgba(255,255,255,.15)';
@@ -4729,21 +4728,25 @@ function bindGame(){
     }
 
     function rotate(){
-      const container = getContainer();
-      if(!container || !container.querySelectorAll('.lb-preview-slide').length) return;
-      idx = (idx+1) % SORTS.length;
-      applySlide(idx);
+      if(!getContainer()) { clearInterval(window._lbPreviewTimer); window._lbPreviewTimer=null; return; }
+      window._lbPreviewIdx = (window._lbPreviewIdx + 1) % SORTS.length;
+      applySlide(window._lbPreviewIdx);
     }
 
     function start(){
-      if(timer) clearInterval(timer);
-      idx = 0;
+      if(window._lbPreviewTimer) clearInterval(window._lbPreviewTimer);
+      window._lbPreviewIdx = 0;
       applySlide(0);
-      timer = setInterval(rotate, 4500);
+      window._lbPreviewTimer = setInterval(rotate, 4500);
     }
 
     start();
-    window._lbPreviewRestart = start;
+    // Debounce restart — évite les démarrages multiples en rafale lors de setState rapides
+    let _restartDebounce = null;
+    window._lbPreviewRestart = function(){
+      clearTimeout(_restartDebounce);
+      _restartDebounce = setTimeout(start, 50);
+    };
   })();
   document.querySelectorAll('.lb-tab').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -6988,6 +6991,17 @@ window.onPlayerWin = async function() {
   // Incrémenter le compteur hebdo "3 quêtes quotidiennes complétées"
   _checkDailyQuestCountForWeekly(userId);
 };
+
+// ─── Listener pour victoires depuis PVE / PVP / 10v10 ────────────
+// Les pages de jeu écrivent localStorage.setItem('tcg_game_win', Date.now())
+// après une victoire. L'index écoute ce signal pour déclencher onPlayerWin.
+window.addEventListener('storage', function(e){
+  if(e.key === 'tcg_game_win' && e.newValue){
+    if(window.onPlayerWin) window.onPlayerWin();
+    // Nettoyer la clé pour ne pas re-déclencher
+    try{ localStorage.removeItem('tcg_game_win'); }catch(ex){}
+  }
+});
 
 
 
