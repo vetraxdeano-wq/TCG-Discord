@@ -1734,53 +1734,51 @@ function renderTradeModal(th){
     const toCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.to_card_id));
     // Le receveur voit la vraie carte demandée seulement s'il la possède
     const receiverOwnsToCard = toCard && toCard.owned;
-    return `
-    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;">
-      <div style="width:100%;max-width:360px;background:${th.bgSecondary};padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.7);border:2px solid #000;">
-        <div style="font-family:'Luckiest Guy',cursive;font-size:14px;font-weight:400;color:${th.text};margin-bottom:4px;letter-spacing:.5px;">Offre d'échange</div>
-        <div style="font-size:11px;color:${th.textMuted};margin-bottom:16px;">de <b>${incoming.from_name||'Ami'}</b></div>
-        <div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-bottom:16px;">
-          <div style="text-align:center;">
-            <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Il propose</div>
-            <div style="width:70px;height:98px;background:${fromCard?`linear-gradient(135deg,${fromCard.color}30,${fromCard.color}10)`:th.surface};border:1px solid ${fromCard?fromCard.color+'60':th.border};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${fromCard?.image_url?'cursor:zoom-in;':''}">
-              ${fromCard?.image_url
-                ? `<img src="${fromCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
-                : `<div style="font-size:22px;pointer-events:none;">🃏</div>`}
-              <div style="font-size:7px;color:${fromCard?RARITY_COLOR[fromCard.rarity]:th.textMuted};font-weight:700;position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};pointer-events:none;">${fromCard?fromCard.name.slice(0,10):'?'}</div>
-              <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${fromCard?.image_url?'0 1px 3px #000':'none'};pointer-events:none;">#${incoming.from_card_id}</div>
-              ${fromCard?.image_url ? `<div onclick="openCard3DViewer(${JSON.stringify({id:fromCard.id,name:fromCard.name,rarity:fromCard.rarity,image_url:fromCard.image_url,owned:fromCard.owned,color:RARITY_COLOR[fromCard.rarity]})})" style="position:absolute;inset:0;z-index:5;cursor:zoom-in;"></div>` : ''}
-            </div>
-          </div>
-          <div style="font-size:20px;color:${th.textMuted};">⇄</div>
-          <div style="text-align:center;">
-            <div style="font-size:10px;color:${th.textMuted};margin-bottom:4px;">Il veut ta carte</div>
-            ${receiverOwnsToCard
-              ? `<div style="width:70px;height:98px;background:linear-gradient(135deg,${toCard.color}30,${toCard.color}10);border:1px solid ${toCard.color}60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;overflow:hidden;position:relative;${toCard.image_url?'cursor:zoom-in;':''}">
-                  ${toCard.image_url
-                    ? `<img src="${toCard.image_url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;" /><div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6) 0%,transparent 50%);pointer-events:none;"></div>`
-                    : `<div style="font-size:22px;pointer-events:none;">🃏</div>`}
-                  <div style="font-size:7px;color:${RARITY_COLOR[toCard.rarity]};font-weight:700;position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};pointer-events:none;">${toCard.name.slice(0,10)}</div>
-                  <div style="font-size:7px;color:${th.textFaint};position:relative;z-index:1;text-shadow:${toCard.image_url?'0 1px 3px #000':'none'};pointer-events:none;">#${incoming.to_card_id}</div>
-                  ${toCard.image_url ? `<div onclick="openCard3DViewer(${JSON.stringify({id:toCard.id,name:toCard.name,rarity:toCard.rarity,image_url:toCard.image_url,owned:toCard.owned,color:RARITY_COLOR[toCard.rarity]})})" style="position:absolute;inset:0;z-index:5;cursor:zoom-in;"></div>` : ''}
-                </div>`
-              : `<div style="width:70px;height:98px;background:${th.surface};border:2px solid #000;overflow:hidden;position:relative;">
-                  <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.45;filter:grayscale(1);" />
-                  <div style="position:absolute;top:4px;left:0;right:0;text-align:center;font-size:7px;color:${th.red};font-weight:700;text-shadow:0 1px 3px #000;">Non possédée</div>
-                  <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:8px;font-weight:700;color:rgba(255,255,255,.8);text-shadow:0 1px 3px #000;">#${incoming.to_card_id}</div>
-                </div>`
-            }
-          </div>
+
+    // Bloc info carte : image propre + détails sur le côté
+    const cardInfoBlock = (card, cardId, label, isFrom) => {
+      const col = card ? RARITY_COLOR[card.rarity] : th.textMuted;
+      const ownedTxt = isFrom ? '' : (card ? (card.owned ? '<span style="color:'+th.green+';font-weight:800;">✓ Possédée</span>' : '<span style="color:'+th.red+';font-weight:800;">✗ Non possédée</span>') : '<span style="color:'+th.red+';">Inconnue</span>');
+      return \`<div style="display:flex;gap:8px;align-items:flex-start;">
+        <div style="position:relative;width:60px;height:84px;flex-shrink:0;overflow:hidden;border:1px solid \${card?col+'60':th.border};background:\${card?'linear-gradient(135deg,'+col+'25,'+col+'08)':th.surface};\${card?.image_url?'cursor:zoom-in;':''}">
+          \${card?.image_url
+            ? \`<img src="\${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />\${card.image_url?'<div onclick="openCard3DViewer('+JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:RARITY_COLOR[card.rarity]})+\`)" style="position:absolute;inset:0;z-index:2;cursor:zoom-in;"></div>\`:''}  \`
+            : \`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:3px;"><div style="font-size:20px;">🃏</div><div style="font-size:8px;font-weight:800;color:\${col};">◆</div></div>\`}
         </div>
-        ${!receiverOwnsToCard
-          ? `<div style="font-size:10px;color:${th.red};background:${th.red}15;border:1px solid ${th.red}30;padding:8px 10px;margin-bottom:10px;text-align:center;">Tu ne possèdes pas la carte #${incoming.to_card_id} — tu peux seulement décliner.</div>`
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding-top:2px;">
+          <div style="font-size:8px;color:\${th.textMuted};text-transform:uppercase;letter-spacing:.5px;">\${label}</div>
+          <div style="font-size:11px;font-weight:800;color:\${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${card?card.name:('Carte #'+cardId)}</div>
+          \${card?'<div style="font-size:9px;color:'+col+';font-weight:700;">◆ '+RARITY_LABEL[card.rarity]+'</div>':''}
+          <div style="font-size:9px;color:\${th.textFaint};">#\${cardId}</div>
+          \${isFrom?'':\`<div style="font-size:9px;margin-top:1px;">\${ownedTxt}</div>\`}
+        </div>
+      </div>\`;
+    };
+
+    return \`
+    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="width:100%;max-width:340px;background:\${th.bgSecondary};padding:16px 18px 18px;box-shadow:0 24px 80px rgba(0,0,0,.7);border:2px solid #000;position:relative;">
+        <!-- Croix fermer (sans refuser) -->
+        <button onclick="window._dismissTradePopup && window._dismissTradePopup('\${incoming.id}')"
+          style="position:absolute;top:10px;right:10px;width:24px;height:24px;background:\${th.bgTertiary};border:1px solid \${th.border};color:\${th.textMuted};cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:2;"
+          title="Fermer sans répondre">✕</button>
+        <div style="font-family:'Luckiest Guy',cursive;font-size:14px;font-weight:400;color:\${th.text};margin-bottom:2px;letter-spacing:.5px;padding-right:28px;">Offre d'échange</div>
+        <div style="font-size:11px;color:\${th.textMuted};margin-bottom:14px;">de <b>\${incoming.from_name||'Ami'}</b></div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+          \${cardInfoBlock(fromCard, incoming.from_card_id, 'Il propose', true)}
+          <div style="text-align:center;font-size:16px;color:\${th.textMuted};">⇄</div>
+          \${cardInfoBlock(toCard, incoming.to_card_id, 'Il veut ta carte', false)}
+        </div>
+        \${!receiverOwnsToCard
+          ? \`<div style="font-size:10px;color:\${th.red};background:\${th.red}15;border:1px solid \${th.red}30;padding:7px 10px;margin-bottom:10px;text-align:center;">Tu ne possèdes pas cette carte — tu peux seulement décliner.</div>\`
           : ''
         }
         <div style="display:flex;gap:8px;">
-          <button id="trade-accept" onclick="window.respondTrade && window.respondTrade('${incoming.id}', true)" ${receiverOwnsToCard?'':'disabled'} style="flex:1;padding:10px;background:${receiverOwnsToCard?th.green:th.surface};color:${receiverOwnsToCard?'#000':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:${receiverOwnsToCard?'pointer':'default'};opacity:${receiverOwnsToCard?1:.5};">${receiverOwnsToCard ? '✓ Accepter' : '🚫 Carte manquante'}</button>
-          <button id="trade-decline" onclick="window.respondTrade && window.respondTrade('${incoming.id}', false)" style="flex:1;padding:10px;background:${th.surface};color:${th.red};border:1px solid ${th.red}40;font-size:12px;font-weight:700;cursor:pointer;">✕ Refuser</button>
+          <button id="trade-accept" onclick="window.respondTrade && window.respondTrade('\${incoming.id}', true)" \${receiverOwnsToCard?'':'disabled'} style="flex:1;padding:10px;background:\${receiverOwnsToCard?th.green:th.surface};color:\${receiverOwnsToCard?'#000':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:\${receiverOwnsToCard?'pointer':'default'};opacity:\${receiverOwnsToCard?1:.5};">\${receiverOwnsToCard ? '✓ Accepter' : '🚫 Carte manquante'}</button>
+          <button id="trade-decline" onclick="window.respondTrade && window.respondTrade('\${incoming.id}', false)" style="flex:1;padding:10px;background:\${th.surface};color:\${th.red};border:1px solid \${th.red}40;font-size:12px;font-weight:700;cursor:pointer;">Refuser</button>
         </div>
       </div>
-    </div>`;
+    </div>\`;
   }
 
   // Vue step 2 : saisir le numéro de la carte voulue en échange
@@ -3605,11 +3603,21 @@ function renderLeaderboardModal(th){
       </div>
 
       <!-- Table header -->
+      ${sort==='cards' ? `
+      <div style="display:grid;grid-template-columns:28px 1fr 24px 24px 24px 24px 36px;gap:2px;padding:5px 16px;flex-shrink:0;border-bottom:2px solid #000;align-items:center;">
+        <div style="font-size:8px;font-weight:900;color:${th.textMuted};">#</div>
+        <div style="font-size:8px;font-weight:900;color:${th.textMuted};">Joueur</div>
+        <div style="font-size:10px;font-weight:900;color:#64748b;text-align:center;" title="Communes">◆</div>
+        <div style="font-size:10px;font-weight:900;color:#38bdf8;text-align:center;" title="Peu communes">◆</div>
+        <div style="font-size:10px;font-weight:900;color:#a78bfa;text-align:center;" title="Rares">◆</div>
+        <div style="font-size:10px;font-weight:900;color:#f43f5e;text-align:center;" title="Mythiques">◆</div>
+        <div style="font-size:8px;font-weight:900;color:${th.accent};text-align:center;">🃏</div>
+      </div>` : `
       <div style="display:grid;grid-template-columns:28px 1fr 36px 36px 36px 36px 36px 36px;gap:2px;padding:5px 16px;flex-shrink:0;border-bottom:2px solid #000;">
         ${['#','Joueur','🃏','⚔️','📊','🎮','<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>','⭐'].map((h,i)=>`<div style="font-size:8px;font-weight:900;color:${
-          (sort==='cards'&&i===2)||(sort==='wins'&&i===3)||(sort==='wr'&&i===4)||(sort==='games'&&i===5)||(sort==='coins'&&i===6)||(sort==='level'&&i===7)
+          (sort==='wins'&&i===2)||(sort==='wr'&&i===3)||(sort==='games'&&i===4)||(sort==='coins'&&i===5)||(sort==='level'&&i===6)
             ?th.accent:th.textMuted};letter-spacing:.4px;text-align:${i<=1?'left':'center'};">${h}</div>`).join('')}
-      </div>
+      </div>`}
 
       <!-- Rows -->
       <div style="flex:1;overflow-y:auto;padding:0 16px 8px;">
@@ -3636,7 +3644,7 @@ function renderLeaderboardModal(th){
             const _tm = Math.floor((_ts % 3600) / 60);
             const timeTxt = _ts > 0 ? (_th > 0 ? _th + 'h ' : '') + _tm + 'min' : '';
             return `
-            <div style="display:grid;grid-template-columns:28px 1fr 36px 36px 36px 36px 36px 36px;gap:2px;padding:7px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};position:relative;align-items:center;">
+            <div style="display:grid;grid-template-columns:${sort==='cards'?'28px 1fr 24px 24px 24px 24px 36px':'28px 1fr 36px 36px 36px 36px 36px 36px'};gap:2px;padding:7px 0;border-bottom:1px solid ${isMe?th.accent+'30':th.border};background:${isMe?th.accent+'08':'transparent'};position:relative;align-items:center;">
               ${isMe?`<div style="position:absolute;left:-16px;top:0;bottom:0;width:3px;background:${th.accent};"></div>`:''}
               <div style="text-align:center;font-size:${medal?'13px':'10px'};font-weight:900;color:${rankColor};">${medal||('#'+(i+1))}</div>
               <div style="display:flex;flex-direction:column;min-width:0;gap:1px;">
@@ -3648,12 +3656,20 @@ function renderLeaderboardModal(th){
                 </div>
                 ${timeTxt?`<div style="font-size:8px;color:${th.textFaint};padding-left:25px;">${timeTxt}</div>`:''}
               </div>
+              ${sort==='cards' ? `
+              <div style="text-align:center;font-size:9px;font-weight:600;color:#64748b;" title="Communes">${row.rc_common||0}</div>
+              <div style="text-align:center;font-size:9px;font-weight:600;color:#38bdf8;" title="Peu communes">${row.rc_uncommon||0}</div>
+              <div style="text-align:center;font-size:9px;font-weight:600;color:#a78bfa;" title="Rares">${row.rc_rare||0}</div>
+              <div style="text-align:center;font-size:9px;font-weight:700;color:#f43f5e;" title="Mythiques">${row.rc_mythic||0}</div>
+              <div style="text-align:center;font-size:10px;font-weight:900;color:#818cf8;">${row.cards||0}</div>
+              ` : `
               <div style="text-align:center;font-size:10px;font-weight:${sort==='cards'?'900':'600'};color:${sort==='cards'?'#818cf8':th.textMuted};">${row.cards||0}</div>
               <div style="text-align:center;font-size:10px;font-weight:${sort==='wins'?'900':'600'};color:${sort==='wins'?th.green:th.textMuted};">${row.wins||0}</div>
               <div style="text-align:center;font-size:9px;font-weight:${sort==='wr'?'900':'600'};color:${sort==='wr'?'#fbbf24':th.textMuted};">${wr}%</div>
               <div style="text-align:center;font-size:9px;font-weight:${sort==='games'?'900':'600'};color:${sort==='games'?th.accent:th.textMuted};">${games}</div>
               <div style="text-align:center;font-size:9px;font-weight:${sort==='coins'?'900':'600'};color:${sort==='coins'?'#f59e0b':th.textMuted};">${(row.coins||0)>999?((row.coins/1000).toFixed(1)+'k'):(row.coins||0)}</div>
               <div style="text-align:center;font-size:10px;font-weight:${sort==='level'?'900':'600'};color:${sort==='level'?'#a78bfa':th.textMuted};">Niv ${lvl}</div>
+              `}
             </div>`;
           }).join('')
         }
@@ -5893,18 +5909,27 @@ async function loadLeaderboard(period){
     const statsOk = rawStats && rawStats.length > 0;
     (rawStats||[]).forEach(s=>{ if(s.user_id && s.time_played_seconds > 0) timeMap[s.user_id] = s.time_played_seconds; });
 
-    // ── 2. Construire la map player_id → nb cartes distinctes ─────
+    // ── 2. Construire la map player_id → cartes + rarités ──────────
     const cardCountMap = {};
+    const rarityCountMap = {}; // player_id → {common,uncommon,rare,mythic}
+    // Map card_id → rarity depuis ALL_CARDS
+    const cardRarityMap = {};
+    (ALL_CARDS||[]).forEach(c => { cardRarityMap[String(c.id)] = c.rarity; });
     (rawCards||[]).forEach(row => {
       if(!row.player_id) return;
       if(!cardCountMap[row.player_id]) cardCountMap[row.player_id] = new Set();
       cardCountMap[row.player_id].add(row.card_id);
+      // Rarity count
+      if(!rarityCountMap[row.player_id]) rarityCountMap[row.player_id] = {common:0,uncommon:0,rare:0,mythic:0};
+      const r = cardRarityMap[String(row.card_id)];
+      if(r && rarityCountMap[row.player_id][r] !== undefined) rarityCountMap[row.player_id][r]++;
     });
 
     // ── 3. Normaliser + enrichir ───────────────────────────────────
     let all = (rawPlayers||[]).map(p => {
       const xp = p.xp ?? 0;
       const lvl = computeLevel(xp).level;
+      const rc = rarityCountMap[p.id] || {common:0,uncommon:0,rare:0,mythic:0};
       return {
         ...p,
         wins:   p.wins   ?? 0,
@@ -5914,6 +5939,10 @@ async function loadLeaderboard(period){
         level:       lvl,
         cards:       cardCountMap[p.id] ? cardCountMap[p.id].size : 0,
         time_secs:   timeMap[p.id] || ((p.wins||0)+(p.losses||0)) * 900,
+        rc_common:   rc.common,
+        rc_uncommon: rc.uncommon,
+        rc_rare:     rc.rare,
+        rc_mythic:   rc.mythic,
       };
     });
 
@@ -7899,8 +7928,11 @@ async function pollNotificationsAndTrades() {
   // Re-charger les trades entrants en attente (non encore vus)
   const { data: pendingTrades } = await db.from('trades')
     .select('*').eq('to_id', myId).eq('status', 'pending');
-  if (pendingTrades && pendingTrades.length > 0 && !state.tradeIncoming) {
-    const trade = pendingTrades[0];
+  // Filtrer les trades que l'utilisateur a fermé sans répondre
+  const _dismissed = (() => { try { return JSON.parse(sessionStorage.getItem('_dismissedTrades')||'[]'); } catch(e) { return []; } })();
+  const _pendingVisible = (pendingTrades||[]).filter(t => !_dismissed.includes(String(t.id)));
+  if (_pendingVisible.length > 0 && !state.tradeIncoming) {
+    const trade = _pendingVisible[0];
     const { data: sender } = await db.from('players').select('discord_username').eq('id', trade.from_id).single();
     setState({
       showTrade: true,
@@ -8806,6 +8838,16 @@ async function _removeCardFromAllDecks(db, playerId, cardId) {
   }
 }
 
+// Fermer sans répondre — mémoriser l'ID pour ne pas réafficher
+window._dismissTradePopup = function(tradeId) {
+  try {
+    const d = JSON.parse(sessionStorage.getItem('_dismissedTrades')||'[]');
+    if(!d.includes(String(tradeId))) d.push(String(tradeId));
+    sessionStorage.setItem('_dismissedTrades', JSON.stringify(d));
+  } catch(e) {}
+  setState({ tradeIncoming: null });
+};
+
 window.respondTrade = async function respondTrade(tradeId, accept) {
   const db = window.db;
   const myId = state.currentUser?.id;
@@ -8902,8 +8944,10 @@ async function subscribeTradeNotifications() {
   // Charger immédiatement les trades entrants en attente (au cas où reçus hors ligne)
   const { data: pendingTrades } = await db.from('trades')
     .select('*').eq('to_id', myId).eq('status', 'pending');
-  if (pendingTrades && pendingTrades.length > 0 && !state.tradeIncoming) {
-    const trade = pendingTrades[0];
+  const _dismissed2 = (() => { try { return JSON.parse(sessionStorage.getItem('_dismissedTrades')||'[]'); } catch(e) { return []; } })();
+  const _pendingVisible2 = (pendingTrades||[]).filter(t => !_dismissed2.includes(String(t.id)));
+  if (_pendingVisible2.length > 0 && !state.tradeIncoming) {
+    const trade = _pendingVisible2[0];
     const { data: sender } = await db.from('players').select('discord_username').eq('id', trade.from_id).single();
     setState({
       showTrade: true,
