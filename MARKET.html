@@ -104,11 +104,25 @@ const RARITY_COLOR = {common:'#94a3b8',uncommon:'#22d3ee',rare:'#a78bfa',mythic:
 const RARITY_LABEL = {common:'Commune',uncommon:'Peu Commune',rare:'Rare',mythic:'Mythique'};
 
 async function init(){
-  while(!window.supabase){ await sleep(100); }
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true}});
+  // Attendre Supabase avec timeout max 10s
+  let _t = 0;
+  while(!window.supabase?.createClient && _t < 100){ await sleep(100); _t++; }
+  if(!window.supabase?.createClient){
+    render('<div style="text-align:center;padding:40px 20px;color:#ef4444;"><div style="font-size:24px;margin-bottom:10px;">⚠️</div><div style="font-size:12px;">Impossible de charger Supabase.<br>Vérifie ta connexion internet.</div><br><button onclick="location.reload()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">↺ Réessayer</button></div>');
+    return;
+  }
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, detectSessionInUrl: true}});
 
-  const {data:{session}} = await db.auth.getSession();
-  if(!session?.user){ render('<div style="text-align:center;padding:40px 20px;"><div style="font-size:32px;margin-bottom:10px;">🔒</div><div style="font-size:13px;color:#94a3b8;">Connecte-toi pour accéder au marché.</div><br><button onclick="history.back()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">← Retour</button></div>'); return; }
+  let session = null;
+  try{
+    const res = await db.auth.getSession();
+    session = res.data?.session;
+  }catch(e){ console.error('[MARKET] getSession error', e); }
+
+  if(!session?.user){
+    render('<div style="text-align:center;padding:40px 20px;"><div style="font-size:32px;margin-bottom:10px;">🔒</div><div style="font-size:13px;color:#94a3b8;">Connecte-toi depuis l'index pour accéder au marché.</div><br><button onclick="history.back()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">← Retour</button></div>');
+    return;
+  }
   currentUser = session.user;
 
   // Charger cartes du joueur
@@ -133,6 +147,16 @@ async function init(){
 
   renderStands();
 }
+
+// Wrapper global pour afficher les erreurs au lieu de rester sur "Connexion..."
+const _rawInit = init;
+init = async function(){
+  try{ await _rawInit(); }
+  catch(e){
+    console.error('[MARKET] init error:', e);
+    render('<div style="text-align:center;padding:40px;color:#ef4444;"><div style="font-size:24px;margin-bottom:8px;">⚠️</div><div style="font-size:12px;">'+e.message+'</div><br><button onclick="location.reload()" style="padding:8px 18px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">↺ Réessayer</button></div>');
+  }
+};
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
