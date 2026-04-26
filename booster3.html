@@ -1636,7 +1636,15 @@ const DROP_WEIGHTS = {
 let ALL_CARDS = [];
 let _dbReady = false;
 
-function rollRarity() {
+function rollRarity(excludeMythic = false) {
+  // Si on exclut MYTHIQUE, on re-normalise sur les 91.2% restants (40 + 33 + 18 + 0.2)
+  if (excludeMythic) {
+    const r = Math.random() * 91.2;
+    if (r < 40)   return 'COMMUNE';
+    if (r < 73)   return 'PEU COMMMUNE';
+    if (r < 91)   return 'RARE';
+    return 'SPECIAL'; // Peace ou Love
+  }
   const r = Math.random() * 100;
   if (r < 40)   return 'COMMUNE';
   if (r < 73)   return 'PEU COMMMUNE';
@@ -1659,10 +1667,13 @@ function pickWeightedCards(n) {
     'MYTHIQUE':     ALL_CARDS.filter(c => c.rarity === 'MYTHIQUE'),
     'SPECIAL':      specialCards,
   };
+  let mythicAlreadyDrawn = false; // Une seule MYTHIQUE max par booster
   for (let i = 0; i < n; i++) {
-    let rarity = rollRarity();
-    // Si SPECIAL mais pas de carte Peace/Love → fallback Mythique
-    if (rarity === 'SPECIAL' && specialCards.length === 0) rarity = 'MYTHIQUE';
+    let rarity = rollRarity(mythicAlreadyDrawn);
+    // Si SPECIAL mais pas de carte Peace/Love → fallback Mythique (sauf si déjà 1 mythique → fallback Rare)
+    if (rarity === 'SPECIAL' && specialCards.length === 0) {
+      rarity = mythicAlreadyDrawn ? 'RARE' : 'MYTHIQUE';
+    }
     // Si SPECIAL : choisir Peace ou Love équiprobablement
     if (rarity === 'SPECIAL') {
       result.push(specialCards[Math.floor(Math.random() * specialCards.length)]);
@@ -1672,6 +1683,7 @@ function pickWeightedCards(n) {
     while (!byRarity[rarity] || byRarity[rarity].length === 0) {
       rarity = 'COMMUNE';
     }
+    if (rarity === 'MYTHIQUE') mythicAlreadyDrawn = true;
     const pool = byRarity[rarity];
     result.push(pool[Math.floor(Math.random() * pool.length)]);
   }
