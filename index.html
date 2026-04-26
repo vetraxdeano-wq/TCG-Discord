@@ -451,6 +451,18 @@ async function markBoosterUsed(userId, boosterId){
       await window.db.from('players').update(patch).eq('id', userId);
     }catch(e){ console.error('markBoosterUsed error', e); }
   }
+  // ── Stats boosters ──────────────────────────────────────────────
+  try{
+    const db = window.db;
+    if(db && userId){
+      const fieldMap = { 1:'boosters_normal', 2:'boosters_prestige', 3:'boosters_legendary' };
+      const field = fieldMap[boosterId];
+      if(field){
+        await db.rpc('increment_stat', { p_user_id: userId, p_field: field });
+        await db.rpc('increment_stat', { p_user_id: userId, p_field: 'boosters_total' });
+      }
+    }
+  }catch(e){}
 }
 
 // Pioche : 1x/jour — géré via Supabase (cross-device)
@@ -481,6 +493,17 @@ function canPiocheTodaySync(userId){
     return _piocheDateCache.date !== _todayStr();
   }
   return true; // pas encore chargé = on suppose disponible (sera vérifié async au clic)
+}
+
+// ─── HELPER : incrémenter un champ de la table stats (fire & forget) ──────────
+function _incStat(field, amount=1){
+  try{
+    const db = window.db;
+    const uid = state.currentUser?.id;
+    if(!db || !uid) return;
+    db.rpc('increment_stat', { p_user_id: uid, p_field: field, p_amount: amount })
+      .then(()=>{}).catch(()=>{});
+  }catch(e){}
 }
 
 async function markPiocheUsed(userId){
@@ -5582,6 +5605,11 @@ function bindGame(){
           if(window.loadCollection) window.loadCollection();
           // Vérifier si déjà possédée (avant insert)
           drawn.owned = !!existing;
+          // ── Stats cartes par rareté ─────────────────────────────
+          try{
+            const rarityField = { common:'cards_common', uncommon:'cards_uncommon', rare:'cards_rare', mythic:'cards_mythic' }[drawn.rarity];
+            if(rarityField) db.rpc('increment_stat', { p_user_id: myId, p_field: rarityField }).then(()=>{}).catch(()=>{});
+          }catch(e){}
         }
 
         setState({piocheResult: drawn});
@@ -6265,6 +6293,19 @@ function enterGame(user, coins) {
     else if (!_musicWasOn && audioPlaying) audioStop();
     loadCollection();
     startDailyTicker();
+  // ── Temps de jeu — incrémenter toutes les 60s ──────────────────
+  if(!window._timePlayedTicker){
+    window._timePlayedTicker = setInterval(()=>{
+      try{
+        const db = window.db;
+        const uid = state.currentUser?.id;
+        if(db && uid){
+          db.rpc('increment_stat', { p_user_id: uid, p_field: 'time_played_seconds', p_amount: 60 })
+            .then(()=>{}).catch(()=>{});
+        }
+      }catch(e){}
+    }, 60000);
+  }
     // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
     canPiocheToday(user.id).then(()=>{ setState({}); }); // force re-render après chargement
     // Précharger les compteurs de boosters depuis Supabase (cross-device, par compte)
@@ -6868,6 +6909,8 @@ window.claimLevelReward = async function(btn, notifId, rewardType, amount, level
     const current = playerData?.coins ?? 0;
     await db.from('players').update({ coins: current + amount }).eq('id', myId);
     setState({ coins: current + amount, pendingLevelRewards: remaining, showNotif: false, _claimedLevels: updatedClaimed });
+    // ── Stats coins earned ──────────────────────────────────────────
+    try{ db.rpc('increment_stat', { p_user_id: myId, p_field: 'coins_earned', p_amount: amount }).then(()=>{}).catch(()=>{}); }catch(e){}
     showRewardToast('Niveau ' + level + ' — Récompense reçue !', amount, '<svg width="10" height="10" viewBox="0 0 24 24" fill="#fbbf24" style="flex-shrink:0;vertical-align:middle;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>');
   } else {
     try { await db.from('players').update({ pending_free_booster: rewardType }).eq('id', myId) } catch(e) {};
@@ -6939,6 +6982,8 @@ async function grantCoins(userId, amount, reason) {
   const current = data?.coins ?? 0;
   await db.from('players').update({ coins: current + amount }).eq('id', userId);
   setState({ coins: current + amount });
+  // ── Stats coins earned ──────────────────────────────────────────
+  try{ db.rpc('increment_stat', { p_user_id: userId, p_field: 'coins_earned', p_amount: amount }).then(()=>{}).catch(()=>{}); }catch(e){}
 
   // Notification in-game dans la table notifications
   try {
