@@ -120,7 +120,7 @@ async function init(){
   }catch(e){ console.error('[MARKET] getSession error', e); }
 
   if(!session?.user){
-    render('<div style="text-align:center;padding:40px 20px;"><div style="font-size:32px;margin-bottom:10px;">🔒</div><div style="font-size:13px;color:#94a3b8;">Connecte-toi depuis l'index pour accéder au marché.</div><br><button onclick="history.back()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">← Retour</button></div>');
+    render('<div style="text-align:center;padding:40px 20px;"><div style="font-size:32px;margin-bottom:10px;">🔒</div><div style="font-size:13px;color:#94a3b8;">Connecte-toi depuis l\'index pour acc\u00e9der au march\u00e9.</div><br><button onclick="history.back()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">\u2190 Retour</button></div>');
     return;
   }
   currentUser = session.user;
@@ -373,9 +373,7 @@ async function saveStand(){
   const wantIds = rawWant.filter(id => !!getCard(id));
 
   if(offerIds.length === 0 && wantIds.length === 0){
-    alert('Aucune carte valide à enregistrer.
-Cartes proposées : uniquement celles que tu possèdes.
-Cartes recherchées : uniquement celles qui existent.');
+    alert('Aucune carte valide \u00e0 enregistrer.\nCartes propos\u00e9es : uniquement celles que tu poss\u00e8des.\nCartes recherch\u00e9es : uniquement celles qui existent.');
     btn.disabled = false; btn.textContent = '💾 ENREGISTRER';
     return;
   }
