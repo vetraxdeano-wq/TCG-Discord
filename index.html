@@ -5923,19 +5923,39 @@ async function loadLeaderboard(period){
     (rawStats||[]).forEach(s=>{ if(s.user_id && s.time_played_seconds > 0) timeMap[s.user_id] = s.time_played_seconds; });
 
     // ── 2. Construire la map player_id → cartes + rarités ──────────
-    const cardCountMap = {};
-    const rarityCountMap = {}; // player_id → {common,uncommon,rare,mythic}
-    // Map card_id → rarity depuis ALL_CARDS
+    const cardCountMap  = {}; // player_id → Set(card_id)
+    const raritySetMap  = {}; // player_id → {common:Set, uncommon:Set, rare:Set, mythic:Set}
+
+    // Map card_id → rarity depuis ALL_CARDS (clé = string pour sécurité)
     const cardRarityMap = {};
-    (ALL_CARDS||[]).forEach(c => { cardRarityMap[String(c.id)] = c.rarity; });
+    (ALL_CARDS||[]).forEach(c => {
+      if(c.id !== undefined) cardRarityMap[String(c.id)] = c.rarity;
+    });
+
     (rawCards||[]).forEach(row => {
       if(!row.player_id) return;
-      if(!cardCountMap[row.player_id]) cardCountMap[row.player_id] = new Set();
-      cardCountMap[row.player_id].add(row.card_id);
-      // Rarity count
-      if(!rarityCountMap[row.player_id]) rarityCountMap[row.player_id] = {common:0,uncommon:0,rare:0,mythic:0};
-      const r = cardRarityMap[String(row.card_id)];
-      if(r && rarityCountMap[row.player_id][r] !== undefined) rarityCountMap[row.player_id][r]++;
+      const pid = row.player_id;
+      const cid = String(row.card_id);
+
+      // Set global des cartes distinctes
+      if(!cardCountMap[pid]) cardCountMap[pid] = new Set();
+      cardCountMap[pid].add(cid);
+
+      // Set par rareté (une seule entrée par card_id distinct)
+      if(!raritySetMap[pid]) raritySetMap[pid] = {common:new Set(),uncommon:new Set(),rare:new Set(),mythic:new Set()};
+      const r = cardRarityMap[cid];
+      if(r && raritySetMap[pid][r]) raritySetMap[pid][r].add(cid);
+    });
+
+    // Convertir les Sets en comptages
+    const rarityCountMap = {};
+    Object.keys(raritySetMap).forEach(pid => {
+      rarityCountMap[pid] = {
+        common:   raritySetMap[pid].common.size,
+        uncommon: raritySetMap[pid].uncommon.size,
+        rare:     raritySetMap[pid].rare.size,
+        mythic:   raritySetMap[pid].mythic.size,
+      };
     });
 
     // ── 3. Normaliser + enrichir ───────────────────────────────────
