@@ -1622,7 +1622,14 @@ const DROP_WEIGHTS = {
 let ALL_CARDS = [];
 let _dbReady = false;
 
-function rollRarity() {
+function rollRarity(excludeMythic = false) {
+  // Si on exclut MYTHIQUE, on re-normalise sur les 99.9 premiers pourcents (87 + 11.9 + 1)
+  if (excludeMythic) {
+    const r = Math.random() * 99.9;
+    if (r < 87)   return 'COMMUNE';
+    if (r < 98.9) return 'PEU COMMMUNE';
+    return 'RARE';
+  }
   const r = Math.random() * 100;
   if (r < 87)   return 'COMMUNE';
   if (r < 98.9) return 'PEU COMMMUNE';
@@ -1638,12 +1645,14 @@ function pickWeightedCards(n) {
     'RARE':         ALL_CARDS.filter(c => c.rarity === 'RARE'),
     'MYTHIQUE':     ALL_CARDS.filter(c => c.rarity === 'MYTHIQUE'),
   };
+  let mythicAlreadyDrawn = false; // Une seule MYTHIQUE max par booster
   for (let i = 0; i < n; i++) {
-    let rarity = rollRarity();
+    let rarity = rollRarity(mythicAlreadyDrawn);
     // Fallback si pas de carte de cette rareté
     while (!byRarity[rarity] || byRarity[rarity].length === 0) {
       rarity = 'COMMUNE';
     }
+    if (rarity === 'MYTHIQUE') mythicAlreadyDrawn = true;
     const pool = byRarity[rarity];
     result.push(pool[Math.floor(Math.random() * pool.length)]);
   }
