@@ -1043,9 +1043,8 @@ const SVG = {
   </svg>`,
   // Quêtes — parchemin + étoile, DA comics
   quest:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-    <polyline points="14 2 14 8 20 8"/>
-    <path d="M12 13l1.5 2.5L16 14l-1.5 2.5L16 19l-2.5-1L12 20l-1.5-2L8 19l1.5-2.5L8 14l2.5 1.5L12 13z" stroke-width="1.4"/>
+    <path d="M9 11l3 3L22 4"/>
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
   </svg>`,
 };
 
@@ -3675,14 +3674,14 @@ function renderLeaderboardModal(th){
               <div style="text-align:center;font-size:9px;font-weight:600;color:#38bdf8;" title="Peu communes">${row.rc_uncommon||0}</div>
               <div style="text-align:center;font-size:9px;font-weight:600;color:#a78bfa;" title="Rares">${row.rc_rare||0}</div>
               <div style="text-align:center;font-size:9px;font-weight:700;color:#f43f5e;" title="Mythiques">${row.rc_mythic||0}</div>
-              <div style="text-align:center;line-height:1.3;">
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
                 <span style="font-size:10px;font-weight:900;color:#818cf8;">${row.cards||0}</span>
-                <span style="font-size:7px;color:${th.textMuted};font-weight:600;"> (${row.coll_pct||0}%)</span>
+                <span style="font-size:7px;color:${th.textMuted};font-weight:600;">(${row.coll_pct||0}%)</span>
               </div>
               ` : `
-              <div style="text-align:center;line-height:1.3;">
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
                 <span style="font-size:10px;font-weight:${sort==='cards'?'900':'600'};color:${sort==='cards'?'#818cf8':th.textMuted};">${row.cards||0}</span>
-                <span style="font-size:7px;color:${th.textFaint};font-weight:500;"> (${row.coll_pct||0}%)</span>
+                <span style="font-size:7px;color:${th.textFaint};font-weight:500;">(${row.coll_pct||0}%)</span>
               </div>
               <div style="text-align:center;font-size:10px;font-weight:${sort==='wins'?'900':'600'};color:${sort==='wins'?th.green:th.textMuted};">${row.wins||0}</div>
               <div style="text-align:center;font-size:9px;font-weight:${sort==='wr'?'900':'600'};color:${sort==='wr'?'#fbbf24':th.textMuted};">${wr}%</div>
