@@ -26,9 +26,20 @@
   .fade-in{animation:fadeIn .3s ease both;}
   @keyframes spin{to{transform:rotate(360deg)}}
   .spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.1);border-top-color:#a78bfa;animation:spin .7s linear infinite;border-radius:50%;}
+  /* Bouton musique */
+  #mkt-music-btn{position:fixed;bottom:20px;right:16px;z-index:500;display:flex;align-items:center;gap:5px;padding:6px 11px 6px 9px;background:rgba(14,12,9,.88);border:2px solid rgba(251,191,36,.35);box-shadow:2px 2px 0 #000;cursor:pointer;backdrop-filter:blur(6px);transition:border-color .18s;}
+  #mkt-music-btn:hover{border-color:rgba(251,191,36,.7);}
+  .card-invalid{opacity:.45;filter:grayscale(1);}
+  .badge-invalid{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;font-size:7px;font-weight:900;padding:1px 5px;letter-spacing:.4px;text-transform:uppercase;}
 </style>
 </head>
 <body>
+
+<div id="mkt-yt-player" style="display:none;width:0;height:0;pointer-events:none;"></div>
+<button id="mkt-music-btn" onclick="window._mktTogglePopup(event)" title="Musique">
+  <span id="mkt-music-icon" style="font-size:13px;line-height:1;">🔊</span>
+  <span id="mkt-music-label" style="font-family:'Luckiest Guy',cursive;font-size:9px;letter-spacing:.12em;color:#9d8ea0;">MUSIQUE</span>
+</button>
 
 <!-- TOP BAR -->
 <div id="topbar" style="position:sticky;top:0;z-index:100;background:#0d0d0f;border-bottom:3px solid #000;display:flex;align-items:center;gap:12px;padding:12px 16px;padding-top:max(env(safe-area-inset-top,12px),12px);">
@@ -139,19 +150,52 @@ function getCard(id){
   return allCards.find(c => String(c.id) === String(id).padStart(3,'0') || String(parseInt(c.id)) === String(parseInt(id)));
 }
 
-function cardMini(id, showOwned = true){
-  const card = getCard(id);
-  const owned = myCards.has(String(card?.id)) || [...myCards].some(k => parseInt(k)===parseInt(id));
-  const imgSrc = (owned && card?.image_url) ? card.image_url : CARD_BACK;
+// mode : 'offer' | 'want' | 'display'
+// offer → montre PNG si possédée, invalide si non possédée
+// want  → invalide si carte n'existe pas dans la collection générale
+// display → affiche PNG si possédée par le viewer, dos sinon
+function cardMini(id, mode = 'display'){
+  const card  = getCard(id);
+  const owned = card && (myCards.has(String(card.id)) || [...myCards].some(k=>parseInt(k)===parseInt(id)));
   const rarCol = card ? (RARITY_COLOR[card.rarity]||'#94a3b8') : '#64748b';
-  const label  = card ? RARITY_LABEL[card.rarity] : '?';
+
+  if(mode === 'offer'){
+    // Carte proposée : doit être possédée — afficher le vrai PNG
+    const valid = owned && card;
+    const imgSrc = (valid && card.image_url) ? card.image_url : CARD_BACK;
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:52px;${valid?'':'opacity:.5'}">
+      <div class="card-thumb" style="border-color:${valid?rarCol+'60':'#ef444440'};">
+        <img src="${imgSrc}" alt="Carte #${id}" onerror="this.src='${CARD_BACK}'" />
+      </div>
+      <div style="font-size:7px;font-weight:700;color:${valid?rarCol:'#ef4444'};text-align:center;">#${parseInt(id)}</div>
+      <div class="${valid?'badge-owned':'badge-invalid'}">${valid?'✓ Possédée':'✗ Non possédée'}</div>
+    </div>`;
+  }
+
+  if(mode === 'want'){
+    // Carte recherchée : doit exister dans la collection générale
+    const exists = !!card;
+    const imgSrc = (owned && card?.image_url) ? card.image_url : CARD_BACK;
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:52px;${exists?'':'opacity:.5'}">
+      <div class="card-thumb" style="border-color:${exists?rarCol+'60':'#ef444440'};">
+        <img src="${exists?imgSrc:CARD_BACK}" alt="Carte #${id}" onerror="this.src='${CARD_BACK}'" />
+      </div>
+      <div style="font-size:7px;font-weight:700;color:${exists?rarCol:'#ef4444'};text-align:center;">#${parseInt(id)}</div>
+      <div class="${exists?(owned?'badge-owned':'badge-missing'):'badge-invalid'}">${exists?(owned?'✓ Possédée':'✗ Manquante'):'✗ Inexistante'}</div>
+    </div>`;
+  }
+
+  // mode 'display' — vue stand public
+  const imgSrc = (owned && card?.image_url) ? card.image_url : CARD_BACK;
   return `
   <div style="display:flex;flex-direction:column;align-items:center;gap:3px;width:52px;">
     <div class="card-thumb" style="border-color:${rarCol}40;">
       <img src="${imgSrc}" alt="Carte #${id}" onerror="this.src='${CARD_BACK}'" />
     </div>
     <div style="font-size:7px;font-weight:700;color:${rarCol};text-align:center;">#${parseInt(id)}</div>
-    ${showOwned ? `<div class="${owned?'badge-owned':'badge-missing'}">${owned?'✓ Possédée':'✗ Manquante'}</div>` : ''}
+    <div class="${owned?'badge-owned':'badge-missing'}">${owned?'✓ Possédée':'✗ Manquante'}</div>
   </div>`;
 }
 
@@ -216,7 +260,7 @@ function renderStandCard(stand, isMe){
         <span>🟢</span> PROPOSE (${offerIds.length} carte${offerIds.length>1?'s':''})
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">
-        ${offerIds.length ? offerIds.map(id => cardMini(id)).join('') : '<div style="font-size:10px;color:#475569;font-style:italic;">Aucune carte proposée</div>'}
+        ${offerIds.length ? offerIds.map(id => cardMini(id, isMe ? 'offer' : 'display')).join('') : '<div style="font-size:10px;color:#475569;font-style:italic;">Aucune carte proposée</div>'}
       </div>
     </div>
 
@@ -229,7 +273,7 @@ function renderStandCard(stand, isMe){
         <span>🔴</span> RECHERCHE (${wantIds.length} carte${wantIds.length>1?'s':''})
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">
-        ${wantIds.length ? wantIds.map(id => cardMini(id)).join('') : '<div style="font-size:10px;color:#475569;font-style:italic;">Aucune carte recherchée</div>'}
+        ${wantIds.length ? wantIds.map(id => cardMini(id, 'want')).join('') : '<div style="font-size:10px;color:#475569;font-style:italic;">Aucune carte recherchée</div>'}
       </div>
     </div>
   </div>`;
@@ -264,14 +308,53 @@ function updatePreview(type){
   const ids = parseIds(raw);
   const preview = document.getElementById(type+'-preview');
   if(!ids.length){ preview.innerHTML=''; return; }
-  preview.innerHTML = ids.map(id=>cardMini(id, type==='want')).join('');
+  const mode = type === 'offer' ? 'offer' : 'want';
+  preview.innerHTML = ids.map(id=>cardMini(id, mode)).join('');
+
+  // Message d'avertissement si IDs invalides
+  const warn = document.getElementById(type+'-warn') || (() => {
+    const el = document.createElement('div');
+    el.id = type+'-warn';
+    el.style.cssText = 'font-size:9px;color:#ef4444;margin-top:4px;';
+    preview.after(el);
+    return el;
+  })();
+
+  if(type === 'offer'){
+    const invalid = ids.filter(id => {
+      const card = getCard(id);
+      const owned = card && (myCards.has(String(card.id)) || [...myCards].some(k=>parseInt(k)===parseInt(id)));
+      return !owned;
+    });
+    warn.textContent = invalid.length ? `⚠ Cartes non possédées (ignorées à la sauvegarde) : ${invalid.map(id=>'#'+id).join(', ')}` : '';
+  } else {
+    const invalid = ids.filter(id => !getCard(id));
+    warn.textContent = invalid.length ? `⚠ Cartes inexistantes (ignorées à la sauvegarde) : ${invalid.map(id=>'#'+id).join(', ')}` : '';
+  }
 }
 
 async function saveStand(){
   const btn = document.getElementById('btn-save-stand');
   btn.disabled = true; btn.textContent = '⏳ Sauvegarde…';
-  const offerIds = parseIds(document.getElementById('input-offer').value);
-  const wantIds  = parseIds(document.getElementById('input-want').value);
+
+  const rawOffer = parseIds(document.getElementById('input-offer').value);
+  const rawWant  = parseIds(document.getElementById('input-want').value);
+
+  // Filtrer : offre = uniquement cartes possédées
+  const offerIds = rawOffer.filter(id => {
+    const card = getCard(id);
+    return card && (myCards.has(String(card.id)) || [...myCards].some(k=>parseInt(k)===parseInt(id)));
+  });
+  // Filtrer : recherche = uniquement cartes qui existent dans la collection générale
+  const wantIds = rawWant.filter(id => !!getCard(id));
+
+  if(offerIds.length === 0 && wantIds.length === 0){
+    alert('Aucune carte valide à enregistrer.
+Cartes proposées : uniquement celles que tu possèdes.
+Cartes recherchées : uniquement celles qui existent.');
+    btn.disabled = false; btn.textContent = '💾 ENREGISTRER';
+    return;
+  }
 
   const payload = {
     player_id: currentUser.id,
@@ -303,6 +386,235 @@ async function deleteStand(){
 
 function render(html){ document.getElementById('app').innerHTML = html; }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// MUSIQUE — PLAYLIST ALÉATOIRE depuis music_tracks (Supabase)
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  let _player=null, _ready=false, _pending=false, _playing=false, _retry=null;
+  let _tracks=[], _idx=-1;
+
+  async function _loadPlaylist(){
+    try{
+      const {data,error}=await db.from('music_tracks').select('id,youtube_id,title,artist').order('id');
+      if(!error&&data&&data.length){ _tracks=data; }
+    }catch(e){}
+  }
+  function _pick(){
+    if(!_tracks.length) return -1;
+    if(_tracks.length===1) return 0;
+    let i; do{ i=Math.floor(Math.random()*_tracks.length); }while(i===_idx);
+    return i;
+  }
+  function _loadVol(){ try{ return parseInt(localStorage.getItem('music_volume')||'25'); }catch(e){ return 25; } }
+  function _savePref(on,vol){
+    try{ localStorage.setItem('music_on',on?'1':'0'); if(vol!==undefined) localStorage.setItem('music_volume',String(vol)); }catch(e){}
+    try{
+      if(currentUser){ const patch={music_on:on}; if(vol!==undefined) patch.music_volume=vol; db.from('players').update(patch).eq('id',currentUser.id).then(()=>{}).catch(()=>{}); }
+    }catch(e){}
+  }
+
+  // API YT
+  if(!window.YT||!window.YT.Player){
+    const t=document.createElement('script'); t.src='https://www.youtube.com/iframe_api'; document.head.appendChild(t);
+  } else { _ready=true; }
+  const _prev=window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady=function(){
+    if(_prev) _prev();
+    _ready=true; _initPlayer();
+  };
+
+  function _initPlayer(){
+    const el=document.getElementById('mkt-yt-player');
+    if(!el||_player) return;
+    _player=new YT.Player('mkt-yt-player',{
+      videoId:'',
+      playerVars:{autoplay:0,controls:0,loop:0,modestbranding:1,rel:0,playsinline:1,mute:0},
+      events:{
+        onReady:function(e){
+          e.target.setVolume(_loadVol());
+          if(_pending){ _pending=false; _playCurrent(); } else { try{e.target.pauseVideo();}catch(ex){} }
+          _updateBtn();
+        },
+        onStateChange:function(e){
+          if(!_playing) return;
+          if(e.data===YT.PlayerState.ENDED){ _skipNext(); }
+          else if(e.data===YT.PlayerState.PAUSED){ setTimeout(()=>{ if(_playing) try{_player.playVideo();}catch(ex){} },300); }
+        },
+        onError:function(){ if(_playing) setTimeout(_skipNext,1000); }
+      }
+    });
+  }
+
+  function _playCurrent(){
+    if(!_player||_idx<0||_idx>=_tracks.length) return;
+    try{ _player.loadVideoById({videoId:_tracks[_idx].youtube_id,suggestedQuality:'small'}); _updateTrack(); }catch(e){}
+  }
+  function _doPlay(){
+    if(!_player) return;
+    try{ const s=_player.getPlayerState?_player.getPlayerState():-1; if(s===1) return; _player.playVideo(); }catch(e){}
+  }
+  function _ensurePlay(){
+    if(_retry) return;
+    _retry=setInterval(()=>{
+      if(!_playing){ clearInterval(_retry);_retry=null; return; }
+      const s=_player?(_player.getPlayerState?_player.getPlayerState():-1):-1;
+      if(s===1){ clearInterval(_retry);_retry=null; return; }
+      _doPlay();
+    },800);
+    setTimeout(()=>{ if(_retry){ clearInterval(_retry);_retry=null; } },15000);
+  }
+
+  function _skipNext(){
+    _idx=_pick();
+    if(_idx<0) return;
+    _playCurrent(); _ensurePlay(); _updateTrack();
+  }
+  window._mktSkip=function(){ _skipNext(); };
+
+  function _updateTrack(){
+    const titleEl=document.getElementById('mkt-track-title');
+    const artistEl=document.getElementById('mkt-track-artist');
+    if(_idx>=0&&_idx<_tracks.length){
+      const t=_tracks[_idx];
+      if(titleEl)  titleEl.textContent=t.title||'—';
+      if(artistEl) artistEl.textContent=t.artist||'';
+    }
+  }
+
+  function _start(){
+    if(_playing) return;
+    _playing=true; _savePref(true);
+    if(!_ready||!_player){ _pending=true; if(_ready) _initPlayer(); return; }
+    if(_idx<0) _idx=_pick();
+    if(_tracks.length) _playCurrent(); else _doPlay();
+    _ensurePlay(); _updateBtn();
+  }
+  function _stop(){
+    _playing=false; _pending=false; _savePref(false);
+    if(_retry){ clearInterval(_retry);_retry=null; }
+    if(_player) try{_player.pauseVideo();}catch(e){}
+    _updateBtn();
+  }
+
+  function _updateBtn(){
+    const icon=document.getElementById('mkt-music-icon');
+    const lbl=document.getElementById('mkt-music-label');
+    const btn=document.getElementById('mkt-music-btn');
+    if(icon)  icon.textContent=_playing?'🔊':'🔇';
+    if(lbl)   lbl.textContent=_playing?'MUSIQUE':'MUET';
+    if(btn)   btn.style.borderColor=_playing?'rgba(251,191,36,.6)':'rgba(251,191,36,.25)';
+  }
+
+  window._mktTogglePopup=function(e){
+    if(e) e.stopPropagation();
+    const existing=document.getElementById('mkt-music-popup');
+    if(existing){ existing.remove(); return; }
+    const vol=_loadVol(); const on=_playing;
+    const track=(_idx>=0&&_idx<_tracks.length)?_tracks[_idx]:null;
+    const btn=document.getElementById('mkt-music-btn');
+    const rect=btn?btn.getBoundingClientRect():{bottom:window.innerHeight-60,right:window.innerWidth-16};
+    const pop=document.createElement('div');
+    pop.id='mkt-music-popup';
+    pop.style.cssText=`position:fixed;bottom:${window.innerHeight-rect.top+6}px;right:${window.innerWidth-rect.right}px;z-index:600;background:#1a1825;border:2px solid #000;box-shadow:3px 3px 0 #000,0 0 20px rgba(0,0,0,.6);min-width:210px;opacity:0;transform:translateY(6px) scale(.97);transition:opacity .18s,transform .18s;pointer-events:auto;`;
+    pop.innerHTML=`
+      <div style="height:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div>
+      <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.6);">
+        <div style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;">🎵 Musique Ambiante</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div style="flex:1;min-width:0;">
+            <div id="mkt-track-title" style="font-size:10px;font-weight:900;color:#fbbf24;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track?track.title||'—':'—'}</div>
+            <div id="mkt-track-artist" style="font-size:8px;color:#9d8ea0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track?track.artist||'':''}</div>
+          </div>
+          <button onclick="window._mktSkip()" title="Piste suivante" style="flex-shrink:0;padding:4px 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#9d8ea0;cursor:pointer;font-size:13px;line-height:1;" onmouseover="this.style.color='#fbbf24'" onmouseout="this.style.color='#9d8ea0'">⏭</button>
+        </div>
+        <button id="mkt-toggle-btn" onclick="window._mktToggle()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:${on?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'};border:1px solid ${on?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'};color:${on?'#fbbf24':'#9d8ea0'};cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.5px;">
+          <span id="mkt-tog-label">${on?'▶ EN LECTURE':'⏸ EN PAUSE'}</span>
+          <span id="mkt-tog-icon" style="font-size:14px;">${on?'🔊':'🔇'}</span>
+        </button>
+      </div>
+      <div style="padding:12px 12px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:8px;color:#9d8ea0;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Volume</span>
+          <span id="mkt-vol-label" style="font-size:10px;font-weight:900;color:#fbbf24;min-width:32px;text-align:right;">${vol}%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;opacity:.5;">🔈</span>
+          <input id="mkt-vol-slider" type="range" min="0" max="100" value="${vol}" oninput="window._mktPreviewVol(this.value)" onchange="window._mktApplyVol(this.value)" style="flex:1;-webkit-appearance:none;height:4px;background:linear-gradient(90deg,#fbbf24 ${vol}%,rgba(255,255,255,.1) ${vol}%);outline:none;border:none;cursor:pointer;accent-color:#fbbf24;">
+          <span style="font-size:11px;opacity:.8;">🔊</span>
+        </div>
+        <div style="display:flex;gap:4px;margin-top:10px;">
+          ${[0,25,50,75,100].map(v=>`<button onclick="window._mktApplyVol(${v})" style="flex:1;padding:4px 0;background:${vol===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'};border:1px solid ${vol===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'};color:${vol===v?'#fbbf24':'#9d8ea0'};font-size:9px;font-weight:700;cursor:pointer;">${v}%</button>`).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(pop);
+    requestAnimationFrame(()=>{ pop.style.opacity='1'; pop.style.transform='translateY(0) scale(1)'; });
+    setTimeout(()=>{ document.addEventListener('click',function close(ev){ if(!pop.contains(ev.target)&&ev.target!==btn){ pop.remove(); document.removeEventListener('click',close); } }); },50);
+  };
+
+  window._mktToggle=function(){
+    if(_playing) _stop(); else _start();
+    const on=_playing;
+    const lbl=document.getElementById('mkt-tog-label');
+    const ico=document.getElementById('mkt-tog-icon');
+    const tb=document.getElementById('mkt-toggle-btn');
+    if(lbl) lbl.textContent=on?'▶ EN LECTURE':'⏸ EN PAUSE';
+    if(ico) ico.textContent=on?'🔊':'🔇';
+    if(tb){ tb.style.background=on?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)'; tb.style.borderColor=on?'rgba(251,191,36,.3)':'rgba(255,255,255,.08)'; tb.style.color=on?'#fbbf24':'#9d8ea0'; }
+  };
+  window._mktPreviewVol=function(val){
+    const v=parseInt(val);
+    const vl=document.getElementById('mkt-vol-label');
+    const sl=document.getElementById('mkt-vol-slider');
+    if(vl) vl.textContent=v+'%';
+    if(sl) sl.style.background=`linear-gradient(90deg,#fbbf24 ${v}%,rgba(255,255,255,.1) ${v}%)`;
+    if(_player&&_player.setVolume) try{_player.setVolume(v);}catch(e){}
+  };
+  window._mktApplyVol=function(val){
+    const v=parseInt(val);
+    _savePref(_playing,v);
+    if(_player&&_player.setVolume) try{_player.setVolume(v);}catch(e){}
+    const sl=document.getElementById('mkt-vol-slider');
+    const vl=document.getElementById('mkt-vol-label');
+    if(sl){ sl.value=v; sl.style.background=`linear-gradient(90deg,#fbbf24 ${v}%,rgba(255,255,255,.1) ${v}%)`; }
+    if(vl) vl.textContent=v+'%';
+    if(v>0&&!_playing) _start();
+    if(v===0&&_playing) _stop();
+    // Presets highlight
+    const pop=document.getElementById('mkt-music-popup');
+    if(pop){ pop.querySelectorAll('[onclick^="window._mktApplyVol"]').forEach(b=>{ const bv=parseInt(b.textContent); b.style.background=bv===v?'rgba(251,191,36,.2)':'rgba(255,255,255,.04)'; b.style.borderColor=bv===v?'rgba(251,191,36,.4)':'rgba(255,255,255,.07)'; b.style.color=bv===v?'#fbbf24':'#9d8ea0'; }); }
+  };
+
+  window.addEventListener('beforeunload',()=>{ try{ localStorage.setItem('music_on',_playing?'1':'0'); }catch(e){} });
+
+  // Auto-démarrer après init() — db et currentUser sont disponibles
+  window._mktMusicInit=async function(){
+    try{
+      const {data:pref}=await db.from('players').select('music_on,music_volume').eq('id',currentUser.id).single();
+      if(pref){
+        if(pref.music_on!==null&&pref.music_on!==undefined) localStorage.setItem('music_on',pref.music_on?'1':'0');
+        if(pref.music_volume!==null&&!isNaN(pref.music_volume)) localStorage.setItem('music_volume',String(pref.music_volume));
+      }
+    }catch(e){}
+    await _loadPlaylist();
+    _idx=_pick();
+    if(_ready) _initPlayer();
+    if(localStorage.getItem('music_on')==='1') _start();
+    document.addEventListener('click',()=>{ if(_playing&&_player) try{const s=_player.getPlayerState();if(s!==1)_doPlay();}catch(e){} },{once:true});
+    _updateBtn();
+  };
+})();
+
+
+// Appeler l'init musique après le chargement du jeu
+const _origInit = init;
+async function init(){
+  await _origInit();
+  if(window._mktMusicInit) await window._mktMusicInit();
+}
+
+// Override: relancer init proprement
 init().catch(e => {
   console.error(e);
   render('<div style="text-align:center;padding:40px;color:#ef4444;">Erreur de chargement.</div>');
