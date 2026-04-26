@@ -104,20 +104,36 @@ const RARITY_COLOR = {common:'#94a3b8',uncommon:'#22d3ee',rare:'#a78bfa',mythic:
 const RARITY_LABEL = {common:'Commune',uncommon:'Peu Commune',rare:'Rare',mythic:'Mythique'};
 
 async function init(){
-  // Attendre Supabase avec timeout max 10s
+  // ── 1. Client Supabase : priorité window.db (index déjà auth) ─────
   let _t = 0;
   while(!window.supabase?.createClient && _t < 100){ await sleep(100); _t++; }
   if(!window.supabase?.createClient){
     render('<div style="text-align:center;padding:40px 20px;color:#ef4444;"><div style="font-size:24px;margin-bottom:10px;">⚠️</div><div style="font-size:12px;">Impossible de charger Supabase.<br>Vérifie ta connexion internet.</div><br><button onclick="location.reload()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">↺ Réessayer</button></div>');
     return;
   }
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, detectSessionInUrl: true}});
 
+  // Utiliser le client de l'index si disponible (évite les problèmes RLS/session)
+  if(window.db && typeof window.db.from === 'function'){
+    db = window.db;
+  } else {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, detectSessionInUrl:true}});
+  }
+
+  // ── 2. Session ────────────────────────────────────────────────────
   let session = null;
   try{
     const res = await db.auth.getSession();
     session = res.data?.session;
   }catch(e){ console.error('[MARKET] getSession error', e); }
+
+  // Fallback : lire le token Supabase dans localStorage (même clé que l'index)
+  if(!session?.user){
+    try{
+      const key = 'sb-' + SUPABASE_URL.split('//')[1].split('.')[0] + '-auth-token';
+      const raw = localStorage.getItem(key);
+      if(raw){ const parsed = JSON.parse(raw); if(parsed?.user) session = parsed; }
+    }catch(e){}
+  }
 
   if(!session?.user){
     render('<div style="text-align:center;padding:40px 20px;"><div style="font-size:32px;margin-bottom:10px;">🔒</div><div style="font-size:13px;color:#94a3b8;">Connecte-toi depuis l\'index pour acc\u00e9der au march\u00e9.</div><br><button onclick="history.back()" style="padding:9px 20px;background:#a78bfa;color:#000;border:none;font-size:11px;font-weight:800;">\u2190 Retour</button></div>');
@@ -125,13 +141,17 @@ async function init(){
   }
   currentUser = session.user;
 
-  // Charger cartes du joueur
+  // ── 3. Charger cartes + possession ───────────────────────────────
   const [cardsRes, ownedRes] = await Promise.all([
     db.from('cards').select('id,name,rarity,image_url,color').limit(2000),
     db.from('player_cards').select('card_id,quantity').eq('player_id', currentUser.id).limit(2000),
   ]);
   allCards = cardsRes.data || [];
+  if(ownedRes.error) console.error('[MARKET] player_cards query error:', ownedRes.error);
+
+  // Stocker les IDs en entiers pour comparaison normalisée (évite bug 016 vs 16)
   (ownedRes.data||[]).forEach(r => myCards.add(String(parseInt(r.card_id))));
+  console.log('[MARKET] cartes chargées:', myCards.size, '| user:', currentUser.id);
 
   // Assurer que la table market_stands existe (via insert silencieux)
   await loadStands();
@@ -175,7 +195,7 @@ function getCard(id){
   return allCards.find(c => parseInt(c.id) === n);
 }
 
-// Vérifier si le joueur possède la carte (comparaison normalisée en entier)
+// Source de vérité unique pour la possession — compare en entier
 function isOwned(id){
   return myCards.has(String(parseInt(id)));
 }
@@ -353,7 +373,8 @@ function updatePreview(type){
   if(type === 'offer'){
     const invalid = ids.filter(id => {
       const card = getCard(id);
-      return !(card && isOwned(id));
+      const owned = card && isOwned(id);
+      return !owned;
     });
     warn.textContent = invalid.length ? `⚠ Cartes non possédées (ignorées à la sauvegarde) : ${invalid.map(id=>'#'+id).join(', ')}` : '';
   } else {
