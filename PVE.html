@@ -2680,7 +2680,8 @@ function checkKO(player,label){
   const surv=player.actives.filter(a=>a.su);
   if(player===G.human){
     player.fighter=null;player.actives=surv;player.sortJoue=false;G.phase='choose_fighter';
-    while(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
+    // Au KO : on pioche UNE seule carte si la main n'a pas de héros ; si toujours pas de héros → défaite
+    if(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
     if(!player.hand.some(c=>c.ct==='fighter')){endGame('bot');return true;}
     setInstr('ko');addLog('👆 Choisis ton prochain Héro !','sys');render();
     if(koBubble){const fc2=document.getElementById(`${cardId}-fc`);if(fc2){fc2.style.position='relative';fc2.appendChild(koBubble);}}
@@ -2688,7 +2689,7 @@ function checkKO(player,label){
     return true;
   } else {
     player.actives=surv;
-    if(!player.hand.some(c=>c.ct==='fighter')){while(player.pioche.length){const c=player.pioche.shift();player.hand.push(c);if(c.ct==='fighter')break;}}
+    if(!player.hand.some(c=>c.ct==='fighter')&&player.pioche.length)player.hand.push(player.pioche.shift());
     if(!player.hand.some(c=>c.ct==='fighter')){player.fighter=null;endGame('human');return true;}
     botChooseFighter();return false;
   }
@@ -2908,9 +2909,6 @@ function runAutoStep(){
   if(G.ended)return;
   if(G.phase==='choose_fighter'){
 
-    while(!G.human.hand.some(c=>c.ct==='fighter')&&G.human.pioche.length){
-      G.human.hand.push(G.human.pioche.shift());
-    }
     const fs=G.human.hand.filter(c=>c.ct==='fighter');
     if(fs.length) humanPlayCard(G.human.hand.indexOf(fs[0]));
     else if(_autoBattle) setTimeout(scheduleAutoStep,SPEED_DELAYS[_autoSpeed].auto); // pas de combattant, réessai
