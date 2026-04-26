@@ -35,7 +35,7 @@
 </head>
 <body>
 
-<div id="mkt-yt-player" style="display:none;width:0;height:0;pointer-events:none;"></div>
+<div id="mkt-yt-player" style="position:fixed;bottom:-200px;left:-200px;width:1px;height:1px;pointer-events:none;opacity:0;"></div>
 <button id="mkt-music-btn" onclick="window._mktTogglePopup(event)" title="Musique">
   <span id="mkt-music-icon" style="font-size:13px;line-height:1;">🔊</span>
   <span id="mkt-music-label" style="font-family:'Luckiest Guy',cursive;font-size:9px;letter-spacing:.12em;color:#9d8ea0;">MUSIQUE</span>
@@ -349,7 +349,9 @@ async function saveStand(){
   const wantIds = rawWant.filter(id => !!getCard(id));
 
   if(offerIds.length === 0 && wantIds.length === 0){
-    alert('Aucune carte valide à enregistrer.\nCartes proposées : uniquement celles que tu possèdes.\nCartes recherchées : uniquement celles qui existent.');
+    alert('Aucune carte valide à enregistrer.
+Cartes proposées : uniquement celles que tu possèdes.
+Cartes recherchées : uniquement celles qui existent.');
     btn.disabled = false; btn.textContent = '💾 ENREGISTRER';
     return;
   }
@@ -605,15 +607,9 @@ function render(html){ document.getElementById('app').innerHTML = html; }
 })();
 
 
-// Appeler l'init musique après le chargement du jeu
-const _origInit = init;
-async function init(){
-  await _origInit();
-  if(window._mktMusicInit) await window._mktMusicInit();
-}
-
-// Override: relancer init proprement
-init().catch(e => {
+init().then(()=>{
+  if(window._mktMusicInit) window._mktMusicInit().catch(()=>{});
+}).catch(e => {
   console.error(e);
   render('<div style="text-align:center;padding:40px;color:#ef4444;">Erreur de chargement.</div>');
 });
