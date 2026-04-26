@@ -131,7 +131,7 @@ async function init(){
     db.from('player_cards').select('card_id,quantity').eq('player_id', currentUser.id).limit(2000),
   ]);
   allCards = cardsRes.data || [];
-  (ownedRes.data||[]).forEach(r => myCards.add(String(r.card_id)));
+  (ownedRes.data||[]).forEach(r => myCards.add(String(parseInt(r.card_id))));
 
   // Assurer que la table market_stands existe (via insert silencieux)
   await loadStands();
@@ -171,7 +171,13 @@ async function loadStands(){
 }
 
 function getCard(id){
-  return allCards.find(c => String(c.id) === String(id).padStart(3,'0') || String(parseInt(c.id)) === String(parseInt(id)));
+  const n = parseInt(id);
+  return allCards.find(c => parseInt(c.id) === n);
+}
+
+// Vérifier si le joueur possède la carte (comparaison normalisée en entier)
+function isOwned(id){
+  return myCards.has(String(parseInt(id)));
 }
 
 // mode : 'offer' | 'want' | 'display'
@@ -180,7 +186,7 @@ function getCard(id){
 // display → affiche PNG si possédée par le viewer, dos sinon
 function cardMini(id, mode = 'display'){
   const card  = getCard(id);
-  const owned = card && (myCards.has(String(card.id)) || [...myCards].some(k=>parseInt(k)===parseInt(id)));
+  const owned = card && isOwned(id);
   const rarCol = card ? (RARITY_COLOR[card.rarity]||'#94a3b8') : '#64748b';
 
   if(mode === 'offer'){
@@ -347,8 +353,7 @@ function updatePreview(type){
   if(type === 'offer'){
     const invalid = ids.filter(id => {
       const card = getCard(id);
-      const owned = card && (myCards.has(String(card.id)) || [...myCards].some(k=>parseInt(k)===parseInt(id)));
-      return !owned;
+      return !(card && isOwned(id));
     });
     warn.textContent = invalid.length ? `⚠ Cartes non possédées (ignorées à la sauvegarde) : ${invalid.map(id=>'#'+id).join(', ')}` : '';
   } else {
@@ -367,7 +372,7 @@ async function saveStand(){
   // Filtrer : offre = uniquement cartes possédées
   const offerIds = rawOffer.filter(id => {
     const card = getCard(id);
-    return card && (myCards.has(String(card.id)) || [...myCards].some(k=>parseInt(k)===parseInt(id)));
+    return card && isOwned(id);
   });
   // Filtrer : recherche = uniquement cartes qui existent dans la collection générale
   const wantIds = rawWant.filter(id => !!getCard(id));
