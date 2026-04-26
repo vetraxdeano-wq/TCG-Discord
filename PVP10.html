@@ -3426,6 +3426,8 @@ endGame=function(w){
   const isWin=w==='human';
   const coins=isWin?50:25;
   const xp   =isWin?8:3;
+  // Signal de victoire pour la quête "1ère victoire du jour" de l'index
+  if(isWin){ try{ localStorage.setItem('tcg_game_win', Date.now()); }catch(ex){} }
   saveGameResult(isWin,coins,xp);
 };
 
