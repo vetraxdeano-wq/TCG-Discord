@@ -1731,10 +1731,16 @@ let _humanDeckFighters=[];
 let _humanDeckSpells=[];
 function buildHumanPioche(){
   if(_humanDeckFighters.length===0 && _humanDeckSpells.length===0) return buildPioche(false);
-  let f=[..._humanDeckFighters];
-  while(f.length<10 && f.length>0) f.push({...f[Math.floor(Math.random()*f.length)]});
+  // ⚠️ IMPORTANT : cloner chaque carte ET reset hpCur sur les fighters,
+  // sinon les dégâts persistent entre parties via les références partagées
+  // de _humanDeckFighters (ce tableau n'est rempli qu'une fois au chargement).
+  let f=_humanDeckFighters.map(x=>({...x,hpCur:x.hpBase}));
+  while(f.length<10 && f.length>0){
+    const src=f[Math.floor(Math.random()*f.length)];
+    f.push({...src, hpCur:src.hpBase});
+  }
   f=shuf(f).slice(0,10);
-  let s=[..._humanDeckSpells];
+  let s=_humanDeckSpells.map(x=>({...x}));
   while(s.length<8 && s.length>0) s.push({...s[Math.floor(Math.random()*s.length)]});
   s=shuf(s).slice(0,8);
   return shuf([...f,...s]);
@@ -2625,6 +2631,9 @@ function renderActions(){
 function humanPlayCard(idx){
   const c=G.human.hand[idx];if(!c)return;
   if(c.ct==='fighter'&&G.phase==='choose_fighter'){
+    // Toujours réinitialiser hpCur quand un fighter entre sur le terrain
+    // (filet de sécurité contre les fuites de référence depuis _humanDeckFighters)
+    c.hpCur=c.hpBase||c.hp||10;
     G.human.hand.splice(idx,1);G.human.fighter=c;
     addLog(`▶ ${c.nom}`,'sys','JOUEUR');
     if(!G.bot.fighter)botChooseFighter();
