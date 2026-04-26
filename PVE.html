@@ -3210,6 +3210,9 @@ async function saveGameResult(isWin,coinsGained,xpGained){
       p_is_win: !!isWin,
     });
 
+    // Signal de victoire pour la quête "1ère victoire du jour" de l'index
+    if(isWin){ try{ localStorage.setItem('tcg_game_win', Date.now()); }catch(ex){} }
+
     // Coins gagnés (stats)
     if(coinsGained > 0){
       await _db.rpc('increment_stat', { p_user_id: myId, p_field: 'coins_earned', p_amount: coinsGained });
