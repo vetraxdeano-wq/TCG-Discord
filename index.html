@@ -1735,50 +1735,63 @@ function renderTradeModal(th){
     // Le receveur voit la vraie carte demandée seulement s'il la possède
     const receiverOwnsToCard = toCard && toCard.owned;
 
-    // Bloc info carte : image propre + détails sur le côté
-    const cardInfoBlock = (card, cardId, label, isFrom) => {
+    // Bloc info carte : image + infos à côté (HTML concaténé, pas de template literal imbriqué)
+    function cardInfoBlock(card, cardId, label, isFrom){
       const col = card ? RARITY_COLOR[card.rarity] : th.textMuted;
-      const ownedTxt = isFrom ? '' : (card ? (card.owned ? '<span style="color:'+th.green+';font-weight:800;">✓ Possédée</span>' : '<span style="color:'+th.red+';font-weight:800;">✗ Non possédée</span>') : '<span style="color:'+th.red+';">Inconnue</span>');
-      return \`<div style="display:flex;gap:8px;align-items:flex-start;">
-        <div style="position:relative;width:60px;height:84px;flex-shrink:0;overflow:hidden;border:1px solid \${card?col+'60':th.border};background:\${card?'linear-gradient(135deg,'+col+'25,'+col+'08)':th.surface};\${card?.image_url?'cursor:zoom-in;':''}">
-          \${card?.image_url
-            ? \`<img src="\${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />\${card.image_url?'<div onclick="openCard3DViewer('+JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:RARITY_COLOR[card.rarity]})+\`)" style="position:absolute;inset:0;z-index:2;cursor:zoom-in;"></div>\`:''}  \`
-            : \`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:3px;"><div style="font-size:20px;">🃏</div><div style="font-size:8px;font-weight:800;color:\${col};">◆</div></div>\`}
-        </div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding-top:2px;">
-          <div style="font-size:8px;color:\${th.textMuted};text-transform:uppercase;letter-spacing:.5px;">\${label}</div>
-          <div style="font-size:11px;font-weight:800;color:\${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">\${card?card.name:('Carte #'+cardId)}</div>
-          \${card?'<div style="font-size:9px;color:'+col+';font-weight:700;">◆ '+RARITY_LABEL[card.rarity]+'</div>':''}
-          <div style="font-size:9px;color:\${th.textFaint};">#\${cardId}</div>
-          \${isFrom?'':\`<div style="font-size:9px;margin-top:1px;">\${ownedTxt}</div>\`}
-        </div>
-      </div>\`;
-    };
+      const ownedHtml = isFrom ? '' :
+        (card
+          ? (card.owned
+              ? '<div style="font-size:9px;margin-top:1px;color:' + th.green + ';font-weight:800;">✓ Possédée</div>'
+              : '<div style="font-size:9px;margin-top:1px;color:' + th.red   + ';font-weight:800;">✗ Non possédée</div>')
+          : '<div style="font-size:9px;margin-top:1px;color:' + th.red + ';">Inconnue</div>');
+      const imgHtml = card && card.image_url
+        ? '<img src="' + card.image_url + '" style="width:100%;height:100%;object-fit:cover;display:block;" />'
+          + '<div onclick="openCard3DViewer(' + JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:RARITY_COLOR[card.rarity]}) + ')" style="position:absolute;inset:0;z-index:2;cursor:zoom-in;"></div>'
+        : '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:3px;">'
+          + '<div style="font-size:20px;">🃏</div>'
+          + '<div style="font-size:8px;font-weight:800;color:' + col + ';">◆</div>'
+          + '</div>';
+      return '<div style="display:flex;gap:8px;align-items:flex-start;">'
+        + '<div style="position:relative;width:60px;height:84px;flex-shrink:0;overflow:hidden;'
+        + 'border:1px solid ' + (card ? col + '60' : th.border) + ';'
+        + 'background:' + (card ? 'linear-gradient(135deg,' + col + '25,' + col + '08)' : th.surface) + ';'
+        + (card && card.image_url ? 'cursor:zoom-in;' : '') + '">'
+        + imgHtml
+        + '</div>'
+        + '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding-top:2px;">'
+        + '<div style="font-size:8px;color:' + th.textMuted + ';text-transform:uppercase;letter-spacing:.5px;">' + label + '</div>'
+        + '<div style="font-size:11px;font-weight:800;color:' + th.text + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (card ? card.name : 'Carte #' + cardId) + '</div>'
+        + (card ? '<div style="font-size:9px;color:' + col + ';font-weight:700;">◆ ' + RARITY_LABEL[card.rarity] + '</div>' : '')
+        + '<div style="font-size:9px;color:' + th.textFaint + ';">#' + cardId + '</div>'
+        + ownedHtml
+        + '</div>'
+        + '</div>';
+    }
 
-    return \`
-    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;">
-      <div style="width:100%;max-width:340px;background:\${th.bgSecondary};padding:16px 18px 18px;box-shadow:0 24px 80px rgba(0,0,0,.7);border:2px solid #000;position:relative;">
-        <!-- Croix fermer (sans refuser) -->
-        <button onclick="window._dismissTradePopup && window._dismissTradePopup('\${incoming.id}')"
-          style="position:absolute;top:10px;right:10px;width:24px;height:24px;background:\${th.bgTertiary};border:1px solid \${th.border};color:\${th.textMuted};cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:2;"
-          title="Fermer sans répondre">✕</button>
-        <div style="font-family:'Luckiest Guy',cursive;font-size:14px;font-weight:400;color:\${th.text};margin-bottom:2px;letter-spacing:.5px;padding-right:28px;">Offre d'échange</div>
-        <div style="font-size:11px;color:\${th.textMuted};margin-bottom:14px;">de <b>\${incoming.from_name||'Ami'}</b></div>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-          \${cardInfoBlock(fromCard, incoming.from_card_id, 'Il propose', true)}
-          <div style="text-align:center;font-size:16px;color:\${th.textMuted};">⇄</div>
-          \${cardInfoBlock(toCard, incoming.to_card_id, 'Il veut ta carte', false)}
-        </div>
-        \${!receiverOwnsToCard
-          ? \`<div style="font-size:10px;color:\${th.red};background:\${th.red}15;border:1px solid \${th.red}30;padding:7px 10px;margin-bottom:10px;text-align:center;">Tu ne possèdes pas cette carte — tu peux seulement décliner.</div>\`
-          : ''
-        }
-        <div style="display:flex;gap:8px;">
-          <button id="trade-accept" onclick="window.respondTrade && window.respondTrade('\${incoming.id}', true)" \${receiverOwnsToCard?'':'disabled'} style="flex:1;padding:10px;background:\${receiverOwnsToCard?th.green:th.surface};color:\${receiverOwnsToCard?'#000':th.textMuted};border:none;font-size:12px;font-weight:700;cursor:\${receiverOwnsToCard?'pointer':'default'};opacity:\${receiverOwnsToCard?1:.5};">\${receiverOwnsToCard ? '✓ Accepter' : '🚫 Carte manquante'}</button>
-          <button id="trade-decline" onclick="window.respondTrade && window.respondTrade('\${incoming.id}', false)" style="flex:1;padding:10px;background:\${th.surface};color:\${th.red};border:1px solid \${th.red}40;font-size:12px;font-weight:700;cursor:pointer;">Refuser</button>
-        </div>
-      </div>
-    </div>\`;
+    const tradeHtml = '<div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;">'
+      + '<div style="width:100%;max-width:340px;background:' + th.bgSecondary + ';padding:16px 18px 18px;box-shadow:0 24px 80px rgba(0,0,0,.7);border:2px solid #000;position:relative;">'
+      + '<button onclick="window._dismissTradePopup && window._dismissTradePopup(\'' + incoming.id + '\')"'
+      + ' style="position:absolute;top:10px;right:10px;width:24px;height:24px;background:' + th.bgTertiary + ';border:1px solid ' + th.border + ';color:' + th.textMuted + ';cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:2;"'
+      + ' title="Fermer sans répondre">✕</button>'
+      + '<div style="font-family:\'Luckiest Guy\',cursive;font-size:14px;font-weight:400;color:' + th.text + ';margin-bottom:2px;letter-spacing:.5px;padding-right:28px;">Offre d\'échange</div>'
+      + '<div style="font-size:11px;color:' + th.textMuted + ';margin-bottom:14px;">de <b>' + (incoming.from_name||'Ami') + '</b></div>'
+      + '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">'
+      + cardInfoBlock(fromCard, incoming.from_card_id, 'Il propose', true)
+      + '<div style="text-align:center;font-size:16px;color:' + th.textMuted + ';">⇄</div>'
+      + cardInfoBlock(toCard, incoming.to_card_id, 'Il veut ta carte', false)
+      + '</div>'
+      + (!receiverOwnsToCard ? '<div style="font-size:10px;color:' + th.red + ';background:' + th.red + '15;border:1px solid ' + th.red + '30;padding:7px 10px;margin-bottom:10px;text-align:center;">Tu ne possèdes pas cette carte — tu peux seulement décliner.</div>' : '')
+      + '<div style="display:flex;gap:8px;">'
+      + '<button id="trade-accept" onclick="window.respondTrade && window.respondTrade(\'' + incoming.id + '\', true)"'
+      + (receiverOwnsToCard ? '' : ' disabled')
+      + ' style="flex:1;padding:10px;background:' + (receiverOwnsToCard?th.green:th.surface) + ';color:' + (receiverOwnsToCard?'#000':th.textMuted) + ';border:none;font-size:12px;font-weight:700;cursor:' + (receiverOwnsToCard?'pointer':'default') + ';opacity:' + (receiverOwnsToCard?1:.5) + ';">'
+      + (receiverOwnsToCard ? '✓ Accepter' : '🚫 Carte manquante') + '</button>'
+      + '<button id="trade-decline" onclick="window.respondTrade && window.respondTrade(\'' + incoming.id + '\', false)"'
+      + ' style="flex:1;padding:10px;background:' + th.surface + ';color:' + th.red + ';border:1px solid ' + th.red + '40;font-size:12px;font-weight:700;cursor:pointer;">Refuser</button>'
+      + '</div>'
+      + '</div>'
+      + '</div>';
+    return tradeHtml;
   }
 
   // Vue step 2 : saisir le numéro de la carte voulue en échange
