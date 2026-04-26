@@ -1044,6 +1044,7 @@ function render(){
     stopSplashAnim();
     app.innerHTML = renderGame(th);
     bindGame();
+    if(window._lbPreviewRestart) window._lbPreviewRestart();
   }
 }
 
@@ -2017,6 +2018,72 @@ function renderTabPlay(th){
         </div>
       </div>
     </div>`}
+
+    <!-- ── CLASSEMENT PREVIEW ── -->
+    ${(()=>{
+      const lbData = state.leaderboardData || [];
+      const sorts = [
+        {id:'cards',  label:'🃏 Cartes',    key: r => r.cards||0,  fmt: v => v+' cartes'},
+        {id:'wins',   label:'⚔️ Victoires', key: r => r.wins||0,   fmt: v => v+' victoires'},
+        {id:'level',  label:'⭐ Niveau',    key: r => r.level||1,  fmt: v => 'Lv '+v},
+        {id:'coins',  label:'💰 Coins',     key: r => r.coins||0,  fmt: v => v > 999 ? (v/1000).toFixed(1)+'k' : v+'c'},
+        {id:'wr',     label:'📊 Win Rate',  key: r => (r.wins+r.losses)>0?Math.round(r.wins/(r.wins+r.losses)*100):0, fmt: v => v+'%'},
+      ];
+      // Pour chaque sort, calculer le top 3
+      const tops = sorts.map(s => ({
+        ...s,
+        top3: [...lbData].sort((a,b)=>s.key(b)-s.key(a)).slice(0,3)
+      }));
+      const medals = ['🥇','🥈','🥉'];
+      const myId = state.currentUser?.id;
+
+      // Render une slide par critère (affichées/cachées via JS)
+      const slides = tops.map((s, si) => `
+        <div class="lb-preview-slide" data-slide="${si}" style="display:${si===0?'flex':'none'};flex:1;gap:5px;align-items:center;min-width:0;overflow:hidden;">
+          ${s.top3.length === 0
+            ? `<div style="font-size:9px;color:${th.textFaint};padding:0 4px;">—</div>`
+            : s.top3.map((row,ri) => {
+                const isMe = row.id === myId;
+                const val = s.fmt(s.key(row));
+                return `<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 3px;background:${isMe?th.accent+'14':'rgba(255,255,255,.03)'};border:1px solid ${isMe?th.accent+'40':'rgba(255,255,255,.06)'};overflow:hidden;">
+                  <div style="font-size:11px;line-height:1;">${medals[ri]}</div>
+                  <div style="width:20px;height:20px;border-radius:0;overflow:hidden;flex-shrink:0;border:1px solid ${isMe?th.accent:'#000'};display:flex;align-items:center;justify-content:center;background:${th.bgTertiary};">
+                    ${row.avatar_url?`<img src="${row.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">`:'<span style="font-size:8px;">👤</span>'}
+                  </div>
+                  <div style="font-size:7px;font-weight:${isMe?'900':'700'};color:${isMe?th.accent:th.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;">${(row.discord_username||'?').slice(0,8)}</div>
+                  <div style="font-size:7px;font-weight:900;color:${th.textMuted};white-space:nowrap;">${val}</div>
+                </div>`;
+              }).join('')
+          }
+        </div>`).join('');
+
+      const marg = isMobile ? '5px 10px 0' : '6px 14px 0';
+      return `
+      <div style="margin:${marg};flex-shrink:0;display:flex;gap:6px;align-items:stretch;min-height:0;">
+        <!-- Bouton Classement -->
+        <button id="btn-leaderboard-main" style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 10px;background:${th.accent}14;border:2px solid #000;box-shadow:2px 2px 0 #000;cursor:pointer;transition:all .15s;min-width:64px;"
+          onclick="setState({showLeaderboard:true,leaderboardPeriod:'all',leaderboardLoading:true});loadLeaderboard('all');">
+          <span style="font-size:16px;line-height:1;">🏆</span>
+          <span style="font-size:7px;font-weight:900;color:${th.accent};letter-spacing:.8px;text-transform:uppercase;white-space:nowrap;">Classement</span>
+          ${state.playerRank?`<span style="font-size:8px;font-weight:900;color:${th.text};">#${state.playerRank}</span>`:''}
+        </button>
+        <!-- Top 3 rotatif -->
+        <div style="flex:1;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);padding:5px 7px 4px;display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden;position:relative;">
+          <!-- Label du critère courant -->
+          <div id="lb-preview-label" style="font-size:7px;font-weight:900;color:${th.textMuted};letter-spacing:1px;text-transform:uppercase;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+            <span id="lb-preview-label-text">${sorts[0].label}</span>
+            <!-- Dots de pagination -->
+            <div style="display:flex;gap:3px;align-items:center;">
+              ${sorts.map((_,si)=>`<div class="lb-dot" data-dot="${si}" style="width:${si===0?'12':'5'}px;height:4px;background:${si===0?th.accent:'rgba(255,255,255,.15)'};transition:all .35s;"></div>`).join('')}
+            </div>
+          </div>
+          <!-- Slides -->
+          <div id="lb-preview-slides" style="flex:1;display:flex;min-width:0;overflow:hidden;">
+            ${slides}
+          </div>
+        </div>
+      </div>`;
+    })()}
 
     <!-- ── XP BAR ── -->
     ${(()=>{
@@ -4635,6 +4702,28 @@ function bindGame(){
   if(lbClose) lbClose.addEventListener('click',()=>setState({showLeaderboard:false}));
   const lbBg = document.getElementById('lb-bg');
   if(lbBg) lbBg.addEventListener('click',(e)=>{if(e.target===lbBg)setState({showLeaderboard:false});});
+
+  // ── Rotation top 3 preview ──────────────────────────────────────
+  (function setupLbPreviewRotation(){
+    const SORTS  = ['cards','wins','level','coins','wr'];
+    const LABELS = {cards:'🃏 Cartes',wins:'⚔️ Victoires',level:'⭐ Niveau',coins:'💰 Coins',wr:'📊 Win Rate'};
+    let idx = 0;
+    function rotate(){
+      const slides = document.querySelectorAll('.lb-preview-slide');
+      const dots   = document.querySelectorAll('.lb-dot');
+      const label  = document.getElementById('lb-preview-label-text');
+      if(!slides.length) return;
+      slides[idx].style.display='none';
+      dots[idx].style.width='5px'; dots[idx].style.background='rgba(255,255,255,.15)';
+      idx=(idx+1)%SORTS.length;
+      slides[idx].style.display='flex';
+      dots[idx].style.width='12px'; dots[idx].style.background='#38bdf8';
+      if(label) label.textContent=LABELS[SORTS[idx]];
+    }
+    let timer=setInterval(rotate,4500);
+    // Redémarre proprement après chaque re-render
+    window._lbPreviewRestart=function(){ clearInterval(timer); idx=0; timer=setInterval(rotate,4500); };
+  })();
   document.querySelectorAll('.lb-tab').forEach(btn=>{
     btn.addEventListener('click',()=>{
       const period = btn.dataset.period;
