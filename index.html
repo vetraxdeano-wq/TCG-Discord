@@ -917,6 +917,14 @@ let state = {
   piocheConsumed: false, // true dès qu'une carte est retournée — bloque la réouverture via croix
   // Deck Builder
   showDeckBuilder: false,
+  showMarket: false,
+  marketStands: [],
+  marketLoading: false,
+  marketView: 'list',
+  marketOfferIds: [],
+  marketWantIds: [],
+  marketOfferSearch: '',
+  marketWantSearch: '',
   decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
   activeDeckId: null,  // deck en cours d'édition
   deckBuilderView: 'list', // 'list' | 'edit'
@@ -1302,6 +1310,7 @@ function renderGame(th){
     ${state.showProfile?renderProfileModal(th):''}
     ${state.showAddFriend?renderAddFriendModal(th):''}
     ${state.showDeckBuilder?renderDeckBuilder(th):''}
+    ${state.showMarket?renderMarket(th):''}
     ${state.showTrade?renderTradeModal(th):''}
     ${state.showLeaderboard?renderLeaderboardModal(th):''}
     ${state.showTutorial?renderTutorialModal(th):''}
@@ -4643,8 +4652,32 @@ function bindGame(){
 
   const btnOpenMarket = document.getElementById('btn-open-market');
   if(btnOpenMarket) btnOpenMarket.addEventListener('click',()=>{
-    window.location.href = 'MARKET.html';
+    setState({showMarket:true, marketLoading:true, marketStands:[], marketView:'list'});
+    loadMarketStands();
   });
+
+  const mktClose = document.getElementById('mkt-close');
+  if(mktClose) mktClose.addEventListener('click',()=>setState({showMarket:false}));
+  const mktMyStand = document.getElementById('mkt-my-stand');
+  if(mktMyStand) mktMyStand.addEventListener('click',()=>{
+    const myStand=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
+    setState({marketView:'edit',marketOfferIds:myStand?[...(myStand.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myStand?[...(myStand.want_ids||[])].map(id=>String(parseInt(id))):[],marketOfferSearch:'',marketWantSearch:''});
+  });
+  const mktEditBtn = document.getElementById('mkt-edit-btn');
+  if(mktEditBtn) mktEditBtn.addEventListener('click',()=>{
+    const myStand=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
+    setState({marketView:'edit',marketOfferIds:myStand?[...(myStand.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myStand?[...(myStand.want_ids||[])].map(id=>String(parseInt(id))):[],marketOfferSearch:'',marketWantSearch:''});
+  });
+  const mktEditClose = document.getElementById('mkt-edit-close');
+  if(mktEditClose) mktEditClose.addEventListener('click',()=>setState({marketView:'list'}));
+  const mktSave = document.getElementById('mkt-save');
+  if(mktSave) mktSave.addEventListener('click', saveMarketStand);
+  const mktDelete = document.getElementById('mkt-delete');
+  if(mktDelete) mktDelete.addEventListener('click', deleteMarketStand);
+  const mktOfferSearch = document.getElementById('mkt-offer-search');
+  if(mktOfferSearch) mktOfferSearch.addEventListener('input', e=>setState({marketOfferSearch:e.target.value}));
+  const mktWantSearch = document.getElementById('mkt-want-search');
+  if(mktWantSearch) mktWantSearch.addEventListener('input', e=>setState({marketWantSearch:e.target.value}));
 
   // Fermer Deck Builder
   const dbClose = document.getElementById('db-close');
@@ -9058,6 +9091,179 @@ async function subscribeTradeNotifications() {
 }
 
 window.subscribeTradeNotifications = subscribeTradeNotifications;
+
+// ─── MARCHÉ DES ÉCHANGES ──────────────────────────────────────────
+const _CARD_BACK_MARKET = 'https://i.goopics.net/iic46c.png';
+
+function _mGetCard(id){ return ALL_CARDS.find(c=>String(parseInt(c.id))===String(parseInt(id))); }
+function _mOwned(id){ return (state.collection||[]).some(c=>String(parseInt(c.id))===String(parseInt(id))); }
+
+async function loadMarketStands(){
+  const db=window.db; if(!db){setState({marketLoading:false});return;}
+  try{
+    const{data}=await db.from('market_stands').select('id,player_id,offer_ids,want_ids,updated_at,players(discord_username,avatar_url)').order('updated_at',{ascending:false}).limit(100);
+    setState({marketStands:data||[],marketLoading:false});
+  }catch(e){setState({marketLoading:false});}
+}
+
+async function saveMarketStand(){
+  const db=window.db; const myId=state.currentUser?.id; if(!db||!myId)return;
+  const myStand=(state.marketStands||[]).find(s=>s.player_id===myId);
+  const offerIds=(state.marketOfferIds||[]).filter(id=>_mOwned(id));
+  const wantIds=(state.marketWantIds||[]).filter(id=>_mGetCard(id));
+  const payload={player_id:myId,offer_ids:offerIds,want_ids:wantIds,updated_at:new Date().toISOString()};
+  if(myStand){await db.from('market_stands').update(payload).eq('id',myStand.id);}
+  else{await db.from('market_stands').insert(payload);}
+  setState({marketView:'list',marketLoading:true});
+  loadMarketStands();
+}
+
+async function deleteMarketStand(){
+  const db=window.db; const myId=state.currentUser?.id;
+  if(!db||!myId||!confirm('Supprimer ton stand ?'))return;
+  const myStand=(state.marketStands||[]).find(s=>s.player_id===myId);
+  if(myStand)await db.from('market_stands').delete().eq('id',myStand.id);
+  setState({marketView:'list',marketLoading:true});
+  loadMarketStands();
+}
+
+window._mToggle=function(id,type){
+  const key=type==='offer'?'marketOfferIds':'marketWantIds';
+  const arr=[...(state[key]||[])];
+  const idx=arr.indexOf(id);
+  if(idx>=0)arr.splice(idx,1);else arr.push(id);
+  setState({[key]:arr});
+};
+
+function _mCardThumb(id,isOffer){
+  const card=_mGetCard(id); const owned=_mOwned(id);
+  const imgSrc=(isOffer||owned)&&card?.image_url?card.image_url:_CARD_BACK_MARKET;
+  const rarCol=card?(RARITY_COLOR[card.rarity]||'#94a3b8'):'#64748b';
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:50px;">
+    <div style="width:50px;height:75px;overflow:hidden;border:2px solid ${rarCol}40;"><img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" /></div>
+    <div style="font-size:7px;font-weight:700;color:${rarCol};text-align:center;">#${parseInt(id)}</div>
+    <div style="font-size:6px;font-weight:900;padding:1px 4px;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?'✓ Poss.':'✗ Manq.'}</div>
+  </div>`;
+}
+
+function _mEditorThumb(card,selected,isOffer,th){
+  const id=String(parseInt(card.id));
+  const rarCol=RARITY_COLOR[card.rarity]||'#94a3b8';
+  const owned=_mOwned(id);
+  const imgSrc=(isOffer||owned)&&card.image_url?card.image_url:_CARD_BACK_MARKET;
+  return `<div onclick="window._mToggle('${id}','${isOffer?'offer':'want'}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:2px;position:relative;border:${selected?'2px solid '+rarCol:'2px solid transparent'};background:${selected?rarCol+'18':'transparent'};transition:all .1s;">
+    <div style="width:44px;height:66px;overflow:hidden;border:1px solid ${rarCol}40;"><img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" /></div>
+    <div style="font-size:6px;color:${rarCol};font-weight:700;">#${parseInt(id)}</div>
+    ${selected?`<div style="position:absolute;top:1px;left:1px;background:#22c55e;color:#000;font-size:6px;font-weight:900;padding:0 2px;line-height:13px;">✓</div>`:''}
+  </div>`;
+}
+
+function renderMarket(th){
+  const myId=state.currentUser?.id;
+  const stands=state.marketStands||[];
+  const myStand=stands.find(s=>s.player_id===myId);
+  if(state.marketView==='edit')return renderMarketEdit(th,myStand);
+
+  const me=myStand; const others=stands.filter(s=>s.player_id!==myId);
+  const standCard=(stand,isMe)=>{
+    const player=stand.players||{};
+    const offerIds=(stand.offer_ids||[]).slice(0,12);
+    const wantIds=(stand.want_ids||[]).slice(0,12);
+    const updated=new Date(stand.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+    return `<div style="background:${isMe?'#1a1710':th.bgSecondary};border:${isMe?'3px solid #fbbf24':'2px solid #000'};overflow:hidden;margin-bottom:10px;">
+      ${isMe?'<div style="height:3px;background:linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24);"></div>':'<div style="height:2px;background:'+th.bgTertiary+';"></div>'}
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px 8px;">
+        <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:${th.bgTertiary};border:${isMe?'2px solid #fbbf24':'2px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+          ${player.avatar_url?`<img src="${player.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span>👤</span>'" />`:'<span>👤</span>'}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:900;color:${isMe?'#fbbf24':th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${player.discord_username||'Joueur'}${isMe?' (Toi)':''}</div>
+          <div style="font-size:9px;color:${th.textMuted};">Mis à jour le ${updated}</div>
+        </div>
+        ${isMe?`<button id="mkt-edit-btn" style="padding:5px 12px;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.4);font-size:9px;font-weight:800;cursor:pointer;">✏ MODIFIER</button>`:''}
+      </div>
+      <div style="padding:0 14px 10px;">
+        <div style="font-size:9px;font-weight:900;color:#22c55e;letter-spacing:.5px;margin-bottom:6px;">🟢 PROPOSE (${offerIds.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${offerIds.length?offerIds.map(id=>_mCardThumb(id,isMe)).join(''):`<span style="font-size:10px;color:${th.textFaint};font-style:italic;">Aucune carte</span>`}</div>
+      </div>
+      <div style="height:1px;background:${th.border};margin:0 14px;"></div>
+      <div style="padding:10px 14px 14px;">
+        <div style="font-size:9px;font-weight:900;color:#ef4444;letter-spacing:.5px;margin-bottom:6px;">🔴 RECHERCHE (${wantIds.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${wantIds.length?wantIds.map(id=>_mCardThumb(id,false)).join(''):`<span style="font-size:10px;color:${th.textFaint};font-style:italic;">Aucune carte</span>`}</div>
+      </div>
+    </div>`;
+  };
+
+  return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;padding-top:max(env(safe-area-inset-top,12px),12px);background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;">
+      <button id="mkt-close" style="width:44px;height:44px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
+      <div style="flex:1;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">🛒 Marché des Échanges</div>
+        <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">${stands.length} stand${stands.length!==1?'s':''} actif${stands.length!==1?'s':''}</div>
+      </div>
+      <button id="mkt-my-stand" style="padding:8px 14px;background:rgba(251,191,36,.15);color:#fbbf24;border:2px solid rgba(251,191,36,.4);font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;">${myStand?'✏ MON STAND':'+ CRÉER'}</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:14px;">
+      ${state.marketLoading?`<div style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;"><div style="width:20px;height:20px;border:2px solid ${th.accent};border-top-color:transparent;border-radius:50%;animation:spinRing1 .7s linear infinite;"></div><span style="font-size:11px;color:${th.textMuted};">Chargement…</span></div>`
+      :stands.length===0?`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;gap:12px;"><div style="font-size:48px;opacity:.12;">🛒</div><div style="font-size:13px;font-weight:700;color:${th.text};">Aucun stand pour l'instant</div></div>`
+      :`${me?standCard(me,true):''}${others.map(s=>standCard(s,false)).join('')}`}
+    </div>
+  </div>`;
+}
+
+function renderMarketEdit(th,myStand){
+  const offerIds=state.marketOfferIds||[];
+  const wantIds=state.marketWantIds||[];
+  const offerQ=state.marketOfferSearch||'';
+  const wantQ=state.marketWantSearch||'';
+
+  const myOwnedCards=ALL_CARDS.filter(c=>{
+    if(!_mOwned(c.id))return false;
+    if(!offerQ)return true;
+    const q=offerQ.toLowerCase();
+    return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
+  }).slice(0,80);
+
+  const wantCards=wantQ?ALL_CARDS.filter(c=>{
+    const q=wantQ.toLowerCase();
+    return String(parseInt(c.id)).includes(q)||(_mOwned(c.id)&&c.name.toLowerCase().includes(q));
+  }).slice(0,40):[];
+
+  const chip=(id,type)=>{
+    const c=_mGetCard(id); const col=c?RARITY_COLOR[c.rarity]||'#94a3b8':'#64748b';
+    const img=type==='offer'&&c?.image_url?c.image_url:(_mOwned(id)&&c?.image_url?c.image_url:_CARD_BACK_MARKET);
+    return `<div onclick="window._mToggle('${id}','${type}')" style="display:flex;align-items:center;gap:4px;padding:2px 6px 2px 3px;cursor:pointer;border:1px solid ${type==='offer'?'rgba(34,197,94,.4)':'rgba(239,68,68,.4)'};background:${type==='offer'?'rgba(34,197,94,.08)':'rgba(239,68,68,.06)'};">
+      <img src="${img}" style="width:18px;height:27px;object-fit:cover;" onerror="this.src='${_CARD_BACK_MARKET}'" />
+      <span style="font-size:8px;color:${type==='offer'?'#22c55e':'#ef4444'};font-weight:700;">#${parseInt(id)}</span>
+      <span style="font-size:8px;color:#ef4444;">✕</span>
+    </div>`;
+  };
+
+  return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow-y:auto;">
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;padding-top:max(env(safe-area-inset-top,12px),12px);background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;position:sticky;top:0;z-index:10;">
+      <button id="mkt-edit-close" style="width:44px;height:44px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
+      <div style="flex:1;"><div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">MON STAND</div><div style="font-size:9px;color:${th.textMuted};">${offerIds.length} offerte${offerIds.length!==1?'s':''} · ${wantIds.length} recherchée${wantIds.length!==1?'s':''}</div></div>
+      ${myStand?`<button id="mkt-delete" style="padding:7px 12px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.35);font-size:9px;font-weight:800;cursor:pointer;">🗑</button>`:''}
+      <button id="mkt-save" style="padding:8px 16px;background:#fbbf24;color:#000;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">💾 SAVE</button>
+    </div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:14px;">
+      <div style="background:${th.bgSecondary};border:2px solid #000;padding:12px;">
+        <div style="font-size:10px;font-weight:900;color:#22c55e;letter-spacing:.7px;margin-bottom:6px;">🟢 CARTES QUE JE PROPOSE</div>
+        <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Seulement tes cartes possédées</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin-bottom:8px;padding:4px;background:${th.bg};border:1px dashed ${th.border};">${offerIds.length?offerIds.map(id=>chip(id,'offer')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Aucune sélectionnée</span>`}</div>
+        <input id="mkt-offer-search" value="${offerQ}" placeholder="🔍 Filtrer mes cartes…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 10px;font-size:10px;outline:none;margin-bottom:6px;" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${myOwnedCards.length?myOwnedCards.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${offerQ?'Aucune carte trouvée':'Tu ne possèdes aucune carte'}</div>`}</div>
+      </div>
+      <div style="background:${th.bgSecondary};border:2px solid #000;padding:12px;">
+        <div style="font-size:10px;font-weight:900;color:#ef4444;letter-spacing:.7px;margin-bottom:6px;">🔴 CARTES QUE JE RECHERCHE</div>
+        <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Recherche dans toute la collection</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin-bottom:8px;padding:4px;background:${th.bg};border:1px dashed ${th.border};">${wantIds.length?wantIds.map(id=>chip(id,'want')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Aucune sélectionnée</span>`}</div>
+        <input id="mkt-want-search" value="${wantQ}" placeholder="🔍 #ID ou nom…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 10px;font-size:10px;outline:none;margin-bottom:6px;" />
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${wantCards.length?wantCards.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${wantQ?'Aucune carte trouvée':'Tape un nom ou #ID pour chercher'}</div>`}</div>
+      </div>
+    </div>
+  </div>`;
+}
 
 // ─── DECK BUILDER — APERÇU CARTE EN GRAND ──────────────────────────
 // Modale plein écran : carte en grand au centre, compteurs, bouton Ajouter,
