@@ -4669,15 +4669,50 @@ function bindGame(){
     setState({marketView:'edit',marketOfferIds:myStand?[...(myStand.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myStand?[...(myStand.want_ids||[])].map(id=>String(parseInt(id))):[],marketOfferSearch:'',marketWantSearch:''});
   });
   const mktEditClose = document.getElementById('mkt-edit-close');
-  if(mktEditClose) mktEditClose.addEventListener('click',()=>setState({marketView:'list'}));
+  if(mktEditClose) mktEditClose.addEventListener('click',()=>{
+    _mktOfferQ=''; _mktWantQ='';
+    setState({marketView:'list', marketOfferSearch:'', marketWantSearch:''});
+  });
   const mktSave = document.getElementById('mkt-save');
   if(mktSave) mktSave.addEventListener('click', saveMarketStand);
   const mktDelete = document.getElementById('mkt-delete');
   if(mktDelete) mktDelete.addEventListener('click', deleteMarketStand);
   const mktOfferSearch = document.getElementById('mkt-offer-search');
-  if(mktOfferSearch) mktOfferSearch.addEventListener('input', e=>setState({marketOfferSearch:e.target.value}));
+  if(mktOfferSearch) mktOfferSearch.addEventListener('input', e=>{
+    _mktOfferQ = e.target.value;
+    // Re-render seulement la grille offer (pas tout le DOM → le focus reste)
+    const grid = document.getElementById('mkt-offer-grid');
+    if(grid){
+      const q = _mktOfferQ.toLowerCase();
+      const offerIds = state.marketOfferIds||[];
+      const filtered = ALL_CARDS.filter(c=>{
+        if(!_mOwned(c.id)) return false;
+        if(!q) return true;
+        return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
+      }).slice(0,80);
+      const th = THEMES[state.theme]||THEMES.dark;
+      grid.innerHTML = filtered.length
+        ? filtered.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join('')
+        : `<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${q?'Aucune carte trouvée':'Tu ne possèdes aucune carte'}</div>`;
+    }
+  });
   const mktWantSearch = document.getElementById('mkt-want-search');
-  if(mktWantSearch) mktWantSearch.addEventListener('input', e=>setState({marketWantSearch:e.target.value}));
+  if(mktWantSearch) mktWantSearch.addEventListener('input', e=>{
+    _mktWantQ = e.target.value;
+    // Re-render seulement la grille want (pas tout le DOM → le focus reste)
+    const grid = document.getElementById('mkt-want-grid');
+    if(grid){
+      const q = _mktWantQ.toLowerCase();
+      const wantIds = state.marketWantIds||[];
+      const filtered = q ? ALL_CARDS.filter(c=>{
+        return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
+      }).slice(0,40) : [];
+      const th = THEMES[state.theme]||THEMES.dark;
+      grid.innerHTML = filtered.length
+        ? filtered.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join('')
+        : `<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${q?'Aucune carte trouvée':'Tape un nom ou #ID pour chercher'}</div>`;
+    }
+  });
 
   // Fermer Deck Builder
   const dbClose = document.getElementById('db-close');
@@ -9094,9 +9129,12 @@ window.subscribeTradeNotifications = subscribeTradeNotifications;
 
 // ─── MARCHÉ DES ÉCHANGES ──────────────────────────────────────────
 const _CARD_BACK_MARKET = 'https://i.goopics.net/iic46c.png';
+// Recherches market — variables locales pour éviter re-render sur chaque frappe
+let _mktOfferQ = '';
+let _mktWantQ  = '';
 
 function _mGetCard(id){ return ALL_CARDS.find(c=>String(parseInt(c.id))===String(parseInt(id))); }
-function _mOwned(id){ return (state.collection||[]).some(c=>String(parseInt(c.id))===String(parseInt(id))); }
+function _mOwned(id){ const c=ALL_CARDS.find(c=>String(parseInt(c.id))===String(parseInt(id))); return !!(c && c.owned); }
 
 async function loadMarketStands(){
   const db=window.db; if(!db){setState({marketLoading:false});return;}
@@ -9150,7 +9188,7 @@ function _mEditorThumb(card,selected,isOffer,th){
   const id=String(parseInt(card.id));
   const rarCol=RARITY_COLOR[card.rarity]||'#94a3b8';
   const owned=_mOwned(id);
-  const imgSrc=(isOffer||owned)&&card.image_url?card.image_url:_CARD_BACK_MARKET;
+  const imgSrc=card.image_url?card.image_url:_CARD_BACK_MARKET; // PNG si la carte existe (offer ou want)
   return `<div onclick="window._mToggle('${id}','${isOffer?'offer':'want'}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:2px;position:relative;border:${selected?'2px solid '+rarCol:'2px solid transparent'};background:${selected?rarCol+'18':'transparent'};transition:all .1s;">
     <div style="width:44px;height:66px;overflow:hidden;border:1px solid ${rarCol}40;"><img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" /></div>
     <div style="font-size:6px;color:${rarCol};font-weight:700;">#${parseInt(id)}</div>
@@ -9214,8 +9252,11 @@ function renderMarket(th){
 function renderMarketEdit(th,myStand){
   const offerIds=state.marketOfferIds||[];
   const wantIds=state.marketWantIds||[];
-  const offerQ=state.marketOfferSearch||'';
-  const wantQ=state.marketWantSearch||'';
+  // Synchro : au premier rendu, reprendre les valeurs depuis state si dispo
+  if(state.marketOfferSearch) _mktOfferQ = state.marketOfferSearch;
+  if(state.marketWantSearch)  _mktWantQ  = state.marketWantSearch;
+  const offerQ = _mktOfferQ;
+  const wantQ  = _mktWantQ;
 
   const myOwnedCards=ALL_CARDS.filter(c=>{
     if(!_mOwned(c.id))return false;
@@ -9226,12 +9267,13 @@ function renderMarketEdit(th,myStand){
 
   const wantCards=wantQ?ALL_CARDS.filter(c=>{
     const q=wantQ.toLowerCase();
-    return String(parseInt(c.id)).includes(q)||(_mOwned(c.id)&&c.name.toLowerCase().includes(q));
+    // Pour want : cherche dans toute la collection (pas juste les possédées)
+    return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
   }).slice(0,40):[];
 
   const chip=(id,type)=>{
     const c=_mGetCard(id); const col=c?RARITY_COLOR[c.rarity]||'#94a3b8':'#64748b';
-    const img=type==='offer'&&c?.image_url?c.image_url:(_mOwned(id)&&c?.image_url?c.image_url:_CARD_BACK_MARKET);
+    const img=c?.image_url?c.image_url:_CARD_BACK_MARKET; // PNG toujours si la carte existe, qu'elle soit possédée ou non
     return `<div onclick="window._mToggle('${id}','${type}')" style="display:flex;align-items:center;gap:4px;padding:2px 6px 2px 3px;cursor:pointer;border:1px solid ${type==='offer'?'rgba(34,197,94,.4)':'rgba(239,68,68,.4)'};background:${type==='offer'?'rgba(34,197,94,.08)':'rgba(239,68,68,.06)'};">
       <img src="${img}" style="width:18px;height:27px;object-fit:cover;" onerror="this.src='${_CARD_BACK_MARKET}'" />
       <span style="font-size:8px;color:${type==='offer'?'#22c55e':'#ef4444'};font-weight:700;">#${parseInt(id)}</span>
@@ -9252,14 +9294,14 @@ function renderMarketEdit(th,myStand){
         <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Seulement tes cartes possédées</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin-bottom:8px;padding:4px;background:${th.bg};border:1px dashed ${th.border};">${offerIds.length?offerIds.map(id=>chip(id,'offer')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Aucune sélectionnée</span>`}</div>
         <input id="mkt-offer-search" value="${offerQ}" placeholder="🔍 Filtrer mes cartes…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 10px;font-size:10px;outline:none;margin-bottom:6px;" />
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${myOwnedCards.length?myOwnedCards.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${offerQ?'Aucune carte trouvée':'Tu ne possèdes aucune carte'}</div>`}</div>
+        <div id="mkt-offer-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${myOwnedCards.length?myOwnedCards.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${offerQ?'Aucune carte trouvée':'Tu ne possèdes aucune carte'}</div>`}</div>
       </div>
       <div style="background:${th.bgSecondary};border:2px solid #000;padding:12px;">
         <div style="font-size:10px;font-weight:900;color:#ef4444;letter-spacing:.7px;margin-bottom:6px;">🔴 CARTES QUE JE RECHERCHE</div>
         <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Recherche dans toute la collection</div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin-bottom:8px;padding:4px;background:${th.bg};border:1px dashed ${th.border};">${wantIds.length?wantIds.map(id=>chip(id,'want')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Aucune sélectionnée</span>`}</div>
         <input id="mkt-want-search" value="${wantQ}" placeholder="🔍 #ID ou nom…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 10px;font-size:10px;outline:none;margin-bottom:6px;" />
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${wantCards.length?wantCards.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${wantQ?'Aucune carte trouvée':'Tape un nom ou #ID pour chercher'}</div>`}</div>
+        <div id="mkt-want-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${wantCards.length?wantCards.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${wantQ?'Aucune carte trouvée':'Tape un nom ou #ID pour chercher'}</div>`}</div>
       </div>
     </div>
   </div>`;
