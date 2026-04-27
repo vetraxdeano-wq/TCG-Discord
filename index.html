@@ -1530,10 +1530,8 @@ function renderDeckEdit(th){
     const qty=qtyInDeck(card.id);
     // Ne pas mettre plus que ce qu'on possède
     if(qty>= card.count) return {ok:false,reason:`Tu n'as que ${card.count} exemplaire${card.count>1?'s':''}`};
-    // Rare/Mythic : max 2 exemplaires dans le deck
-    if(card.rarity==='mythic'||card.rarity==='rare'){
-      if(qty>=2) return {ok:false,reason:'2 exemplaires max (Rare/Myth)'};
-    }
+    // Max 2 exemplaires d'une même carte, quelle que soit la rareté
+    if(qty>=2) return {ok:false,reason:'2 exemplaires max par carte'};
     // Max 2 Mythiques au total dans le deck (doublons compris)
     if(card.rarity==='mythic'&&mythCount>=2) return {ok:false,reason:'2 Mythiques max dans le deck'};
     return {ok:true};
@@ -1689,8 +1687,8 @@ function renderDeckEdit(th){
         })().map(card=>{
           const qty=qtyInDeck(card.id);
           const chk=canAdd(card);
-          // Calcul exemplaires max ajoutables
-          const maxCopies = (card.rarity==='mythic'||card.rarity==='rare') ? 2 : card.count;
+          // Calcul exemplaires max ajoutables : 2 max par carte, quelle que soit la rareté
+          const maxCopies = Math.min(2, card.count);
           const canAddMore = chk.ok;
           const alreadyFull = !canAddMore && qty>0;
           return `<div class="db-card-cell" data-cardid="${card.id}" data-name="${card.name.toLowerCase().replace(/'/g,'&#39;').replace(/"/g,'&quot;')}" style="display:flex;flex-direction:column;gap:3px;">
@@ -6192,32 +6190,33 @@ function showToast(msg, icon='ℹ') {
   setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2500);
 }
 
-// ─── VALIDATION DE DECK (règles : 30 cartes, max 2 Mythiques, max 2 exemplaires Rare/Mythic) ──
-// Retourne { valid, errors:[{code,msg}], stats:{total,mythCount,rareOver,mythicOver} }
+// ─── VALIDATION DE DECK (règles : 30 cartes, max 2 Mythiques, max 2 exemplaires d'une même carte) ──
+// Retourne { valid, errors:[{code,msg}], stats:{total,mythCount,dupOver} }
 function validateDeck(deck) {
   const errors = [];
   const cards = (deck && deck.cards) || [];
   let total = 0;
   let mythCount = 0;
-  const rareOver = []; // cartes Rares > 2
-  const mythicOver = []; // cartes Mythiques > 2
+  const dupOver = []; // cartes (toutes raretés) > 2 exemplaires
   for (const c of cards) {
     const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
     total += c.quantity;
     if (!card) continue;
     if (card.rarity === 'mythic') {
       mythCount += c.quantity;
-      if (c.quantity > 2) mythicOver.push({ name: card.name, qty: c.quantity });
     }
-    if (card.rarity === 'rare' && c.quantity > 2) {
-      rareOver.push({ name: card.name, qty: c.quantity });
+    // Limite de 2 exemplaires d'une même carte, quelle que soit la rareté
+    if (c.quantity > 2) {
+      dupOver.push({ name: card.name, qty: c.quantity, rarity: card.rarity });
     }
   }
   if (total !== 30) errors.push({ code: 'total', msg: `Le deck doit contenir exactement 30 cartes (actuellement ${total}/30)` });
   if (mythCount > 2) errors.push({ code: 'mythTotal', msg: `Maximum 2 cartes Mythiques au total dans le deck (actuellement ${mythCount})` });
-  mythicOver.forEach(c => errors.push({ code: 'mythDup', msg: `"${c.name}" (Mythique) : max 2 exemplaires (actuellement ${c.qty})` }));
-  rareOver.forEach(c => errors.push({ code: 'rareDup', msg: `"${c.name}" (Rare) : max 2 exemplaires (actuellement ${c.qty})` }));
-  return { valid: errors.length === 0, errors, stats: { total, mythCount, rareOver, mythicOver } };
+  dupOver.forEach(c => {
+    const rLabel = RARITY_LABEL[c.rarity] || '';
+    errors.push({ code: 'dup', msg: `"${c.name}"${rLabel?` (${rLabel})`:''} : max 2 exemplaires (actuellement ${c.qty})` });
+  });
+  return { valid: errors.length === 0, errors, stats: { total, mythCount, dupOver } };
 }
 
 // ─── MODALE explicative des règles de deck ──────────────────────────
@@ -6253,7 +6252,7 @@ function showDeckRuleModal(opts) {
         </div>` : ''}
       <div style="background:${th.bgTertiary}80;border-left:3px solid ${th.accent};padding:8px 10px;">
         <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px;">Rappel des règles</div>
-        <div style="font-size:11px;color:${th.textMuted};line-height:1.45;">30 cartes par deck · max 2 exemplaires d'une même carte Rare/Mythique · max 2 Mythiques au total</div>
+        <div style="font-size:11px;color:${th.textMuted};line-height:1.45;">30 cartes par deck · max 2 exemplaires d'une même carte · max 2 Mythiques au total</div>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
         ${hasConfirm ? `<button id="drm-cancel" style="padding:9px 16px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.3px;">${cancelLabel}</button>` : ''}
@@ -8477,8 +8476,8 @@ function addCardToDeck(cardId) {
   if (currentQty >= card.count) {
     showToast(`Tu n'as que ${card.count} exemplaire${card.count>1?'s':''} de cette carte`, '⚠'); return false;
   }
-  if ((card.rarity==='mythic'||card.rarity==='rare') && currentQty >= 2) {
-    showToast(`Max 2 exemplaires pour les ${card.rarity==='mythic'?'Mythiques':'Rares'}`, '⚠'); return false;
+  if (currentQty >= 2) {
+    showToast(`Max 2 exemplaires par carte dans un deck`, '⚠'); return false;
   }
   if (card.rarity==='mythic' && mythCount >= 2) {
     showToast('Max 2 Mythiques par deck', '⚠'); return false;
@@ -8519,7 +8518,7 @@ function removeCardFromDeck(cardId) {
 // ─── AUTO-FILL DECK ───────────────────────────────────────────────
 // Complète le deck existant (sans écraser) en respectant les règles :
 //   - 30 cartes max au total
-//   - max 2 exemplaires d'une même carte Rare/Mythique
+//   - max 2 exemplaires d'une même carte (toutes raretés)
 //   - max 2 Mythiques au total
 function autoFillDeck() {
   const decks = state.decks || [];
@@ -8530,12 +8529,12 @@ function autoFillDeck() {
   // s'il viole déjà une règle — ex. anciennement sauvegardé invalide).
   const existingCards = (deck.cards || []).map(c => ({ ...c }));
 
-  // 1) Corriger les violations existantes : clamp des Rares/Mythiques à 2 exemplaires max
+  // 1) Corriger les violations existantes : clamp à 2 exemplaires max (toutes raretés)
   let clampedDuplicates = 0;
   for (const c of existingCards) {
     const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
     if (!card) continue;
-    const maxCopies = (card.rarity === 'mythic' || card.rarity === 'rare') ? 2 : card.count;
+    const maxCopies = Math.min(2, card.count);
     if (c.quantity > maxCopies) {
       clampedDuplicates += (c.quantity - maxCopies);
       c.quantity = maxCopies;
@@ -8601,9 +8600,8 @@ function autoFillDeck() {
     if (total >= 30) break;
     const already = qtyInKept(card.id);
     let maxAdd = card.count - already; // on ne dépasse pas ce qu'on possède
-    if (card.rarity === 'mythic' || card.rarity === 'rare') {
-      maxAdd = Math.min(maxAdd, 2 - already);
-    }
+    // Max 2 exemplaires par carte, quelle que soit la rareté
+    maxAdd = Math.min(maxAdd, 2 - already);
     if (card.rarity === 'mythic') {
       maxAdd = Math.min(maxAdd, 2 - mythCount);
     }
@@ -8638,7 +8636,7 @@ function autoFillDeck() {
 
   // Feedback clair au joueur (modale si on a corrigé des violations, sinon toast simple)
   const corrections = [];
-  if (clampedDuplicates > 0) corrections.push(`${clampedDuplicates} exemplaire${clampedDuplicates>1?'s':''} en trop retiré${clampedDuplicates>1?'s':''} (max 2 par carte Rare/Mythique)`);
+  if (clampedDuplicates > 0) corrections.push(`${clampedDuplicates} exemplaire${clampedDuplicates>1?'s':''} en trop retiré${clampedDuplicates>1?'s':''} (max 2 par carte)`);
   if (removedExtraMythics > 0) corrections.push(`${removedExtraMythics} Mythique${removedExtraMythics>1?'s':''} retirée${removedExtraMythics>1?'s':''} (max 2 Mythiques par deck)`);
   if (trimmedOverflow > 0) corrections.push(`${trimmedOverflow} carte${trimmedOverflow>1?'s':''} en trop retirée${trimmedOverflow>1?'s':''} (30 cartes max)`);
 
@@ -9115,13 +9113,13 @@ function _getDeckPreviewStatus(card) {
   }, 0);
   const existing = deckCards.find(c => parseInt(c.card_id) === parseInt(card.id));
   const inDeck = existing ? existing.quantity : 0;
-  const maxInDeck = (card.rarity === 'mythic' || card.rarity === 'rare') ? 2 : card.count;
+  const maxInDeck = Math.min(2, card.count);
 
   let canAdd = true;
   let reason = '';
   if (deckTotal >= 30) { canAdd = false; reason = 'Deck plein (30/30)'; }
   else if (inDeck >= card.count) { canAdd = false; reason = `Tu n'as que ${card.count} exemplaire${card.count > 1 ? 's' : ''}`; }
-  else if ((card.rarity === 'mythic' || card.rarity === 'rare') && inDeck >= 2) { canAdd = false; reason = 'Max 2 exemplaires (Rare/Mythique)'; }
+  else if (inDeck >= 2) { canAdd = false; reason = 'Max 2 exemplaires par carte'; }
   else if (card.rarity === 'mythic' && mythCount >= 2) { canAdd = false; reason = 'Max 2 Mythiques dans le deck'; }
 
   return { inDeck, maxInDeck, owned: card.count, deckTotal, mythCount, canAdd, reason };
