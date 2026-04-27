@@ -1698,7 +1698,9 @@ let _effectPickCancelFn = null;
 let _botIsPlaying = false; // true quand c'est le bot qui joue un sort
 function openEffectPick(title, sub, items, onPick, onCancel){
   // En Auto-Battle OU quand c'est le tour du bot : choisir automatiquement.
-  // Si items vide en mode bot/auto, on annule (le sort sera reconsommé).
+  // Si items vide en mode bot/auto : on appelle onCancel pour signaler "rien fait".
+  // Le callsite (humanPlayCard) reconnaît qu'on est en _autoBattle et passe le sort au lieu
+  // de remettre la carte en main → ainsi pas de boucle infinie et la phase avance.
   if((_autoBattle || _botIsPlaying)){
     if(items.length > 0){
       // Stratégie : choisir l'effet avec la valeur la plus élevée (le plus impactant)
@@ -1711,7 +1713,7 @@ function openEffectPick(title, sub, items, onPick, onCancel){
       addLog(`🤖 Auto-choix : "${items[bestIdx].nom}"`, 'sys');
       onPick(bestIdx);
     } else {
-      addLog('🤖 Aucun effet ciblable, sort annulé', 'sys');
+      addLog('🤖 Aucun effet ciblable — sort sans effet','sys');
       if(onCancel) onCancel();
     }
     return;
@@ -2706,8 +2708,18 @@ function humanPlayCard(idx){
       });
     })();
     // applySort peut être async (modale de choix) — on lui passe un callback pour continuer
-    // onCancel : remet la carte en main et annule le coup joué
+    // onCancel : remet la carte en main et annule le coup joué (ou en auto-battle, passe le sort)
     const onCancel=()=>{
+      if(_autoBattle){
+        // En auto-battle, on NE remet PAS la carte en main (boucle infinie sinon).
+        // On considère le sort comme "joué sans effet" et on enchaîne sur l'attaque.
+        G.human.sortJoue=true;
+        G.phase='attack';
+        render();
+        resetChrono();
+        setTimeout(scheduleAutoStep,400);
+        return;
+      }
       G.human.hand.splice(idx,0,c);
       G.human.sortJoue=false;
       startChrono();
