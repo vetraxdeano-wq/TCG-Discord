@@ -1520,6 +1520,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
     </div>
     <button class="btn btn-gold" id="btn-atk" onclick="humanAttack()" disabled>⚔ Attaquer</button>
     <button class="btn btn-red"  id="btn-pass" onclick="humanPassSort()" disabled>✖ Skip sort</button>
+    <button class="btn btn-forfeit" id="btn-forfeit" onclick="forfeitMatch()" style="background:rgba(240,64,80,.12);border:1px solid rgba(240,64,80,.4);color:#f04050;font-size:11px;padding:6px 12px;border-radius:16px;cursor:pointer;font-weight:700;letter-spacing:.05em;">🏳 Abandonner</button>
 
   </div>
 </div>
@@ -2683,23 +2684,45 @@ function renderHand(){
     d.addEventListener('mouseenter',e=>{showTT(ttHTML,e);if(c.image_url)document.getElementById('hcard-tt').classList.add('hcard-tooltip-img');else document.getElementById('hcard-tt').classList.remove('hcard-tooltip-img');});
     d.addEventListener('mousemove',e=>moveTT(e));
     d.addEventListener('mouseleave',hideTT);
-    // Sur mobile : détection par durée uniquement.
-    // Contact < 1s → tap → ouvre la modal. Contact ≥ 1s → scroll, rien ne s'ouvre.
+    // Sur mobile : détection par MOUVEMENT + petite tempo d'intention.
+    //   • tap court et stable (< 10px de mouvement, ≤ 250ms) → ouvre la modale
+    //   • doigt qui bouge significativement (> 10px) → swipe pour scroller la main, pas d'ouverture
+    //   • appui prolongé (> 250ms) sans bouger → considéré comme un appui (pas une ouverture rapide)
+    //     L'utilisateur peut alors lever le doigt sans déclencher la modale, ou continuer à swiper.
+    // Cela laisse au navigateur le temps de comprendre si c'est un tap ou un swipe.
     (function(){
-      let startT=0;
+      let startT=0, startX=0, startY=0, moved=false, longPress=false, lpTimer=null;
+      const MOVE_TOLERANCE=10; // pixels — au-delà : c'est un swipe
+      const TAP_MAX_MS=250;    // au-delà sans bouger : c'est un appui prolongé, pas un tap rapide
       d.addEventListener('touchstart',e=>{
         if(!document.body.classList.contains('mobile'))return;
         startT=Date.now();
+        const t=e.touches[0];
+        startX=t.clientX; startY=t.clientY;
+        moved=false; longPress=false;
+        clearTimeout(lpTimer);
+        lpTimer=setTimeout(()=>{ longPress=true; }, TAP_MAX_MS);
+      },{passive:true});
+      d.addEventListener('touchmove',e=>{
+        if(!document.body.classList.contains('mobile'))return;
+        if(moved) return;
+        const t=e.touches[0];
+        if(Math.abs(t.clientX-startX)>MOVE_TOLERANCE || Math.abs(t.clientY-startY)>MOVE_TOLERANCE){
+          moved=true;
+          clearTimeout(lpTimer);
+        }
       },{passive:true});
       d.addEventListener('touchend',e=>{
         if(!document.body.classList.contains('mobile'))return;
-        const dt=Date.now()-startT;
-        if(dt<1000){
-          e.stopPropagation();
-          e.preventDefault();
-          showCardModal(c, i, dis, ttHTML, rarCol);
-        }
+        clearTimeout(lpTimer);
+        // Si le doigt a bougé OU si c'était un appui prolongé → ne PAS ouvrir la modale
+        if(moved || longPress){ return; }
+        // Tap propre : court et sans mouvement → ouvrir la modale
+        e.stopPropagation();
+        e.preventDefault();
+        showCardModal(c, i, dis, ttHTML, rarCol);
       });
+      d.addEventListener('touchcancel',()=>{ clearTimeout(lpTimer); moved=true; },{passive:true});
     })();
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
@@ -2735,6 +2758,22 @@ function renderActions(){
 
 function humanPlayCard(idx){
   const c=G.human.hand[idx];if(!c)return;
+  // Forcer la fermeture du tooltip/zoom de carte au clic (sinon il peut rester
+  // affiché car la carte est retirée du DOM avant que mouseleave ne se déclenche)
+  try{
+    const _tt=document.getElementById('hcard-tt');
+    if(_tt){_tt.style.display='none';_tt._srcCard=null;_tt.classList.remove('hcard-tooltip-img');}
+    // Désactiver pointer-events sur toutes les cartes en main pour casser le :hover
+    // résiduel pendant le re-render (sinon la carte voisine peut "hériter" du zoom)
+    const _hc=document.getElementById('hcards');
+    if(_hc){
+      _hc.querySelectorAll('.hcard').forEach(el=>{
+        el.style.pointerEvents='none';
+        el.style.transform='none';
+        el.style.boxShadow='none';
+      });
+    }
+  }catch(e){}
   if(c.ct==='fighter'&&G.phase==='choose_fighter'){
     // Toujours réinitialiser hpCur quand un fighter entre sur le terrain
     // (filet de sécurité contre les fuites de référence depuis _humanDeckFighters)
@@ -3559,7 +3598,26 @@ function launchGame10v10(){
 
 // ── Patch endGame : sauvegarder résultat + coins + XP ───────────────
 const _origEndGame=endGame;
-endGame=function(w){
+endGame=function(w, reason){
+  // En cas d'abandon : on force la défaite et on n'attribue aucune récompense
+  const isForfeit = reason==='forfeit';
+  if(isForfeit){
+    _origEndGame('bot');
+    // Surcharger l'affichage pour refléter l'abandon
+    const tt=document.getElementById('ov-title');
+    const sub=document.getElementById('ov-sub');
+    if(tt){tt.textContent='Combat abandonné';tt.className='ov-title lose';}
+    if(sub){sub.textContent='Tu as choisi d\'abandonner ce combat.';}
+    const rw=document.getElementById('ov-rewards');
+    if(rw) rw.innerHTML=`
+      <div class="ov-reward-pill coins" style="opacity:.5;">🪙 +0 coins</div>
+      <div class="ov-reward-pill xp" style="opacity:.5;">⭐ +0 XP</div>
+      <div style="font-size:10px;color:var(--sub);margin-top:6px;text-align:center;letter-spacing:.04em;">
+        🏳 Abandon : aucune récompense
+      </div>`;
+    saveGameResult(false, 0, 0);
+    return;
+  }
   _origEndGame(w);
   const isWin=w==='human';
   const coins=isWin?50:25;
@@ -3568,6 +3626,15 @@ endGame=function(w){
   if(isWin){ try{ localStorage.setItem('tcg_game_win', Date.now()); }catch(ex){} }
   saveGameResult(isWin,coins,xp);
 };
+
+// ── Abandonner le combat (10v10 vs bot) ──────────────────────────────
+function forfeitMatch(){
+  if(G.ended) return;
+  if(!confirm('Abandonner ce combat ?\n\nLe combat sera terminé immédiatement et tu ne gagneras aucune récompense (ni coins, ni XP).')) return;
+  addLog('🏳 Tu abandonnes le combat','sys','JOUEUR');
+  endGame('bot','forfeit');
+}
+window.forfeitMatch = forfeitMatch;
 
 async function saveGameResult(isWin,coinsGained,xpGained){
   if(!_db||!_currentUser)return;
