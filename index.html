@@ -1800,6 +1800,48 @@ function renderTradeModal(th){
     return tradeHtml;
   }
 
+  // Vue confirm : trade direct (carte à donner pré-remplie, carte à recevoir pré-remplie)
+  if (state.tradeStep === 'confirm' && state.tradeMyCard) {
+    const myC = state.tradeMyCard;
+    const theirC = state.tradeTheirCard;
+    const col1 = RARITY_COLOR[myC.rarity] || th.textMuted;
+    const col2 = theirC ? (RARITY_COLOR[theirC.rarity] || th.textMuted) : th.textMuted;
+    const rarityMatch = !theirC || myC.rarity === theirC.rarity;
+    const canSend = !!myC && rarityMatch;
+    return `
+    <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="width:100%;max-width:340px;background:${th.bgSecondary};padding:16px 18px 18px;border:2px solid #000;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:${th.text};margin-bottom:14px;letter-spacing:.5px;">Confirmer l'échange</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:8px;color:${th.textMuted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Tu donnes</div>
+            <div style="width:80px;height:112px;margin:0 auto;overflow:hidden;border:2px solid ${col1}60;background:linear-gradient(135deg,${col1}20,${col1}08);">
+              ${myC.image_url ? `<img src="${myC.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:24px;">🃏</div>`}
+            </div>
+            <div style="font-size:9px;font-weight:800;color:${th.text};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${myC.name}</div>
+            <div style="font-size:8px;color:${col1};">◆ ${RARITY_LABEL[myC.rarity]}</div>
+          </div>
+          <div style="font-size:20px;color:${th.textMuted};flex-shrink:0;">⇄</div>
+          <div style="flex:1;text-align:center;">
+            <div style="font-size:8px;color:${th.textMuted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Tu reçois</div>
+            ${theirC ? `
+            <div style="width:80px;height:112px;margin:0 auto;overflow:hidden;border:2px solid ${col2}60;background:linear-gradient(135deg,${col2}20,${col2}08);">
+              ${theirC.image_url ? `<img src="${theirC.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:24px;">🃏</div>`}
+            </div>
+            <div style="font-size:9px;font-weight:800;color:${th.text};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${theirC.name}</div>
+            <div style="font-size:8px;color:${col2};">◆ ${RARITY_LABEL[theirC.rarity]}</div>
+            ` : `<div style="width:80px;height:112px;margin:0 auto;border:2px dashed ${th.border};display:flex;align-items:center;justify-content:center;font-size:10px;color:${th.textMuted};">?</div>`}
+          </div>
+        </div>
+        ${!rarityMatch ? `<div style="font-size:10px;color:${th.red};background:${th.red}15;border:1px solid ${th.red}30;padding:7px 10px;margin-bottom:10px;text-align:center;">⚠ Raretés différentes</div>` : ''}
+        <div style="display:flex;gap:8px;">
+          <button id="trade-step-back" style="flex:1;padding:10px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:12px;font-weight:700;cursor:pointer;">← Retour</button>
+          <button id="trade-send" ${canSend?'':'disabled'} style="flex:2;padding:10px;background:${canSend?th.green:th.surface};color:${canSend?'#000':th.textMuted};border:none;font-size:12px;font-weight:800;cursor:${canSend?'pointer':'default'};opacity:${canSend?1:.5};">⇄ Envoyer</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   // Vue step 2 : saisir le numéro de la carte voulue en échange
   if (state.tradeStep === 'pick_their_card' && state.tradeMyCard) {
     const wantedNum = state.tradeWantedNum ? String(state.tradeWantedNum).replace(/[^0-9]/g,'') : '';
@@ -2492,7 +2534,7 @@ function renderCardDetailModal(card,th){
       </div>
     </div>
     <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'11':'13'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'14'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
-    <button id="btn-propose-trade" data-cardid="${card.id}" style="padding:${isMobile?'9':'11'}px;background:transparent;color:#a78bfa;border:2px solid rgba(167,139,250,.4);font-size:${isMobile?'11':'12'}px;font-weight:800;cursor:pointer;letter-spacing:.3px;width:100%;margin-top:4px;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:5px;" onmouseover="this.style.background='rgba(167,139,250,.12)';this.style.borderColor='rgba(167,139,250,.7)'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(167,139,250,.4)'"><span style="font-size:14px;">⇄</span> PROPOSER EN ÉCHANGE</button>
+
   ` : `
     <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'18px':'22px'};font-weight:400;color:${th.textMuted};letter-spacing:2px;">???</div>
     <div style="font-size:${isMobile?'11':'13'}px;color:${th.textFaint};margin-top:4px;">Carte mystère</div>
@@ -5856,7 +5898,17 @@ function bindGame(){
 
   // Envoyer la proposition de trade
   const tradeSend = document.getElementById('trade-send');
-  if(tradeSend) tradeSend.addEventListener('click',()=>setState({tradeStep:'pick_their_card',tradeWantedNum:null,tradeSearch:''}));
+  if(tradeSend) tradeSend.addEventListener('click',()=>{
+    if(state.tradeStep==='confirm'){
+      // Envoi direct avec tradeMyCard et tradeTheirCard déjà définis
+      const wantedId = state.tradeTheirCard ? String(state.tradeTheirCard.id) : null;
+      if(wantedId) setState({tradeWantedNum:wantedId});
+      const origStep = state.tradeStep;
+      sendTrade();
+    } else {
+      setState({tradeStep:'pick_their_card',tradeWantedNum:null,tradeSearch:''});
+    }
+  });
 
   // Retour step 1 depuis step 2
   const tradeStepBack = document.getElementById('trade-step-back');
@@ -9212,7 +9264,9 @@ window._mktExpandRowByKey=function(btn,key){
 
 window._mktOpenCard=function(id){
   const card=ALL_CARDS.find(c=>String(parseInt(c.id))===String(parseInt(id)));
-  if(card&&card.owned) setState({collSelectedCard:card});
+  if(!card) return;
+  // Ouvrir le viewer 3D en overlay sans changer de tab ni aller dans la collection
+  openCard3DViewer(card);
 };
 
 // Icône trade sous une carte du stand
@@ -9244,15 +9298,24 @@ window._mktTradeCard=function(cardId,section){
       tradeSearch:'',
     });
   } else {
-    // La carte est RECHERCHÉE → le stand cherche quelque chose que je possède peut-être
-    if(!card.owned) return; // on affiche l'icône seulement si je possède la carte
+    // La carte est RECHERCHÉE → je propose cette carte (que je possède), la carte voulue = celle du stand
+    if(!card.owned) return;
+    // Trouver une carte offer du stand pour pré-remplir la carte voulue en retour
+    // On skip l'étape "pick_their_card" car la carte cible est implicitement la carte qu'ils proposent
+    // → on ouvre directement pick_my_card avec myCard = la carte du stand qu'ils proposent
+    // En fait ici l'user veut DONNER sa carte (celle du want) et RECEVOIR une carte offer du stand
+    // On propose juste la carte que je possède, sans étape 2 — envoi direct
+    const offerIds = stand.offer_ids || [];
+    const theirCard = offerIds.length > 0
+      ? ALL_CARDS.find(c => String(parseInt(c.id)) === String(parseInt(offerIds[0])))
+      : null;
     setState({
       showTrade:true,
       showFriends:false,
       tradeWithId:stand.player_id,
-      tradeMyCard:card,        // pré-rempli : la carte que je propose (celle qu'ils recherchent)
-      tradeTheirCard:null,     // à choisir
-      tradeStep:'pick_their_card',
+      tradeMyCard:card,           // je donne cette carte (celle qu'ils recherchent)
+      tradeTheirCard:theirCard,   // je reçois la première carte qu'ils proposent
+      tradeStep:'confirm',        // étape de confirmation directe
       tradeSearch:'',
     });
   }
@@ -9284,9 +9347,9 @@ function _mCardThumb(id, isOffer, isMe, fromSection){
         <span style="font-size:11px;">⇄</span>
       </button>`
     : `<div style="height:22px;"></div>`;
-  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:74px;">
-    <div style="width:74px;height:111px;overflow:hidden;border:2px solid ${rarCol}40;position:relative;flex-shrink:0;">
-      <img src="${imgSrc}" ${imgClick} onerror="this.src='${_CARD_BACK_MARKET}'" style="width:100%;height:100%;object-fit:cover;display:block;" />
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:90px;">
+    <div style="width:90px;height:135px;overflow:hidden;border:2px solid ${rarCol}40;position:relative;flex-shrink:0;">
+      <img src="${imgSrc}" ${imgClick} onerror="this.src='${_CARD_BACK_MARKET}'" style="width:100%;height:100%;object-fit:contain;display:block;" />
     </div>
     <div style="font-size:7px;font-weight:700;color:${rarCol};text-align:center;width:100%;">#${parseInt(id)}</div>
     <div style="font-size:6px;font-weight:900;padding:1px 4px;text-align:center;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?`✓ ${count}×`:'✗ Manq.'}</div>
@@ -9334,7 +9397,7 @@ function renderMarket(th){
     if(extra>0) window._mktExpandData[dataKey]={ids,isOffer,isMe,section};
     return '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;">'
       + (shown.length?shown.map(id=>_mCardThumb(id,isOffer&&isMe,isMe,section)).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;">Aucune carte</span>')
-      + (extra>0?`<button onclick="window._mktExpandRowByKey(this,'${dataKey}')" style="width:60px;height:90px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:${th.textMuted};font-size:11px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;flex-shrink:0;"><span>+${extra}</span><span style="font-size:7px;font-weight:600;">voir</span></button>`:'')
+      + (extra>0?`<button onclick="window._mktExpandRowByKey(this,'${dataKey}')" style="width:90px;height:135px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:${th.textMuted};font-size:13px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;flex-shrink:0;"><span>+${extra}</span><span style="font-size:8px;font-weight:600;">voir</span></button>`:'')
       + '</div>';
   };
 
@@ -9366,12 +9429,8 @@ function renderMarket(th){
       <!-- Section RECHERCHE -->
       <div style="padding:10px 14px ${isMe?'14px':'8px'};">
         <div style="font-size:9px;font-weight:900;color:#ef4444;letter-spacing:.6px;margin-bottom:7px;">🔴 RECHERCHE <span style="font-weight:500;color:${th.textMuted};">(${allWantIds.length})</span></div>
-        ${standRow(allWantIds,false,false)}
+        ${standRow(allWantIds,false,isMe)}
       </div>
-      <!-- Bouton "Proposer un échange" (uniquement pour les stands des autres) -->
-      ${!isMe?`<div style="padding:0 14px 14px;">
-        <button onclick="window._mktQuickTrade('${standId}','${player.discord_username||'Joueur'}')" style="width:100%;padding:10px;background:rgba(167,139,250,.12);color:#a78bfa;border:2px solid rgba(167,139,250,.35);font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.3px;">⇄ Proposer un échange</button>
-      </div>`:''}
     </div>`;
   };
 
