@@ -4680,7 +4680,6 @@ function bindGame(){
   const mktOfferSearch = document.getElementById('mkt-offer-search');
   if(mktOfferSearch) mktOfferSearch.addEventListener('input', e=>{
     _mktOfferQ = e.target.value;
-    // Re-render seulement la grille offer (pas tout le DOM → le focus reste)
     const grid = document.getElementById('mkt-offer-grid');
     if(grid){
       const q = _mktOfferQ.toLowerCase();
@@ -4689,28 +4688,27 @@ function bindGame(){
         if(!_mOwned(c.id)) return false;
         if(!q) return true;
         return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
-      }).slice(0,80);
+      }).slice(0,120);
       const th = THEMES[state.theme]||THEMES.dark;
       grid.innerHTML = filtered.length
         ? filtered.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join('')
-        : `<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${q?'Aucune carte trouvée':'Tu ne possèdes aucune carte'}</div>`;
+        : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${q?'Aucune carte trouvée pour "'+q+'"':'Tu ne possèdes aucune carte'}</div>`;
     }
   });
   const mktWantSearch = document.getElementById('mkt-want-search');
   if(mktWantSearch) mktWantSearch.addEventListener('input', e=>{
     _mktWantQ = e.target.value;
-    // Re-render seulement la grille want (pas tout le DOM → le focus reste)
     const grid = document.getElementById('mkt-want-grid');
     if(grid){
-      const q = _mktWantQ.toLowerCase();
+      const q = _mktWantQ.toLowerCase().trim();
       const wantIds = state.marketWantIds||[];
       const filtered = q ? ALL_CARDS.filter(c=>{
-        return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
-      }).slice(0,40) : [];
+        return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q)||(c.type||'').toLowerCase().includes(q);
+      }).slice(0,80) : [];
       const th = THEMES[state.theme]||THEMES.dark;
       grid.innerHTML = filtered.length
         ? filtered.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join('')
-        : `<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${q?'Aucune carte trouvée':'Tape un nom ou #ID pour chercher'}</div>`;
+        : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${q?'Aucun résultat pour "'+q+'"':'Tape au moins un caractère pour chercher'}</div>`;
     }
   });
 
@@ -9188,11 +9186,19 @@ function _mEditorThumb(card,selected,isOffer,th){
   const id=String(parseInt(card.id));
   const rarCol=RARITY_COLOR[card.rarity]||'#94a3b8';
   const owned=_mOwned(id);
-  const imgSrc=card.image_url?card.image_url:_CARD_BACK_MARKET; // PNG si la carte existe (offer ou want)
-  return `<div onclick="window._mToggle('${id}','${isOffer?'offer':'want'}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:2px;position:relative;border:${selected?'2px solid '+rarCol:'2px solid transparent'};background:${selected?rarCol+'18':'transparent'};transition:all .1s;">
-    <div style="width:44px;height:66px;overflow:hidden;border:1px solid ${rarCol}40;"><img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" /></div>
-    <div style="font-size:6px;color:${rarCol};font-weight:700;">#${parseInt(id)}</div>
-    ${selected?`<div style="position:absolute;top:1px;left:1px;background:#22c55e;color:#000;font-size:6px;font-weight:900;padding:0 2px;line-height:13px;">✓</div>`:''}
+  // Offer : PNG car possédée. Want : PNG si possédée, dos sinon (pour voir ce qu'on cherche)
+  const imgSrc=isOffer
+    ? (card.image_url||_CARD_BACK_MARKET)
+    : (owned && card.image_url ? card.image_url : _CARD_BACK_MARKET);
+  const count=isOffer?(card.count||1):null;
+  return `<div onclick="window._mToggle('${id}','${isOffer?'offer':'want'}')" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:3px;position:relative;border:${selected?'2px solid '+rarCol:'2px solid rgba(255,255,255,.06)'};background:${selected?rarCol+'22':'rgba(255,255,255,.02)'};transition:all .1s;border-radius:2px;">
+    <div style="width:52px;height:78px;overflow:hidden;border:1px solid ${rarCol}${selected?'99':'40'};position:relative;flex-shrink:0;">
+      <img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" />
+      ${selected?`<div style="position:absolute;inset:0;background:rgba(34,197,94,.18);display:flex;align-items:center;justify-content:center;"><span style="font-size:18px;">✓</span></div>`:''}
+      ${isOffer&&count>1?`<div style="position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,.85);color:#fbbf24;font-size:8px;font-weight:900;padding:0 3px;line-height:14px;">×${count}</div>`:''}
+    </div>
+    <div style="font-size:7px;color:${selected?rarCol:th.textMuted};font-weight:700;text-align:center;">#${parseInt(id)}</div>
+    ${isOffer&&count?`<div style="font-size:6px;color:#94a3b8;font-weight:600;">×${count} ex.</div>`:''}
   </div>`;
 }
 
@@ -9281,28 +9287,82 @@ function renderMarketEdit(th,myStand){
     </div>`;
   };
 
-  return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow-y:auto;">
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;padding-top:max(env(safe-area-inset-top,12px),12px);background:${th.bgSecondary};border-bottom:1px solid ${th.border};flex-shrink:0;position:sticky;top:0;z-index:10;">
-      <button id="mkt-edit-close" style="width:44px;height:44px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
-      <div style="flex:1;"><div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">MON STAND</div><div style="font-size:9px;color:${th.textMuted};">${offerIds.length} offerte${offerIds.length!==1?'s':''} · ${wantIds.length} recherchée${wantIds.length!==1?'s':''}</div></div>
+  // Carte chip dans le bandeau de sélection
+  const chip=(id,type)=>{
+    const c=_mGetCard(id); const col=c?RARITY_COLOR[c.rarity]||'#94a3b8':'#64748b';
+    const owned=_mOwned(id);
+    const img=type==='offer'
+      ? (c?.image_url||_CARD_BACK_MARKET)
+      : (owned&&c?.image_url?c.image_url:_CARD_BACK_MARKET);
+    return `<div onclick="window._mToggle('${id}','${type}')" title="Clic pour retirer" style="display:flex;align-items:center;gap:3px;padding:2px 6px 2px 3px;cursor:pointer;border:1px solid ${type==='offer'?'rgba(34,197,94,.5)':'rgba(239,68,68,.5)'};background:${type==='offer'?'rgba(34,197,94,.1)':'rgba(239,68,68,.08)'};border-radius:2px;">
+      <img src="${img}" style="width:16px;height:24px;object-fit:cover;border-radius:1px;" onerror="this.src='${_CARD_BACK_MARKET}'" />
+      <span style="font-size:8px;color:${col};font-weight:700;">#${parseInt(id)}</span>
+      <span style="font-size:9px;color:rgba(239,68,68,.7);line-height:1;">✕</span>
+    </div>`;
+  };
+
+  // Message si ALL_CARDS pas encore chargé
+  const notLoaded = ALL_CARDS.length === 0;
+
+  return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;">
+    <!-- Header sticky -->
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;padding-top:max(env(safe-area-inset-top,12px),12px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
+      <button id="mkt-edit-close" style="width:40px;height:40px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;flex-shrink:0;">✕</button>
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:#fbbf24;letter-spacing:1px;">MON STAND</div>
+        <div style="font-size:9px;color:${th.textMuted};">${offerIds.length} offerte${offerIds.length!==1?'s':''} · ${wantIds.length} recherchée${wantIds.length!==1?'s':''}</div>
+      </div>
       ${myStand?`<button id="mkt-delete" style="padding:7px 12px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.35);font-size:9px;font-weight:800;cursor:pointer;">🗑</button>`:''}
-      <button id="mkt-save" style="padding:8px 16px;background:#fbbf24;color:#000;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">💾 SAVE</button>
+      <button id="mkt-save" style="padding:9px 20px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.5px;">💾 SAVE</button>
     </div>
-    <div style="padding:14px;display:flex;flex-direction:column;gap:14px;">
-      <div style="background:${th.bgSecondary};border:2px solid #000;padding:12px;">
-        <div style="font-size:10px;font-weight:900;color:#22c55e;letter-spacing:.7px;margin-bottom:6px;">🟢 CARTES QUE JE PROPOSE</div>
-        <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Seulement tes cartes possédées</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin-bottom:8px;padding:4px;background:${th.bg};border:1px dashed ${th.border};">${offerIds.length?offerIds.map(id=>chip(id,'offer')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Aucune sélectionnée</span>`}</div>
-        <input id="mkt-offer-search" value="${offerQ}" placeholder="🔍 Filtrer mes cartes…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 10px;font-size:10px;outline:none;margin-bottom:6px;" />
-        <div id="mkt-offer-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${myOwnedCards.length?myOwnedCards.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${offerQ?'Aucune carte trouvée':'Tu ne possèdes aucune carte'}</div>`}</div>
+
+    <!-- Corps scrollable -->
+    <div style="flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:12px;">
+
+      ${notLoaded?`<div style="text-align:center;padding:30px;color:#f59e0b;font-size:12px;">⏳ Chargement de la collection…<br><small style="color:${th.textMuted};">Reviens dans un instant</small></div>`:''}
+
+      <!-- ── CARTES QUE JE PROPOSE ── -->
+      <div style="background:${th.bgSecondary};border:2px solid #000;overflow:hidden;">
+        <div style="height:3px;background:linear-gradient(90deg,#22c55e,#16a34a);"></div>
+        <div style="padding:10px 12px;">
+          <div style="font-size:11px;font-weight:900;color:#22c55e;letter-spacing:.7px;margin-bottom:4px;">🟢 CARTES QUE JE PROPOSE <span style="font-weight:500;color:${th.textMuted};">(${offerIds.length})</span></div>
+          <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Uniquement tes cartes possédées · le nombre d'exemplaires est indiqué</div>
+          <!-- Sélection courante -->
+          <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:28px;margin-bottom:8px;padding:5px;background:${th.bg};border:1px dashed ${th.border};border-radius:2px;">
+            ${offerIds.length?offerIds.map(id=>chip(id,'offer')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;line-height:28px;">Clique sur tes cartes ci-dessous…</span>`}
+          </div>
+          <!-- Recherche -->
+          <input id="mkt-offer-search" value="${offerQ}" placeholder="🔍 Filtrer par nom ou #ID…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:8px 10px;font-size:11px;outline:none;margin-bottom:8px;box-sizing:border-box;" />
+          <!-- Grille de cartes possédées — plus grande -->
+          <div id="mkt-offer-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px;max-height:260px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:8px;">
+            ${myOwnedCards.length
+              ? myOwnedCards.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join('')
+              : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${notLoaded?'⏳ Chargement…':offerQ?'Aucune carte trouvée':'Tu ne possèdes aucune carte pour l'instant'}</div>`}
+          </div>
+        </div>
       </div>
-      <div style="background:${th.bgSecondary};border:2px solid #000;padding:12px;">
-        <div style="font-size:10px;font-weight:900;color:#ef4444;letter-spacing:.7px;margin-bottom:6px;">🔴 CARTES QUE JE RECHERCHE</div>
-        <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Recherche dans toute la collection</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:18px;margin-bottom:8px;padding:4px;background:${th.bg};border:1px dashed ${th.border};">${wantIds.length?wantIds.map(id=>chip(id,'want')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Aucune sélectionnée</span>`}</div>
-        <input id="mkt-want-search" value="${wantQ}" placeholder="🔍 #ID ou nom…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 10px;font-size:10px;outline:none;margin-bottom:6px;" />
-        <div id="mkt-want-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:4px;max-height:180px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:5px;">${wantCards.length?wantCards.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join(''):`<div style="font-size:10px;color:${th.textFaint};padding:8px;grid-column:1/-1;">${wantQ?'Aucune carte trouvée':'Tape un nom ou #ID pour chercher'}</div>`}</div>
+
+      <!-- ── CARTES QUE JE RECHERCHE ── -->
+      <div style="background:${th.bgSecondary};border:2px solid #000;overflow:hidden;">
+        <div style="height:3px;background:linear-gradient(90deg,#ef4444,#dc2626);"></div>
+        <div style="padding:10px 12px;">
+          <div style="font-size:11px;font-weight:900;color:#ef4444;letter-spacing:.7px;margin-bottom:4px;">🔴 CARTES QUE JE RECHERCHE <span style="font-weight:500;color:${th.textMuted};">(${wantIds.length})</span></div>
+          <div style="font-size:9px;color:${th.textMuted};margin-bottom:8px;">Toute la collection · PNG si tu la possèdes, dos sinon</div>
+          <!-- Sélection courante -->
+          <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:28px;margin-bottom:8px;padding:5px;background:${th.bg};border:1px dashed ${th.border};border-radius:2px;">
+            ${wantIds.length?wantIds.map(id=>chip(id,'want')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;line-height:28px;">Tape un nom ou #ID pour chercher…</span>`}
+          </div>
+          <!-- Recherche -->
+          <input id="mkt-want-search" value="${wantQ}" placeholder="🔍 Nom ou #ID de la carte recherchée…" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:8px 10px;font-size:11px;outline:none;margin-bottom:8px;box-sizing:border-box;" />
+          <!-- Grille résultats -->
+          <div id="mkt-want-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px;max-height:260px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:8px;">
+            ${wantCards.length
+              ? wantCards.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join('')
+              : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${wantQ?'Aucun résultat pour "'+wantQ+'"':'Tape au moins un caractère pour afficher les cartes'}</div>`}
+          </div>
+        </div>
       </div>
+
     </div>
   </div>`;
 }
