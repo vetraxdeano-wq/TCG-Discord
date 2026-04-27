@@ -9196,14 +9196,59 @@ async function deleteMarketStand(){
 }
 
 // Expansion des cartes cachées dans un stand
-window._mktExpandRow=function(btn,ids,isOffer,isMe){
+window._mktExpandRow=function(btn,ids,isOffer,isMe,section){
   const th=THEMES[state.theme]||THEMES.dark;
   const container=btn.parentElement;
-  container.innerHTML=ids.map(id=>_mCardThumb(id,isOffer&&isMe)).join('');
+  container.innerHTML=ids.map(id=>_mCardThumb(id,isOffer&&isMe,isMe,section||'offer')).join('');
 };
 
-// Raccourci "Proposer un échange" depuis un stand
-window._mktQuickTrade=function(standId,username){
+window._mktOpenCard=function(id){
+  const card=ALL_CARDS.find(c=>String(parseInt(c.id))===String(parseInt(id)));
+  if(card&&card.owned) setState({collSelectedCard:card});
+};
+
+// Icône trade sous une carte du stand
+// section='offer' : la carte est proposée par l'autre → je veux la recevoir → je choisis ce que j'offre en retour
+// section='want'  : la carte est recherchée par l'autre → je possède cette carte → je propose la mienne, je choisis ce que je veux en retour
+window._mktTradeCard=function(cardId,section){
+  // Trouver le stand auquel appartient cette carte
+  const myId=state.currentUser?.id;
+  const stands=state.marketStands||[];
+  const stand=stands.find(s=>{
+    if(s.player_id===myId) return false; // pas son propre stand
+    const ids=section==='offer'?(s.offer_ids||[]):(s.want_ids||[]);
+    return ids.some(id=>String(parseInt(id))===String(parseInt(cardId)));
+  });
+  if(!stand) return;
+
+  const card=ALL_CARDS.find(c=>String(parseInt(c.id))===String(parseInt(cardId)));
+  if(!card) return;
+
+  if(section==='offer'){
+    // La carte est PROPOSÉE → je veux la recevoir → skip ma carte, choisir ce que j'offre
+    setState({
+      showTrade:true,
+      showFriends:false,
+      tradeWithId:stand.player_id,
+      tradeMyCard:null,        // à choisir
+      tradeTheirCard:card,     // pré-rempli : la carte que je veux recevoir
+      tradeStep:'pick_my_card',
+      tradeSearch:'',
+    });
+  } else {
+    // La carte est RECHERCHÉE → le stand cherche quelque chose que je possède peut-être
+    if(!card.owned) return; // on affiche l'icône seulement si je possède la carte
+    setState({
+      showTrade:true,
+      showFriends:false,
+      tradeWithId:stand.player_id,
+      tradeMyCard:card,        // pré-rempli : la carte que je propose (celle qu'ils recherchent)
+      tradeTheirCard:null,     // à choisir
+      tradeStep:'pick_their_card',
+      tradeSearch:'',
+    });
+  }
+};
   const stands=state.marketStands||[];
   const stand=stands.find(s=>s.id===standId);
   if(!stand) return;
@@ -9224,14 +9269,23 @@ window._mToggle=function(id,type){
   setState({[key]:arr});
 };
 
-function _mCardThumb(id,isOffer){
+function _mCardThumb(id, isOffer, isMe, fromSection){
   const card=_mGetCard(id); const owned=_mOwned(id);
   const imgSrc=(isOffer||owned)&&card?.image_url?card.image_url:_CARD_BACK_MARKET;
   const rarCol=card?(RARITY_COLOR[card.rarity]||'#94a3b8'):'#64748b';
-  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:50px;">
-    <div style="width:50px;height:75px;overflow:hidden;border:2px solid ${rarCol}40;"><img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" /></div>
+  const count=owned&&card?(card.count||1):0;
+  const clickAttr=owned&&card?`onclick="window._mktOpenCard('${id}')" style="cursor:pointer;"`:`style="cursor:default;"`;
+  const showTrade = !isMe && card && (fromSection==='offer' || (fromSection==='want' && owned));
+  const tradeIcon = showTrade
+    ? `<div onclick="event.stopPropagation();window._mktTradeCard('${id}','${fromSection||'offer'}')" title="Proposer un échange" style="font-size:11px;line-height:1;padding:2px;cursor:pointer;opacity:.7;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">⇄</div>`
+    : '<div style="height:16px;"></div>';
+  return `<div ${clickAttr} style="display:flex;flex-direction:column;align-items:center;gap:2px;width:70px;">
+    <div style="width:70px;height:105px;overflow:hidden;border:2px solid ${rarCol}40;position:relative;">
+      <img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" />
+    </div>
     <div style="font-size:7px;font-weight:700;color:${rarCol};text-align:center;">#${parseInt(id)}</div>
-    <div style="font-size:6px;font-weight:900;padding:1px 4px;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?'✓ Poss.':'✗ Manq.'}</div>
+    <div style="font-size:6px;font-weight:900;padding:1px 4px;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?`✓ ${count}×`:'✗ Manq.'}</div>
+    ${tradeIcon}
   </div>`;
 }
 
@@ -9266,9 +9320,10 @@ function renderMarket(th){
   const standRow=(ids,isOffer,isMe)=>{
     const MAX=5; const col=isOffer?'#22c55e':'#ef4444';
     const shown=ids.slice(0,MAX); const extra=ids.length-MAX;
+    const section=isOffer?'offer':'want';
     return '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;">'
-      + (shown.length?shown.map(id=>_mCardThumb(id,isOffer&&isMe)).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;">Aucune carte</span>')
-      + (extra>0?'<button onclick="window._mktExpandRow(this,'+JSON.stringify(ids)+','+isOffer+','+isMe+')" style="width:44px;height:66px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:'+th.textMuted+';font-size:11px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;flex-shrink:0;"><span>+${extra}</span><span style="font-size:7px;font-weight:600;">voir</span></button>':'')
+      + (shown.length?shown.map(id=>_mCardThumb(id,isOffer&&isMe,isMe,section)).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;">Aucune carte</span>')
+      + (extra>0?'<button onclick="window._mktExpandRow(this,'+JSON.stringify(ids)+','+isOffer+','+isMe+',\''+section+'\')" style="width:60px;height:90px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:'+th.textMuted+';font-size:11px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;flex-shrink:0;"><span>+'+extra+'</span><span style="font-size:7px;font-weight:600;">voir</span></button>':'')
       + '</div>';
   };
 
@@ -9393,7 +9448,12 @@ function renderMarketEdit(th,myStand){
           <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:32px;padding:5px;background:${th.bg};border:1px dashed ${th.border};">
             ${offerIds.length?offerIds.map(id=>chip(id,'offer')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Clique sur tes cartes ci-dessous…</span>`}
           </div>
-          <input id="mkt-offer-search" value="${offerQ}" placeholder="🔍 Nom ou #ID…" oninput="window._mktLiveOffer(this.value)" onkeyup="window._mktLiveOffer(this.value)" autocomplete="off" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 9px;font-size:11px;outline:none;box-sizing:border-box;" />
+          <input id="mkt-offer-search" value="${offerQ}" placeholder="🔍 Nom ou #ID…" 
+            oninput="window._mktLiveOffer(this.value)" 
+            onkeyup="window._mktLiveOffer(this.value)"
+            oncompositionend="window._mktLiveOffer(this.value)"
+            onpaste="setTimeout(()=>window._mktLiveOffer(document.getElementById('mkt-offer-search')?.value||''),0)"
+            autocomplete="off" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 9px;font-size:11px;outline:none;box-sizing:border-box;" />
           <div id="mkt-offer-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:6px;min-height:220px;max-height:clamp(220px,38vh,460px);overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:8px;">
             ${myOwnedCards.length
               ? myOwnedCards.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join('')
@@ -9410,7 +9470,12 @@ function renderMarketEdit(th,myStand){
           <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:32px;padding:5px;background:${th.bg};border:1px dashed ${th.border};">
             ${wantIds.length?wantIds.map(id=>chip(id,'want')).join(''):`<span style="font-size:9px;color:${th.textFaint};font-style:italic;">Tape un nom ou #ID pour chercher…</span>`}
           </div>
-          <input id="mkt-want-search" value="${wantQ}" placeholder="🔍 Nom ou #ID de la carte…" oninput="window._mktLiveWant(this.value)" onkeyup="window._mktLiveWant(this.value)" autocomplete="off" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 9px;font-size:11px;outline:none;box-sizing:border-box;" />
+          <input id="mkt-want-search" value="${wantQ}" placeholder="🔍 Nom ou #ID de la carte…" 
+            oninput="window._mktLiveWant(this.value)" 
+            onkeyup="window._mktLiveWant(this.value)"
+            oncompositionend="window._mktLiveWant(this.value)"
+            onpaste="setTimeout(()=>window._mktLiveWant(document.getElementById('mkt-want-search')?.value||''),0)"
+            autocomplete="off" style="width:100%;background:${th.bg};border:2px solid ${th.border};color:${th.text};padding:7px 9px;font-size:11px;outline:none;box-sizing:border-box;" />
           <div id="mkt-want-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:6px;min-height:220px;max-height:clamp(220px,38vh,460px);overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:8px;">
             ${wantCards.length
               ? wantCards.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join('')
