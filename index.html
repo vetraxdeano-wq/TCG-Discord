@@ -2492,7 +2492,7 @@ function renderCardDetailModal(card,th){
       </div>
     </div>
     <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'11':'13'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'14'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
-    <button id="btn-propose-trade" data-cardid="${card.id}" style="padding:${isMobile?'9':'11'}px;background:transparent;color:${th.accent};border:2px solid ${th.accent}50;font-size:${isMobile?'11':'12'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;width:100%;margin-top:4px;transition:all .18s;">🔄 PROPOSER EN ÉCHANGE</button>
+    <button id="btn-propose-trade" data-cardid="${card.id}" style="padding:${isMobile?'9':'11'}px;background:transparent;color:#a78bfa;border:2px solid rgba(167,139,250,.4);font-size:${isMobile?'11':'12'}px;font-weight:800;cursor:pointer;letter-spacing:.3px;width:100%;margin-top:4px;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:5px;" onmouseover="this.style.background='rgba(167,139,250,.12)';this.style.borderColor='rgba(167,139,250,.7)'" onmouseout="this.style.background='transparent';this.style.borderColor='rgba(167,139,250,.4)'"><span style="font-size:14px;">⇄</span> PROPOSER EN ÉCHANGE</button>
   ` : `
     <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'18px':'22px'};font-weight:400;color:${th.textMuted};letter-spacing:2px;">???</div>
     <div style="font-size:${isMobile?'11':'13'}px;color:${th.textFaint};margin-top:4px;">Carte mystère</div>
@@ -9201,6 +9201,14 @@ window._mktExpandRow=function(btn,ids,isOffer,isMe,section){
   const container=btn.parentElement;
   container.innerHTML=ids.map(id=>_mCardThumb(id,isOffer&&isMe,isMe,section||'offer')).join('');
 };
+window._mktExpandRowByKey=function(btn,key){
+  const data=(window._mktExpandData||{})[key];
+  if(!data) return;
+  const th=THEMES[state.theme]||THEMES.dark;
+  const container=btn.parentElement;
+  container.innerHTML=data.ids.map(id=>_mCardThumb(id,data.isOffer&&data.isMe,data.isMe,data.section||'offer')).join('');
+  delete window._mktExpandData[key];
+};
 
 window._mktOpenCard=function(id){
   const card=ALL_CARDS.find(c=>String(parseInt(c.id))===String(parseInt(id)));
@@ -9263,18 +9271,26 @@ function _mCardThumb(id, isOffer, isMe, fromSection){
   const imgSrc=(isOffer||owned)&&card?.image_url?card.image_url:_CARD_BACK_MARKET;
   const rarCol=card?(RARITY_COLOR[card.rarity]||'#94a3b8'):'#64748b';
   const count=owned&&card?(card.count||1):0;
-  const clickAttr=owned&&card?`onclick="window._mktOpenCard('${id}')" style="cursor:pointer;"`:`style="cursor:default;"`;
-  const showTrade = !isMe && card && (fromSection==='offer' || (fromSection==='want' && owned));
-  const tradeIcon = showTrade
-    ? `<div onclick="event.stopPropagation();window._mktTradeCard('${id}','${fromSection||'offer'}')" title="Proposer un échange" style="font-size:11px;line-height:1;padding:2px;cursor:pointer;opacity:.7;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">⇄</div>`
-    : '<div style="height:16px;"></div>';
-  return `<div ${clickAttr} style="display:flex;flex-direction:column;align-items:center;gap:2px;width:70px;">
-    <div style="width:70px;height:105px;overflow:hidden;border:2px solid ${rarCol}40;position:relative;">
-      <img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${_CARD_BACK_MARKET}'" />
+  // Cliquer sur l'image ouvre la carte en grand (cartes possédées uniquement)
+  const imgClick=owned&&card?`onclick="event.stopPropagation();window._mktOpenCard('${id}')" style="cursor:pointer;width:100%;height:100%;display:block;"`:`style="cursor:default;width:100%;height:100%;display:block;"`;
+  // Bouton trade style index : seulement sur les stands des autres, selon section
+  const canTrade = !isMe && card && (fromSection==='offer' || (fromSection==='want' && owned));
+  const tradeBtn = canTrade
+    ? `<button onclick="event.stopPropagation();window._mktTradeCard('${id}','${fromSection||'offer'}')"
+        title="Proposer un échange"
+        style="width:100%;margin-top:2px;padding:3px 0;background:transparent;color:#a78bfa;border:1.5px solid rgba(167,139,250,.4);font-size:9px;font-weight:800;cursor:pointer;letter-spacing:.3px;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:3px;"
+        onmouseover="this.style.background='rgba(167,139,250,.12)';this.style.borderColor='rgba(167,139,250,.7)'"
+        onmouseout="this.style.background='transparent';this.style.borderColor='rgba(167,139,250,.4)'">
+        <span style="font-size:11px;">⇄</span>
+      </button>`
+    : `<div style="height:22px;"></div>`;
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:74px;">
+    <div style="width:74px;height:111px;overflow:hidden;border:2px solid ${rarCol}40;position:relative;flex-shrink:0;">
+      <img src="${imgSrc}" ${imgClick} onerror="this.src='${_CARD_BACK_MARKET}'" style="width:100%;height:100%;object-fit:cover;display:block;" />
     </div>
-    <div style="font-size:7px;font-weight:700;color:${rarCol};text-align:center;">#${parseInt(id)}</div>
-    <div style="font-size:6px;font-weight:900;padding:1px 4px;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?`✓ ${count}×`:'✗ Manq.'}</div>
-    ${tradeIcon}
+    <div style="font-size:7px;font-weight:700;color:${rarCol};text-align:center;width:100%;">#${parseInt(id)}</div>
+    <div style="font-size:6px;font-weight:900;padding:1px 4px;text-align:center;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?`✓ ${count}×`:'✗ Manq.'}</div>
+    ${tradeBtn}
   </div>`;
 }
 
@@ -9306,13 +9322,19 @@ function renderMarket(th){
 
   const me=myStand; const others=stands.filter(s=>s.player_id!==myId);
   // Rendu d'une rangée de cartes avec bouton "+" si > 5
+  // Stocker les ids pour le bouton expand (évite les guillemets dans onclick)
+  window._mktExpandData = window._mktExpandData || {};
+
   const standRow=(ids,isOffer,isMe)=>{
-    const MAX=5; const col=isOffer?'#22c55e':'#ef4444';
+    const MAX=5;
     const shown=ids.slice(0,MAX); const extra=ids.length-MAX;
     const section=isOffer?'offer':'want';
+    // Stocker dans un registre global avec un id unique
+    const dataKey='mkt_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    if(extra>0) window._mktExpandData[dataKey]={ids,isOffer,isMe,section};
     return '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;">'
       + (shown.length?shown.map(id=>_mCardThumb(id,isOffer&&isMe,isMe,section)).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;">Aucune carte</span>')
-      + (extra>0?'<button onclick="window._mktExpandRow(this,'+JSON.stringify(ids)+','+isOffer+','+isMe+',\''+section+'\')" style="width:60px;height:90px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:'+th.textMuted+';font-size:11px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;flex-shrink:0;"><span>+'+extra+'</span><span style="font-size:7px;font-weight:600;">voir</span></button>':'')
+      + (extra>0?`<button onclick="window._mktExpandRowByKey(this,'${dataKey}')" style="width:60px;height:90px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:${th.textMuted};font-size:11px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;flex-shrink:0;"><span>+${extra}</span><span style="font-size:7px;font-weight:600;">voir</span></button>`:'')
       + '</div>';
   };
 
@@ -9367,7 +9389,7 @@ function renderMarket(th){
         ?`<div style="display:flex;align-items:center;justify-content:center;padding:60px 0;gap:12px;"><div style="width:20px;height:20px;border:2px solid ${th.accent};border-top-color:transparent;border-radius:50%;animation:spinRing1 .7s linear infinite;"></div><span style="font-size:11px;color:${th.textMuted};">Chargement…</span></div>`
         :stands.length===0
           ?`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;gap:12px;"><div style="font-size:48px;opacity:.12;">🛒</div><div style="font-size:13px;font-weight:700;color:${th.text};">Aucun stand pour l’instant</div></div>`
-          :`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">
+          :`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:12px;">
               ${me?standCard(me,true):''}
               ${others.map(s=>standCard(s,false)).join('')}
             </div>`}
