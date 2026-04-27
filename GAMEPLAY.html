@@ -1414,7 +1414,7 @@ html.ios .mob-card-modal{
     </div>
     <button class="btn btn-gold" id="btn-atk" onclick="humanAttack()" disabled>⚔ Attaquer</button>
     <button class="btn btn-red"  id="btn-pass" onclick="humanPassSort()" disabled>Skip Sort</button>
-    <button class="btn btn-forfeit" id="btn-forfeit" onclick="forfeitMatch()" style="background:rgba(240,64,80,.12);border:1px solid rgba(240,64,80,.4);color:#f04050;font-size:11px;padding:6px 12px;border-radius:16px;cursor:pointer;font-weight:700;letter-spacing:.05em;">🏳 Forfait</button>
+    <button class="btn btn-forfeit" id="btn-forfeit" onclick="forfeitMatch()" style="background:rgba(240,64,80,.12);border:1px solid rgba(240,64,80,.4);color:#f04050;font-size:11px;padding:6px 12px;border-radius:16px;cursor:pointer;font-weight:700;letter-spacing:.05em;">🏳 Abandonner</button>
   </div>
 </div>
 
@@ -2615,23 +2615,45 @@ function renderHand(){
     d.addEventListener('mouseenter',e=>{showTT(ttHTML,e);if(c.image_url)document.getElementById('hcard-tt').classList.add('hcard-tooltip-img');else document.getElementById('hcard-tt').classList.remove('hcard-tooltip-img');});
     d.addEventListener('mousemove',e=>moveTT(e));
     d.addEventListener('mouseleave',hideTT);
-    // Sur mobile : détection par durée uniquement.
-    // Contact < 1s → tap → ouvre la modal. Contact ≥ 1s → scroll, rien ne s'ouvre.
+    // Sur mobile : détection par MOUVEMENT + petite tempo d'intention.
+    //   • tap court et stable (< 10px de mouvement, ≤ 250ms) → ouvre la modale
+    //   • doigt qui bouge significativement (> 10px) → swipe pour scroller la main, pas d'ouverture
+    //   • appui prolongé (> 250ms) sans bouger → considéré comme un appui (pas une ouverture rapide)
+    //     L'utilisateur peut alors lever le doigt sans déclencher la modale, ou continuer à swiper.
+    // Cela laisse au navigateur le temps de comprendre si c'est un tap ou un swipe.
     (function(){
-      let startT=0;
+      let startT=0, startX=0, startY=0, moved=false, longPress=false, lpTimer=null;
+      const MOVE_TOLERANCE=10; // pixels — au-delà : c'est un swipe
+      const TAP_MAX_MS=250;    // au-delà sans bouger : c'est un appui prolongé, pas un tap rapide
       d.addEventListener('touchstart',e=>{
         if(!document.body.classList.contains('mobile'))return;
         startT=Date.now();
+        const t=e.touches[0];
+        startX=t.clientX; startY=t.clientY;
+        moved=false; longPress=false;
+        clearTimeout(lpTimer);
+        lpTimer=setTimeout(()=>{ longPress=true; }, TAP_MAX_MS);
+      },{passive:true});
+      d.addEventListener('touchmove',e=>{
+        if(!document.body.classList.contains('mobile'))return;
+        if(moved) return;
+        const t=e.touches[0];
+        if(Math.abs(t.clientX-startX)>MOVE_TOLERANCE || Math.abs(t.clientY-startY)>MOVE_TOLERANCE){
+          moved=true;
+          clearTimeout(lpTimer);
+        }
       },{passive:true});
       d.addEventListener('touchend',e=>{
         if(!document.body.classList.contains('mobile'))return;
-        const dt=Date.now()-startT;
-        if(dt<1000){
-          e.stopPropagation();
-          e.preventDefault();
-          showCardModal(c, i, dis, ttHTML, rarCol);
-        }
+        clearTimeout(lpTimer);
+        // Si le doigt a bougé OU si c'était un appui prolongé → ne PAS ouvrir la modale
+        if(moved || longPress){ return; }
+        // Tap propre : court et sans mouvement → ouvrir la modale
+        e.stopPropagation();
+        e.preventDefault();
+        showCardModal(c, i, dis, ttHTML, rarCol);
       });
+      d.addEventListener('touchcancel',()=>{ clearTimeout(lpTimer); moved=true; },{passive:true});
     })();
     d.addEventListener('touchstart',e=>{
       e.stopPropagation();
@@ -2669,6 +2691,22 @@ function renderActions(){
 function humanPlayCard(idx){
   const c=G.human.hand[idx];if(!c)return;
   if(!_isAutoAction) _afkTimeoutCount = 0; // action réelle du joueur → reset AFK
+  // Forcer la fermeture du tooltip/zoom de carte au clic (sinon il peut rester
+  // affiché car la carte est retirée du DOM avant que mouseleave ne se déclenche)
+  try{
+    const _tt=document.getElementById('hcard-tt');
+    if(_tt){_tt.style.display='none';_tt._srcCard=null;_tt.classList.remove('hcard-tooltip-img');}
+    // Désactiver pointer-events sur toutes les cartes en main pour casser le :hover
+    // résiduel pendant le re-render (sinon la carte voisine peut "hériter" du zoom)
+    const _hc=document.getElementById('hcards');
+    if(_hc){
+      _hc.querySelectorAll('.hcard').forEach(el=>{
+        el.style.pointerEvents='none';
+        el.style.transform='none';
+        el.style.boxShadow='none';
+      });
+    }
+  }catch(e){}
   if(c.ct==='fighter'&&G.phase==='choose_fighter'){
     G.human.hand.splice(idx,1);
     // Toujours réinitialiser hpCur quand un fighter entre sur le terrain
