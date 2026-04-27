@@ -1783,6 +1783,9 @@ function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel})
         if(score>bestScore){bestScore=score;bestIdx=idx;}
       });
       onPick(bestIdx);
+    } else {
+      // Bot : rien à cibler → annule pour ne pas gaspiller
+      if(onCancel) onCancel();
     }
     return;
   }
@@ -1794,11 +1797,14 @@ function openPickModal({title, sub, color, emptyMsg, effects, onPick, onCancel})
   const box=document.createElement('div');
   box.style.cssText=`background:var(--s2);border:1px solid ${color};border-radius:16px;padding:24px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(0,0,0,.8);`;
   const atLabels={da:'−ATQ',dd:'−DEF',dp:'−PRÉ',ba:'+ATQ',bd:'+DEF',bp:'+PRÉ',love_peace_pending:'LOVE/PEACE'};
+  const subText = effects.length === 0
+    ? 'Aucun effet à cibler. Tu peux annuler pour récupérer ta carte.'
+    : sub;
   let html=`<div style="font-family:'Cinzel',serif;font-size:15px;color:var(--txt);margin-bottom:6px;">${title}</div>
-    <div style="font-size:11px;color:var(--sub);margin-bottom:18px;">${sub}</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:18px;">${subText}</div>
     <div style="display:flex;flex-direction:column;gap:8px;">`;
   if(effects.length===0){
-    html+=`<div style="font-size:12px;color:var(--dim);padding:12px 0;">${emptyMsg}</div>`;
+    html+=`<div style="padding:14px;text-align:center;color:var(--dim);font-size:12px;font-style:italic;border:1px dashed var(--bdr2);border-radius:8px;">— Aucun effet ciblable —</div>`;
   } else {
     effects.forEach((eff,idx)=>{
       const lbl=atLabels[eff.at]||eff.at;
@@ -1832,6 +1838,53 @@ function showRemoveAnyChoice(target){}
 function confirmRemoveAny(idx){}
 function showRemoveChoice(type,target){}
 function confirmRemoveChoice(type,idx){}
+
+// ── Modale dédiée : choisir entre +ATQ ou +DEF (Rivalité Historique) ──
+function openAtqDefPick(nom, val, dur, onPick, onCancel){
+  // Bot : ATQ par défaut sans modale (en PvP humain on ne devrait jamais avoir _botIsPlaying mais sécurité)
+  if(_botIsPlaying){ onPick('atq'); return; }
+  const existing=document.getElementById('atqdef-choice-modal');
+  if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='atqdef-choice-modal';
+  overlay.style.cssText='position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;';
+  const box=document.createElement('div');
+  const color='var(--blue)';
+  box.style.cssText=`background:var(--s2);border:1px solid ${color};border-radius:16px;padding:24px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(0,0,0,.8);`;
+  const durLabel = dur >= 9999 ? '∞' : `${dur} tour${dur>1?'s':''}`;
+  box.innerHTML=`
+    <div style="font-family:'Cinzel',serif;font-size:15px;color:var(--txt);margin-bottom:6px;">🎯 ${nom}</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:18px;">Choisis ton bonus : +${val} ATQ ou +${val} DEF (pendant ${durLabel})</div>
+    <div style="display:flex;flex-direction:row;gap:10px;">
+      <button id="atqdef-pick-atq" style="flex:1;background:var(--s3);border:1px solid ${color};color:var(--txt);padding:14px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;transition:background .15s;" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='var(--s3)'">
+        <span style="font-size:22px;">⚔</span>
+        <span style="font-weight:700">+${val} ATQ</span>
+        <span style="color:${color};font-family:'DM Mono',monospace;font-size:10px;">Attaque</span>
+      </button>
+      <button id="atqdef-pick-def" style="flex:1;background:var(--s3);border:1px solid ${color};color:var(--txt);padding:14px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;transition:background .15s;" onmouseover="this.style.background='var(--s1)'" onmouseout="this.style.background='var(--s3)'">
+        <span style="font-size:22px;">🛡</span>
+        <span style="font-weight:700">+${val} DEF</span>
+        <span style="color:${color};font-family:'DM Mono',monospace;font-size:10px;">Défense</span>
+      </button>
+    </div>
+    <button id="atqdef-cancel-btn" style="margin-top:14px;background:none;border:1px solid var(--bdr2);color:var(--sub);padding:7px 20px;border-radius:8px;cursor:pointer;font-size:11px;">Annuler</button>
+  `;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  document.getElementById('atqdef-pick-atq').addEventListener('click',()=>{
+    overlay.remove();
+    onPick('atq'); render();
+  });
+  document.getElementById('atqdef-pick-def').addEventListener('click',()=>{
+    overlay.remove();
+    onPick('def'); render();
+  });
+  document.getElementById('atqdef-cancel-btn').addEventListener('click',()=>{
+    overlay.remove();
+    if(onCancel) onCancel();
+  });
+}
+
 function applySort(s,cas,cib,onCancel){
   // Gestion LOVE & PEACE : combo permanent
   if(s.effet==='love_peace'){
@@ -1869,7 +1922,20 @@ function applySort(s,cas,cib,onCancel){
       addLog(`💊 +${s.val||5} HP immédiats`,'sm');
       break;
     case'buff_atq_or_def':
-      // Le joueur choisit : on applique ATQ par défaut (bot) ou on propose (humain géré côté UI)
+      // Bot : ATQ par défaut. Humain : modale de choix ATQ/DEF.
+      if(cas===G.human && !_botIsPlaying){
+        openAtqDefPick(s.nom, s.val, s.dur, (choice)=>{
+          if(choice==='atq'){
+            cas.actives.push({nom:s.nom+' (ATQ)',at:'ba',val:s.val,turns:s.dur,su:s.survit});
+            addLog(`⚔ ${s.nom} : +${s.val} ATQ choisi`,'sm');
+          } else {
+            cas.actives.push({nom:s.nom+' (DEF)',at:'bd',val:s.val,turns:s.dur,su:s.survit});
+            addLog(`🛡 ${s.nom} : +${s.val} DEF choisi`,'sm');
+          }
+          G.phase='attack'; render(); resetChrono();
+        }, onCancel);
+        return;
+      }
       cas.actives.push({nom:s.nom+' (ATQ)',at:'ba',val:s.val,turns:s.dur,su:s.survit});
       break;
     case'no_spell':
@@ -2675,7 +2741,7 @@ function humanPlayCard(idx){
         p_rarity: c.rarete || null,
       });
     })();
-    if(!document.getElementById('remove-choice-modal')){G.phase='attack';render();resetChrono();}
+    if(!document.getElementById('remove-choice-modal') && !document.getElementById('atqdef-choice-modal')){G.phase='attack';render();resetChrono();}
   }
 }
 function humanPassSort(){if(G.phase!=='sort')return;G.human.sortJoue=true;G.phase='attack';render();resetChrono();}
