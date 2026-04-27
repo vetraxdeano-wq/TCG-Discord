@@ -598,6 +598,20 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   80%{transform:translate(3px, -1px)}
 }
 @keyframes coinAnim{0%{opacity:0;transform:scale(.6) rotateY(0)}20%{opacity:1;transform:scale(.9) rotateY(180deg)}50%{transform:scale(1.06) rotateY(900deg)}75%{transform:scale(1.02) rotateY(1260deg)}100%{transform:scale(1) rotateY(1440deg);opacity:1}}
+@keyframes coinFlip3D{
+  0%   {transform:translateY(0) rotateX(0deg) scale(.7);opacity:0;}
+  10%  {opacity:1;}
+  20%  {transform:translateY(-90px) rotateX(720deg) scale(1);}
+  45%  {transform:translateY(-110px) rotateX(2520deg) scale(1.05);}
+  70%  {transform:translateY(-30px) rotateX(4320deg) scale(1.02);}
+  85%  {transform:translateY(0) rotateX(5040deg) scale(.98);}
+  100% {transform:translateY(0) rotateX(5040deg) scale(1);}
+}
+.coin3d-wrap{perspective:600px;display:inline-block;margin-bottom:14px;}
+.coin3d{width:96px;height:96px;position:relative;transform-style:preserve-3d;animation:coinFlip3D 1.9s cubic-bezier(.16,1,.3,1) both;}
+.coin3d-face{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;font-size:38px;color:rgba(255,255,255,.92);text-shadow:0 2px 4px rgba(0,0,0,.4),inset 0 0 10px rgba(0,0,0,.3);box-shadow:0 0 0 4px rgba(0,0,0,.18) inset, 0 0 18px rgba(0,0,0,.45),0 4px 14px rgba(0,0,0,.5);backface-visibility:hidden;}
+.coin3d-face.gold{background:radial-gradient(circle at 35% 30%,#ffe27a 0%,#f59200 55%,#a85800 100%);}
+.coin3d-face.red {background:radial-gradient(circle at 35% 30%,#ff8a8a 0%,#d22030 55%,#7a0010 100%);transform:rotateX(180deg);}
 @keyframes arrowPulse{0%,100%{opacity:.45;transform:scaleX(1)}50%{opacity:1;transform:scaleX(1.06)}}
 @keyframes slideUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
@@ -1000,6 +1014,21 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(14px);opacity:0;pointer-events:none;transition:opacity .3s}
 .ov.active{opacity:1;pointer-events:all}
 .ov-box{background:var(--s2);border:1px solid var(--bdr3);border-radius:16px;padding:40px 36px;text-align:center;max-width:420px;width:92%}
+/* Onglets fin de combat */
+.ov-tabs{display:flex;gap:6px;margin:14px 0 0;justify-content:center}
+.ov-tab{flex:1;background:var(--s3);border:1px solid var(--bdr2);color:var(--sub);padding:8px 12px;border-radius:8px 8px 0 0;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:700;letter-spacing:.04em;text-transform:uppercase;transition:all .15s;}
+.ov-tab:hover{color:var(--txt);border-color:var(--bdr3)}
+.ov-tab.active{background:var(--s2);color:var(--gold);border-color:var(--gold);border-bottom-color:var(--s2);position:relative;z-index:2;}
+.ov-tab-panel{display:none;animation:fadeIn .25s ease-out both}
+.ov-tab-panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.ov-log-box{max-height:300px;overflow-y:auto;background:var(--s3);border:1px solid var(--bdr2);border-radius:0 0 10px 10px;border-top:none;padding:12px 14px;margin:0 0 18px;text-align:left;font-family:'DM Mono',monospace;font-size:11px;line-height:1.6;}
+.ov-log-box::-webkit-scrollbar{width:8px}
+.ov-log-box::-webkit-scrollbar-track{background:var(--s2);border-radius:4px}
+.ov-log-box::-webkit-scrollbar-thumb{background:var(--bdr3);border-radius:4px}
+.ov-log-box::-webkit-scrollbar-thumb:hover{background:var(--gold)}
+.ov-log-box .le{display:block;margin-bottom:2px;padding:1px 3px;border-radius:3px;}
+.ov-log-box .le-tour{font-weight:900;color:#fff;letter-spacing:.06em;padding:5px 4px 3px;border-top:1px solid var(--bdr2);margin:5px 0 3px;display:block;font-size:10px;}
 .ov-title{font-family:'Cinzel',serif;font-weight:900;font-size:52px}
 .ov-title.win{color:var(--gold);animation:winPulse 1.2s ease-out both}
 .ov-title.lose{color:var(--red);animation:loseDrop .6s ease-out both}
@@ -1422,7 +1451,17 @@ html.ios .mob-card-modal{
   <div class="ov-title" id="ov-title">?</div>
   <div class="ov-sub" id="ov-sub"></div>
   <div id="ov-reward" style="font-size:15px;font-weight:700;margin:8px 0;color:var(--gold)"></div>
-  <div class="ov-stats" id="ov-stats"></div>
+  <div id="ov-progress" style="margin:6px 0 0;"></div>
+  <div class="ov-tabs">
+    <button class="ov-tab active" id="ov-tab-stats" onclick="switchEndTab('stats')">📊 Stats</button>
+    <button class="ov-tab" id="ov-tab-log" onclick="switchEndTab('log')">📜 Journal</button>
+  </div>
+  <div class="ov-tab-panel active" id="ov-panel-stats">
+    <div class="ov-stats" id="ov-stats" style="border-radius:0 0 10px 10px;border-top:none;"></div>
+  </div>
+  <div class="ov-tab-panel" id="ov-panel-log">
+    <div class="ov-log-box" id="ov-log-box"></div>
+  </div>
   <button class="btn btn-gold" onclick="restartGame()">Rejouer</button>
   <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="margin-top:8px;">← Menu principal</button>
 </div></div>
@@ -1437,7 +1476,7 @@ html.ios .mob-card-modal{
   </div>
 </div>
 
-<div class="coin-ov" id="coin-ov" style="display:none"><div class="coin-box" id="coin-box"><span class="coin-emoji" id="coin-emoji">🪙</span><div class="coin-who" id="coin-who">—</div><div class="coin-detail" id="coin-detail">—</div></div></div>
+<div class="coin-ov" id="coin-ov" style="display:none"><div class="coin-box" id="coin-box"><div class="coin3d-wrap" id="coin3d-wrap"><div class="coin3d" id="coin3d"><div class="coin3d-face gold">♥</div><div class="coin3d-face red">♥</div></div></div><div class="coin-who" id="coin-who">—</div><div class="coin-detail" id="coin-detail">—</div></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -2987,7 +3026,25 @@ function endGame(w, reason){
     <div class="ov-stat"><span class="ov-stat-lbl">💀 Dégâts reçus</span><span class="ov-stat-val">${G.stats.totalDmgB}</span></div>
     <div class="ov-stat"><span class="ov-stat-lbl">🏆 Carte MVP</span><span class="ov-stat-val mvp">${mvpNom} (${mvpVal} dmg)</span></div>
   `;
+  // Remplir le panneau Journal en clonant le contenu de loge
+  const logSrc=document.getElementById('loge'); const logDst=document.getElementById('ov-log-box');
+  if(logSrc && logDst){ logDst.innerHTML=logSrc.innerHTML; logDst.scrollTop=logDst.scrollHeight; }
+  switchEndTab('stats');
   document.getElementById('ov-end').classList.add('active');
+}
+function switchEndTab(tab){
+  const ts=document.getElementById('ov-tab-stats'), tl=document.getElementById('ov-tab-log');
+  const ps=document.getElementById('ov-panel-stats'), pl=document.getElementById('ov-panel-log');
+  if(!ts||!tl||!ps||!pl)return;
+  if(tab==='log'){
+    ts.classList.remove('active'); tl.classList.add('active');
+    ps.classList.remove('active'); pl.classList.add('active');
+    const logSrc=document.getElementById('loge'); const logDst=document.getElementById('ov-log-box');
+    if(logSrc && logDst){ logDst.innerHTML=logSrc.innerHTML; logDst.scrollTop=logDst.scrollHeight; }
+  } else {
+    tl.classList.remove('active'); ts.classList.add('active');
+    pl.classList.remove('active'); ps.classList.add('active');
+  }
 }
 function addLog(msg, cls='', who=''){
   const el=document.getElementById('loge');
@@ -3184,14 +3241,28 @@ function resetIdle(){ resetChrono(); }
 let _ct;
 function showCoinToast(fp){
   const ov=document.getElementById('coin-ov'),box=document.getElementById('coin-box');
+  const coin=document.getElementById('coin3d');
   const imFirst = (fp==='human');
-  document.getElementById('coin-emoji').textContent= imFirst?'🪙':'⏳';
-  const w=document.getElementById('coin-who');
-  w.textContent= imFirst?'Tu commences !':`${_oppName} commence !`;
-  w.className='coin-who '+(imFirst?'first':'second');
-  document.getElementById('coin-detail').textContent= imFirst?'Tu joues en premier':`${_oppName} joue en premier`;
-  ov.style.display='flex';requestAnimationFrame(()=>requestAnimationFrame(()=>box.classList.add('show')));
-  clearTimeout(_ct);_ct=setTimeout(()=>{box.classList.remove('show');setTimeout(()=>ov.style.display='none',400);},3600);
+  // Pendant l'animation : on cache le résultat
+  const w0=document.getElementById('coin-who'); w0.textContent='Pile ou face…'; w0.className='coin-who';
+  document.getElementById('coin-detail').textContent='Tirage au sort…';
+  coin.style.transform=''; coin.style.transition='';
+  // Relancer l'animation
+  coin.style.animation='none'; void coin.offsetWidth; coin.style.animation='';
+  ov.style.display='flex'; requestAnimationFrame(()=>requestAnimationFrame(()=>box.classList.add('show')));
+  setTimeout(()=>{
+    if(!imFirst){
+      coin.style.transition='transform .35s cubic-bezier(.4,1.4,.5,1)';
+      coin.style.transform='rotateX(180deg)';
+    }
+    setTimeout(()=>{
+      const who=document.getElementById('coin-who');
+      who.textContent= imFirst?'Tu commences !':`${_oppName} commence !`;
+      who.className='coin-who '+(imFirst?'first':'second');
+      document.getElementById('coin-detail').textContent= imFirst?'Cœur orange — tu joues en premier':`Cœur rouge — ${_oppName} joue en premier`;
+    }, imFirst?0:380);
+  }, 1850);
+  clearTimeout(_ct);_ct=setTimeout(()=>{box.classList.remove('show');setTimeout(()=>ov.style.display='none',400);},4400);
 }
 function startGame(){
   document.getElementById('si').classList.remove('active');
@@ -3509,13 +3580,16 @@ async function savePvpResult(isWin, coinsDelta, xpGained, reason){
     // 1. Coins + XP sur players (wins/losses/streaks sont gérés par register_match_result)
     const { data:p } = await _db.from('players')
       .select('coins, xp').eq('id', myId).single();
+    let newCoins = Math.max(0, (p?.coins||0) + coinsDelta); // pas en dessous de 0
+    let newXp    = (p?.xp||0) + xpGained;
     if(p){
-      const newCoins = Math.max(0, (p.coins||0) + coinsDelta); // pas en dessous de 0
       await _db.from('players').update({
         coins: newCoins,
-        xp: (p.xp||0) + xpGained,
+        xp: newXp,
       }).eq('id', myId);
     }
+    // Mettre à jour le panneau de fin avec les totaux + barre XP
+    renderEndProgress(newCoins, newXp, coinsDelta, xpGained);
 
     // 2. Résultat de match (wins/losses + séries + games_total + games_pvp)
     await _db.rpc('register_match_result', {
@@ -3574,6 +3648,36 @@ async function savePvpResult(isWin, coinsDelta, xpGained, reason){
 
     console.log(`[PvP] Résultat ${isWin?'Victoire':'Défaite'} — coins ${coinsDelta>=0?'+':''}${coinsDelta} XP +${xpGained} (raison: ${reason})`);
   } catch(e){ console.error('[PvP] savePvpResult:', e); }
+}
+
+// ── Affichage des totaux + progression dans le pop-up de fin ──────────
+function renderEndProgress(totalCoins, totalXp, coinsGained, xpGained){
+  const el = document.getElementById('ov-progress'); if(!el) return;
+  // Système simple : 100 XP par niveau
+  const XP_PER_LEVEL = 100;
+  const level = Math.floor(totalXp / XP_PER_LEVEL);
+  const xpInLevel = totalXp - (level * XP_PER_LEVEL);
+  const pct = Math.max(0, Math.min(100, Math.round((xpInLevel / XP_PER_LEVEL) * 100)));
+  const coinsSign = coinsGained >= 0 ? '+' : '';
+  const xpSign = xpGained >= 0 ? '+' : '';
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:7px;background:var(--s3);border:1px solid var(--bdr2);border-radius:10px;padding:11px 14px;margin-top:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+        <span style="color:var(--sub);">🪙 ${coinsSign}${coinsGained} coins</span>
+        <span style="font-family:'DM Mono',monospace;color:var(--gold);font-weight:700;">Total : ${totalCoins.toLocaleString('fr-FR')} 🪙</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;">
+        <span style="color:var(--sub);">⭐ ${xpSign}${xpGained} XP</span>
+        <span style="font-family:'DM Mono',monospace;color:var(--gold);font-weight:700;">Total : ${totalXp.toLocaleString('fr-FR')} ⭐</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+        <span style="font-family:'Cinzel',serif;font-size:11px;font-weight:700;color:var(--gold);min-width:42px;">Niv. ${level}</span>
+        <div style="flex:1;height:8px;background:var(--s2);border:1px solid var(--bdr2);border-radius:100px;overflow:hidden;position:relative;">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--blue),var(--gold));transition:width .8s cubic-bezier(.16,1,.3,1);"></div>
+        </div>
+        <span style="font-family:'DM Mono',monospace;font-size:9.5px;color:var(--sub);min-width:54px;text-align:right;">${xpInLevel}/${XP_PER_LEVEL}</span>
+      </div>
+    </div>`;
 }
 
 // ─── Souscription Realtime aux events du match ───────────────────────
