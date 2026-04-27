@@ -1658,23 +1658,37 @@ function pEff(p){
 let _effectPickCancelFn = null;
 let _botIsPlaying = false; // true quand c'est le bot qui joue un sort
 function openEffectPick(title, sub, items, onPick, onCancel){
-  // En Auto-Battle OU quand c'est le tour du bot : choisir automatiquement
-  if((_autoBattle || _botIsPlaying) && items.length > 0){
-    // Stratégie : choisir l'effet avec la valeur la plus élevée (le plus impactant)
-    let bestIdx = 0;
-    let bestScore = -Infinity;
-    items.forEach((item, idx) => {
-      const score = (item.val || 0) + (item.turns >= 9999 ? 1000 : (item.turns || 0) * 10);
-      if(score > bestScore){ bestScore = score; bestIdx = idx; }
-    });
-    addLog(`🤖 Auto-choix : "${items[bestIdx].nom}"`, 'sys');
-    onPick(bestIdx);
+  // En Auto-Battle OU quand c'est le tour du bot : choisir automatiquement.
+  // Si items vide en mode bot/auto, on annule (le sort sera reconsommé).
+  if((_autoBattle || _botIsPlaying)){
+    if(items.length > 0){
+      // Stratégie : choisir l'effet avec la valeur la plus élevée (le plus impactant)
+      let bestIdx = 0;
+      let bestScore = -Infinity;
+      items.forEach((item, idx) => {
+        const score = (item.val || 0) + (item.turns >= 9999 ? 1000 : (item.turns || 0) * 10);
+        if(score > bestScore){ bestScore = score; bestIdx = idx; }
+      });
+      addLog(`🤖 Auto-choix : "${items[bestIdx].nom}"`, 'sys');
+      onPick(bestIdx);
+    } else {
+      addLog('🤖 Aucun effet ciblable, sort annulé', 'sys');
+      if(onCancel) onCancel();
+    }
     return;
   }
   document.getElementById('effect-pick-title').textContent = title;
-  document.getElementById('effect-pick-sub').textContent = sub;
+  document.getElementById('effect-pick-sub').textContent = items.length === 0
+    ? 'Aucun effet à cibler. Tu peux annuler pour récupérer ta carte.'
+    : sub;
   const list = document.getElementById('effect-pick-list');
   list.innerHTML = '';
+  if(items.length === 0){
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:14px;text-align:center;color:var(--dim);font-size:12px;font-style:italic;border:1px dashed var(--bdr2);border-radius:8px;';
+    empty.textContent = '— Aucun effet ciblable —';
+    list.appendChild(empty);
+  }
   items.forEach((item, idx) => {
     const btn = document.createElement('button');
     btn.className = 'effect-pick-btn' + (item.isArcane ? ' arcane' : '');
@@ -1707,6 +1721,67 @@ function closeEffectPick(){
   _effectPickCancelFn = null;
   document.getElementById('effect-pick-overlay').classList.remove('open');
   if(fn) fn();
+}
+
+// ── Modale dédiée : choisir entre +ATQ ou +DEF (Rivalité Historique) ──
+let _atqDefPickCancelFn = null;
+function openAtqDefPick(nom, val, dur, onPick, onCancel){
+  // Bot/auto-battle : ATQ par défaut sans modale
+  if(_botIsPlaying || _autoBattle){ onPick('atq'); return; }
+  let overlay = document.getElementById('atqdef-pick-overlay');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'atqdef-pick-overlay';
+    overlay.className = 'effect-pick-overlay';
+    overlay.innerHTML = `
+      <div class="effect-pick-box">
+        <div class="effect-pick-title" id="atqdef-pick-title">Choisir le bonus</div>
+        <div class="effect-pick-sub" id="atqdef-pick-sub">ATQ ou DEF ?</div>
+        <div class="effect-pick-list" style="flex-direction:row;gap:10px;">
+          <button class="effect-pick-btn arcane" id="atqdef-pick-atq" style="flex:1;justify-content:center;">
+            <span class="effect-pick-ico">⚔</span>
+            <div>
+              <div class="effect-pick-nom" id="atqdef-pick-atq-nom">+? ATQ</div>
+              <div class="effect-pick-detail" id="atqdef-pick-atq-det">Bonus d'attaque</div>
+            </div>
+          </button>
+          <button class="effect-pick-btn arcane" id="atqdef-pick-def" style="flex:1;justify-content:center;">
+            <span class="effect-pick-ico">🛡</span>
+            <div>
+              <div class="effect-pick-nom" id="atqdef-pick-def-nom">+? DEF</div>
+              <div class="effect-pick-detail" id="atqdef-pick-def-det">Bonus de défense</div>
+            </div>
+          </button>
+        </div>
+        <button class="effect-pick-cancel" id="atqdef-pick-cancel">Annuler</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('atqdef-pick-cancel').onclick = ()=>{
+      const fn = _atqDefPickCancelFn;
+      _atqDefPickCancelFn = null;
+      overlay.classList.remove('open');
+      if(fn) fn();
+    };
+  }
+  document.getElementById('atqdef-pick-title').textContent = `🎯 ${nom}`;
+  document.getElementById('atqdef-pick-sub').textContent = `Choisis ton bonus : +${val} ATQ ou +${val} DEF`;
+  const durLabel = dur >= 9999 ? '∞' : `${dur} tour${dur>1?'s':''}`;
+  document.getElementById('atqdef-pick-atq-nom').textContent = `+${val} ATQ`;
+  document.getElementById('atqdef-pick-atq-det').textContent = `Pendant ${durLabel}`;
+  document.getElementById('atqdef-pick-def-nom').textContent = `+${val} DEF`;
+  document.getElementById('atqdef-pick-def-det').textContent = `Pendant ${durLabel}`;
+  document.getElementById('atqdef-pick-atq').onclick = ()=>{
+    _atqDefPickCancelFn = null;
+    overlay.classList.remove('open');
+    onPick('atq');
+  };
+  document.getElementById('atqdef-pick-def').onclick = ()=>{
+    _atqDefPickCancelFn = null;
+    overlay.classList.remove('open');
+    onPick('def');
+  };
+  _atqDefPickCancelFn = onCancel || null;
+  overlay.classList.add('open');
 }
 
 function applySort(s,cas,cib,onDone,onCancel){
@@ -1746,9 +1821,24 @@ function applySort(s,cas,cib,onDone,onCancel){
       addLog(`💊 +${s.val||5} HP immédiats`,'sm');
       break;
     case'buff_atq_or_def':
-      // Le joueur choisit : on applique ATQ par défaut (bot) ou on propose (humain géré côté UI)
-      cas.actives.push({nom:s.nom+' (ATQ)',at:'ba',val:s.val,turns:s.dur,su:s.survit});
-      break;
+      // Bot ou auto-battle : ATQ par défaut. Humain : modale de choix ATQ/DEF.
+      if(_botIsPlaying || _autoBattle){
+        cas.actives.push({nom:s.nom+' (ATQ)',at:'ba',val:s.val,turns:s.dur,su:s.survit});
+        break;
+      }
+      stopChrono();
+      openAtqDefPick(s.nom, s.val, s.dur, (choice)=>{
+        if(choice==='atq'){
+          cas.actives.push({nom:s.nom+' (ATQ)',at:'ba',val:s.val,turns:s.dur,su:s.survit});
+          addLog(`⚔ ${s.nom} : +${s.val} ATQ choisi`,'sm');
+        } else {
+          cas.actives.push({nom:s.nom+' (DEF)',at:'bd',val:s.val,turns:s.dur,su:s.survit});
+          addLog(`🛡 ${s.nom} : +${s.val} DEF choisi`,'sm');
+        }
+        render();
+        if(onDone) onDone();
+      }, onCancel);
+      return;
     case'no_spell':
       // L'adversaire ne peut jouer aucun sort ce tour
       cib.noSpellThisTurn=true;
@@ -1775,26 +1865,21 @@ function applySort(s,cas,cib,onDone,onCancel){
         const ruseItems = cas.actives
           .map((a,i)=>({...a,_idx:i}))
           .filter(a=>a.at==='da'||a.at==='dd'||a.at==='dp');
-        if(ruseItems.length === 0){
-          addLog('🧹 Aucune Ruse active à retirer','sm');
-          // pas de modale, continuer normalement (onDone appelé après le switch)
-        } else {
-          stopChrono();
-          openEffectPick(
-            '🧹 Retirer une Ruse',
-            'Choisis la Ruse active sur ton héro à supprimer',
-            ruseItems.map(a=>({...a, isArcane:false})),
-            (pickedIdx) => {
-              const target = ruseItems[pickedIdx];
-              const realIdx = target._idx;
-              if(realIdx >= 0){ cas.actives.splice(realIdx,1); addLog(`🧹 Ruse "${target.nom}" retirée`,'sm'); }
-              render();
-              if(onDone) onDone();
-            },
-            onCancel
-          );
-          return;
-        }
+        stopChrono();
+        openEffectPick(
+          '🧹 Retirer une Ruse',
+          'Choisis la Ruse active sur ton héro à supprimer',
+          ruseItems.map(a=>({...a, isArcane:false})),
+          (pickedIdx) => {
+            const target = ruseItems[pickedIdx];
+            const realIdx = target._idx;
+            if(realIdx >= 0){ cas.actives.splice(realIdx,1); addLog(`🧹 Ruse "${target.nom}" retirée`,'sm'); }
+            render();
+            if(onDone) onDone();
+          },
+          onCancel
+        );
+        return;
       }
       break;
     case'remove_arcane':
@@ -1802,25 +1887,21 @@ function applySort(s,cas,cib,onDone,onCancel){
         const arcItems = cib.actives
           .map((a,i)=>({...a,_idx:i}))
           .filter(a=>(a.at==='ba'||a.at==='bd'||a.at==='bp')&&!a.isLovePeace);
-        if(arcItems.length === 0){
-          addLog('🧲 Aucune Arcane adverse à annuler','sp');
-        } else {
-          stopChrono();
-          openEffectPick(
-            '🧲 Annuler une Arcane',
-            "Choisis l'Arcane adverse à annuler",
-            arcItems.map(a=>({...a, isArcane:true})),
-            (pickedIdx) => {
-              const target = arcItems[pickedIdx];
-              const realIdx = target._idx;
-              if(realIdx >= 0){ cib.actives.splice(realIdx,1); addLog(`🧲 Arcane "${target.nom}" annulée`,'sp'); }
-              render();
-              if(onDone) onDone();
-            },
-            onCancel
-          );
-          return;
-        }
+        stopChrono();
+        openEffectPick(
+          '🧲 Annuler une Arcane',
+          "Choisis l'Arcane adverse à annuler",
+          arcItems.map(a=>({...a, isArcane:true})),
+          (pickedIdx) => {
+            const target = arcItems[pickedIdx];
+            const realIdx = target._idx;
+            if(realIdx >= 0){ cib.actives.splice(realIdx,1); addLog(`🧲 Arcane "${target.nom}" annulée`,'sp'); }
+            render();
+            if(onDone) onDone();
+          },
+          onCancel
+        );
+        return;
       }
       break;
     // Nouveaux effets
@@ -1852,24 +1933,20 @@ function applySort(s,cas,cib,onDone,onCancel){
         const anyItems = cib.actives
           .map((a,i)=>({...a,_idx:i}))
           .filter(a=>a.at==='ba'||a.at==='bd'||a.at==='bp'||a.at==='da'||a.at==='dd'||a.at==='dp');
-        if(anyItems.length === 0){
-          addLog('🗑️ Aucun effet adverse à annuler','sp');
-        } else {
-          stopChrono();
-          openEffectPick(
-            '🗑️ Annuler un effet adverse',
-            "Choisis l'effet à supprimer (Arcane ou Ruse)",
-            anyItems.map(a=>({...a, isArcane:a.at==='ba'||a.at==='bd'||a.at==='bp'})),
-            (pickedIdx) => {
-              const target=anyItems[pickedIdx];
-              const realIdx=target._idx;
-              if(realIdx>=0){ cib.actives.splice(realIdx,1); addLog(`🗑️ "${target.nom}" annulé`,'sp'); }
-              render(); if(onDone) onDone();
-            },
-            onCancel
-          );
-          return;
-        }
+        stopChrono();
+        openEffectPick(
+          '🗑️ Annuler un effet adverse',
+          "Choisis l'effet à supprimer (Arcane ou Ruse)",
+          anyItems.map(a=>({...a, isArcane:a.at==='ba'||a.at==='bd'||a.at==='bp'})),
+          (pickedIdx) => {
+            const target=anyItems[pickedIdx];
+            const realIdx=target._idx;
+            if(realIdx>=0){ cib.actives.splice(realIdx,1); addLog(`🗑️ "${target.nom}" annulé`,'sp'); }
+            render(); if(onDone) onDone();
+          },
+          onCancel
+        );
+        return;
       }
       break;
     case'remove_all_opponent':
