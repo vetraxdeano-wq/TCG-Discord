@@ -9249,17 +9249,6 @@ window._mktTradeCard=function(cardId,section){
     });
   }
 };
-  const stands=state.marketStands||[];
-  const stand=stands.find(s=>s.id===standId);
-  if(!stand) return;
-  // Ouvrir le modal trade en pré-remplissant le destinataire
-  setState({
-    showTrade:true,
-    tradeTargetId:stand.player_id,
-    tradeTargetName:username,
-    tradePreset:{wantIds:(stand.offer_ids||[]).map(id=>String(parseInt(id)))}
-  });
-};
 
 window._mToggle=function(id,type){
   const key=type==='offer'?'marketOfferIds':'marketWantIds';
