@@ -9327,7 +9327,7 @@ function renderMarketEdit(th,myStand){
           <div id="mkt-offer-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px;max-height:260px;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:8px;">
             ${myOwnedCards.length
               ? myOwnedCards.map(c=>_mEditorThumb(c,offerIds.includes(String(parseInt(c.id))),true,th)).join('')
-              : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${notLoaded?'⏳ Chargement…':offerQ?'Aucune carte trouvée':'Tu ne possèdes aucune carte pour l'instant'}</div>`}
+              : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${notLoaded?'⏳ Chargement\u2026':offerQ?'Aucune carte trouv\u00e9e':'Tu ne poss\u00e8des aucune carte pour l\u2019instant'}</div>`}
           </div>
         </div>
       </div>
