@@ -9559,9 +9559,8 @@ function renderMarket(th){
           }).join('');
         };
 
-        return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;position:relative;">
-      <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.18;pointer-events:none;"></div>
-      <div style="position:relative;z-index:1;display:contents;">
+        return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;">
+          <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.18;pointer-events:none;"></div>
           <!-- Header détail -->
           <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
             <button onclick="setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
@@ -9611,9 +9610,8 @@ function renderMarket(th){
       }
     }
 
-    return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;position:relative;">
+    return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;">
       <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.18;pointer-events:none;"></div>
-      <div style="position:relative;z-index:1;display:contents;">
       <!-- Header liste -->
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
         <button onclick="setState({showMarket:false})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>
