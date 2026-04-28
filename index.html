@@ -9248,7 +9248,7 @@ async function saveMarketStand(){
   const myStand=(state.marketStands||[]).find(s=>s.player_id===myId);
   const offerIds=(state.marketOfferIds||[]).filter(id=>_mOwned(id));
   const wantIds=(state.marketWantIds||[]).filter(id=>_mGetCard(id));
-  const payload={player_id:myId,offer_ids:offerIds,want_ids:wantIds,stand_name:(state.marketStandName||'').trim()||null,updated_at:new Date().toISOString()};
+  const payload={player_id:myId,offer_ids:offerIds,want_ids:wantIds,stand_name:(window._mktStandNameDraft!==undefined?window._mktStandNameDraft:(state.marketStandName||'')).trim()||null,updated_at:new Date().toISOString()};
   if(myStand){await db.from('market_stands').update(payload).eq('id',myStand.id);}
   else{await db.from('market_stands').insert(payload);}
   setState({marketView:'list',marketLoading:true,marketSelectedStand:null});
@@ -9425,8 +9425,8 @@ function renderMarket(th){
       const avatarUrl=player.avatar_url||'';
       const username=player.discord_username||'?';
       const standName=stand.stand_name||'';
-      const previewOfferIds=allOfferIds.slice(0,4);
-      const previewWantIds=allWantIds.slice(0,3);
+      const previewOfferIds=allOfferIds.slice(0,10);
+      const previewWantIds=allWantIds.slice(0,10);
       const MINI_W=48, MINI_H=72;
       const miniCard=(id,isOffer)=>{
         const c=_mGetCard(id); const owned=_mOwned(id);
@@ -9474,6 +9474,7 @@ function renderMarket(th){
     // Helper global pour ouvrir l'éditeur de stand
     window._mktOpenEdit = function(){
       const myS=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
+      window._mktStandNameDraft = myS?.stand_name||'';
       setState({marketView:'edit',marketOfferIds:myS?[...(myS.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myS?[...(myS.want_ids||[])].map(id=>String(parseInt(id))):[],marketStandName:myS?.stand_name||'',marketOfferSearch:'',marketWantSearch:''});
     };
 
@@ -9639,7 +9640,7 @@ function renderMarket(th){
     <!-- Corps plein écran 2 colonnes — pas de scroll sur le wrapper -->
     <div style="flex-shrink:0;padding:8px 12px 0;">
       <input id="mkt-stand-name-input" value="${(state.marketStandName||'').replace(/"/g,'&quot;')}" placeholder="✏ Nom de ton stand (ex: La Boutique de Zork)…"
-        oninput="setState({marketStandName:this.value})"
+        oninput="window._mktStandNameDraft=this.value"
         autocomplete="off" maxlength="40"
         style="width:100%;background:${th.bgSecondary};border:2px solid rgba(251,191,36,.35);color:#fbbf24;padding:7px 10px;font-size:11px;font-weight:700;outline:none;box-sizing:border-box;letter-spacing:.3px;" />
     </div>
