@@ -1838,7 +1838,7 @@ function renderTradeModal(th){
           }).join('') : `<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:10px;color:${th.textFaint};">Aucune carte de rareté ${RARITY_LABEL[theirC.rarity]} à proposer</div>`}
         </div>
         <div style="padding:10px 14px;border-top:1px solid ${th.border};flex-shrink:0;">
-          <button id="trade-step-back" style="width:100%;padding:9px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:700;cursor:pointer;">← Retour</button>
+          <button id="trade-step-back-close" style="width:100%;padding:9px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:700;cursor:pointer;">← Retour</button>
         </div>
       </div>
     </div>`;
@@ -1883,8 +1883,9 @@ function renderTradeModal(th){
             </div>`;
           }).join('') : `<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:10px;color:${th.textFaint};">Ce stand ne propose aucune carte</div>`}
         </div>
-        <div style="padding:10px 14px;border-top:1px solid ${th.border};flex-shrink:0;">
-          <button id="trade-step-back" style="width:100%;padding:9px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:700;cursor:pointer;">← Retour</button>
+        <div style="padding:10px 14px;border-top:1px solid ${th.border};flex-shrink:0;display:flex;gap:8px;">
+          <button id="trade-step-back-close" style="flex:1;padding:9px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:700;cursor:pointer;">← Retour</button>
+          <button id="trade-stand-free-id" style="flex:2;padding:9px;background:${th.accent};color:#000;border:none;font-size:11px;font-weight:800;cursor:pointer;">⌨ Saisir un ID précis</button>
         </div>
       </div>
     </div>`;
@@ -1916,10 +1917,10 @@ function renderTradeModal(th){
             <div style="font-size:8px;color:${th.textMuted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Tu reçois</div>
             ${theirC ? `
             <div style="width:80px;height:112px;margin:0 auto;overflow:hidden;border:2px solid ${col2}60;background:linear-gradient(135deg,${col2}20,${col2}08);">
-              ${theirC.image_url ? `<img src="${theirC.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:24px;">🃏</div>`}
+              ${theirC.owned && theirC.image_url ? `<img src="${theirC.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:24px;">🃏</div>`}
             </div>
-            <div style="font-size:9px;font-weight:800;color:${th.text};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${theirC.name}</div>
-            <div style="font-size:8px;color:${col2};">◆ ${RARITY_LABEL[theirC.rarity]}</div>
+            <div style="font-size:9px;font-weight:800;color:${th.text};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${theirC.owned ? theirC.name : '— — — —'}</div>
+            <div style="font-size:8px;color:${col2};">◆ ${RARITY_LABEL[theirC.rarity]} · #${parseInt(theirC.id)}</div>
             ` : `<div style="width:80px;height:112px;margin:0 auto;border:2px dashed ${th.border};display:flex;align-items:center;justify-content:center;font-size:10px;color:${th.textMuted};">?</div>`}
           </div>
         </div>
@@ -5989,6 +5990,68 @@ function bindGame(){
   // Retour step 1 depuis step 2
   const tradeStepBack = document.getElementById('trade-step-back');
   if(tradeStepBack) tradeStepBack.addEventListener('click',()=>setState({tradeStep:null,tradeWantedNum:null,tradeSearch:''}));
+
+  // Retour depuis pick_my_card ou pick_their_from_stand → fermer le trade (pas le modal classique)
+  const tradeStepBackClose = document.getElementById('trade-step-back-close');
+  if(tradeStepBackClose) tradeStepBackClose.addEventListener('click',()=>setState({showTrade:false,tradeMyCard:null,tradeTheirCard:null,tradeIncoming:null,tradeWantedNum:null,tradeSearch:'',tradeStep:null}));
+
+  // Bouton "Saisir un ID précis" dans pick_their_from_stand
+  const tradeStandFreeId = document.getElementById('trade-stand-free-id');
+  if(tradeStandFreeId) tradeStandFreeId.addEventListener('click',()=>{
+    const th=t();
+    const myC = state.tradeMyCard;
+    const existing = document.getElementById('_trade-freeid-overlay');
+    if(existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = '_trade-freeid-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="width:100%;max-width:340px;background:${th.bgSecondary};border:2px solid #000;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.7);">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;margin-bottom:6px;">Saisir un ID de carte</div>
+        <div style="font-size:10px;color:${th.textMuted};margin-bottom:14px;">Entre le numéro exact de la carte que tu veux recevoir en échange.</div>
+        <div style="display:flex;align-items:center;gap:8px;background:${th.bgTertiary};border:2px solid #000;padding:8px 12px;margin-bottom:12px;">
+          <span style="font-size:13px;color:${th.textMuted};">#</span>
+          <input id="_freeid-input" type="number" min="1" placeholder="ex: 42"
+            style="flex:1;background:transparent;border:none;outline:none;color:${th.text};font-size:14px;font-family:inherit;font-weight:700;" />
+        </div>
+        <div id="_freeid-preview" style="min-height:24px;margin-bottom:12px;font-size:10px;color:${th.textMuted};"></div>
+        <div style="display:flex;gap:8px;">
+          <button id="_freeid-cancel" style="flex:1;padding:9px;background:${th.surface};color:${th.textMuted};border:1px solid ${th.border};font-size:11px;font-weight:700;cursor:pointer;">Annuler</button>
+          <button id="_freeid-confirm" disabled style="flex:2;padding:9px;background:${th.surface};color:${th.textMuted};border:none;font-size:11px;font-weight:800;cursor:default;opacity:.5;">Confirmer →</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const inp = document.getElementById('_freeid-input');
+    const preview = document.getElementById('_freeid-preview');
+    const btn = document.getElementById('_freeid-confirm');
+    inp.focus();
+    inp.addEventListener('input',()=>{
+      const id = inp.value.replace(/[^0-9]/g,'');
+      if(!id){ preview.textContent=''; btn.disabled=true; btn.style.background=th.surface; btn.style.color=th.textMuted; btn.style.cursor='default'; btn.style.opacity='.5'; return; }
+      const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(id));
+      if(!card){ preview.innerHTML='<span style="color:'+th.red+';">⚠ Carte introuvable</span>'; btn.disabled=true; btn.style.background=th.surface; btn.style.color=th.textMuted; btn.style.cursor='default'; btn.style.opacity='.5'; return; }
+      const col=RARITY_COLOR[card.rarity]||'#94a3b8';
+      const rarOk = card.rarity===myC.rarity;
+      const notSame = parseInt(card.id)!==parseInt(myC.id);
+      const valid = rarOk&&notSame;
+      let msg = '<span style="color:'+col+';">◆ '+RARITY_LABEL[card.rarity]+' · #'+parseInt(card.id)+'</span>';
+      if(!rarOk) msg+=' <span style="color:'+th.red+';">⚠ Rareté différente</span>';
+      if(!notSame) msg+=' <span style="color:'+th.red+';">⚠ Même carte que tu proposes</span>';
+      if(valid) msg+=' <span style="color:'+th.green+';">✓ Valide</span>';
+      preview.innerHTML=msg;
+      btn.disabled=!valid;
+      btn.style.background=valid?th.accent:th.surface; btn.style.color=valid?'#000':th.textMuted; btn.style.cursor=valid?'pointer':'default'; btn.style.opacity=valid?'1':'.5';
+    });
+    document.getElementById('_freeid-cancel').addEventListener('click',()=>overlay.remove());
+    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+    document.getElementById('_freeid-confirm').addEventListener('click',()=>{
+      const id = inp.value.replace(/[^0-9]/g,'');
+      const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(id));
+      if(!card) return;
+      overlay.remove();
+      setState({tradeTheirCard:card,tradeStep:'confirm'});
+    });
+  });
 
   // Step 2 — barre de recherche nom/ID
   const tradeWantedSearch = document.getElementById('trade-wanted-search');
