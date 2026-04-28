@@ -924,6 +924,7 @@ let state = {
   marketSelectedStand: null,
   marketOfferIds: [],
   marketWantIds: [],
+  marketStandName: '',
   marketOfferSearch: '',
   marketWantSearch: '',
   decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
@@ -9237,7 +9238,7 @@ function _mOwned(id){ const c=ALL_CARDS.find(c=>String(parseInt(c.id))===String(
 async function loadMarketStands(){
   const db=window.db; if(!db){setState({marketLoading:false});return;}
   try{
-    const{data}=await db.from('market_stands').select('id,player_id,offer_ids,want_ids,updated_at,players(discord_username,avatar_url)').order('updated_at',{ascending:false}).limit(100);
+    const{data}=await db.from('market_stands').select('id,player_id,offer_ids,want_ids,stand_name,updated_at,players(discord_username,avatar_url)').order('updated_at',{ascending:false}).limit(100);
     setState({marketStands:data||[],marketLoading:false});
   }catch(e){setState({marketLoading:false});}
 }
@@ -9247,7 +9248,7 @@ async function saveMarketStand(){
   const myStand=(state.marketStands||[]).find(s=>s.player_id===myId);
   const offerIds=(state.marketOfferIds||[]).filter(id=>_mOwned(id));
   const wantIds=(state.marketWantIds||[]).filter(id=>_mGetCard(id));
-  const payload={player_id:myId,offer_ids:offerIds,want_ids:wantIds,updated_at:new Date().toISOString()};
+  const payload={player_id:myId,offer_ids:offerIds,want_ids:wantIds,stand_name:(state.marketStandName||'').trim()||null,updated_at:new Date().toISOString()};
   if(myStand){await db.from('market_stands').update(payload).eq('id',myStand.id);}
   else{await db.from('market_stands').insert(payload);}
   setState({marketView:'list',marketLoading:true,marketSelectedStand:null});
@@ -9423,9 +9424,10 @@ function renderMarket(th){
       const allWantIds=(stand.want_ids||[]).map(id=>String(parseInt(id)));
       const avatarUrl=player.avatar_url||'';
       const username=player.discord_username||'?';
-      const previewOfferIds=allOfferIds.slice(0,3);
-      const previewWantIds=allWantIds.slice(0,2);
-      const MINI_W=38, MINI_H=57;
+      const standName=stand.stand_name||'';
+      const previewOfferIds=allOfferIds.slice(0,4);
+      const previewWantIds=allWantIds.slice(0,3);
+      const MINI_W=48, MINI_H=72;
       const miniCard=(id,isOffer)=>{
         const c=_mGetCard(id); const owned=_mOwned(id);
         const src=(isOffer||owned)&&c?.image_url?c.image_url:_CARD_BACK_MARKET;
@@ -9434,21 +9436,22 @@ function renderMarket(th){
       };
       const offerPreviews=previewOfferIds.map(id=>miniCard(id,true)).join('');
       const wantPreviews=previewWantIds.map(id=>miniCard(id,false)).join('');
-      return `<div onclick="window._mktOpenStand('${stand.id}')" style="cursor:pointer;background:${isMe?'#1a1710':th.bgSecondary};border:${isMe?'2px solid #fbbf24':'1.5px solid rgba(255,255,255,.1)'};overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s;"
+      return `<div onclick="${isMe?'window._mktOpenEdit()':'window._mktOpenStand(\''+stand.id+'\')'}" style="cursor:pointer;background:${isMe?'#1a1710':th.bgSecondary};border:${isMe?'2px solid #fbbf24':'1.5px solid rgba(255,255,255,.1)'};overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s;"
         onmouseover="this.style.borderColor='${isMe?'#f59e0b':'rgba(255,255,255,.35)'}'"
         onmouseout="this.style.borderColor='${isMe?'#fbbf24':'rgba(255,255,255,.1)'}'"
       >
         <!-- Avatar + Nom centré verticalement -->
-        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 8px 8px;border-bottom:1px solid rgba(255,255,255,.07);">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px 8px;border-bottom:1px solid rgba(255,255,255,.07);">
           <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;border:2px solid ${isMe?'#fbbf24':'rgba(255,255,255,.2)'};flex-shrink:0;background:${th.bgTertiary};display:flex;align-items:center;justify-content:center;">
             ${avatarUrl?`<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />`:'<span style="font-size:17px;">👤</span>'}
           </div>
           <div style="font-size:8px;font-weight:900;color:${isMe?'#fbbf24':th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 4px;">${username}${isMe?' ✦':''}</div>
+          ${standName?`<div style="font-size:7px;font-weight:600;color:${isMe?'#f59e0b':th.textMuted};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 4px;font-style:italic;">${standName}</div>`:''}
         </div>
         <!-- Section Proposées -->
         <div style="padding:6px 7px 4px;">
           <div style="font-size:6px;font-weight:700;color:#22c55e;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase;">🟢 Propose (${allOfferIds.length})</div>
-          <div style="display:flex;gap:3px;align-items:flex-start;min-height:${MINI_H}px;">
+          <div style="display:flex;gap:3px;align-items:flex-start;min-height:${MINI_H}px;flex-wrap:wrap;">
             ${offerPreviews||`<span style="font-size:7px;color:${th.textFaint};font-style:italic;line-height:${MINI_H}px;">—</span>`}
           </div>
         </div>
@@ -9457,11 +9460,11 @@ function renderMarket(th){
         <!-- Section Recherchées -->
         <div style="padding:4px 7px 6px;flex:1;">
           <div style="font-size:6px;font-weight:700;color:#ef4444;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase;">🔴 Cherche (${allWantIds.length})</div>
-          <div style="display:flex;gap:3px;align-items:flex-start;min-height:${MINI_H}px;">
+          <div style="display:flex;gap:3px;align-items:flex-start;min-height:${MINI_H}px;flex-wrap:wrap;">
             ${wantPreviews||`<span style="font-size:7px;color:${th.textFaint};font-style:italic;line-height:${MINI_H}px;">—</span>`}
           </div>
         </div>
-        <!-- Footer : bouton Voir toujours en bas à droite -->
+        <!-- Footer : bouton Voir/Éditer toujours en bas à droite -->
         <div style="display:flex;justify-content:flex-end;align-items:center;padding:5px 8px 7px;border-top:1px solid rgba(255,255,255,.07);">
           <span style="font-size:8px;font-weight:800;color:${isMe?'#fbbf24':'#a78bfa'};letter-spacing:.3px;">${isMe?'✏ Éditer':'Voir →'}</span>
         </div>
@@ -9471,7 +9474,7 @@ function renderMarket(th){
     // Helper global pour ouvrir l'éditeur de stand
     window._mktOpenEdit = function(){
       const myS=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
-      setState({marketView:'edit',marketOfferIds:myS?[...(myS.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myS?[...(myS.want_ids||[])].map(id=>String(parseInt(id))):[],marketOfferSearch:'',marketWantSearch:''});
+      setState({marketView:'edit',marketOfferIds:myS?[...(myS.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myS?[...(myS.want_ids||[])].map(id=>String(parseInt(id))):[],marketStandName:myS?.stand_name||'',marketOfferSearch:'',marketWantSearch:''});
     };
 
     // Ouvrir le détail d'un stand
@@ -9634,7 +9637,13 @@ function renderMarket(th){
       <button onclick="saveMarketStand()" style="padding:8px 18px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:900;cursor:pointer;">💾 SAVE</button>
     </div>
     <!-- Corps plein écran 2 colonnes — pas de scroll sur le wrapper -->
-    <div style="flex:1;min-height:0;padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;overflow:hidden;">
+    <div style="flex-shrink:0;padding:8px 12px 0;">
+      <input id="mkt-stand-name-input" value="${(state.marketStandName||'').replace(/"/g,'&quot;')}" placeholder="✏ Nom de ton stand (ex: La Boutique de Zork)…"
+        oninput="setState({marketStandName:this.value})"
+        autocomplete="off" maxlength="40"
+        style="width:100%;background:${th.bgSecondary};border:2px solid rgba(251,191,36,.35);color:#fbbf24;padding:7px 10px;font-size:11px;font-weight:700;outline:none;box-sizing:border-box;letter-spacing:.3px;" />
+    </div>
+    <div style="flex:1;min-height:0;padding:8px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;overflow:hidden;">
       ${notLoaded?`<div style="grid-column:1/-1;text-align:center;padding:30px;color:#f59e0b;font-size:12px;">⏳ Chargement…</div>`:''}
       <!-- ── JE PROPOSE ── -->
       <div style="background:${th.bgSecondary};border:2px solid #000;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
