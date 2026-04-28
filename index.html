@@ -1750,32 +1750,35 @@ function renderTradeModal(th){
     // Bloc info carte : image + infos à côté (HTML concaténé, pas de template literal imbriqué)
     function cardInfoBlock(card, cardId, label, isFrom){
       const col = card ? RARITY_COLOR[card.rarity] : th.textMuted;
-      const ownedHtml = isFrom ? '' :
-        (card
-          ? (card.owned
-              ? '<div style="font-size:9px;margin-top:1px;color:' + th.green + ';font-weight:800;">✓ Possédée</div>'
-              : '<div style="font-size:9px;margin-top:1px;color:' + th.red   + ';font-weight:800;">✗ Non possédée</div>')
-          : '<div style="font-size:9px;margin-top:1px;color:' + th.red + ';">Inconnue</div>');
-      const imgHtml = card && card.image_url
+      // Pour la carte proposée (isFrom) : mystère si non possédée par le receveur
+      const showReal = isFrom ? (card && card.image_url) : (card && card.owned && card.image_url);
+      const countHtml = card && card.owned && card.count > 0
+        ? '<div style="font-size:9px;margin-top:1px;color:' + th.green + ';font-weight:800;">✓ Tu la possèdes ' + card.count + ' fois</div>'
+        : '';
+      const notOwnedHtml = card && !card.owned
+        ? '<div style="font-size:9px;margin-top:1px;color:' + th.red + ';font-weight:800;">✗ Non possédée</div>'
+        : '';
+      const ownedHtml = isFrom
+        ? notOwnedHtml  // carte proposée : signaler si le receveur ne la possède pas encore
+        : (card ? (card.owned ? countHtml : notOwnedHtml) : '<div style="font-size:9px;margin-top:1px;color:' + th.red + ';">Inconnue</div>');
+      const imgHtml = showReal
         ? '<img src="' + card.image_url + '" style="width:100%;height:100%;object-fit:cover;display:block;" />'
           + '<div onclick="openCard3DViewer(' + JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:RARITY_COLOR[card.rarity]}) + ')" style="position:absolute;inset:0;z-index:2;cursor:zoom-in;"></div>'
-        : '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:3px;">'
-          + '<div style="font-size:20px;">🃏</div>'
-          + '<div style="font-size:8px;font-weight:800;color:' + col + ';">◆</div>'
-          + '</div>';
+        : '<img src="' + _CARD_BACK_MARKET + '" style="width:100%;height:100%;object-fit:cover;display:block;" />';
+      const displayName = isFrom ? (card ? card.name : 'Carte #' + cardId) : (card && card.owned ? card.name : '— — — —');
       return '<div style="display:flex;gap:8px;align-items:flex-start;">'
         + '<div style="position:relative;width:60px;height:84px;flex-shrink:0;overflow:hidden;'
         + 'border:1px solid ' + (card ? col + '60' : th.border) + ';'
-        + 'background:' + (card ? 'linear-gradient(135deg,' + col + '25,' + col + '08)' : th.surface) + ';'
-        + (card && card.image_url ? 'cursor:zoom-in;' : '') + '">'
+        + 'background:' + (card ? 'linear-gradient(135deg,' + col + '25,' + col + '08)' : th.surface) + ';">'
         + imgHtml
         + '</div>'
         + '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding-top:2px;">'
         + '<div style="font-size:8px;color:' + th.textMuted + ';text-transform:uppercase;letter-spacing:.5px;">' + label + '</div>'
-        + '<div style="font-size:11px;font-weight:800;color:' + th.text + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (card ? card.name : 'Carte #' + cardId) + '</div>'
+        + '<div style="font-size:11px;font-weight:800;color:' + th.text + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + displayName + '</div>'
         + (card ? '<div style="font-size:9px;color:' + col + ';font-weight:700;">◆ ' + RARITY_LABEL[card.rarity] + '</div>' : '')
         + '<div style="font-size:9px;color:' + th.textFaint + ';">#' + cardId + '</div>'
         + ownedHtml
+        + (isFrom && card && card.owned ? countHtml : '')
         + '</div>'
         + '</div>';
     }
@@ -3428,6 +3431,7 @@ function renderMessagesModal(th){
                 <div style="font-size:7px;font-weight:700;color:${th.text};text-align:center;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
                 <div style="font-size:7px;color:${th.textMuted};">#${card.id}</div>
                 <div style="font-size:7px;color:${col};font-weight:700;">◆ ${RARITY_LABEL[card.rarity]}</div>
+                ${card.owned && card.count > 0 ? `<div style="font-size:6px;color:${th.green};font-weight:800;">✓ ×${card.count}</div>` : ''}
               </div>`;
             return `
               <div style="display:flex;flex-direction:column;align-items:center;gap:3px;">
