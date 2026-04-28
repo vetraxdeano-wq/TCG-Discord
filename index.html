@@ -9423,32 +9423,38 @@ function renderMarket(th){
       const updated=new Date(stand.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
       const makeThumb=(id,color)=>{
         const c=ALL_CARDS.find(x=>String(parseInt(x.id))===id);
-        const img=c?.image_url?`<img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;">🃏</div>`;
-        return `<div style="flex:1;aspect-ratio:1/1;overflow:hidden;border:1.5px solid ${color};background:${th.bgTertiary};">${img}</div>`;
+        const img=c?.image_url?`<img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`:`<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:9px;">🃏</div>`;
+        return `<div style="width:calc(20% - 2px);aspect-ratio:1/1;overflow:hidden;border:1px solid ${color};background:${th.bgTertiary};flex-shrink:0;">${img}</div>`;
       };
-      const emptyThumb=`<div style="flex:1;aspect-ratio:1/1;background:${th.bgTertiary};border:1px dashed rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:16px;opacity:.35;">–</div>`;
-      const offerThumbs=(allOfferIds.slice(0,2).map(id=>makeThumb(id,'#22c55e')).join(''))||(emptyThumb);
-      const wantThumbs=(allWantIds.slice(0,2).map(id=>makeThumb(id,'#ef4444')).join(''))||(emptyThumb);
-      return `<div style="background:${isMe?'#1a1710':th.bgSecondary};border:${isMe?'3px solid #fbbf24':'2px solid #000'};overflow:hidden;display:flex;flex-direction:column;">
-        <div style="height:3px;background:${isMe?'linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24)':th.bgTertiary};"></div>
-        <div style="display:flex;align-items:center;gap:7px;padding:7px 8px 5px;">
-          <div style="width:26px;height:26px;overflow:hidden;background:${th.bgTertiary};border:${isMe?'1.5px solid #fbbf24':'1.5px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-            ${player.avatar_url?`<img src="${player.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />`:'<span style="font-size:11px;">👤</span>'}
+      const makePlusBtn=(extra,color)=>`<div style="width:calc(20% - 2px);aspect-ratio:1/1;background:rgba(255,255,255,.05);border:1px dashed ${color};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:900;color:${color};cursor:pointer;">+${extra}</div>`;
+      const emptyThumb=(color)=>`<div style="width:calc(20% - 2px);aspect-ratio:1/1;background:${th.bgTertiary};border:1px dashed rgba(255,255,255,.1);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;opacity:.3;">–</div>`;
+      // 5 premières cartes + bouton + si plus
+      const buildRow=(ids,color)=>{
+        const shown=ids.slice(0,5);
+        const extra=ids.length-5;
+        const thumbs=shown.length?shown.map(id=>makeThumb(id,color)).join(''):emptyThumb(color);
+        const plus=extra>0?makePlusBtn(extra,color):'';
+        return thumbs+plus;
+      };
+      return `<div style="background:${isMe?'#1a1710':th.bgSecondary};border:${isMe?'2px solid #fbbf24':'1.5px solid #000'};overflow:hidden;display:flex;flex-direction:column;">
+        <div style="height:2px;background:${isMe?'linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24)':th.bgTertiary};"></div>
+        <div style="display:flex;align-items:center;gap:4px;padding:4px 5px 3px;">
+          <div style="width:18px;height:18px;overflow:hidden;background:${th.bgTertiary};border:${isMe?'1px solid #fbbf24':'1px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+            ${player.avatar_url?`<img src="${player.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />`:'<span style="font-size:8px;">👤</span>'}
           </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:9px;font-weight:900;color:${isMe?'#fbbf24':th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${player.discord_username||'Joueur'}${isMe?' ✦':''}</div>
-            <div style="font-size:7.5px;color:${th.textMuted};">${updated}</div>
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:3px;">
+            <div style="font-size:7px;font-weight:900;color:${isMe?'#fbbf24':th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${player.discord_username||'?'}${isMe?' ✦':''}</div>
+            ${isMe?`<button onclick="event.stopPropagation();window._mktOpenEdit()" style="padding:1px 4px;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.4);font-size:7px;font-weight:800;cursor:pointer;flex-shrink:0;">✏</button>`:''}
           </div>
-          ${isMe?`<button onclick="event.stopPropagation();window._mktOpenEdit()" style="padding:3px 6px;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.4);font-size:8px;font-weight:800;cursor:pointer;flex-shrink:0;">✏</button>`:''}
         </div>
-        <div style="padding:0 7px 5px;">
-          <div style="font-size:7.5px;font-weight:900;color:#22c55e;letter-spacing:.4px;margin-bottom:3px;">🟢 ${allOfferIds.length}</div>
-          <div style="display:flex;gap:3px;">${offerThumbs}</div>
+        <div style="padding:0 4px 3px;">
+          <div style="font-size:6.5px;font-weight:900;color:#22c55e;margin-bottom:2px;">🟢${allOfferIds.length}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:2px;">${buildRow(allOfferIds,'#22c55e')}</div>
         </div>
-        <div style="height:1px;background:${th.border};margin:2px 7px;"></div>
-        <div style="padding:4px 7px 7px;">
-          <div style="font-size:7.5px;font-weight:900;color:#ef4444;letter-spacing:.4px;margin-bottom:3px;">🔴 ${allWantIds.length}</div>
-          <div style="display:flex;gap:3px;">${wantThumbs}</div>
+        <div style="height:1px;background:${th.border};margin:1px 4px;"></div>
+        <div style="padding:2px 4px 4px;">
+          <div style="font-size:6.5px;font-weight:900;color:#ef4444;margin-bottom:2px;">🔴${allWantIds.length}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:2px;">${buildRow(allWantIds,'#ef4444')}</div>
         </div>
       </div>`;
     };
@@ -9470,7 +9476,7 @@ function renderMarket(th){
         <button onclick="window._mktOpenEdit()" style="padding:7px 14px;background:#fbbf24;color:#000;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;">+ MON STAND</button>
       </div>
       <!-- Liste des stands -->
-      <div style="flex:1;overflow-y:auto;padding:10px 12px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;align-content:start;">
+      <div style="flex:1;overflow-y:auto;padding:10px 12px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;align-content:start;">
         ${state.marketLoading?`<div style="text-align:center;padding:40px;color:#f59e0b;font-size:13px;">⏳ Chargement des stands…</div>`:
           stands.length===0?`<div style="text-align:center;padding:40px;color:${th.textMuted};font-size:12px;">Aucun stand disponible pour l'instant.<br><br><button onclick="window._mktOpenEdit()" style="margin-top:12px;padding:8px 18px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:800;cursor:pointer;">Créer mon stand</button></div>`:
           [me?standCard(me,true):'', ...others.map(s=>standCard(s,false))].filter(Boolean).join('')
