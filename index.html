@@ -925,6 +925,7 @@ let state = {
   marketOfferIds: [],
   marketWantIds: [],
   marketStandName: '',
+  marketStandNote: '',
   marketOfferSearch: '',
   marketWantSearch: '',
   decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
@@ -9237,7 +9238,7 @@ function _mOwned(id){ const c=ALL_CARDS.find(c=>String(parseInt(c.id))===String(
 async function loadMarketStands(){
   const db=window.db; if(!db){setState({marketLoading:false});return;}
   try{
-    const{data}=await db.from('market_stands').select('id,player_id,offer_ids,want_ids,stand_name,updated_at,players(discord_username,avatar_url)').order('updated_at',{ascending:false}).limit(100);
+    const{data}=await db.from('market_stands').select('id,player_id,offer_ids,want_ids,stand_name,stand_note,updated_at,players(discord_username,avatar_url)').order('updated_at',{ascending:false}).limit(100);
     setState({marketStands:data||[],marketLoading:false});
   }catch(e){setState({marketLoading:false});}
 }
@@ -9247,7 +9248,7 @@ async function saveMarketStand(){
   const myStand=(state.marketStands||[]).find(s=>s.player_id===myId);
   const offerIds=(state.marketOfferIds||[]).filter(id=>_mOwned(id));
   const wantIds=(state.marketWantIds||[]).filter(id=>_mGetCard(id));
-  const payload={player_id:myId,offer_ids:offerIds,want_ids:wantIds,stand_name:(window._mktStandNameDraft!==undefined?window._mktStandNameDraft:(state.marketStandName||'')).trim()||null,updated_at:new Date().toISOString()};
+  const payload={player_id:myId,offer_ids:offerIds,want_ids:wantIds,stand_name:(window._mktStandNameDraft!==undefined?window._mktStandNameDraft:(state.marketStandName||'')).trim()||null,stand_note:(window._mktStandNoteDraft!==undefined?window._mktStandNoteDraft:(state.marketStandNote||'')).trim()||null,updated_at:new Date().toISOString()};
   if(myStand){await db.from('market_stands').update(payload).eq('id',myStand.id);}
   else{await db.from('market_stands').insert(payload);}
   setState({marketView:'list',marketLoading:true,marketSelectedStand:null});
@@ -9481,6 +9482,7 @@ function renderMarket(th){
           </div>
           <div style="font-size:11px;font-weight:900;color:${isMe?'#fbbf24':th.text};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 4px;">${username}${isMe?' ✦':''}</div>
           ${standName?`<div style="font-size:7px;font-weight:600;color:${isMe?'#f59e0b':th.textMuted};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 4px;font-style:italic;">${standName}</div>`:''}
+          ${stand.stand_note?`<div style="font-size:7px;color:${th.textFaint};text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 6px;line-height:1.3;margin-top:1px;">💬 ${stand.stand_note}</div>":''}
         </div>
         <!-- Section Proposées -->
         <div style="padding:6px 7px 4px;">
@@ -9500,7 +9502,7 @@ function renderMarket(th){
         </div>
         <!-- Footer : bouton Voir/Éditer toujours en bas à droite -->
         <div style="display:flex;justify-content:flex-end;align-items:center;padding:5px 8px 7px;border-top:1px solid rgba(255,255,255,.07);">
-          <span style="font-size:8px;font-weight:800;color:${isMe?'#fbbf24':'#a78bfa'};letter-spacing:.3px;">${isMe?'✏ Éditer':'Voir →'}</span>
+          <span style="font-size:8px;font-weight:800;color:${isMe?'#fbbf24':'#a78bfa'};letter-spacing:.3px;">${isMe?'✏ Éditer':'👆 Ouvrir le stand'}</span>
         </div>
       </div>`;
     };
@@ -9509,7 +9511,8 @@ function renderMarket(th){
     window._mktOpenEdit = function(){
       const myS=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
       window._mktStandNameDraft = myS?.stand_name||'';
-      setState({marketView:'edit',marketOfferIds:myS?[...(myS.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myS?[...(myS.want_ids||[])].map(id=>String(parseInt(id))):[],marketStandName:myS?.stand_name||'',marketOfferSearch:'',marketWantSearch:''});
+      window._mktStandNoteDraft=myS?.stand_note||'';
+      setState({marketView:'edit',marketOfferIds:myS?[...(myS.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myS?[...(myS.want_ids||[])].map(id=>String(parseInt(id))):[],marketStandName:myS?.stand_name||'',marketStandNote:myS?.stand_note||'',marketOfferSearch:'',marketWantSearch:''});
     };
 
     // Ouvrir le détail d'un stand
@@ -9556,7 +9559,7 @@ function renderMarket(th){
           }).join('');
         };
 
-        return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;">
+        return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;background-attachment:fixed;display:flex;flex-direction:column;overflow:hidden;">
           <!-- Header détail -->
           <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
             <button onclick="setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
@@ -9574,6 +9577,7 @@ function renderMarket(th){
               </div>
               <div style="font-size:15px;font-weight:900;color:${isMe?'#fbbf24':th.text};text-align:center;">${player.discord_username||'?'}${isMe?' ✦':''}</div>
               <div style="font-size:10px;color:${th.textMuted};text-align:center;font-style:italic;">${stand.stand_name||'Stand sans nom'}</div>
+              ${stand.stand_note?`<div style="font-size:10px;color:${th.textFaint};text-align:center;max-width:320px;line-height:1.4;margin-top:2px;padding:0 12px;">💬 ${stand.stand_note}</div>`:''}
             </div>
             <!-- Séparation proposées/recherchées -->
             <!-- JE PROPOSE -->
@@ -9605,7 +9609,7 @@ function renderMarket(th){
       }
     }
 
-    return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;">
+    return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;background-attachment:fixed;display:flex;flex-direction:column;overflow:hidden;">
       <!-- Header liste -->
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
         <button onclick="setState({showMarket:false})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>
@@ -9679,6 +9683,7 @@ function renderMarket(th){
         oninput="window._mktStandNameDraft=this.value"
         autocomplete="off" maxlength="40"
         style="width:100%;background:${th.bgSecondary};border:2px solid rgba(251,191,36,.35);color:#fbbf24;padding:7px 10px;font-size:11px;font-weight:700;outline:none;box-sizing:border-box;letter-spacing:.3px;" />
+      <textarea id="mkt-stand-note-input" placeholder="💬 Note de ton stand (ex: Dispo le soir, cherche surtout des mythics…)" maxlength="140" oninput="window._mktStandNoteDraft=this.value" autocomplete="off" style="width:100%;background:${th.bgSecondary};border:2px solid rgba(255,255,255,.1);border-top:none;color:${th.textMuted};padding:6px 10px;font-size:10px;outline:none;box-sizing:border-box;resize:none;height:44px;font-family:inherit;line-height:1.4;">${(state.marketStandNote||''||'').replace(/</g,'&lt;')}</textarea>
     </div>
     <div style="flex:1;min-height:0;padding:8px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;overflow:hidden;">
       ${notLoaded?`<div style="grid-column:1/-1;text-align:center;padding:30px;color:#f59e0b;font-size:12px;">⏳ Chargement…</div>`:''}
