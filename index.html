@@ -9215,7 +9215,6 @@ function _mktApplyWantFilter(){
   let filtered = ALL_CARDS.filter(c=>{
     if(_mktWantMissing && _mOwned(c.id)) return false;
     if(_mktWantRarity && c.rarity !== _mktWantRarity) return false;
-    if(!q&&!_mktWantMissing&&!_mktWantRarity) return false;
     if(!q) return true;
     return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
   });
@@ -9223,7 +9222,7 @@ function _mktApplyWantFilter(){
   filtered = filtered.slice(0,150);
   grid.innerHTML = filtered.length
     ? filtered.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join('')
-    : '<div style="font-size:10px;color:'+th.textFaint+';padding:16px;grid-column:1/-1;text-align:center;">'+(q||_mktWantMissing||_mktWantRarity?'Aucune carte ne correspond':'Active un filtre ou tape un nom/ID')+'</div>';
+    : '<div style="font-size:10px;color:'+th.textFaint+';padding:16px;grid-column:1/-1;text-align:center;">'+(q||_mktWantMissing||_mktWantRarity?'Aucune carte ne correspond':'Aucune carte disponible')+'</div>';
   ['common','uncommon','rare','mythic'].forEach(r=>{const b=document.getElementById('mkt-want-rar-'+r);if(b)b.style.opacity=(_mktWantRarity&&_mktWantRarity!==r)?'0.38':'1';});
   const bm=document.getElementById('mkt-want-missing');
   if(bm){bm.style.background=_mktWantMissing?'rgba(239,68,68,.25)':'rgba(255,255,255,.05)';bm.style.borderColor=_mktWantMissing?'rgba(239,68,68,.7)':'rgba(255,255,255,.15)';bm.style.color=_mktWantMissing?'#ef4444':'#94a3b8';}
@@ -9342,7 +9341,35 @@ window._mToggle=function(id,type){
   const arr=[...(state[key]||[])];
   const idx=arr.indexOf(id);
   if(idx>=0)arr.splice(idx,1);else arr.push(id);
-  setState({[key]:arr,marketOfferSearch:_mktOfferQ||'',marketWantSearch:_mktWantQ||''});
+  // Mise à jour silencieuse du state (sans re-render) pour préserver les filtres
+  state[key]=arr;
+  // Rafraîchir uniquement les chips et le compteur, puis la grille via les apply functions
+  const th=t();
+  const chip=(cid,ctype)=>{
+    const c=_mGetCard(cid); const col=c?RARITY_COLOR[c.rarity]||'#94a3b8':'#64748b';
+    const owned=_mOwned(cid);
+    const img=ctype==='offer'?(c?.image_url||_CARD_BACK_MARKET):(owned&&c?.image_url?c.image_url:_CARD_BACK_MARKET);
+    const borderCol=ctype==='offer'?'#22c55e':'#ef4444';
+    return '<div onclick="window._mToggle(\''+cid+'\',\''+ctype+'\')" title="Clic pour retirer" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;position:relative;flex-shrink:0;">'
+      +'<div style="width:56px;height:84px;overflow:hidden;border:2px solid '+borderCol+';position:relative;">'
+      +'<img src="'+img+'" style="width:56px;height:84px;object-fit:cover;display:block;" onerror="this.src=\''+_CARD_BACK_MARKET+'\'" />'
+      +'<div style="position:absolute;top:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.8);border:1px solid '+borderCol+';display:flex;align-items:center;justify-content:center;">'
+      +'<span style="font-size:9px;color:'+borderCol+';line-height:1;font-weight:900;">✕</span></div></div>'
+      +'<div style="font-size:7px;color:'+col+';font-weight:700;text-align:center;">#'+parseInt(cid)+'</div></div>';
+  };
+  if(type==='offer'){
+    const chipsEl=document.getElementById('mkt-offer-chips');
+    const countEl=document.getElementById('mkt-offer-count');
+    if(chipsEl) chipsEl.innerHTML=arr.length?arr.map(i=>chip(i,'offer')).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;padding:8px 0;">Clique sur une carte ci-dessous…</span>';
+    if(countEl) countEl.textContent='('+arr.length+')';
+    _mktApplyOfferFilter();
+  } else {
+    const chipsEl=document.getElementById('mkt-want-chips');
+    const countEl=document.getElementById('mkt-want-count');
+    if(chipsEl) chipsEl.innerHTML=arr.length?arr.map(i=>chip(i,'want')).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;padding:8px 0;">Tape un nom ou active un filtre…</span>';
+    if(countEl) countEl.textContent='('+arr.length+')';
+    _mktApplyWantFilter();
+  }
 };
 
 function _mCardThumb(id, isOffer, isMe, fromSection){
@@ -9611,10 +9638,12 @@ function renderMarket(th){
     const q=offerQ.toLowerCase();
     return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
   }).slice(0,80);
-  const wantCards = wantQ ? ALL_CARDS.filter(c=>{
+  const RARITY_O_W = {common:0,uncommon:1,rare:2,mythic:3};
+  const wantCards = ALL_CARDS.filter(c=>{
+    if(!wantQ) return true;
     const q=wantQ.toLowerCase();
     return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
-  }).slice(0,40) : [];
+  }).sort((a,b)=>(RARITY_O_W[b.rarity]??0)-(RARITY_O_W[a.rarity]??0)||parseInt(a.id)-parseInt(b.id)).slice(0,150);
   const notLoaded = ALL_CARDS.length === 0;
   const chip=(id,type)=>{
     const c=_mGetCard(id); const col=c?RARITY_COLOR[c.rarity]||'#94a3b8':'#64748b';
@@ -9711,7 +9740,7 @@ function renderMarket(th){
           <div id="mkt-want-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,max-content));gap:6px;flex:1;min-height:0;overflow-y:auto;background:${th.bg};border:1px solid ${th.border};padding:8px;align-content:start;">
             ${wantCards.length
               ? wantCards.map(c=>_mEditorThumb(c,wantIds.includes(String(parseInt(c.id))),false,th)).join('')
-              : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${wantQ?'Aucun résultat':'Active un filtre ou tape un nom/ID'}</div>`}
+              : `<div style="font-size:10px;color:${th.textFaint};padding:16px;grid-column:1/-1;text-align:center;">${wantQ?'Aucun résultat':'Aucune carte disponible'}</div>`}
           </div>
         </div>
       </div>
