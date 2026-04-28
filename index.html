@@ -2376,7 +2376,7 @@ function renderTabCollection(th){
           <div style="font-family:'Luckiest Guy',cursive;font-size:12px;font-weight:400;color:${th.text};letter-spacing:.5px;">Marché des Échanges</div>
           <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">Consulter les stands · Proposer vos doublons</div>
         </div>
-        <div style="padding:5px 12px;flex-shrink:0;background:rgba(251,191,36,.18);color:#fbbf24;border:1px solid rgba(251,191,36,.5);font-size:10px;font-weight:800;letter-spacing:.5px;">OUVRIR →</div>
+        <button id="btn-open-market-inner" style="padding:7px 14px;flex-shrink:0;background:${th.accent};color:#000;border:none;cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.5px;">OUVRIR</button>
       </div>
     </div>
     <!-- Filters -->
@@ -4697,28 +4697,14 @@ function bindGame(){
     setState({showMarket:true, marketLoading:true, marketStands:[], marketView:'list'});
     loadMarketStands();
   });
+  const btnOpenMarketInner = document.getElementById('btn-open-market-inner');
+  if(btnOpenMarketInner) btnOpenMarketInner.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    setState({showMarket:true, marketLoading:true, marketStands:[], marketView:'list'});
+    loadMarketStands();
+  });
 
-  const mktClose = document.getElementById('mkt-close');
-  if(mktClose) mktClose.addEventListener('click',()=>setState({showMarket:false}));
-  const mktMyStand = document.getElementById('mkt-my-stand');
-  if(mktMyStand) mktMyStand.addEventListener('click',()=>{
-    const myStand=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
-    setState({marketView:'edit',marketOfferIds:myStand?[...(myStand.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myStand?[...(myStand.want_ids||[])].map(id=>String(parseInt(id))):[],marketOfferSearch:'',marketWantSearch:''});
-  });
-  const mktEditBtn = document.getElementById('mkt-edit-btn');
-  if(mktEditBtn) mktEditBtn.addEventListener('click',()=>{
-    const myStand=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
-    setState({marketView:'edit',marketOfferIds:myStand?[...(myStand.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myStand?[...(myStand.want_ids||[])].map(id=>String(parseInt(id))):[],marketOfferSearch:'',marketWantSearch:''});
-  });
-  const mktEditClose = document.getElementById('mkt-edit-close');
-  if(mktEditClose) mktEditClose.addEventListener('click',()=>{
-    _mktOfferQ=''; _mktWantQ='';
-    setState({marketView:'list', marketOfferSearch:'', marketWantSearch:''});
-  });
-  const mktSave = document.getElementById('mkt-save');
-  if(mktSave) mktSave.addEventListener('click', saveMarketStand);
-  const mktDelete = document.getElementById('mkt-delete');
-  if(mktDelete) mktDelete.addEventListener('click', deleteMarketStand);
+  // mkt-close, mkt-edit-close, mkt-save, mkt-delete, mkt-edit-btn, mkt-my-stand : gérés via onclick inline dans le HTML
   const mktOfferSearch = document.getElementById('mkt-offer-search');
   if(mktOfferSearch) mktOfferSearch.addEventListener('input', e=>{
     _mktOfferQ = e.target.value;
@@ -9410,60 +9396,80 @@ function renderMarket(th){
   const myId=state.currentUser?.id;
   const stands=state.marketStands||[];
   const myStand=stands.find(s=>s.player_id===myId);
-  if(state.marketView==='edit')return renderMarketEdit(th,myStand);
 
-  const me=myStand; const others=stands.filter(s=>s.player_id!==myId);
-  // Rendu d'une rangée de cartes avec bouton "+" si > 5
-  // Stocker les ids pour le bouton expand (évite les guillemets dans onclick)
-  window._mktExpandData = window._mktExpandData || {};
+  // ── VUE LISTE ──────────────────────────────────────────────────────
+  if(state.marketView!=='edit'){
+    const me=myStand; const others=stands.filter(s=>s.player_id!==myId);
+    window._mktExpandData = window._mktExpandData || {};
 
-  const standRow=(ids,isOffer,isMe)=>{
-    const MAX=5;
-    const shown=ids.slice(0,MAX); const extra=ids.length-MAX;
-    const section=isOffer?'offer':'want';
-    // Stocker dans un registre global avec un id unique
-    const dataKey='mkt_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-    if(extra>0) window._mktExpandData[dataKey]={ids,isOffer,isMe,section};
-    return '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;">'
-      + (shown.length?shown.map(id=>_mCardThumb(id,isOffer&&isMe,isMe,section)).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;">Aucune carte</span>')
-      + (extra>0?`<button onclick="window._mktExpandRowByKey(this,'${dataKey}')" style="width:80px;height:110px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:${th.textMuted};font-size:13px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;flex-shrink:0;"><span>+${extra}</span><span style="font-size:8px;font-weight:600;">voir</span></button>`:'')
-      + '</div>';
-  };
+    const standRow=(ids,isOffer,isMe)=>{
+      const MAX=5;
+      const shown=ids.slice(0,MAX); const extra=ids.length-MAX;
+      const section=isOffer?'offer':'want';
+      const dataKey='mkt_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      if(extra>0) window._mktExpandData[dataKey]={ids,isOffer,isMe,section};
+      return '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;">'
+        + (shown.length?shown.map(id=>_mCardThumb(id,isOffer&&isMe,isMe,section)).join(''):'<span style="font-size:9px;color:'+th.textFaint+';font-style:italic;">Aucune carte</span>')
+        + (extra>0?`<button onclick="window._mktExpandRowByKey(this,'${dataKey}')" style="width:80px;height:110px;background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);color:${th.textMuted};font-size:13px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;flex-shrink:0;"><span>+${extra}</span><span style="font-size:8px;font-weight:600;">voir</span></button>`:'')
+        + '</div>';
+    };
 
-  const standCard=(stand,isMe)=>{
-    const player=stand.players||{};
-    const allOfferIds=(stand.offer_ids||[]).map(id=>String(parseInt(id)));
-    const allWantIds=(stand.want_ids||[]).map(id=>String(parseInt(id)));
-    const updated=new Date(stand.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-    const standId=stand.id;
-    return `<div style="background:${isMe?'#1a1710':th.bgSecondary};border:${isMe?'3px solid #fbbf24':'2px solid #000'};overflow:hidden;">
-      <div style="height:3px;background:${isMe?'linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24)':th.bgTertiary};"></div>
-      <!-- En-tête : PP + nom + date -->
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px 10px;">
-        <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;background:${th.bgTertiary};border:${isMe?'2px solid #fbbf24':'2px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-          ${player.avatar_url?`<img src="${player.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\'font-size:18px;\'>👤</span>'" />`:'<span style="font-size:18px;">👤</span>'}
+    const standCard=(stand,isMe)=>{
+      const player=stand.players||{};
+      const allOfferIds=(stand.offer_ids||[]).map(id=>String(parseInt(id)));
+      const allWantIds=(stand.want_ids||[]).map(id=>String(parseInt(id)));
+      const updated=new Date(stand.updated_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      return `<div style="background:${isMe?'#1a1710':th.bgSecondary};border:${isMe?'3px solid #fbbf24':'2px solid #000'};overflow:hidden;">
+        <div style="height:3px;background:${isMe?'linear-gradient(90deg,#fbbf24,#f59e0b,#fbbf24)':th.bgTertiary};"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px 10px;">
+          <div style="width:44px;height:44px;overflow:hidden;background:${th.bgTertiary};border:${isMe?'2px solid #fbbf24':'2px solid #000'};flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+            ${player.avatar_url?`<img src="${player.avatar_url}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\'font-size:18px;\'>👤</span>'" />`:'<span style="font-size:18px;">👤</span>'}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:900;color:${isMe?'#fbbf24':th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${player.discord_username||'Joueur'}${isMe?' (Toi)':''}</div>
+            <div style="font-size:9px;color:${th.textMuted};">Mis à jour le ${updated}</div>
+          </div>
+          ${isMe?`<button onclick="window._mktOpenEdit()" style="padding:5px 12px;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.4);font-size:9px;font-weight:800;cursor:pointer;">✏ MODIFIER</button>`:''}
         </div>
+        <div style="padding:0 14px 10px;">
+          <div style="font-size:9px;font-weight:900;color:#22c55e;letter-spacing:.6px;margin-bottom:7px;">🟢 PROPOSE <span style="font-weight:500;color:${th.textMuted};">(${allOfferIds.length})</span></div>
+          ${standRow(allOfferIds,true,isMe)}
+        </div>
+        <div style="height:1px;background:${th.border};margin:0 14px;"></div>
+        <div style="padding:10px 14px ${isMe?'14px':'8px'};">
+          <div style="font-size:9px;font-weight:900;color:#ef4444;letter-spacing:.6px;margin-bottom:7px;">🔴 RECHERCHE <span style="font-weight:500;color:${th.textMuted};">(${allWantIds.length})</span></div>
+          ${standRow(allWantIds,false,isMe)}
+        </div>
+      </div>`;
+    };
+
+    // Helper global pour ouvrir l'éditeur de stand
+    window._mktOpenEdit = function(){
+      const myS=(state.marketStands||[]).find(s=>s.player_id===state.currentUser?.id);
+      setState({marketView:'edit',marketOfferIds:myS?[...(myS.offer_ids||[])].map(id=>String(parseInt(id))):[],marketWantIds:myS?[...(myS.want_ids||[])].map(id=>String(parseInt(id))):[],marketOfferSearch:'',marketWantSearch:''});
+    };
+
+    return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;">
+      <!-- Header liste -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
+        <button onclick="setState({showMarket:false})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:900;color:${isMe?'#fbbf24':th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${player.discord_username||'Joueur'}${isMe?' (Toi)':''}</div>
-          <div style="font-size:9px;color:${th.textMuted};">Mis à jour le ${updated}</div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">MARCHÉ DES ÉCHANGES</div>
+          <div style="font-size:9px;color:${th.textMuted};">${stands.length} stand${stands.length!==1?'s':''} actif${stands.length!==1?'s':''}</div>
         </div>
-        ${isMe?`<button id="mkt-edit-btn" style="padding:5px 12px;background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.4);font-size:9px;font-weight:800;cursor:pointer;">✏ MODIFIER</button>`:''}
+        <button onclick="window._mktOpenEdit()" style="padding:7px 14px;background:#fbbf24;color:#000;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;">+ MON STAND</button>
       </div>
-      <!-- Section PROPOSE -->
-      <div style="padding:0 14px 10px;">
-        <div style="font-size:9px;font-weight:900;color:#22c55e;letter-spacing:.6px;margin-bottom:7px;">🟢 PROPOSE <span style="font-weight:500;color:${th.textMuted};">(${allOfferIds.length})</span></div>
-        ${standRow(allOfferIds,true,isMe)}
-      </div>
-      <div style="height:1px;background:${th.border};margin:0 14px;"></div>
-      <!-- Section RECHERCHE -->
-      <div style="padding:10px 14px ${isMe?'14px':'8px'};">
-        <div style="font-size:9px;font-weight:900;color:#ef4444;letter-spacing:.6px;margin-bottom:7px;">🔴 RECHERCHE <span style="font-weight:500;color:${th.textMuted};">(${allWantIds.length})</span></div>
-        ${standRow(allWantIds,false,isMe)}
+      <!-- Liste des stands -->
+      <div style="flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:10px;">
+        ${state.marketLoading?`<div style="text-align:center;padding:40px;color:#f59e0b;font-size:13px;">⏳ Chargement des stands…</div>`:
+          stands.length===0?`<div style="text-align:center;padding:40px;color:${th.textMuted};font-size:12px;">Aucun stand disponible pour l'instant.<br><br><button onclick="window._mktOpenEdit()" style="margin-top:12px;padding:8px 18px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:800;cursor:pointer;">Créer mon stand</button></div>`:
+          [me?standCard(me,true):'', ...others.map(s=>standCard(s,false))].filter(Boolean).join('')
+        }
       </div>
     </div>`;
-  };
+  }
 
-  // Variables manquantes pour le template edit
+  // ── VUE EDIT ───────────────────────────────────────────────────────
   const offerIds = state.marketOfferIds || [];
   const wantIds  = state.marketWantIds  || [];
   if(state.marketOfferSearch) _mktOfferQ = state.marketOfferSearch;
@@ -9489,15 +9495,15 @@ function renderMarket(th){
   };
 
   return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;">
-    <!-- Header -->
+    <!-- Header edit -->
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
-      <button id="mkt-edit-close" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>
+      <button onclick="(function(){_mktOfferQ='';_mktWantQ='';setState({marketView:'list',marketOfferSearch:'',marketWantSearch:''});})()" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>
       <div style="flex:1;min-width:0;">
         <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">MON STAND</div>
         <div style="font-size:9px;color:${th.textMuted};">${offerIds.length} proposée${offerIds.length!==1?'s':''} · ${wantIds.length} recherchée${wantIds.length!==1?'s':''}</div>
       </div>
-      ${myStand?`<button id="mkt-delete" style="padding:6px 10px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.35);font-size:9px;font-weight:800;cursor:pointer;">🗑</button>`:''}
-      <button id="mkt-save" style="padding:8px 18px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:900;cursor:pointer;">💾 SAVE</button>
+      ${myStand?`<button onclick="deleteMarketStand()" style="padding:6px 10px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.35);font-size:9px;font-weight:800;cursor:pointer;">🗑</button>`:''}
+      <button onclick="saveMarketStand()" style="padding:8px 18px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:900;cursor:pointer;">💾 SAVE</button>
     </div>
     <!-- Corps plein écran 2 colonnes — pas de scroll sur le wrapper -->
     <div style="flex:1;min-height:0;padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;overflow:hidden;">
