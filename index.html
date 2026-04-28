@@ -9559,7 +9559,9 @@ function renderMarket(th){
           }).join('');
         };
 
-        return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;background-attachment:fixed;display:flex;flex-direction:column;overflow:hidden;">
+        return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;position:relative;">
+      <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.18;pointer-events:none;"></div>
+      <div style="position:relative;z-index:1;display:contents;">
           <!-- Header détail -->
           <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
             <button onclick="setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
@@ -9609,7 +9611,9 @@ function renderMarket(th){
       }
     }
 
-    return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;background-attachment:fixed;display:flex;flex-direction:column;overflow:hidden;">
+    return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;position:relative;">
+      <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.18;pointer-events:none;"></div>
+      <div style="position:relative;z-index:1;display:contents;">
       <!-- Header liste -->
       <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
         <button onclick="setState({showMarket:false})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>
@@ -9619,8 +9623,19 @@ function renderMarket(th){
         </div>
         <button onclick="window._mktOpenEdit()" style="padding:7px 14px;background:#fbbf24;color:#000;border:none;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:.5px;">+ MON STAND</button>
       </div>
+      <!-- Section bienvenue -->
+      <div style="text-align:center;padding:22px 16px 10px;flex-shrink:0;">
+        <img src="https://i.goopics.net/7l176b.png" style="width:72px;height:72px;object-fit:contain;display:block;margin:0 auto 10px;" onerror="this.style.display='none'" />
+        <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:#fbbf24;letter-spacing:1.5px;line-height:1.2;text-shadow:0 2px 8px rgba(0,0,0,.8);">BIENVENUE AU<br>MARCHÉ DES ÉCHANGES</div>
+        <div style="font-size:10px;color:${th.textMuted};margin-top:7px;max-width:360px;margin-left:auto;margin-right:auto;line-height:1.5;text-shadow:0 1px 4px rgba(0,0,0,.9);">Balade-toi à travers les stands, monte le tien, négocie, discute, échange et remplis ta collection&nbsp;!</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+          <div style="height:2px;flex:1;background:linear-gradient(90deg,transparent,#fbbf24);"></div>
+          <div style="width:8px;height:8px;background:#fbbf24;transform:rotate(45deg);flex-shrink:0;"></div>
+          <div style="height:2px;flex:1;background:linear-gradient(270deg,transparent,#fbbf24);"></div>
+        </div>
+      </div>
       <!-- Liste des stands -->
-      <div style="flex:1;overflow-y:auto;padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(max(calc(20% - 12px),130px),1fr));gap:10px;align-content:start;">
+      <div style="flex:1;overflow-y:auto;padding:6px 12px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(max(calc(20% - 12px),130px),1fr));gap:10px;align-content:start;">
         ${state.marketLoading?`<div style="grid-column:1/-1;text-align:center;padding:40px;color:#f59e0b;font-size:13px;">⏳ Chargement des stands…</div>`:
           stands.length===0?`<div style="grid-column:1/-1;text-align:center;padding:40px;color:${th.textMuted};font-size:12px;">Aucun stand disponible pour l'instant.<br><br><button onclick="window._mktOpenEdit()" style="margin-top:12px;padding:8px 18px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:800;cursor:pointer;">Créer mon stand</button></div>`:
           [me?standCard(me,true):'', ...others.map(s=>standCard(s,false))].filter(Boolean).join('')
