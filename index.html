@@ -9342,7 +9342,7 @@ window._mToggle=function(id,type){
   const arr=[...(state[key]||[])];
   const idx=arr.indexOf(id);
   if(idx>=0)arr.splice(idx,1);else arr.push(id);
-  setState({[key]:arr});
+  setState({[key]:arr,marketOfferSearch:_mktOfferQ||'',marketWantSearch:_mktWantQ||''});
 };
 
 function _mCardThumb(id, isOffer, isMe, fromSection){
