@@ -9460,8 +9460,9 @@ function renderMarket(th){
         const c=_mGetCard(id); const owned=_mOwned(id);
         const src=owned&&c?.image_url?c.image_url:_CARD_BACK_MARKET;
         const rarCol=c?(RARITY_COLOR[c.rarity]||'#64748b'):'#64748b';
+        const ownedCount=c?(c.count||1):1;
         const ownedBadge=owned
-          ?'<div style="font-size:6px;font-weight:900;color:#22c55e;text-align:center;line-height:1.1;margin-top:1px;">✓</div>'
+          ?'<div style="font-size:6px;font-weight:900;color:#22c55e;text-align:center;line-height:1.1;margin-top:1px;">✓ '+ownedCount+'×</div>'
           :'<div style="font-size:6px;font-weight:900;color:#ef4444;text-align:center;line-height:1.1;margin-top:1px;">✗</div>';
         return '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">'
           +'<div style="width:'+MINI_W+'px;height:'+MINI_H+'px;border:1.5px solid '+rarCol+'55;overflow:hidden;line-height:0;"><img src="'+src+'" onerror="this.src=\''+_CARD_BACK_MARKET+'\'\'" style="width:'+MINI_W+'px;height:'+MINI_H+'px;object-fit:cover;display:block;" /></div>'
@@ -9550,7 +9551,7 @@ function renderMarket(th){
                   style="width:88px;height:132px;object-fit:cover;display:block;" />
               </div>
               <div style="font-size:7px;font-weight:700;color:${rarCol};text-align:center;">#${parseInt(id)}</div>
-              <div style="font-size:6px;font-weight:900;padding:1px 5px;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?`✓`:'✗'}</div>
+              <div style="font-size:6px;font-weight:900;padding:1px 5px;${owned?'background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#22c55e;':'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#ef4444;'}">${owned?`✓ ${card?(card.count||1):1}×`:'✗'}</div>
               ${canTrade?`<button onclick="event.stopPropagation();window._mktTradeCard('${id}','${isOffer?'offer':'want'}')"
                 style="width:88px;padding:4px 0;background:transparent;color:#a78bfa;border:1.5px solid rgba(167,139,250,.4);font-size:9px;font-weight:800;cursor:pointer;"
                 onmouseover="this.style.background='rgba(167,139,250,.12)'" onmouseout="this.style.background='transparent'">⇄ Échanger</button>`
@@ -9623,7 +9624,7 @@ function renderMarket(th){
       </div>
       <!-- Section bienvenue -->
       <div style="text-align:center;padding:22px 16px 10px;flex-shrink:0;">
-        <img src="https://i.goopics.net/ph9n22.png" style="width:160px;height:160px;object-fit:contain;display:block;margin:0 auto 12px;" onerror="this.style.display='none'" />
+        <img src="https://i.goopics.net/ph9n22.png" style="width:200px;height:200px;object-fit:contain;display:block;margin:0 auto 12px;" onerror="this.style.display='none'" />
         <div style="font-family:'Luckiest Guy',cursive;font-size:20px;color:#fbbf24;letter-spacing:1.5px;line-height:1.2;text-shadow:0 2px 8px rgba(0,0,0,.8);">BIENVENUE AU<br>MARCHÉ DES ÉCHANGES</div>
         <div style="font-size:12px;color:${th.textMuted};margin-top:8px;max-width:360px;margin-left:auto;margin-right:auto;line-height:1.5;text-shadow:0 1px 4px rgba(0,0,0,.9);">Balade-toi à travers les stands, monte le tien, négocie, discute, échange et remplis ta collection&nbsp;!</div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:14px;">
