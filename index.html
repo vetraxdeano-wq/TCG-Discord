@@ -5991,8 +5991,7 @@ function bindGame(){
       // Envoi direct avec tradeMyCard et tradeTheirCard déjà définis
       const wantedId = state.tradeTheirCard ? String(state.tradeTheirCard.id) : null;
       if(wantedId) setState({tradeWantedNum:wantedId});
-      const origStep = state.tradeStep;
-      sendTrade();
+      sendTradeOffer(wantedId);
     } else {
       setState({tradeStep:'pick_their_card',tradeWantedNum:null,tradeSearch:''});
     }
