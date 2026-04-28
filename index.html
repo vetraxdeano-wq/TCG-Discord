@@ -1816,12 +1816,13 @@ function renderTradeModal(th){
           <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;margin-bottom:6px;">Que proposes-tu en échange ?</div>
           <div style="display:flex;align-items:center;gap:10px;">
             <div style="width:48px;height:68px;overflow:hidden;border:2px solid ${col2}60;flex-shrink:0;">
-              ${theirC.image_url ? `<img src="${theirC.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:20px;">🃏</div>'}
+              ${theirC.owned && theirC.image_url ? `<img src="${theirC.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />` : `<img src="${_CARD_BACK_MARKET}" style="width:100%;height:100%;object-fit:cover;display:block;" />`}
             </div>
             <div>
               <div style="font-size:8px;color:${th.textMuted};text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Tu recevras</div>
-              <div style="font-size:11px;font-weight:800;color:${th.text};">${theirC.name}</div>
-              <div style="font-size:9px;color:${col2};">◆ ${RARITY_LABEL[theirC.rarity]}</div>
+              <div style="font-size:11px;font-weight:800;color:${theirC.owned?th.text:th.textMuted};">${theirC.owned ? theirC.name : '— — — —'}</div>
+              <div style="font-size:9px;color:${col2};">◆ ${RARITY_LABEL[theirC.rarity]} · #${parseInt(theirC.id)}</div>
+              ${!theirC.owned ? `<div style="font-size:8px;color:${th.textMuted};margin-top:1px;">Non possédée</div>` : ''}
             </div>
           </div>
         </div>
@@ -1830,8 +1831,9 @@ function renderTradeModal(th){
           ${myOwned.length ? myOwned.map(c => {
             const col = RARITY_COLOR[c.rarity]||'#94a3b8';
             return `<div onclick="setState({tradeMyCard:ALL_CARDS.find(x=>String(parseInt(x.id))===String(parseInt('${c.id}'))),tradeStep:'confirm'})" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;">
-              <div style="width:60px;height:88px;overflow:hidden;border:2px solid ${col}55;">
+              <div style="width:60px;height:88px;overflow:hidden;border:2px solid ${col}55;position:relative;">
                 ${c.image_url ? `<img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />` : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:18px;">🃏</div>'}
+                ${c.count > 1 ? `<div style="position:absolute;top:2px;right:2px;min-width:14px;height:14px;background:rgba(0,0,0,.8);color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;border:1px solid rgba(255,255,255,.2);">×${c.count}</div>` : ''}
               </div>
               <div style="font-size:7px;color:${col};font-weight:700;">#${parseInt(c.id)}</div>
             </div>`;
@@ -1879,7 +1881,7 @@ function renderTradeModal(th){
                 ${c.owned && c.image_url ? `<img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />` : `<img src="${_CARD_BACK_MARKET}" style="width:100%;height:100%;object-fit:cover;display:block;" />`}
               </div>
               <div style="font-size:7px;color:${col};font-weight:700;">#${parseInt(c.id)}</div>
-              ${!rarOk ? '<div style="font-size:6px;color:'+th.red+';">≠ rareté</div>' : ''}
+              ${rarOk ? `<div style="font-size:6px;font-weight:800;color:${c.owned?th.green:th.textMuted};">${c.owned?'✓ Possédée':'✗ Non poss.'}</div>` : '<div style="font-size:6px;color:'+th.red+';">≠ rareté</div>'}
             </div>`;
           }).join('') : `<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:10px;color:${th.textFaint};">Ce stand ne propose aucune carte</div>`}
         </div>
@@ -1917,7 +1919,7 @@ function renderTradeModal(th){
             <div style="font-size:8px;color:${th.textMuted};margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;">Tu reçois</div>
             ${theirC ? `
             <div style="width:80px;height:112px;margin:0 auto;overflow:hidden;border:2px solid ${col2}60;background:linear-gradient(135deg,${col2}20,${col2}08);">
-              ${theirC.owned && theirC.image_url ? `<img src="${theirC.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:24px;">🃏</div>`}
+              ${theirC.owned && theirC.image_url ? `<img src="${theirC.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />` : `<img src="${_CARD_BACK_MARKET}" style="width:100%;height:100%;object-fit:cover;display:block;" />`}
             </div>
             <div style="font-size:9px;font-weight:800;color:${th.text};margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${theirC.owned ? theirC.name : '— — — —'}</div>
             <div style="font-size:8px;color:${col2};">◆ ${RARITY_LABEL[theirC.rarity]} · #${parseInt(theirC.id)}</div>
