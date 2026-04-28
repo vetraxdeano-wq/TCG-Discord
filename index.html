@@ -9430,7 +9430,7 @@ function renderMarket(th){
       const MINI_W=48, MINI_H=72;
       const miniCard=(id,isOffer)=>{
         const c=_mGetCard(id); const owned=_mOwned(id);
-        const src=(isOffer||owned)&&c?.image_url?c.image_url:_CARD_BACK_MARKET;
+        const src=owned&&c?.image_url?c.image_url:_CARD_BACK_MARKET;
         const rarCol=c?(RARITY_COLOR[c.rarity]||'#64748b'):'#64748b';
         const ownedBadge=owned
           ?'<div style="font-size:6px;font-weight:900;color:#22c55e;text-align:center;line-height:1.1;margin-top:1px;">✓</div>'
