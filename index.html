@@ -8079,6 +8079,67 @@ async function subscribeNotifications() {
     }
   }
 
+  // Charger les notifications trade_accepted non lues (expéditeur hors-ligne au moment de l'acceptation)
+  const { data: _pendingTradeNotifs } = await db.from('notifications')
+    .select('id, from_id, text, meta, read')
+    .eq('user_id', myId)
+    .eq('type', 'trade_accepted')
+    .eq('read', false)
+    .order('created_at', { ascending: true });
+
+  if (_pendingTradeNotifs && _pendingTradeNotifs.length > 0) {
+    // On ne montre que la plus récente pour ne pas spammer si plusieurs échanges en attente
+    const _tn = _pendingTradeNotifs[_pendingTradeNotifs.length - 1];
+    let _tnMeta = {};
+    try { _tnMeta = JSON.parse(_tn.meta || '{}'); } catch(e) {}
+    const _tnObtainedName = _tnMeta.to_card   || null; // carte que l'expéditeur REÇOIT
+    const _tnGivenName    = _tnMeta.from_card  || null; // carte que l'expéditeur a DONNÉE
+
+    // Marquer toutes lues immédiatement (une seule animation, pas de replay)
+    try {
+      await db.from('notifications')
+        .update({ read: true })
+        .eq('user_id', myId)
+        .eq('type', 'trade_accepted')
+        .eq('read', false);
+    } catch(e) {}
+
+    if (_tnObtainedName) {
+      // Attendre que ALL_CARDS soit chargé (loadCollection peut être asynchrone)
+      const _runTradeAnim = () => {
+        const _tcOb = ALL_CARDS.find(c => c.name === _tnObtainedName);
+        const _tcGv = ALL_CARDS.find(c => c.name === _tnGivenName);
+        const _tcAccepterName = (state.friends || []).find(f => f.id === _tn.from_id)?.discord_username || 'Ton ami';
+        if (_tcOb) {
+          showTradeCompleteAnimation({
+            obtainedCard: _tcOb,
+            givenCard:    _tcGv || _tcOb,
+            senderName:   _tcAccepterName,
+          });
+        }
+      };
+      // Si les cartes sont déjà chargées, on lance directement, sinon on attend
+      if (ALL_CARDS.length > 0) {
+        setTimeout(_runTradeAnim, 600);
+      } else {
+        // Polling léger : toutes les 500ms jusqu'à 8s max
+        let _waitCount = 0;
+        const _waitCards = setInterval(() => {
+          _waitCount++;
+          if (ALL_CARDS.length > 0) { clearInterval(_waitCards); setTimeout(_runTradeAnim, 300); }
+          else if (_waitCount >= 16) { clearInterval(_waitCards); } // abandon après 8s
+        }, 500);
+      }
+    }
+
+    // Afficher aussi dans le panneau notifs (résumé textuel) pour les échanges manqués
+    const _notifTexts = _pendingTradeNotifs.map(n => {
+      let m = {}; try { m = JSON.parse(n.meta||'{}'); } catch(e) {}
+      return { id: n.id, accepted: true, from_id: n.from_id, text: n.text || `Tu as reçu "${m.to_card||'?'}"` };
+    });
+    setState({ tradeResultNotifs: [...(state.tradeResultNotifs||[]), ..._notifTexts] });
+  }
+
   // Realtime : écouter les nouvelles notifications
   if (_notifRealtimeSub) { try { db.removeChannel(_notifRealtimeSub); } catch(e){} }
   _notifRealtimeSub = db.channel('notif-rt-' + myId)
@@ -8115,6 +8176,30 @@ async function subscribeNotifications() {
         const prev = state.tradeResultNotifs || [];
         setState({ tradeResultNotifs: [...prev, { id: n.id, accepted: isAccepted, from_id: n.from_id, text: notifText }] });
         showToast(notifText || (isAccepted ? 'Échange accepté !' : 'Échange refusé'), isAccepted ? '🔄' : '✗');
+
+        // Animation côté expéditeur (il reçoit la carte to_card)
+        if (isAccepted) {
+          try {
+            let meta = {};
+            try { meta = JSON.parse(n.meta || '{}'); } catch(e2) {}
+            // meta.from_card = carte que l'expéditeur a DONNÉE  → ce que le receveur a reçu
+            // meta.to_card   = carte que le receveur a DONNÉE   → ce que l'expéditeur reçoit
+            const _senderObtainedName = meta.to_card || null;
+            const _senderGivenName    = meta.from_card || null;
+            if (_senderObtainedName) {
+              const _tcOb = ALL_CARDS.find(c=>c.name===_senderObtainedName);
+              const _tcGv = ALL_CARDS.find(c=>c.name===_senderGivenName);
+              const _tcAccepterName = (state.friends||[]).find(f=>f.id===n.from_id)?.discord_username || 'Ton ami';
+              if (_tcOb) {
+                setTimeout(()=>showTradeCompleteAnimation({
+                  obtainedCard: _tcOb,
+                  givenCard:    _tcGv || _tcOb,
+                  senderName:   _tcAccepterName,
+                }), 350);
+              }
+            }
+          } catch(e3) {}
+        }
         return;
       }
       if (n.type === 'combat_request') {
@@ -9265,6 +9350,18 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
     // Recharger la collection
     if (window.loadCollection) window.loadCollection();
     showToast('Échange effectué ! Tu as reçu : ' + fromCardName, '🔄');
+
+    // Animation de finalisation d'échange
+    const _tcObtained = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.from_card_id));
+    const _tcGiven    = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(incoming.to_card_id));
+    const _tcSender   = incoming.from_name || (state.friends||[]).find(f=>f.id===incoming.from_id)?.discord_username || 'Ton ami';
+    if (_tcObtained) {
+      setTimeout(()=>showTradeCompleteAnimation({
+        obtainedCard: _tcObtained,
+        givenCard:    _tcGiven || _tcObtained,
+        senderName:   _tcSender,
+      }), 350);
+    }
   } else {
     await db.from('trades').update({ status: 'declined' }).eq('id', tradeId);
     // Notifier l'expéditeur du refus
@@ -10386,6 +10483,162 @@ function openCard3DViewer(card) {
   }
 }
 
+
+// ─── TRADE COMPLETE ANIMATION — STYLES ───────────────────────────────────────
+(function(){
+  if(document.getElementById('trade-complete-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'trade-complete-styles';
+  s.textContent = `
+    @keyframes tcSlideUp {
+      from { transform: translateY(40px); opacity:0; }
+      to   { transform: translateY(0);    opacity:1; }
+    }
+    @keyframes tcCardReveal {
+      0%   { transform: rotateY(90deg) scale(.85); opacity:0; }
+      60%  { transform: rotateY(-8deg)  scale(1.04); opacity:1; }
+      80%  { transform: rotateY(4deg)   scale(1.01); }
+      100% { transform: rotateY(0deg)   scale(1); opacity:1; }
+    }
+    @keyframes tcLabelPop {
+      0%   { transform: scale(.6) translateY(8px); opacity:0; }
+      65%  { transform: scale(1.08) translateY(-2px); opacity:1; }
+      100% { transform: scale(1)    translateY(0); opacity:1; }
+    }
+    @keyframes tcParticleDrift {
+      0%   { transform: translate(0,0) scale(1);   opacity:.8; }
+      100% { transform: translate(var(--tc-dx), var(--tc-dy)) scale(0); opacity:0; }
+    }
+    @keyframes tcGlowPulse {
+      0%, 100% { box-shadow: var(--tc-glow-base); }
+      50%       { box-shadow: var(--tc-glow-peak); }
+    }
+    @keyframes tcStamper {
+      0%   { transform: scale(2.5) rotate(-6deg); opacity:0; filter: blur(4px); }
+      55%  { transform: scale(.95) rotate(.5deg); opacity:1; filter: blur(0); }
+      75%  { transform: scale(1.04) rotate(0deg); }
+      100% { transform: scale(1)    rotate(0deg); opacity:1; }
+    }
+    @keyframes tcBgFadeIn { from { opacity:0; } to { opacity:1; } }
+
+    #trade-complete-overlay {
+      position:fixed; inset:0; z-index:9998;
+      background:rgba(0,0,0,.94);
+      backdrop-filter:blur(20px);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      overflow:hidden;
+      animation:tcBgFadeIn .35s ease both;
+    }
+    .tc-particle {
+      position:absolute; border-radius:50%; pointer-events:none;
+      animation:tcParticleDrift var(--tc-dur,1.4s) ease-out var(--tc-delay,0s) both;
+    }
+    .tc-header {
+      display:flex; flex-direction:column; align-items:center;
+      gap:4px; margin-bottom:24px;
+      animation:tcSlideUp .5s cubic-bezier(.22,.61,.36,1) .1s both;
+    }
+    .tc-header-label {
+      font-size:11px; letter-spacing:4px; font-weight:700;
+      color:rgba(255,255,255,.4); text-transform:uppercase;
+      font-family:'Oswald',sans-serif;
+    }
+    .tc-header-title {
+      font-family:'Luckiest Guy',cursive;
+      font-size:clamp(24px,6vw,42px);
+      letter-spacing:3px; color:#57f287;
+      text-shadow:0 0 32px #57f28780,0 2px 0 #000;
+      animation:tcStamper .65s cubic-bezier(.22,.61,.36,1) .3s both;
+    }
+    .tc-cards-zone {
+      display:flex; align-items:center; justify-content:center;
+      width:100%; max-width:480px; padding:0 12px; position:relative;
+    }
+    .tc-side {
+      display:flex; flex-direction:column; align-items:center;
+      gap:8px; flex:1; opacity:0;
+    }
+    .tc-side.tc-left  { align-items:flex-end;   animation:tcSlideUp .5s ease .7s both; }
+    .tc-side.tc-right { align-items:flex-start;  animation:tcSlideUp .5s ease .75s both; }
+    .tc-side-label {
+      font-size:8px; font-weight:800; letter-spacing:2px;
+      text-transform:uppercase; color:rgba(255,255,255,.3);
+      font-family:'Oswald',sans-serif;
+    }
+    .tc-side-name {
+      font-size:11px; font-weight:700;
+      color:rgba(255,255,255,.6); margin-top:-4px;
+    }
+    .tc-mini-card {
+      width:64px; height:90px; position:relative; overflow:hidden;
+      border:2px solid rgba(255,255,255,.1); background:#1e1f22;
+      opacity:.5; filter:brightness(.75) saturate(.6);
+    }
+    .tc-mini-card img { width:100%; height:100%; object-fit:contain; display:block; }
+    .tc-mini-card-name {
+      font-size:8px; font-weight:700; color:rgba(255,255,255,.38);
+      text-align:center; max-width:72px; line-height:1.2;
+    }
+    .tc-mini-rar {
+      font-size:7px; font-weight:800; letter-spacing:1px;
+      font-family:'Oswald',sans-serif;
+    }
+    .tc-center {
+      display:flex; flex-direction:column; align-items:center;
+      gap:10px; position:relative; z-index:2; padding:0 10px; flex-shrink:0;
+    }
+    .tc-obtained-label {
+      font-size:9px; font-weight:800; letter-spacing:2px; text-transform:uppercase;
+      color:rgba(255,255,255,.5); font-family:'Oswald',sans-serif;
+      animation:tcLabelPop .5s ease .95s both;
+    }
+    .tc-main-wrap { perspective:900px; position:relative; }
+    .tc-main-card {
+      position:relative; transform-style:preserve-3d;
+      will-change:transform; transition:transform .08s ease-out;
+      animation:tcCardReveal .7s cubic-bezier(.22,.61,.36,1) .85s both;
+      cursor:grab;
+    }
+    .tc-main-card:active { cursor:grabbing; }
+    .tc-main-card img { display:block; width:100%; height:100%; object-fit:contain; pointer-events:none; -webkit-user-drag:none; }
+    .tc-holo,.tc-spec,.tc-rar { position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; opacity:0; transition:opacity .15s; }
+    .tc-card-glow {
+      position:absolute; inset:-12px; pointer-events:none; z-index:-1;
+      animation:tcGlowPulse 2.4s ease-in-out 1.5s infinite;
+    }
+    .tc-rar-badge {
+      font-size:10px; font-weight:800; letter-spacing:1.5px;
+      font-family:'Oswald',sans-serif;
+      animation:tcLabelPop .5s ease 1.1s both;
+    }
+    .tc-card-name {
+      font-size:12px; font-weight:700; color:#fff;
+      text-align:center; max-width:110px; line-height:1.2;
+    }
+    .tc-divider {
+      width:1px; height:110px; flex-shrink:0;
+      background:linear-gradient(to bottom,transparent,rgba(255,255,255,.1),transparent);
+      margin:0 6px; margin-top:28px;
+    }
+    .tc-hint {
+      font-size:9px; letter-spacing:1.5px; color:rgba(255,255,255,.22);
+      font-family:'Oswald',sans-serif; text-transform:uppercase;
+      animation:tcSlideUp .4s ease 1.55s both; opacity:0; margin-top:-4px;
+    }
+    .tc-close-btn {
+      margin-top:22px; padding:11px 28px;
+      background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14);
+      color:rgba(255,255,255,.55); font-family:'Oswald',sans-serif;
+      font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+      cursor:pointer; transition:background .15s,color .15s;
+      animation:tcSlideUp .4s ease 1.4s both; opacity:0;
+    }
+    .tc-close-btn:hover { background:rgba(255,255,255,.13); color:rgba(255,255,255,.9); }
+  `;
+  document.head.appendChild(s);
+})();
+
 // Keyframes pour fadeOut (fadeIn déjà défini dans les styles globaux)
 (function(){
   if(document.getElementById('card3d-styles')) return;
@@ -10402,6 +10655,181 @@ function openCard3DViewer(card) {
 </script>
 
 <script>
+
+// ─── TRADE COMPLETE ANIMATION ────────────────────────────────────────────────
+function showTradeCompleteAnimation({ obtainedCard, givenCard, senderName }) {
+  const existing = document.getElementById('trade-complete-overlay');
+  if (existing) existing.remove();
+
+  const rarity  = obtainedCard.rarity || 'common';
+  const col     = RARITY_COLOR[rarity] || '#64748b';
+  const rarLabel = RARITY_LABEL[rarity] || rarity;
+
+  const RFX = {
+    mythic: {
+      holoAlpha:.22, specAlpha:.30, rarAlpha:.65, rainbow:true,
+      holoColors:`rgba(255,80,80,.18) 0%,rgba(255,200,50,.22) 20%,rgba(80,255,160,.18) 40%,rgba(80,160,255,.22) 60%,rgba(200,80,255,.18) 80%,rgba(255,80,80,.18) 100%`,
+      glowBase:`0 0 24px ${RARITY_COLOR.mythic}88,0 0 48px ${RARITY_COLOR.mythic}44`,
+      glowPeak:`0 0 48px ${RARITY_COLOR.mythic}cc,0 0 96px ${RARITY_COLOR.mythic}66`,
+      particles:['#f43f5e','#ff8c94','#ffd700','#ff6b8a'], count:28,
+    },
+    rare: {
+      holoAlpha:.14, specAlpha:.22, rarAlpha:.48, rainbow:false,
+      holoColors:`rgba(167,139,250,.12) 20%,rgba(255,255,255,.18) 50%,rgba(167,139,250,.12) 80%`,
+      glowBase:`0 0 16px ${RARITY_COLOR.rare}66,0 0 32px ${RARITY_COLOR.rare}33`,
+      glowPeak:`0 0 32px ${RARITY_COLOR.rare}aa,0 0 64px ${RARITY_COLOR.rare}55`,
+      particles:['#a78bfa','#c4b5fd','#7c3aed'], count:20,
+    },
+    uncommon: {
+      holoAlpha:.09, specAlpha:.15, rarAlpha:.32, rainbow:false,
+      holoColors:`rgba(56,189,248,.09) 25%,rgba(255,255,255,.13) 50%,rgba(56,189,248,.09) 75%`,
+      glowBase:`0 0 10px ${RARITY_COLOR.uncommon}44`,
+      glowPeak:`0 0 20px ${RARITY_COLOR.uncommon}77,0 0 40px ${RARITY_COLOR.uncommon}33`,
+      particles:['#38bdf8','#7dd3fc'], count:14,
+    },
+    common: {
+      holoAlpha:.05, specAlpha:.09, rarAlpha:.18, rainbow:false,
+      holoColors:`rgba(200,200,200,.05) 30%,rgba(255,255,255,.09) 50%,rgba(200,200,200,.05) 70%`,
+      glowBase:`0 0 6px rgba(150,150,150,.25)`,
+      glowPeak:`0 0 12px rgba(150,150,150,.4)`,
+      particles:['#94a3b8','#cbd5e1'], count:10,
+    },
+  };
+  const fx = RFX[rarity] || RFX.common;
+
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const maxH = Math.min(Math.round(vh * .42), 260);
+  const cardH = maxH;
+  const cardW = Math.round(cardH * 0.667);
+
+  function miniHTML(card) {
+    const c = RARITY_COLOR[card.rarity] || '#64748b';
+    const l = RARITY_LABEL[card.rarity] || card.rarity;
+    return `
+      <div class="tc-mini-card" style="border-color:${c}28;">
+        ${card.image_url
+          ? `<img src="${card.image_url}" alt="${card.name}" />`
+          : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:24px;">🃏</div>`}
+      </div>
+      <div class="tc-mini-card-name">${card.name}</div>
+      <div class="tc-mini-rar" style="color:${c}55;">◆ ${l}</div>
+    `;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'trade-complete-overlay';
+  overlay.innerHTML = `
+    <div id="tc-particles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;"></div>
+    <div class="tc-header">
+      <div class="tc-header-label">Résultat de l'échange</div>
+      <div class="tc-header-title">ÉCHANGE FINALISÉ</div>
+    </div>
+    <div class="tc-cards-zone">
+      <div class="tc-side tc-left">
+        <div class="tc-side-label">DONNÉ PAR</div>
+        <div class="tc-side-name">${senderName}</div>
+        ${miniHTML(obtainedCard)}
+      </div>
+      <div class="tc-divider"></div>
+      <div class="tc-center">
+        <div class="tc-obtained-label">✦ TU OBTIENS</div>
+        <div class="tc-main-wrap">
+          <div class="tc-card-glow" style="--tc-glow-base:${fx.glowBase};--tc-glow-peak:${fx.glowPeak};"></div>
+          <div id="tc-main-card" class="tc-main-card" style="width:${cardW}px;height:${cardH}px;">
+            ${obtainedCard.image_url
+              ? `<img src="${obtainedCard.image_url}" alt="${obtainedCard.name}" />`
+              : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,${col}40,${col}15);font-size:56px;">🃏</div>`}
+            <div class="tc-holo" id="tc-holo"></div>
+            <div class="tc-spec" id="tc-spec"></div>
+            <div class="tc-rar"  id="tc-rar" style="background:linear-gradient(135deg,${col}30,transparent 50%,${col}20);mix-blend-mode:color-dodge;"></div>
+          </div>
+        </div>
+        <div class="tc-rar-badge" style="color:${col};">◆ ${rarLabel}</div>
+        <div class="tc-card-name">${obtainedCard.name}</div>
+      </div>
+      <div class="tc-divider"></div>
+      <div class="tc-side tc-right">
+        <div class="tc-side-label">TA CARTE DONNÉE</div>
+        <div class="tc-side-name">à ${senderName}</div>
+        ${miniHTML(givenCard)}
+      </div>
+    </div>
+    <div class="tc-hint">↔ maintenir &amp; déplacer pour pivoter</div>
+    <button class="tc-close-btn" id="tc-close-btn">✕ Fermer</button>
+  `;
+  document.body.appendChild(overlay);
+
+  // Particules
+  const pCont = document.getElementById('tc-particles');
+  (fx.particles || ['#fff']).forEach((color, ci) => {
+    const total = fx.count || 12;
+    const perColor = Math.ceil(total / fx.particles.length);
+    for (let i = 0; i < perColor; i++) {
+      const el = document.createElement('div');
+      el.className = 'tc-particle';
+      const angle = Math.random() * 360;
+      const dist  = 80 + Math.random() * 160;
+      const dx = Math.round(Math.cos(angle * Math.PI/180) * dist);
+      const dy = Math.round(Math.sin(angle * Math.PI/180) * dist - 40);
+      const size = 4 + Math.random() * 6;
+      el.style.cssText = `left:50%;top:50%;width:${size}px;height:${size}px;background:${color};--tc-dx:${dx}px;--tc-dy:${dy}px;--tc-dur:${1+Math.random()*.8}s;--tc-delay:${.9+Math.random()*.5}s;`;
+      pCont.appendChild(el);
+    }
+  });
+
+  // Tilt 3D
+  const mainCard = document.getElementById('tc-main-card');
+  const holoEl  = document.getElementById('tc-holo');
+  const specEl  = document.getElementById('tc-spec');
+  const rarEl   = document.getElementById('tc-rar');
+  let tcPressed = false;
+  const MAX_TILT = 18;
+
+  function tcGetRel(el, cx, cy) {
+    const r = el.getBoundingClientRect();
+    return {
+      nx: Math.max(-1, Math.min(1, ((cx-r.left)/r.width)*2-1)),
+      ny: Math.max(-1, Math.min(1, ((cy-r.top)/r.height)*2-1)),
+    };
+  }
+  function tcApplyTilt(nx, ny) {
+    const rx = -ny * MAX_TILT, ry = nx * MAX_TILT;
+    mainCard.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) scale3d(1.03,1.03,1.03)`;
+    const hx = (nx*.5+.5)*100, hy = (ny*.5+.5)*100;
+    if (fx.rainbow) {
+      holoEl.style.background = `linear-gradient(${105+ry*1.2}deg,${fx.holoColors})`;
+    } else {
+      holoEl.style.background = `linear-gradient(${105+ry}deg,transparent 35%,rgba(255,255,255,${fx.holoAlpha*1.5}) 50%,transparent 65%)`;
+    }
+    specEl.style.background = `radial-gradient(circle at ${hx}% ${hy}%,rgba(255,255,255,${fx.specAlpha}) 0%,transparent 60%)`;
+    holoEl.style.opacity='1'; specEl.style.opacity='1'; rarEl.style.opacity=String(fx.rarAlpha);
+    mainCard.style.cursor='grabbing';
+  }
+  function tcReleaseTilt() {
+    tcPressed = false;
+    mainCard.style.transition='transform .45s cubic-bezier(.25,.46,.45,.94)';
+    mainCard.style.transform='rotateX(0) rotateY(0) scale3d(1,1,1)';
+    holoEl.style.opacity='0'; specEl.style.opacity='0'; rarEl.style.opacity='0';
+    mainCard.style.cursor='grab';
+    setTimeout(()=>{ mainCard.style.transition='transform .08s ease-out'; }, 460);
+  }
+  mainCard.addEventListener('mousedown',(e)=>{ tcPressed=true; mainCard.style.transition='transform .08s ease-out'; const {nx,ny}=tcGetRel(mainCard,e.clientX,e.clientY); tcApplyTilt(nx,ny); });
+  window.addEventListener('mousemove',(e)=>{ if(!tcPressed)return; const {nx,ny}=tcGetRel(mainCard,e.clientX,e.clientY); tcApplyTilt(nx,ny); });
+  window.addEventListener('mouseup',()=>{ if(tcPressed)tcReleaseTilt(); });
+  mainCard.addEventListener('touchstart',(e)=>{ tcPressed=true; mainCard.style.transition='transform .08s ease-out'; const t=e.touches[0]; const {nx,ny}=tcGetRel(mainCard,t.clientX,t.clientY); tcApplyTilt(nx,ny); },{passive:true});
+  mainCard.addEventListener('touchmove',(e)=>{ if(!tcPressed)return; const t=e.touches[0]; const {nx,ny}=tcGetRel(mainCard,t.clientX,t.clientY); tcApplyTilt(nx,ny); },{passive:true});
+  mainCard.addEventListener('touchend',tcReleaseTilt);
+
+  function tcClose() {
+    overlay.style.animation='fadeOut .22s ease both';
+    setTimeout(()=>overlay.remove(), 230);
+  }
+  document.getElementById('tc-close-btn').addEventListener('click', tcClose);
+  overlay.addEventListener('click',(e)=>{ if(e.target===overlay) tcClose(); });
+  function tcOnKey(e) { if(e.key==='Escape'){ tcClose(); document.removeEventListener('keydown',tcOnKey); } }
+  document.addEventListener('keydown', tcOnKey);
+}
+
 // ─── FRIEND PICKER POUR TRADE DEPUIS MODAL CARTE ─────────────────
 function _showFriendPickerForTrade(card){
   const existing = document.getElementById('_ftp-overlay');
