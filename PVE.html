@@ -597,7 +597,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   70%{transform:translate(-3px, 1px)}
   80%{transform:translate(3px, -1px)}
 }
-@keyframes coinAnim{0%{opacity:0;transform:scale(.6) rotateY(0)}20%{opacity:1;transform:scale(.9) rotateY(180deg)}50%{transform:scale(1.06) rotateY(900deg)}75%{transform:scale(1.02) rotateY(1260deg)}100%{transform:scale(1) rotateY(1440deg);opacity:1}}
+@keyframes coinAnim{0%{opacity:0;transform:scale(.88)}100%{opacity:1;transform:scale(1)}}
 @keyframes coinTrajSmooth{
   0%   {transform:translateY(0);opacity:0;}
   10%  {opacity:1;}
@@ -606,11 +606,11 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 }
 @keyframes coinSpinHumanLinear{
   0%   {transform:rotateX(0deg);}
-  100% {transform:rotateX(900deg);}
+  100% {transform:rotateX(1080deg);}
 }
 @keyframes coinSpinBotLinear{
   0%   {transform:rotateX(0deg);}
-  100% {transform:rotateX(1080deg);}
+  100% {transform:rotateX(900deg);}
 }
 .coin3d-wrap{perspective:800px;display:inline-block;margin-bottom:14px;animation:coinTrajSmooth 1.4s ease-in-out both;}
 .coin3d{width:96px;height:96px;position:relative;transform-style:preserve-3d;animation:coinSpinHumanLinear 1.4s linear both;}
@@ -1044,7 +1044,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .ov-stat-val.mvp{color:#f06090;font-size:11px}
 .coin-ov{position:fixed;inset:0;z-index:450;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .coin-box{background:var(--s2);border:1px solid var(--bdr3);border-radius:16px;padding:28px 42px;text-align:center;min-width:240px;opacity:0;transform:scale(.88);transition:opacity .3s,transform .3s;box-shadow:0 40px 100px rgba(0,0,0,.7)}
-.coin-box.show{opacity:1;transform:scale(1);animation:coinAnim 1.4s cubic-bezier(.16,1,.3,1) both}
+.coin-box.show{opacity:1;transform:scale(1);animation:coinAnim .4s ease-out both}
 .coin-emoji{font-size:44px;display:block;margin-bottom:10px}
 .coin-who{font-family:'Cinzel',serif;font-weight:900;font-size:18px;margin-bottom:4px}
 .coin-who.first{color:var(--gold)}.coin-who.second{color:var(--sub)}
