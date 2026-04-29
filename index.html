@@ -2574,22 +2574,24 @@ function renderTabCollection(th){
           oninput="window._collSearchHandler && window._collSearchHandler(this.value)"/>
         ${state.collSearch?`<button onclick="state.collSearch='';render();" style="background:none;border:none;color:${th.textMuted};font-size:14px;cursor:pointer;padding:0;">✕</button>`:''}
       </div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <span style="font-size:9px;color:${th.textMuted};white-space:nowrap;letter-spacing:.5px;text-transform:uppercase;">Tri</span>
-        <button class="sort-btn" data-sort="id" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='id'?th.accent+'22':'transparent'};color:${state.collSortBy==='id'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='id'?th.accent+'50':th.border};transition:all .15s;">ID</button>
-        <button class="sort-btn" data-sort="rarity" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='rarity'?th.accent+'22':'transparent'};color:${state.collSortBy==='rarity'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='rarity'?th.accent+'50':th.border};transition:all .15s;">Rareté</button>
-        <button class="sort-btn" data-sort="alpha" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='alpha'?th.accent+'22':'transparent'};color:${state.collSortBy==='alpha'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='alpha'?th.accent+'50':th.border};transition:all .15s;">A–Z</button>
-        <button class="sort-btn" data-sort="count" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='count'?th.accent+'22':'transparent'};color:${state.collSortBy==='count'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='count'?th.accent+'50':th.border};transition:all .15s;">Copies</button>
-        <button class="sort-btn" data-sort="date" style="padding:5px 12px;font-size:10px;font-weight:700;background:${state.collSortBy==='date'?th.accent+'22':'transparent'};color:${state.collSortBy==='date'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='date'?th.accent+'50':th.border};transition:all .15s;">Date</button>
-        <button id="sort-dir-btn" style="padding:5px 9px;font-size:12px;font-weight:900;background:${th.bgSecondary};color:${th.accent};border:1px solid ${th.accent+'50'};transition:all .15s;line-height:1;display:flex;align-items:center;" title="Inverser l'ordre">${state.collSortDir==='asc'?'↑':'↓'}</button>
-        <div style="margin-left:auto;position:relative;">
-          <div style="display:flex;gap:4px;margin-bottom:4px;">
-            <button class="owned-filter-btn" data-val="all" style="padding:4px 10px;font-size:9px;font-weight:700;border:1px solid ${state.collShowOwned==='all'?th.accent+'50':th.border};background:${state.collShowOwned==='all'?th.accent+'18':'transparent'};color:${state.collShowOwned==='all'?th.accent:th.textMuted};transition:all .15s;">Toutes</button>
-            <button class="owned-filter-btn" data-val="owned" style="padding:4px 10px;font-size:9px;font-weight:700;border:1px solid ${state.collShowOwned==='owned'?th.green+'50':th.border};background:${state.collShowOwned==='owned'?th.green+'18':'transparent'};color:${state.collShowOwned==='owned'?th.green:th.textMuted};transition:all .15s;">Possédées</button>
-            <button class="owned-filter-btn" data-val="missing" style="padding:4px 10px;font-size:9px;font-weight:700;border:1px solid ${state.collShowOwned==='missing'?th.red+'50':th.border};background:${state.collShowOwned==='missing'?th.red+'18':'transparent'};color:${state.collShowOwned==='missing'?th.red:th.textMuted};transition:all .15s;">Manquantes</button>
-          </div>
-          <button id="set-filter-btn" style="display:flex;align-items:center;gap:5px;padding:4px 10px;font-size:9px;font-weight:700;background:${state.collFilterSet!=='all'?th.accent+'18':'transparent'};color:${state.collFilterSet!=='all'?th.accent:th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent+'50':th.border};white-space:nowrap;transition:all .15s;">
-            ${state.collFilterSet === "all" ? "Tous les Sets" : state.collFilterSet}
+      <!-- Ligne tri + direction -->
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;overflow-x:auto;">
+        <span style="font-size:9px;color:${th.textMuted};white-space:nowrap;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;">Tri</span>
+        <button class="sort-btn" data-sort="id" style="padding:4px 8px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;background:${state.collSortBy==='id'?th.accent+'22':'transparent'};color:${state.collSortBy==='id'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='id'?th.accent+'50':th.border};transition:all .15s;">ID</button>
+        <button class="sort-btn" data-sort="rarity" style="padding:4px 8px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;background:${state.collSortBy==='rarity'?th.accent+'22':'transparent'};color:${state.collSortBy==='rarity'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='rarity'?th.accent+'50':th.border};transition:all .15s;">Rareté</button>
+        <button class="sort-btn" data-sort="alpha" style="padding:4px 8px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;background:${state.collSortBy==='alpha'?th.accent+'22':'transparent'};color:${state.collSortBy==='alpha'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='alpha'?th.accent+'50':th.border};transition:all .15s;">A–Z</button>
+        <button class="sort-btn" data-sort="count" style="padding:4px 8px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;background:${state.collSortBy==='count'?th.accent+'22':'transparent'};color:${state.collSortBy==='count'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='count'?th.accent+'50':th.border};transition:all .15s;">Copies</button>
+        <button class="sort-btn" data-sort="date" style="padding:4px 8px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;background:${state.collSortBy==='date'?th.accent+'22':'transparent'};color:${state.collSortBy==='date'?th.accent:th.textMuted};border:1px solid ${state.collSortBy==='date'?th.accent+'50':th.border};transition:all .15s;">Date</button>
+        <button id="sort-dir-btn" style="padding:4px 7px;font-size:11px;font-weight:900;flex-shrink:0;background:${th.bgSecondary};color:${th.accent};border:1px solid ${th.accent+'50'};transition:all .15s;line-height:1;display:flex;align-items:center;" title="Inverser l'ordre">${state.collSortDir==='asc'?'↑':'↓'}</button>
+      </div>
+      <!-- Ligne filtre possession + set -->
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap;">
+        <button class="owned-filter-btn" data-val="all" style="flex:1;padding:4px 6px;font-size:9px;font-weight:700;text-align:center;border:1px solid ${state.collShowOwned==='all'?th.accent+'50':th.border};background:${state.collShowOwned==='all'?th.accent+'18':'transparent'};color:${state.collShowOwned==='all'?th.accent:th.textMuted};transition:all .15s;white-space:nowrap;">Toutes</button>
+        <button class="owned-filter-btn" data-val="owned" style="flex:1;padding:4px 6px;font-size:9px;font-weight:700;text-align:center;border:1px solid ${state.collShowOwned==='owned'?th.green+'50':th.border};background:${state.collShowOwned==='owned'?th.green+'18':'transparent'};color:${state.collShowOwned==='owned'?th.green:th.textMuted};transition:all .15s;white-space:nowrap;">Possédées</button>
+        <button class="owned-filter-btn" data-val="missing" style="flex:1;padding:4px 6px;font-size:9px;font-weight:700;text-align:center;border:1px solid ${state.collShowOwned==='missing'?th.red+'50':th.border};background:${state.collShowOwned==='missing'?th.red+'18':'transparent'};color:${state.collShowOwned==='missing'?th.red:th.textMuted};transition:all .15s;white-space:nowrap;">Manquantes</button>
+        <div style="position:relative;flex-shrink:0;">
+          <button id="set-filter-btn" style="display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:9px;font-weight:700;background:${state.collFilterSet!=='all'?th.accent+'18':'transparent'};color:${state.collFilterSet!=='all'?th.accent:th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent+'50':th.border};white-space:nowrap;transition:all .15s;">
+            ${state.collFilterSet === "all" ? "Sets" : state.collFilterSet}
             <span style="display:inline-block;transform:${state.collSetOpen?'rotate(180deg)':'none'};transition:transform .2s;">${SVG.chevron}</span>
           </button>
           ${state.collSetOpen?`
@@ -2611,6 +2613,22 @@ function renderTabCollection(th){
         <button class="type-btn" data-type="Arcane" style="padding:4px 12px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Arcane'?'#8b5cf680':th.border};background:${state.collFilterType==='Arcane'?'rgba(139,92,246,.12)':'transparent'};color:${state.collFilterType==='Arcane'?'#8b5cf6':th.textMuted};transition:all .15s;flex-shrink:0;">✦ Arcane</button>
       </div>
       <div style="font-size:9px;color:${th.textFaint};letter-spacing:.3px;">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
+      ${(()=>{
+        const doubsByRar = RARITY_ORDER.map(r=>{
+          const cardsOfRar = ALL_CARDS.filter(c=>c.owned && c.rarity===r);
+          const totalCards = cardsOfRar.reduce((s,c)=>s+(c.count||1),0);
+          const uniqueCards = cardsOfRar.length;
+          const doubs = totalCards - uniqueCards;
+          return {r, doubs, totalCards, col: RARITY_COLOR[r], label: RARITY_LABEL[r]};
+        }).filter(x=>x.totalCards>0);
+        if(!doubsByRar.length) return '';
+        const totalDoubs = doubsByRar.reduce((s,x)=>s+x.doubs,0);
+        const totalAll = doubsByRar.reduce((s,x)=>s+x.totalCards,0);
+        return '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">'
+          + '<span style="font-size:8px;color:'+th.textFaint+';white-space:nowrap;">' + totalAll + ' cartes · <span style="color:' + (totalDoubs>0?'#f59e0b':th.textFaint) + ';">' + totalDoubs + ' doublon' + (totalDoubs!==1?'s':'') + '</span> :</span>'
+          + doubsByRar.map(x=>'<span style="font-size:8px;font-weight:700;color:'+x.col+';white-space:nowrap;">'+x.label.slice(0,3)+' <span style="opacity:.7;">'+x.totalCards+'×</span>'+(x.doubs>0?' <span style="color:#f59e0b;">(+'+x.doubs+')</span>':'')+'</span>').join('<span style="color:'+th.textFaint+';font-size:7px;"> · </span>')
+          + '</div>';
+      })()}
     </div>
     <!-- Grid -->
     ${(()=>{
