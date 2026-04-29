@@ -1639,7 +1639,7 @@ function renderDeckEdit(th){
     </div>
 
     <!-- Collection : plus de colonnes, sans titres, avec "DÉJÀ" et exemplaires -->
-    <div style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;min-height:0;">
+    <div id="db-collection-scroll" style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;min-height:0;">
 
       <!-- ── Barre de recherche + tri + filtres type ── -->
       <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px;flex-shrink:0;">
@@ -1772,13 +1772,14 @@ function renderDeckEdit(th){
               ? canAddMore
                 ? `<button class="db-quick-add" data-cardid="${card.id}" style="padding:3px 2px;background:${th.accent};color:#000;border:none;font-size:clamp(7px,1.3vw,9px);font-weight:900;cursor:pointer;letter-spacing:.3px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Ajouter au deck">+ Ajout rapide</button>`
                 : `<div style="padding:3px 2px;background:${th.bgTertiary};color:${th.textFaint};font-size:clamp(7px,1.3vw,9px);font-weight:700;letter-spacing:.3px;line-height:1;text-transform:uppercase;text-align:center;white-space:nowrap;border:1px solid ${th.border};">— —</div>`
+              : qty===2
+                ? `<div style="display:flex;gap:2px;">
+                    <button class="db-quick-remove" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer 1 exemplaire">−1</button>
+                    <button class="db-quick-remove-all" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer les 2 exemplaires">✕×2</button>
+                  </div>`
               : `<div style="display:flex;gap:2px;">
-                  ${canAddMore
-                    ? `<button class="db-quick-add" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:${th.accent};color:#000;border:none;font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Ajouter un exemplaire">+1</button>`
-                    : `<div style="flex:1;padding:3px 2px;background:${th.bgTertiary};color:${th.textFaint};font-size:clamp(6px,1.2vw,8px);font-weight:700;line-height:1;text-transform:uppercase;text-align:center;white-space:nowrap;border:1px solid ${th.border};">×${qty}</div>`}
-                  ${qty===2
-                    ? `<button class="db-quick-remove-all" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer les 2 exemplaires">✕×2</button>`
-                    : `<button class="db-quick-remove" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer du deck">− Ret.</button>`}
+                  <button class="db-quick-add" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:${th.accent};color:#000;border:none;font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Ajouter un exemplaire">+1</button>
+                  <button class="db-quick-remove" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer du deck">− Ret.</button>
                 </div>`}
           </div>`;
         }).join('')}
@@ -5081,7 +5082,10 @@ function bindGame(){
   document.querySelectorAll('.db-quick-add').forEach(el=>{
     el.addEventListener('click',(e)=>{
       e.stopPropagation();
+      const scr = document.getElementById('db-collection-scroll');
+      const savedY = scr ? scr.scrollTop : 0;
       addCardToDeck(el.dataset.cardid);
+      requestAnimationFrame(()=>{ const s=document.getElementById('db-collection-scroll'); if(s) s.scrollTop=savedY; });
     });
   });
 
@@ -5089,7 +5093,10 @@ function bindGame(){
   document.querySelectorAll('.db-quick-remove').forEach(el=>{
     el.addEventListener('click',(e)=>{
       e.stopPropagation();
+      const scr = document.getElementById('db-collection-scroll');
+      const savedY = scr ? scr.scrollTop : 0;
       removeCardFromDeck(el.dataset.cardid);
+      requestAnimationFrame(()=>{ const s=document.getElementById('db-collection-scroll'); if(s) s.scrollTop=savedY; });
     });
   });
 
@@ -5097,8 +5104,11 @@ function bindGame(){
   document.querySelectorAll('.db-quick-remove-all').forEach(el=>{
     el.addEventListener('click',(e)=>{
       e.stopPropagation();
+      const scr = document.getElementById('db-collection-scroll');
+      const savedY = scr ? scr.scrollTop : 0;
       removeCardFromDeck(el.dataset.cardid);
       removeCardFromDeck(el.dataset.cardid);
+      requestAnimationFrame(()=>{ const s=document.getElementById('db-collection-scroll'); if(s) s.scrollTop=savedY; });
     });
   });
 
