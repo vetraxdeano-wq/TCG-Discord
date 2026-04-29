@@ -2612,21 +2612,22 @@ function renderTabCollection(th){
         <button class="type-btn" data-type="Ruse" style="padding:4px 12px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Ruse'?'#10b98180':th.border};background:${state.collFilterType==='Ruse'?'rgba(16,185,129,.12)':'transparent'};color:${state.collFilterType==='Ruse'?'#10b981':th.textMuted};transition:all .15s;flex-shrink:0;">🃏 Ruse</button>
         <button class="type-btn" data-type="Arcane" style="padding:4px 12px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Arcane'?'#8b5cf680':th.border};background:${state.collFilterType==='Arcane'?'rgba(139,92,246,.12)':'transparent'};color:${state.collFilterType==='Arcane'?'#8b5cf6':th.textMuted};transition:all .15s;flex-shrink:0;">✦ Arcane</button>
       </div>
-      <div style="font-size:9px;color:${th.textFaint};letter-spacing:.3px;">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:.3px;">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
       ${(()=>{
+        const TIER={common:'C',uncommon:'U',rare:'R',mythic:'M'};
         const doubsByRar = RARITY_ORDER.map(r=>{
           const cardsOfRar = ALL_CARDS.filter(c=>c.owned && c.rarity===r);
           const totalCards = cardsOfRar.reduce((s,c)=>s+(c.count||1),0);
           const uniqueCards = cardsOfRar.length;
           const doubs = totalCards - uniqueCards;
-          return {r, doubs, totalCards, col: RARITY_COLOR[r], label: RARITY_LABEL[r]};
+          return {r, doubs, totalCards, col: RARITY_COLOR[r], tier: TIER[r]||r[0].toUpperCase()};
         }).filter(x=>x.totalCards>0);
         if(!doubsByRar.length) return '';
         const totalDoubs = doubsByRar.reduce((s,x)=>s+x.doubs,0);
         const totalAll = doubsByRar.reduce((s,x)=>s+x.totalCards,0);
         return '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">'
-          + '<span style="font-size:8px;color:'+th.textFaint+';white-space:nowrap;">' + totalAll + ' cartes · <span style="color:' + (totalDoubs>0?'#f59e0b':th.textFaint) + ';">' + totalDoubs + ' doublon' + (totalDoubs!==1?'s':'') + '</span> :</span>'
-          + doubsByRar.map(x=>'<span style="font-size:8px;font-weight:700;color:'+x.col+';white-space:nowrap;">'+x.label.slice(0,3)+' <span style="opacity:.7;">'+x.totalCards+'×</span>'+(x.doubs>0?' <span style="color:#f59e0b;">(+'+x.doubs+')</span>':'')+'</span>').join('<span style="color:'+th.textFaint+';font-size:7px;"> · </span>')
+          + '<span style="font-size:8px;color:'+th.textMuted+';white-space:nowrap;">' + totalAll + ' cartes · <span style="color:' + (totalDoubs>0?'#f59e0b':th.textMuted) + ';">' + totalDoubs + ' doublon' + (totalDoubs!==1?'s':'') + '</span> :</span>'
+          + doubsByRar.map(x=>'<span style="font-size:8px;font-weight:700;color:'+x.col+';white-space:nowrap;">'+x.tier+' <span style="opacity:.7;">'+x.totalCards+'×</span>'+(x.doubs>0?' <span style="color:#f59e0b;">(+'+x.doubs+')</span>':'')+'</span>').join('<span style="color:'+th.textMuted+';font-size:7px;"> · </span>')
           + '</div>';
       })()}
     </div>
