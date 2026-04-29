@@ -1767,12 +1767,17 @@ function renderDeckEdit(th){
               ${alreadyFull?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fff;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DÉJÀ<br>DANS<br>LE DECK</div></div>`
               :!canAddMore?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;z-index:4;"><div style="width:100%;text-align:center;font-size:clamp(7px,1.8vw,13px);font-weight:900;color:#fbbf24;letter-spacing:.5px;line-height:1.3;padding:4px 2px;background:transparent;">DECK<br>PLEIN</div></div>`:``}
             </div>
-            <!-- Bouton Ajout Rapide sous la carte -->
+            <!-- Bouton Ajout Rapide / Retirer sous la carte -->
             ${canAddMore
               ? `<button class="db-quick-add" data-cardid="${card.id}" style="padding:3px 2px;background:${th.accent};color:#000;border:none;font-size:clamp(7px,1.3vw,9px);font-weight:900;cursor:pointer;letter-spacing:.3px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Ajouter directement au deck">+ Ajout rapide</button>`
-              : qty>0
-                ? `<button class="db-quick-remove" data-cardid="${card.id}" style="padding:3px 2px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(7px,1.3vw,9px);font-weight:900;cursor:pointer;letter-spacing:.3px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer du deck">− Retirer</button>`
-                : `<div style="padding:3px 2px;background:${th.bgTertiary};color:${th.textFaint};font-size:clamp(7px,1.3vw,9px);font-weight:700;letter-spacing:.3px;line-height:1;text-transform:uppercase;text-align:center;white-space:nowrap;border:1px solid ${th.border};">— —</div>`}
+              : qty===2
+                ? `<div style="display:flex;gap:2px;">
+                    <button class="db-quick-remove" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer 1 exemplaire">−1</button>
+                    <button class="db-quick-remove-all" data-cardid="${card.id}" style="flex:1;padding:3px 2px;background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(6px,1.2vw,8px);font-weight:900;cursor:pointer;letter-spacing:.2px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer les 2 exemplaires">✕ ×2</button>
+                  </div>`
+                : qty>0
+                  ? `<button class="db-quick-remove" data-cardid="${card.id}" style="padding:3px 2px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(7px,1.3vw,9px);font-weight:900;cursor:pointer;letter-spacing:.3px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer du deck">− Retirer</button>`
+                  : `<div style="padding:3px 2px;background:${th.bgTertiary};color:${th.textFaint};font-size:clamp(7px,1.3vw,9px);font-weight:700;letter-spacing:.3px;line-height:1;text-transform:uppercase;text-align:center;white-space:nowrap;border:1px solid ${th.border};">— —</div>`}
           </div>`;
         }).join('')}
       </div>
@@ -5086,6 +5091,15 @@ function bindGame(){
     });
   });
 
+  // Bouton "✕ ×2" — retire les 2 exemplaires d'un coup
+  document.querySelectorAll('.db-quick-remove-all').forEach(el=>{
+    el.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      removeCardFromDeck(el.dataset.cardid);
+      removeCardFromDeck(el.dataset.cardid);
+    });
+  });
+
   // Retirer une carte du deck (clic sur carte dans le deck)
   document.querySelectorAll('.db-deck-card').forEach(el=>{
     el.addEventListener('click',()=>removeCardFromDeck(el.dataset.cardid));
@@ -7543,6 +7557,21 @@ window.onPlayerWin = async function() {
 // ─── Listener pour victoires depuis PVE / PVP / 10v10 ────────────
 // Les pages de jeu écrivent localStorage.setItem('tcg_game_win', Date.now())
 // après une victoire. L'index écoute ce signal pour déclencher onPlayerWin.
+
+// 1) BroadcastChannel — fonctionne entre onglets ET iframes du même origine
+(function(){
+  try {
+    const _winChannel = new BroadcastChannel('tcg_win_signal');
+    _winChannel.onmessage = function(e){
+      if(e.data && e.data.type === 'game_win'){
+        if(window.onPlayerWin) window.onPlayerWin();
+      }
+    };
+    window._tcgWinChannel = _winChannel;
+  } catch(ex){}
+})();
+
+// 2) storage event — déclenché entre onglets différents
 window.addEventListener('storage', function(e){
   if(e.key === 'tcg_game_win' && e.newValue){
     if(window.onPlayerWin) window.onPlayerWin();
@@ -7551,7 +7580,30 @@ window.addEventListener('storage', function(e){
   }
 });
 
+// 3) Polling léger — fallback pour le même onglet (storage event non déclenché en same-tab)
+(function(){
+  let _lastWinVal = null;
+  setInterval(function(){
+    try{
+      const v = localStorage.getItem('tcg_game_win');
+      if(v && v !== _lastWinVal){
+        _lastWinVal = v;
+        if(window.onPlayerWin) window.onPlayerWin();
+        localStorage.removeItem('tcg_game_win');
+        _lastWinVal = null;
+      }
+    }catch(ex){}
+  }, 800);
+})();
 
+
+
+// 4) Exposition directe — si la page de jeu est dans le même contexte window
+// (ex: elle peut accéder à window.parent ou window.opener), elle peut appeler :
+// window.tcgSignalWin() ou window.parent.tcgSignalWin()
+window.tcgSignalWin = function(){
+  if(window.onPlayerWin) window.onPlayerWin();
+};
 
 // ─── SYSTÈME DE QUÊTES FONCTIONNEL ───────────────────────────────
 
