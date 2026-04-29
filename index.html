@@ -1770,7 +1770,9 @@ function renderDeckEdit(th){
             <!-- Bouton Ajout Rapide sous la carte -->
             ${canAddMore
               ? `<button class="db-quick-add" data-cardid="${card.id}" style="padding:3px 2px;background:${th.accent};color:#000;border:none;font-size:clamp(7px,1.3vw,9px);font-weight:900;cursor:pointer;letter-spacing:.3px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Ajouter directement au deck">+ Ajout rapide</button>`
-              : `<div style="padding:3px 2px;background:${th.bgTertiary};color:${th.textFaint};font-size:clamp(7px,1.3vw,9px);font-weight:700;letter-spacing:.3px;line-height:1;text-transform:uppercase;text-align:center;white-space:nowrap;border:1px solid ${th.border};">— —</div>`}
+              : qty>0
+                ? `<button class="db-quick-remove" data-cardid="${card.id}" style="padding:3px 2px;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.5);font-size:clamp(7px,1.3vw,9px);font-weight:900;cursor:pointer;letter-spacing:.3px;line-height:1;text-transform:uppercase;white-space:nowrap;" title="Retirer du deck">− Retirer</button>`
+                : `<div style="padding:3px 2px;background:${th.bgTertiary};color:${th.textFaint};font-size:clamp(7px,1.3vw,9px);font-weight:700;letter-spacing:.3px;line-height:1;text-transform:uppercase;text-align:center;white-space:nowrap;border:1px solid ${th.border};">— —</div>`}
           </div>`;
         }).join('')}
       </div>
@@ -2157,7 +2159,7 @@ function renderTradeModal(th){
           const sel = myCard && parseInt(myCard.id)===parseInt(card.id);
           const cardData = JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:RARITY_COLOR[card.rarity]});
           const rarCol = RARITY_COLOR[card.rarity]||'#64748b';
-          const rarShort = {common:'COM',uncommon:'PEU',rare:'RARE',mythic:'MYTH'}[card.rarity]||card.rarity.slice(0,4).toUpperCase();
+          const rarShort = RARITY_LABEL[card.rarity]||card.rarity;
           return `<div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}" data-rarity="${card.rarity}" data-count="${card.count||1}"
             style="height:${_CH+14}px;cursor:pointer;position:relative;background:transparent;${sel?'outline:2px solid '+card.color+';outline-offset:-1px;':''}"
           >
@@ -2169,7 +2171,7 @@ function renderTradeModal(th){
             </div>
             <div style="display:flex;flex-direction:column;align-items:center;gap:0;line-height:1.1;pointer-events:none;">
               <div style="font-size:${Math.round(_CW*0.095)}px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;text-shadow:0 1px 3px #000;">#${parseInt(card.id)}</div>
-              <div style="font-size:${Math.max(6,Math.round(_CW*0.08))}px;font-weight:900;color:${rarCol};text-align:center;letter-spacing:.2px;">${rarShort}</div>
+              <div style="font-size:${Math.max(5,Math.round(_CW*0.07))}px;font-weight:900;color:${rarCol};text-align:center;letter-spacing:.1px;line-height:1.1;word-break:break-word;">${rarShort}</div>
             </div>
           </div>`;
         }).join('')}
@@ -5073,6 +5075,14 @@ function bindGame(){
     el.addEventListener('click',(e)=>{
       e.stopPropagation();
       addCardToDeck(el.dataset.cardid);
+    });
+  });
+
+  // Bouton "Retirer" sous les cartes déjà dans le deck (dans la collection)
+  document.querySelectorAll('.db-quick-remove').forEach(el=>{
+    el.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      removeCardFromDeck(el.dataset.cardid);
     });
   });
 
