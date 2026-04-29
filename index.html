@@ -1063,6 +1063,51 @@ const SVG = {
 };
 
 // ─── RENDER ───────────────────────────────────────────────────────
+// ─── TRADE MODAL FILTER HELPERS (global, appelés depuis les boutons inline) ───
+window._tradeRarityFilter = new Set();
+window._tradeDoublesOnly = false;
+window._tradeApplyFilters = function(){
+  var q = (document.getElementById('trade-search-input') ? document.getElementById('trade-search-input').value : '').toLowerCase();
+  document.querySelectorAll('.trade-pick-card').forEach(function(el){
+    var name = (el.dataset.name||'').toLowerCase();
+    var id = (el.dataset.cardid||'');
+    var rarity = el.dataset.rarity||'';
+    var count = parseInt(el.dataset.count||'1');
+    var matchSearch = q===''||name.includes(q)||id.includes(q);
+    var matchRarity = window._tradeRarityFilter.size===0||window._tradeRarityFilter.has(rarity);
+    var matchDoubles = !window._tradeDoublesOnly||count>=2;
+    el.style.display = (matchSearch&&matchRarity&&matchDoubles)?'':'none';
+  });
+};
+window._tradeToggleRarity = function(r){
+  if(window._tradeRarityFilter.has(r)) window._tradeRarityFilter.delete(r);
+  else window._tradeRarityFilter.add(r);
+  var RC={mythic:'#f43f5e',rare:'#a78bfa',uncommon:'#38bdf8',common:'#64748b'};
+  var btn=document.getElementById('trade-filter-'+r);
+  if(btn){
+    var active=window._tradeRarityFilter.has(r);
+    btn.style.background=active?(RC[r]+'28'):'transparent';
+    btn.style.borderColor=active?RC[r]:(RC[r]+'55');
+    btn.style.color=active?RC[r]:'#6b7280';
+  }
+  window._tradeApplyFilters();
+};
+window._tradeToggleDoubles = function(){
+  window._tradeDoublesOnly=!window._tradeDoublesOnly;
+  var btn=document.getElementById('trade-filter-doubles');
+  if(btn){
+    btn.style.background=window._tradeDoublesOnly?'rgba(251,191,36,.18)':'transparent';
+    btn.style.borderColor=window._tradeDoublesOnly?'#fbbf24':'rgba(251,191,36,.4)';
+    btn.style.color=window._tradeDoublesOnly?'#fbbf24':'#6b7280';
+  }
+  window._tradeApplyFilters();
+};
+// Reset filters when trade modal opens
+window._tradeResetFilters = function(){
+  window._tradeRarityFilter = new Set();
+  window._tradeDoublesOnly = false;
+};
+
 function render(){
   window._mktRerender = render; // expose pour les filtres stand detail
   const app = document.getElementById('app');
@@ -1740,6 +1785,8 @@ function renderTradeModal(th){
   const ownedCards = ALL_CARDS.filter(c=>c.owned);
   const myCard = state.tradeMyCard;
   const incoming = state.tradeIncoming;
+  // Reset filtres à chaque ouverture (myCard null = sélection initiale)
+  if(!myCard) window._tradeResetFilters && window._tradeResetFilters();
 
   // Vue : offre entrante à accepter/refuser
   if (incoming && incoming.status === 'pending' && incoming.to_id === state.currentUser?.id) {
@@ -2086,7 +2133,21 @@ function renderTradeModal(th){
         <span style="font-size:12px;color:${th.textMuted};">🔍</span>
         <input id="trade-search-input" type="text" placeholder="Nom ou #ID…"
           style="flex:1;background:transparent;border:none;outline:none;color:${th.text};font-size:11px;font-family:inherit;font-weight:600;"
-          oninput="(function(v){var cards=document.querySelectorAll('.trade-pick-card');cards.forEach(function(el){var name=(el.dataset.name||'').toLowerCase();var id=(el.dataset.cardid||'');var q=v.toLowerCase();el.style.display=(name.includes(q)||id.includes(q)||q==='')?'':'none';});})(this.value)" />
+          oninput="window._tradeApplyFilters()" />
+      </div>
+      <!-- Filtres rarité + doubles -->
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        ${['common','uncommon','rare','mythic'].map(r=>`
+        <button onclick="window._tradeToggleRarity('${r}')"
+          id="trade-filter-${r}"
+          style="padding:3px 8px;font-size:8px;font-weight:800;cursor:pointer;letter-spacing:.3px;border:1.5px solid ${RARITY_COLOR[r]}55;background:transparent;color:#6b7280;transition:all .15s;"
+          data-rarity="${r}">${RARITY_LABEL[r].toUpperCase()}
+        </button>`).join('')}
+        <button onclick="window._tradeToggleDoubles()"
+          id="trade-filter-doubles"
+          style="padding:3px 8px;font-size:8px;font-weight:800;cursor:pointer;letter-spacing:.3px;border:1.5px solid rgba(251,191,36,.4);background:transparent;color:#6b7280;margin-left:2px;">
+          ×2+ DOUBLES
+        </button>
       </div>
     </div>
     <!-- Grille cartes scrollable, style pioche -->
@@ -2095,14 +2156,21 @@ function renderTradeModal(th){
         ${ownedCards.map(card=>{
           const sel = myCard && parseInt(myCard.id)===parseInt(card.id);
           const cardData = JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:RARITY_COLOR[card.rarity]});
-          return `<div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}"
-            style="height:${_CH}px;cursor:pointer;position:relative;background:transparent;${sel?'outline:2px solid '+card.color+';outline-offset:-1px;':''}"
+          const rarCol = RARITY_COLOR[card.rarity]||'#64748b';
+          const rarShort = {common:'COM',uncommon:'PEU',rare:'RARE',mythic:'MYTH'}[card.rarity]||card.rarity.slice(0,4).toUpperCase();
+          return `<div class="trade-pick-card" data-cardid="${card.id}" data-name="${card.name.toLowerCase()}" data-rarity="${card.rarity}" data-count="${card.count||1}"
+            style="height:${_CH+14}px;cursor:pointer;position:relative;background:transparent;${sel?'outline:2px solid '+card.color+';outline-offset:-1px;':''}"
           >
+            <div style="position:relative;width:100%;height:${_CH}px;">
             ${card.image_url
               ? `<img src="${card.image_url}" data-card3d="${cardData.replace(/"/g,'&quot;')}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
               : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}30,${card.color}10);display:flex;align-items:center;justify-content:center;font-size:${Math.round(_CW*0.35)}px;pointer-events:none;">🃏</div>`}
             ${sel ? `<div style="position:absolute;top:2px;right:2px;width:14px;height:14px;background:${card.color};display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#000;z-index:2;pointer-events:none;">✓</div>` : (card.count>1 ? `<div style="position:absolute;top:2px;right:2px;min-width:14px;height:14px;background:rgba(0,0,0,.75);color:#fff;font-size:7px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;z-index:2;border:1px solid rgba(255,255,255,.2);pointer-events:none;">×${card.count}</div>` : '')}
-            <div style="position:absolute;bottom:0;left:0;right:0;font-size:${Math.round(_CW*0.095)}px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;text-shadow:0 1px 3px #000;padding-bottom:1px;pointer-events:none;">#${parseInt(card.id)}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:0;line-height:1.1;pointer-events:none;">
+              <div style="font-size:${Math.round(_CW*0.095)}px;font-weight:700;color:rgba(255,255,255,.8);text-align:center;text-shadow:0 1px 3px #000;">#${parseInt(card.id)}</div>
+              <div style="font-size:${Math.max(6,Math.round(_CW*0.08))}px;font-weight:900;color:${rarCol};text-align:center;letter-spacing:.2px;">${rarShort}</div>
+            </div>
           </div>`;
         }).join('')}
       </div>
@@ -9861,7 +9929,7 @@ function renderMarket(th){
                 <div style="font-size:11px;font-weight:900;color:#22c55e;">🟢 PROPOSÉES (${filteredOfferIds.length}${window._mktFilterMissing?'/'+allOfferIds.length:''})</div>
                 <div style="height:2px;flex:1;background:linear-gradient(270deg,#22c55e,transparent);"></div>
               </div>
-              ${!isMe?`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:10px;">
                 <button onclick="window._mktFilterMissing=!window._mktFilterMissing;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterMissing?'#22c55e':'rgba(34,197,94,.35)'};background:${window._mktFilterMissing?'rgba(34,197,94,.18)':'transparent'};color:${window._mktFilterMissing?'#22c55e':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterMissing?'✓ ':''} MANQUANTES SEULEMENT
                 </button>
@@ -9879,7 +9947,7 @@ function renderMarket(th){
                 <div style="font-size:11px;font-weight:900;color:#ef4444;">🔴 RECHERCHÉES (${filteredWantIds.length}${window._mktFilterOwned?'/'+allWantIds.length:''})</div>
                 <div style="height:2px;flex:1;background:linear-gradient(270deg,#ef4444,transparent);"></div>
               </div>
-              ${!isMe?`<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:10px;">
                 <button onclick="window._mktFilterOwned=!window._mktFilterOwned;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterOwned?'#ef4444':'rgba(239,68,68,.35)'};background:${window._mktFilterOwned?'rgba(239,68,68,.18)':'transparent'};color:${window._mktFilterOwned?'#ef4444':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterOwned?'✓ ':''} POSSÉDÉES SEULEMENT
                 </button>
