@@ -5951,6 +5951,8 @@ function bindGame(){
       const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS;
       const _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
       setState({piocheChosen:idx,piocheFlipped:newFlipped,piocheConsumed:true,piocheRevealImg:_drawnCard?.image_url||null});
+      // ── Quête pioche : déclencher immédiatement au moment du tirage ──
+      progressDailyQuest('pioche');
 
       // ── Marquer la pioche comme utilisée DÈS LE TIRAGE (cross-device) ──
       const myId = state.currentUser?.id;
@@ -5991,8 +5993,6 @@ function bindGame(){
         }
 
         setState({piocheResult: drawn});
-        // ── Quêtes ──
-        progressDailyQuest('pioche');
       },700);
     });
   });
@@ -8305,7 +8305,10 @@ async function subscribeNotifications() {
       let m = {}; try { m = JSON.parse(n.meta||'{}'); } catch(e) {}
       return { id: n.id, accepted: true, from_id: n.from_id, text: n.text || `Tu as reçu "${m.to_card||'?'}"` };
     });
-    setState({ tradeResultNotifs: [...(state.tradeResultNotifs||[]), ..._notifTexts] });
+    // Dédupliquer par id pour éviter les doublons en cas de race condition avec le realtime
+    const _existingIds = new Set((state.tradeResultNotifs||[]).map(x=>x.id));
+    const _newNotifs = _notifTexts.filter(x=>!_existingIds.has(x.id));
+    if(_newNotifs.length > 0) setState({ tradeResultNotifs: [...(state.tradeResultNotifs||[]), ..._newNotifs] });
   }
 
   // Realtime : écouter les nouvelles notifications
@@ -8342,6 +8345,8 @@ async function subscribeNotifications() {
           } catch(e) { notifText = 'Échange complété.'; }
         }
         const prev = state.tradeResultNotifs || [];
+        // Dédupliquer : ne pas ajouter si cette notif est déjà présente (race condition chargement initial)
+        if (prev.some(x => x.id === n.id)) return;
         setState({ tradeResultNotifs: [...prev, { id: n.id, accepted: isAccepted, from_id: n.from_id, text: notifText }] });
         showToast(notifText || (isAccepted ? 'Échange accepté !' : 'Échange refusé'), isAccepted ? '🔄' : '✗');
 
