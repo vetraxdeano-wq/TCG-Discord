@@ -631,17 +631,23 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
   80%{transform:translate(3px, -1px)}
 }
 @keyframes coinAnim{0%{opacity:0;transform:scale(.6) rotateY(0)}20%{opacity:1;transform:scale(.9) rotateY(180deg)}50%{transform:scale(1.06) rotateY(900deg)}75%{transform:scale(1.02) rotateY(1260deg)}100%{transform:scale(1) rotateY(1440deg);opacity:1}}
-@keyframes coinFlip3D{
-  0%   {transform:translateY(0) rotateX(0deg) scale(.7);opacity:0;}
+@keyframes coinTrajSmooth{
+  0%   {transform:translateY(0);opacity:0;}
   10%  {opacity:1;}
-  20%  {transform:translateY(-90px) rotateX(720deg) scale(1);}
-  45%  {transform:translateY(-110px) rotateX(2520deg) scale(1.05);}
-  70%  {transform:translateY(-30px) rotateX(4320deg) scale(1.02);}
-  85%  {transform:translateY(0) rotateX(5040deg) scale(.98);}
-  100% {transform:translateY(0) rotateX(5040deg) scale(1);}
+  50%  {transform:translateY(-110px);}
+  100% {transform:translateY(0);}
 }
-.coin3d-wrap{perspective:600px;display:inline-block;margin-bottom:14px;}
-.coin3d{width:96px;height:96px;position:relative;transform-style:preserve-3d;animation:coinFlip3D 1.9s cubic-bezier(.16,1,.3,1) both;}
+@keyframes coinSpinHumanLinear{
+  0%   {transform:rotateX(0deg);}
+  100% {transform:rotateX(900deg);}
+}
+@keyframes coinSpinBotLinear{
+  0%   {transform:rotateX(0deg);}
+  100% {transform:rotateX(1080deg);}
+}
+.coin3d-wrap{perspective:800px;display:inline-block;margin-bottom:14px;animation:coinTrajSmooth 1.4s ease-in-out both;}
+.coin3d{width:96px;height:96px;position:relative;transform-style:preserve-3d;animation:coinSpinHumanLinear 1.4s linear both;}
+.coin3d.spin-bot{animation:coinSpinBotLinear 1.4s linear both;}
 .coin3d-face{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:900;font-size:38px;color:rgba(255,255,255,.92);text-shadow:0 2px 4px rgba(0,0,0,.4),inset 0 0 10px rgba(0,0,0,.3);box-shadow:0 0 0 4px rgba(0,0,0,.18) inset, 0 0 18px rgba(0,0,0,.45),0 4px 14px rgba(0,0,0,.5);backface-visibility:hidden;}
 .coin3d-face.gold{background:radial-gradient(circle at 35% 30%,#ffe27a 0%,#f59200 55%,#a85800 100%);}
 .coin3d-face.red {background:radial-gradient(circle at 35% 30%,#ff8a8a 0%,#d22030 55%,#7a0010 100%);transform:rotateX(180deg);}
@@ -1075,7 +1081,7 @@ body.mobile .screen.active{overflow:hidden;height:calc(100*var(--dvh))}
 .ov-stat-val.mvp{color:#f06090;font-size:11px}
 .coin-ov{position:fixed;inset:0;z-index:450;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .coin-box{background:var(--s2);border:1px solid var(--bdr3);border-radius:16px;padding:28px 42px;text-align:center;min-width:240px;opacity:0;transform:scale(.88);transition:opacity .3s,transform .3s;box-shadow:0 40px 100px rgba(0,0,0,.7)}
-.coin-box.show{opacity:1;transform:scale(1);animation:coinAnim 1.9s cubic-bezier(.16,1,.3,1) both}
+.coin-box.show{opacity:1;transform:scale(1);animation:coinAnim 1.4s cubic-bezier(.16,1,.3,1) both}
 .coin-emoji{font-size:44px;display:block;margin-bottom:10px}
 .coin-who{font-family:'Cinzel',serif;font-weight:900;font-size:18px;margin-bottom:4px}
 .coin-who.first{color:var(--gold)}.coin-who.second{color:var(--sub)}
@@ -3139,26 +3145,26 @@ let _ct;
 function showCoinToast(fp){
   const ov=document.getElementById('coin-ov'),box=document.getElementById('coin-box');
   const coin=document.getElementById('coin3d');
+  const wrap=document.getElementById('coin3d-wrap');
   // Pendant l'animation : on cache le résultat
   const w0=document.getElementById('coin-who'); w0.textContent='Pile ou face…'; w0.className='coin-who';
   document.getElementById('coin-detail').textContent='Tirage au sort…';
+  // Reset transforms et animations
   coin.style.transform=''; coin.style.transition='';
-  // Relancer l'animation
-  coin.style.animation='none'; void coin.offsetWidth; coin.style.animation='';
+  coin.classList.remove('spin-bot');
+  if(fp==='bot') coin.classList.add('spin-bot');
+  // Relancer les animations (trajectoire sur wrap, rotation sur coin)
+  wrap.style.animation='none'; coin.style.animation='none';
+  void coin.offsetWidth;
+  wrap.style.animation=''; coin.style.animation='';
   ov.style.display='flex'; requestAnimationFrame(()=>requestAnimationFrame(()=>box.classList.add('show')));
   setTimeout(()=>{
-    if(fp==='bot'){
-      coin.style.transition='transform .35s cubic-bezier(.4,1.4,.5,1)';
-      coin.style.transform='rotateX(180deg)';
-    }
-    setTimeout(()=>{
-      const who=document.getElementById('coin-who');
-      who.textContent= fp==='human'?'Tu commences !':'Le bot commence !';
-      who.className='coin-who '+(fp==='human'?'first':'second');
-      document.getElementById('coin-detail').textContent= fp==='human'?'Cœur orange — tu joues en premier':'Cœur rouge — le bot joue en premier';
-    }, fp==='bot'?380:0);
-  }, 1850);
-  clearTimeout(_ct);_ct=setTimeout(()=>{box.classList.remove('show');setTimeout(()=>ov.style.display='none',400);},4400);
+    const who=document.getElementById('coin-who');
+    who.textContent= fp==='human'?'Tu commences !':'Le bot commence !';
+    who.className='coin-who '+(fp==='human'?'first':'second');
+    document.getElementById('coin-detail').textContent= fp==='human'?'Cœur orange — tu joues en premier':'Cœur rouge — le bot joue en premier';
+  }, 1400);
+  clearTimeout(_ct);_ct=setTimeout(()=>{box.classList.remove('show');setTimeout(()=>ov.style.display='none',400);},3600);
 }
 function startGame(){
   document.getElementById('si').classList.remove('active');document.getElementById('sg').classList.add('active');
