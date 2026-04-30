@@ -1969,6 +1969,14 @@ function applySort(s,cas,cib,onDone,onCancel){
         if(cib.hp<=0){ endGame(cas===G.human?'human':'bot'); return; }
       }
       break;
+    case'buff_hp_joueur':
+      // Bonus HP direct au joueur lui-même (pas au héro), capé à hpMax
+      { const healJoueur=s.val||4;
+        cas.hp=Math.min(cas.hpMax,cas.hp+healJoueur);
+        addLog(`💚 +${healJoueur} HP joueur !`,'sm');
+        updateHeart(cas===G.human?'h':'b', cas.hp, cas.hpMax);
+      }
+      break;
     case'remove_all_ruse':
       // Retire TOUTES les Ruses actives sur son propre héros
       { const before=cas.actives.length;
@@ -3231,7 +3239,7 @@ function spellToEffet(name_spell_1, name_spell_2, val1, val2){
   if(s1==='spell_def+') return {effet:'buff_def',val:v1};
   if(s1==='spell_pré+') return {effet:'buff_prec',val:v1};
   if(s1==='spell_hp_héro+' || s1==='spell_hp+' || s1==='spell_hp héro+') return {effet:'buff_hp',val:v1||5};
-  if(s1==='spell_hpjoueur+') return {effet:'buff_hp',val:v1||4};
+  if(s1==='spell_hpjoueur+') return {effet:'buff_hp_joueur',val:v1||4};
   if(s1==='spell_hpjoueur-') return {effet:'debuff_hp_joueur',val:v1||3};
   if(s1==='spell_atqordef+') return {effet:'buff_atq_or_def',val:v1};
   if(s1==='spell_1ruse+' || s1==='spell_cleanruse+') return {effet: s1==='spell_cleanruse+' ? 'remove_all_ruse' : 'remove_ruse', val:0};
