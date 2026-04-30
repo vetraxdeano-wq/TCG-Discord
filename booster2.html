@@ -597,6 +597,39 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   margin:0;
   animation:doneIn .4s ease .08s both;
 }
+.done-balance{
+  display:inline-flex;align-items:center;gap:.5em;
+  margin:6px auto 0;
+  padding:4px 14px;
+  background:rgba(0,0,0,.35);
+  border:1px solid rgba(240,192,96,.25);
+  border-radius:2px;
+  font-family:'Bebas Neue',cursive;
+  letter-spacing:.18em;
+  animation:doneIn .4s ease .14s both;
+}
+.done-balance .db-label{
+  font-size:clamp(.55rem,1.3vw,.7rem);
+  color:rgba(255,255,255,.5);
+  text-transform:uppercase;
+}
+.done-balance .db-coin{
+  color:#f0c060;
+  font-size:clamp(.7rem,1.6vw,.9rem);
+  text-shadow:0 0 8px rgba(240,192,96,.5);
+}
+.done-balance .db-amount{
+  font-size:clamp(.85rem,2vw,1.05rem);
+  font-weight:700;
+  color:#f0c060;
+  text-shadow:0 0 10px rgba(240,192,96,.4);
+  letter-spacing:.05em;
+}
+.done-balance .db-unit{
+  font-size:clamp(.55rem,1.2vw,.68rem);
+  color:rgba(240,192,96,.6);
+  text-transform:uppercase;
+}
 @keyframes doneIn{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:none}}
 
 /* ── Grille 2+2+1 ── */
@@ -1280,6 +1313,11 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   .done-header{ padding:3px 12px 2px !important; }
   .done-title{ font-size:.78rem !important; margin-bottom:0 !important; }
   .done-sub{ font-size:.52rem !important; }
+  .done-balance{ margin-top:3px !important; padding:2px 10px !important; gap:.35em !important; }
+  .done-balance .db-label{ font-size:.5rem !important; }
+  .done-balance .db-amount{ font-size:.75rem !important; }
+  .done-balance .db-unit{ font-size:.5rem !important; }
+  .done-balance .db-coin{ font-size:.65rem !important; }
   .summary-spread{ gap:3px 5px !important; padding:4px 8px !important; }
   .recap-card-wrap{ gap:1px !important; }
   .rc-own-badge{ font-size:.32rem !important; padding:0 3px !important; line-height:1.2 !important; }
@@ -1561,6 +1599,12 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   <div class="done-header">
     <div class="done-title">Booster Ouvert</div>
     <div class="done-sub">Récapitulatif de tes cartes</div>
+    <div class="done-balance" id="doneBalance">
+      <span class="db-label">Solde</span>
+      <span class="db-coin">◆</span>
+      <span class="db-amount" id="doneBalanceAmount">—</span>
+      <span class="db-unit">coins</span>
+    </div>
   </div>
   <div class="summary-spread" id="summarySpread"></div>
   <div class="done-actions">
@@ -4195,10 +4239,36 @@ function afterDismiss(){  _dealLocked=false;
 }
 
 // ===== DONE / RECAP =====
+// Met à jour le solde affiché dans la fenêtre de récap.
+// Utilise window._playerCoins (mis à jour par deductBoosterCost après chaque ouverture).
+// Anime le décompte depuis window._coinsBeforeOpen → window._playerCoins.
+function updateDoneBalance(){
+  const el = document.getElementById('doneBalanceAmount');
+  if(!el) return;
+  const target = (typeof window._playerCoins === 'number') ? window._playerCoins : 0;
+  const start = (typeof window._coinsBeforeOpen === 'number') ? window._coinsBeforeOpen : target;
+  if (start === target) {
+    el.textContent = target.toLocaleString('fr-FR');
+    return;
+  }
+  const dur = 700;
+  const t0 = performance.now();
+  function tick(now){
+    const p = Math.min(1, (now - t0) / dur);
+    const eased = 1 - Math.pow(1 - p, 2);
+    const val = Math.round(start + (target - start) * eased);
+    el.textContent = val.toLocaleString('fr-FR');
+    if(p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 function showDone(){
   stopAmbientDrone();
   stopStackAura();
   stopStackFx();
+  // ── Mettre à jour le solde affiché dans le récap ──
+  updateDoneBalance();
   document.getElementById('stackWrap').classList.remove('visible');
   const spread=document.getElementById('summarySpread');
   const RARITY_COL = {'COMMUNE':'#9ca3af','PEU COMMMUNE':'#60a5fa','RARE':'#a855f7','MYTHIQUE':'#f0c060'};
@@ -4304,10 +4374,13 @@ async function deductBoosterCost() {
     .select('coins, pending_free_booster').eq('id', myId).single();
   const currentCoins = playerRow ? playerRow.coins : 0;
   window._playerCoins = currentCoins;
+  // Mémoriser le solde "avant ouverture" pour l'animation du récap
+  window._coinsBeforeOpen = currentCoins;
 
   if (playerRow && playerRow.pending_free_booster) {
     // Consommer le flag → booster gratuit, aucune déduction
     try { await db.from('players').update({ pending_free_booster: null }).eq('id', myId); } catch(e) {}
+    window._lastBoosterCost = 0;
     return true;
   }
 
@@ -4315,6 +4388,7 @@ async function deductBoosterCost() {
   if (currentCoins < 1000) return false;
   await db.from('players').update({ coins: currentCoins - 1000 }).eq('id', myId);
   window._playerCoins = currentCoins - 1000;
+  window._lastBoosterCost = 1000;
   return true;
 }
 
