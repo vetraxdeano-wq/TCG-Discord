@@ -984,6 +984,10 @@ let state = {
   activeConvId: null,
   messages: {},
   convTrades: {},   // { [friendId]: [{id, from_id, to_id, from_card_id, to_card_id, status, created_at}] }
+  showTradeHistory: false,
+  allTrades: [],       // tous les trades du joueur enrichis avec partner_name
+  allTradesLoading: false,
+  allTradesFilter: 'all', // 'all' | 'pending' | 'accepted' | 'declined'
   msgNotifCount: 0,
   pendingMsgNotifs: [],
   // Boosters
@@ -1144,6 +1148,13 @@ const SVG = {
   quest:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <path d="M9 11l3 3L22 4"/>
     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+  </svg>`,
+  // Trade — double flèche échange
+  tradeMenu:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="17 1 21 5 17 9"/>
+    <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+    <polyline points="7 23 3 19 7 15"/>
+    <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
   </svg>`,
 };
 
@@ -1340,6 +1351,8 @@ function renderGame(th){
   ];
   const NOTIF_COUNT = (state.friendRequestsIn||[]).length + (state.combatRequestsIn||[]).length + (state.pendingLevelRewards||[]).length + (state.welcomeNotifs||[]).length + (state.tradeResultNotifs||[]).length;
   const MSG_COUNT = state.msgNotifCount || 0;
+  const myId_hdr = state.currentUser?.id;
+  const TRADE_PENDING_COUNT = (state.allTrades||[]).filter(t=>t.status==='pending'&&t.to_id===myId_hdr).length;
 
   return `
   <div style="display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background:transparent;">
@@ -1385,6 +1398,11 @@ function renderGame(th){
         <!-- Quêtes -->
         <button id="btn-quests" style="position:relative;width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:transparent;border:1px solid ${th.border};color:${th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;" title="Quêtes & Récompenses">
           ${SVG.quest}
+        </button>
+        <!-- Trades -->
+        <button id="btn-trade-history" style="position:relative;width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:${TRADE_PENDING_COUNT>0?'rgba(251,146,60,.12)':'transparent'};border:1px solid ${TRADE_PENDING_COUNT>0?'rgba(251,146,60,.35)':th.border};color:${TRADE_PENDING_COUNT>0?'#fb923c':th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;" title="Mes échanges">
+          ${SVG.tradeMenu}
+          ${TRADE_PENDING_COUNT>0?`<div style="position:absolute;top:-3px;right:-3px;min-width:13px;height:13px;background:#fb923c;color:#000;font-size:6px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 2px;border:1px solid ${th.bgSecondary};">${TRADE_PENDING_COUNT}</div>`:''}
         </button>
         <!-- Notifs -->
         <button id="btn-notif" style="position:relative;width:${isMobile?'26px':'32px'};height:${isMobile?'26px':'32px'};background:${NOTIF_COUNT>0?th.red+'12':'transparent'};border:1px solid ${NOTIF_COUNT>0?th.red+'35':th.border};color:${NOTIF_COUNT>0?th.red:th.textMuted};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;">
@@ -1452,6 +1470,7 @@ function renderGame(th){
     ${state.showFriends?renderFriendsModal(th):''}
     ${state.showNotif?renderNotifModal(th):''}
     ${state.showMessages?renderMessagesModal(th):''}
+    ${state.showTradeHistory?renderTradeHistoryModal(th):''}
     ${state.collSelectedCard?renderCardDetailModal(state.collSelectedCard,th):''}
     ${state.showPioche?renderPiocheMechanic(th):''}
     ${state.showProfile?renderProfileModal(th):''}
@@ -3652,6 +3671,151 @@ function renderTabStats(th){
 
 
 // ─── TAB MESSAGES ────────────────────────────────────────────────
+// ─── TRADE HISTORY MODAL ─────────────────────────────────────────
+function renderTradeHistoryModal(th){
+  const myId = state.currentUser?.id;
+  const filter = state.allTradesFilter || 'all';
+  const loading = state.allTradesLoading;
+  const allTrades = state.allTrades || [];
+
+  // Filtrer
+  const filtered = filter === 'all' ? allTrades
+    : allTrades.filter(t => t.status === filter);
+
+  const pendingCount  = allTrades.filter(t=>t.status==='pending').length;
+  const acceptedCount = allTrades.filter(t=>t.status==='accepted').length;
+  const declinedCount = allTrades.filter(t=>t.status==='declined').length;
+
+  const STATUS = {
+    pending:  { label:'En attente',       color:'#fee75c', icon:'⏳', bg:'rgba(254,231,92,.08)',  border:'rgba(254,231,92,.25)' },
+    accepted: { label:'Accepté',          color:'#57f287', icon:'✓',  bg:'rgba(87,242,135,.08)', border:'rgba(87,242,135,.25)' },
+    declined: { label:'Refusé',           color:'#ed4245', icon:'✕',  bg:'rgba(237,66,69,.08)',  border:'rgba(237,66,69,.25)'  },
+    cancelled:{ label:'Annulé',           color:'#96989d', icon:'—',  bg:'rgba(150,152,157,.08)',border:'rgba(150,152,157,.2)' },
+  };
+
+  function cardBox(cardId, isSender) {
+    const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(cardId));
+    const col = card ? (RARITY_COLOR[card.rarity]||'#96989d') : '#96989d';
+    const show = card && card.owned;
+    if (card && (isSender || show)) {
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <div onclick="if(window.openCard3DViewer)openCard3DViewer(${JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:col})})" style="width:52px;height:74px;overflow:visible;position:relative;cursor:zoom-in;" title="Agrandir">
+          ${card.image_url
+            ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
+            : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${col}30,${col}10);display:flex;align-items:center;justify-content:center;font-size:20px;">🃏</div>`}
+        </div>
+        <div style="font-size:6px;font-weight:700;color:${th.text};text-align:center;max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+        <div style="font-size:6px;color:${col};font-weight:700;">◆ ${RARITY_LABEL[card.rarity]||''}</div>
+        ${card.owned&&card.count>0?`<div style="font-size:6px;color:${th.green};font-weight:800;">✓ ×${card.count}</div>`:''}
+      </div>`;
+    }
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <div style="width:52px;height:74px;overflow:hidden;position:relative;opacity:.75;">
+        <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />
+        <div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${cardId}</div>
+      </div>
+      <div style="font-size:6px;color:${th.textMuted};text-align:center;">Mystère</div>
+    </div>`;
+  }
+
+  function renderTrade(t) {
+    const isMine = t.from_id === myId;
+    const st = STATUS[t.status] || STATUS.pending;
+    const isPendingForMe = t.status === 'pending' && t.to_id === myId;
+    const toCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(t.to_card_id));
+    const receiverOwnsCard = toCard && toCard.owned;
+
+    return `<div style="background:${st.bg};border:1px solid ${st.border};padding:10px 12px;margin-bottom:8px;">
+      <!-- Header trade -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
+        <div style="display:flex;align-items:center;gap:6px;min-width:0;">
+          <div style="width:22px;height:22px;border-radius:50%;overflow:hidden;background:${th.accent}20;border:1px solid #000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+            ${t.partner_avatar?`<img src="${t.partner_avatar}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\"font-size:10px;\\">👤</span>'">`:'<span style="font-size:10px;">👤</span>'}
+          </div>
+          <div style="min-width:0;">
+            <div style="font-size:10px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${isMine?'→ '+t.partner_name:'← '+t.partner_name}</div>
+            <div style="font-size:8px;color:${th.textFaint};">${new Date(t.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;background:${st.bg};border:1px solid ${st.border};padding:2px 7px;flex-shrink:0;">
+          <span style="font-size:9px;">${st.icon}</span>
+          <span style="font-size:8px;font-weight:700;color:${st.color};">${st.label}</span>
+        </div>
+      </div>
+      <!-- Cartes -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <div style="font-size:7px;color:${th.textMuted};margin-bottom:3px;">${isMine?'Tu donnes':'Il donne'}</div>
+          ${cardBox(t.from_card_id, isMine)}
+        </div>
+        <div style="font-size:14px;color:${th.textMuted};">⇄</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+          <div style="font-size:7px;color:${th.textMuted};margin-bottom:3px;">${isMine?'Tu reçois':'Il veut'}</div>
+          ${cardBox(t.to_card_id, !isMine)}
+        </div>
+      </div>
+      <!-- Boutons si pending pour moi -->
+      ${isPendingForMe ? `
+      <div style="margin-top:10px;display:flex;gap:6px;">
+        ${!receiverOwnsCard
+          ? `<div style="width:100%;padding:6px;background:rgba(237,66,69,.1);border:1px solid rgba(237,66,69,.3);font-size:9px;color:#ed4245;text-align:center;font-weight:700;">Tu ne possèdes pas la carte #${t.to_card_id}</div>`
+          : `<button class="th-trade-accept" data-tradeid="${t.id}" style="flex:1;padding:8px 6px;background:#57f287;color:#000;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✓ Accepter</button>`}
+        <button class="th-trade-decline" data-tradeid="${t.id}" style="flex:${receiverOwnsCard?1:0};padding:8px ${receiverOwnsCard?'6':'14'}px;background:transparent;color:#ed4245;border:1px solid rgba(237,66,69,.4);font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✕ Refuser</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  const filterBtn = (f, label, count) => `
+    <button class="th-filter-btn" data-filter="${f}" style="flex:1;padding:6px 4px;font-size:9px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;border:none;
+      background:${filter===f?th.accent:th.bgTertiary};
+      color:${filter===f?'#000':th.textMuted};
+      border-bottom:2px solid ${filter===f?th.accent:'transparent'};">
+      ${label}${count>0?` <span style="background:${filter===f?'rgba(0,0,0,.2)':'rgba(255,255,255,.1)'};padding:1px 5px;font-size:8px;">${count}</span>`:''}
+    </button>`;
+
+  return `
+  <div id="trade-hist-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div class="slide-up" style="width:100%;max-width:420px;height:93%;background:${th.bgSecondary};padding:0;padding-bottom:max(env(safe-area-inset-bottom,0px),24px);box-shadow:0 -24px 80px rgba(0,0,0,.7);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
+
+      <!-- Pull handle -->
+      <div id="trade-hist-close" style="display:flex;justify-content:center;padding:10px 0 6px;cursor:pointer;flex-shrink:0;touch-action:manipulation;">
+        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
+      </div>
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 10px;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="color:#fb923c;">${SVG.tradeMenu}</div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:${th.text};letter-spacing:1px;">Mes Échanges</div>
+        </div>
+        <div style="font-size:9px;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">${allTrades.length} trade${allTrades.length>1?'s':''}</div>
+      </div>
+
+      <!-- Filtres -->
+      <div style="display:flex;gap:0;flex-shrink:0;border-bottom:1px solid ${th.border};">
+        ${filterBtn('all','Tous',allTrades.length)}
+        ${filterBtn('pending','En attente',pendingCount)}
+        ${filterBtn('accepted','Acceptés',acceptedCount)}
+        ${filterBtn('declined','Refusés',declinedCount)}
+      </div>
+
+      <!-- Liste -->
+      <div style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;">
+        ${loading ? `<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;flex-direction:column;">
+            <div style="font-size:28px;opacity:.3;">🔄</div>
+            <div style="font-size:11px;color:${th.textMuted};">Chargement…</div>
+          </div>`
+        : filtered.length === 0 ? `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:30px 20px;">
+            <div style="font-size:38px;opacity:.2;">🔄</div>
+            <div style="font-size:13px;font-weight:700;color:${th.text};">Aucun échange ${filter==='all'?'':'dans cette catégorie'}</div>
+            <div style="font-size:10px;color:${th.textMuted};">Propose un échange depuis la collection ou les DMs !</div>
+          </div>`
+        : filtered.map(t=>renderTrade(t)).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderMessagesModal(th){
   const friends = state.friends || [];
   const activeId = state.activeConvId;
@@ -4691,12 +4855,12 @@ function bindGame(){
 
   const btnFriends = document.getElementById('btn-friends');
   if(btnFriends) btnFriends.addEventListener('click',()=>{
-    setState({showFriends:true,showSettings:false,showNotif:false,showMessages:false});
+    setState({showFriends:true,showSettings:false,showNotif:false,showMessages:false,showTradeHistory:false});
     loadFriends();
   });
 
   const btnNotif = document.getElementById('btn-notif');
-  if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false,showMessages:false}));
+  if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false,showMessages:false,showTradeHistory:false}));
 
   const btnQuests = document.getElementById('btn-quests');
   if(btnQuests) btnQuests.addEventListener('click',()=>setState({showQuests:true}));
@@ -4707,10 +4871,50 @@ function bindGame(){
 
   const btnMessages = document.getElementById('btn-messages');
   if(btnMessages) btnMessages.addEventListener('click',()=>{
-    setState({showMessages:true,showSettings:false,showFriends:false,showNotif:false});
+    setState({showMessages:true,showSettings:false,showFriends:false,showNotif:false,showTradeHistory:false});
     if((state.friends||[]).length===0) loadFriends();
     // Si une conv est déjà ouverte, effacer son badge
     if (state.activeConvId) markMsgNotifsRead(state.activeConvId);
+  });
+
+  // Bouton Trade History
+  const btnTradeHistory = document.getElementById('btn-trade-history');
+  if(btnTradeHistory) btnTradeHistory.addEventListener('click',()=>{
+    setState({showTradeHistory:true,showMessages:false,showSettings:false,showFriends:false,showNotif:false,showQuests:false});
+    loadAllTrades();
+  });
+  const tradeHistBg = document.getElementById('trade-hist-bg');
+  if(tradeHistBg) tradeHistBg.addEventListener('click',(e)=>{if(e.target===tradeHistBg)setState({showTradeHistory:false});});
+  const tradeHistClose = document.getElementById('trade-hist-close');
+  if(tradeHistClose) tradeHistClose.addEventListener('click',()=>setState({showTradeHistory:false}));
+
+  // Filtres trade history
+  document.querySelectorAll('.th-filter-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>setState({allTradesFilter:btn.dataset.filter}));
+  });
+
+  // Accepter/Refuser depuis trade history
+  document.querySelectorAll('.th-trade-accept').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const tradeId = btn.dataset.tradeid;
+      const trade = (state.allTrades||[]).find(t=>t.id===tradeId);
+      if(!trade){ showToast('Trade introuvable','✗'); return; }
+      setState({ tradeIncoming: { ...trade, from_name: trade.partner_name||'Ami' } });
+      await window.respondTrade(tradeId, true);
+      loadAllTrades();
+    });
+  });
+  document.querySelectorAll('.th-trade-decline').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const tradeId = btn.dataset.tradeid;
+      const trade = (state.allTrades||[]).find(t=>t.id===tradeId);
+      if(!trade){ showToast('Trade introuvable','✗'); return; }
+      setState({ tradeIncoming: { ...trade, from_name: trade.partner_name||'Ami' } });
+      await window.respondTrade(tradeId, false);
+      loadAllTrades();
+    });
   });
 
   const messagesBg = document.getElementById('messages-bg');
@@ -6679,7 +6883,7 @@ render();
   let _startEl = null;
 
   function anyModalOpen(){
-    return state.showSettings||state.showFriends||state.showNotif||state.showMessages||
+    return state.showSettings||state.showFriends||state.showNotif||state.showMessages||state.showTradeHistory||
            state.showPioche||state.showLeaderboard||state.showTutorial||state.showDeckBuilder||
            state.collSelectedCard||state.showTrade||state.showProfile||state.showAddFriend||
            state.showQuests||state.showHowTo;
@@ -7008,6 +7212,8 @@ function enterGame(user, coins) {
     if (window.subscribeNotifications) window.subscribeNotifications();
     if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
     if (window.subscribeFriendRequests) window.subscribeFriendRequests();
+    // Précharger l'historique des trades
+    loadAllTrades();
     // Précharger le classement en arrière-plan dès l'entrée
     loadLeaderboard('all');
     // Souscrire aux messages en realtime dès l'entrée (pas seulement à l'ouverture d'une conv)
@@ -8331,6 +8537,42 @@ async function loadMessages(friendId) {
   // Le canal realtime est géré globalement par subscribeMessagesGlobal (appelé à l'entrée dans le jeu)
 }
 
+// ─── CHARGER TOUS LES TRADES DU JOUEUR ───────────────────────────
+async function loadAllTrades() {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) return;
+  setState({ allTradesLoading: true });
+
+  // Récupérer tous les trades
+  const { data: trades } = await db.from('trades')
+    .select('id, from_id, to_id, from_card_id, to_card_id, status, created_at')
+    .or(`from_id.eq.${myId},to_id.eq.${myId}`)
+    .order('created_at', { ascending: true });
+
+  if (!trades || trades.length === 0) {
+    setState({ allTrades: [], allTradesLoading: false });
+    return;
+  }
+
+  // Récupérer les usernames des partenaires
+  const partnerIds = [...new Set(trades.map(t => t.from_id === myId ? t.to_id : t.from_id))];
+  const { data: players } = await db.from('players')
+    .select('id, discord_username, avatar_url')
+    .in('id', partnerIds);
+
+  const playerMap = {};
+  (players||[]).forEach(p => { playerMap[p.id] = p; });
+
+  const enriched = trades.map(t => {
+    const partnerId = t.from_id === myId ? t.to_id : t.from_id;
+    const partner = playerMap[partnerId] || {};
+    return { ...t, partner_id: partnerId, partner_name: partner.discord_username || 'Joueur', partner_avatar: partner.avatar_url || null };
+  });
+
+  setState({ allTrades: enriched, allTradesLoading: false });
+}
+
 async function loadConvTrades(friendId) {
   const db = window.db;
   const myId = state.currentUser?.id;
@@ -9586,6 +9828,8 @@ async function sendTradeOffer(theirCardId) {
     progressWeeklyQuest('trades_5');
     // Rafraîchir les trades dans la conv si elle est ouverte
     if (state.activeConvId === toId) loadConvTrades(toId);
+    // Rafraîchir l'historique global
+    loadAllTrades();
   } catch(e) {
     console.error('[sendTradeOffer] exception', e);
     showToast('Erreur envoi trade', '✗');
@@ -9778,6 +10022,8 @@ async function _respondTradeCore(tradeId, accept, db, myId) {
   // Rafraîchir les trades dans la conv si elle est ouverte avec cet ami
   const partnerId = incoming?.from_id;
   if (partnerId && state.activeConvId === partnerId) loadConvTrades(partnerId);
+  // Rafraîchir l'historique global des trades si le menu est ouvert
+  if (state.showTradeHistory) loadAllTrades();
 };
 
 // Écouter les trades entrants en realtime
