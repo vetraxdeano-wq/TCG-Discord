@@ -338,17 +338,80 @@ function _weekStr(){
   return d.getFullYear() + '-W' + String(weekNum).padStart(2,'0');
 }
 function _weeklyKey(userId){ return 'weekly_' + userId; }
+
+// ─── QUÊTES CROSS-PLATEFORME — tables quest_daily + quest_weekly ─────────────
+// quest_daily  : colonnes player_id, quest_id, progress, done, date (DATE)
+// quest_weekly : colonnes player_id, quest_id, progress, done, week (TEXT 'YYYY-Www')
+// Cache mémoire pour éviter des allers-retours répétés dans la même session.
+let _questCache = {}; // { userId: { daily: Map<questId,{progress,done}>, weekly: Map<questId,{progress,done}> } }
+
+async function _loadQuestCache(userId) {
+  if (_questCache[userId]) return _questCache[userId];
+  const db = window.db;
+  const today = _todayStr();
+  const week  = _weekStr();
+  const dailyMap  = {};
+  const weeklyMap = {};
+  if (db) {
+    try {
+      const { data: dRows } = await db.from('quest_daily')
+        .select('quest_id, progress, done').eq('player_id', userId).eq('date', today);
+      (dRows || []).forEach(r => {
+        if (r.quest_id === '__trade') {
+          dailyMap.__tradeDate = today; // marquer que le trade a été utilisé aujourd'hui
+        } else {
+          dailyMap[r.quest_id] = { progress: r.progress||0, done: !!r.done };
+        }
+      });
+    } catch(e) {}
+    try {
+      const { data: wRows } = await db.from('quest_weekly')
+        .select('quest_id, progress, done').eq('player_id', userId).eq('week', week);
+      (wRows || []).forEach(r => { weeklyMap[r.quest_id] = { progress: r.progress||0, done: !!r.done }; });
+    } catch(e) {}
+  }
+  _questCache[userId] = { daily: dailyMap, weekly: weeklyMap };
+  return _questCache[userId];
+}
+
+// Upsert une ligne quest_daily pour le joueur aujourd'hui
+async function _persistDailyQuest(userId, questId, progress, done) {
+  const db = window.db;
+  if (!db) return;
+  const today = _todayStr();
+  try {
+    await db.from('quest_daily').upsert(
+      { player_id: userId, quest_id: questId, progress, done, date: today },
+      { onConflict: 'player_id,quest_id,date' }
+    );
+  } catch(e) {}
+}
+
+// Upsert une ligne quest_weekly pour le joueur cette semaine
+async function _persistWeeklyQuest(userId, questId, progress, done) {
+  const db = window.db;
+  if (!db) return;
+  const week = _weekStr();
+  try {
+    await db.from('quest_weekly').upsert(
+      { player_id: userId, quest_id: questId, progress, done, week },
+      { onConflict: 'player_id,quest_id,week' }
+    );
+  } catch(e) {}
+}
+
 function getWeeklyData(userId){
-  try{
-    const raw = JSON.parse(localStorage.getItem(_weeklyKey(userId))||'{}');
-    // Reset si semaine différente
-    if(raw._week !== _weekStr()) return {_week: _weekStr()};
-    return raw;
-  }catch(e){ return {_week: _weekStr()}; }
+  // Retourne un objet compatible avec l'ancien format pour les readers (renderQuestsModal)
+  const map = _questCache[userId]?.weekly || {};
+  const out = { _week: _weekStr() };
+  Object.entries(map).forEach(([qid, v]) => {
+    out['wq_' + qid]       = v.progress || 0;
+    out['wq_' + qid + '_done'] = v.done || false;
+  });
+  return out;
 }
 function setWeeklyData(userId, patch){
-  const cur = getWeeklyData(userId);
-  localStorage.setItem(_weeklyKey(userId), JSON.stringify({...cur, ...patch}));
+  // Compatibilité ascendante — non utilisé directement, les writes passent par progressWeeklyQuest
 }
 // FIX : on utilise la date LOCALE (et non UTC), pour que le reset de la pioche
 // se cale sur minuit heure du joueur, et pas sur minuit UTC.
@@ -364,12 +427,20 @@ function _todayStr(){
 }
 
 function getDailyData(userId){
-  try{ return JSON.parse(localStorage.getItem(_dailyKey(userId)) || '{}'); }
-  catch(e){ return {}; }
+  // Retourne un objet compatible avec l'ancien format pour les readers (renderQuestsModal)
+  const map = _questCache[userId]?.daily || {};
+  const today = _todayStr();
+  const out = {};
+  Object.entries(map).forEach(([qid, v]) => {
+    out['dq_' + qid]           = v.progress || 0;
+    out['dq_' + qid + '_date'] = today;
+    out['dq_' + qid + '_done'] = v.done || false;
+    out['dq_' + qid + '_done_date'] = today;
+  });
+  return out;
 }
 function setDailyData(userId, patch){
-  const cur = getDailyData(userId);
-  localStorage.setItem(_dailyKey(userId), JSON.stringify({...cur, ...patch}));
+  // Compatibilité ascendante — les writes passent par progressDailyQuest
 }
 
 // ─── BOOSTERS DAILY LIMITS — cross-device via Supabase ────────────
@@ -520,11 +591,22 @@ async function markPiocheUsed(userId){
 
 // Trade : 1x/jour
 function canTradeToday(userId){
-  const d = getDailyData(userId);
-  return d.tradeDate !== _todayStr();
+  // Lit la date de trade depuis le cache mémoire (clé _tradeDate, hors quêtes)
+  const cacheData = _questCache[userId]?.daily;
+  if (!cacheData) {
+    // Cache pas encore chargé : fallback localStorage
+    try { const d = JSON.parse(localStorage.getItem('daily_'+userId)||'{}'); return d.tradeDate !== _todayStr(); } catch(e) {}
+    return true;
+  }
+  return cacheData.__tradeDate !== _todayStr();
 }
 function markTradeUsed(userId){
-  setDailyData(userId, { tradeDate: _todayStr() });
+  if (!_questCache[userId]) _questCache[userId] = { daily: {}, weekly: {} };
+  _questCache[userId].daily.__tradeDate = _todayStr();
+  // Persiste via un upsert dédié dans quest_daily avec quest_id='__trade'
+  _persistDailyQuest(userId, '__trade', 1, false);
+  // Fallback localStorage
+  try { const k = 'daily_'+userId; const d = JSON.parse(localStorage.getItem(k)||'{}'); d.tradeDate = _todayStr(); localStorage.setItem(k, JSON.stringify(d)); } catch(e) {}
 }
 
 // Renvoie un string "Xh Ym Zs" jusqu'au prochain minuit
@@ -1380,7 +1462,7 @@ function renderGame(th){
     ${state.showLeaderboard?renderLeaderboardModal(th):''}
     ${state.showTutorial?renderTutorialModal(th):''}
     ${state.showHowTo?renderHowToModal(th):''}
-    ${state.showQuests?renderQuestsModal(th):''}
+    ${state.showQuests?renderQuestsModal(th,isMobile):''}
   </div>`;
 }
 
@@ -4208,26 +4290,21 @@ function renderTutorialModal(th){
 
 
 // ─── QUESTS MODAL ────────────────────────────────────────────────
-function renderQuestsModal(th){
+function renderQuestsModal(th, isMobile){
   const userId = state.currentUser?.id;
   const streak = state.loginStreak || 0;
   const STREAK_COINS = [25,50,75,100,125,150,200];
   const today = _todayStr();
-
-  // Helper progress
+  // isMobile est passé par renderGame (même logique que toute l'UI) — lit directement depuis le cache mémoire (tables quest_daily/quest_weekly)
   function getDQProgress(questId){
     if(!userId) return {progress:0,done:false};
-    const d = getDailyData(userId);
-    const today2 = _todayStr();
-    return {
-      progress: (d['dq_'+questId+'_date']===today2) ? (d['dq_'+questId]||0) : 0,
-      done:     (d['dq_'+questId+'_done_date']===today2) ? !!d['dq_'+questId+'_done'] : false,
-    };
+    const cached = _questCache[userId]?.daily?.[questId];
+    return { progress: cached?.progress||0, done: !!cached?.done };
   }
   function getWQProgress(questId){
     if(!userId) return {progress:0,done:false};
-    const w = getWeeklyData(userId);
-    return { progress: w['wq_'+questId]||0, done: !!w['wq_'+questId+'_done'] };
+    const cached = _questCache[userId]?.weekly?.[questId];
+    return { progress: cached?.progress||0, done: !!cached?.done };
   }
 
   const todayDone = state.firstWinTodayDone || false;
@@ -4275,8 +4352,8 @@ function renderQuestsModal(th){
   const wqBoosters= getWQProgress('boosters_10');
   const wqTrades  = getWQProgress('trades_5');
 
-  // Détecter si on est sur un grand écran (PC) pour adapter la présentation
-  const isWide = typeof window !== 'undefined' && window.innerWidth >= 640;
+  // isWide = pas mobile (passé depuis renderGame pour cohérence avec toute l'UI)
+  const isWide = !isMobile;
 
   return `
   <div id="quests-bg" style="
@@ -6349,11 +6426,8 @@ function bindGame(){
     tradeConfirmSend.addEventListener('click',()=>sendTradeOffer(state.tradeWantedNum));
   }
 
-  // Accepter/refuser un trade entrant
-  const tradeAccept = document.getElementById('trade-accept');
-  if(tradeAccept) tradeAccept.addEventListener('click',()=>respondTrade(state.tradeIncoming?.id, true));
-  const tradeDecline = document.getElementById('trade-decline');
-  if(tradeDecline) tradeDecline.addEventListener('click',()=>respondTrade(state.tradeIncoming?.id, false));
+  // Accepter/refuser un trade entrant — géré par onclick inline sur les boutons
+  // (les addEventListener ci-dessous sont supprimés pour éviter le double-déclenchement)
   const settingsBg=document.getElementById('settings-bg');
   if(settingsBg) settingsBg.addEventListener('click',(e)=>{if(e.target===settingsBg)setState({showSettings:false});});
   const friendsBg=document.getElementById('friends-bg');
@@ -6929,6 +7003,8 @@ function enterGame(user, coins) {
     canPiocheToday(user.id).then(()=>{ setState({}); }); // force re-render après chargement
     // Précharger les compteurs de boosters depuis Supabase (cross-device, par compte)
     _loadBoosterCache(user.id).then(()=>{ setState({}); });
+    // Précharger le cache des quêtes depuis Supabase (cross-plateforme)
+    _loadQuestCache(user.id).then(()=>{ setState({ _questUpdate: Date.now() }); });
     if (window.subscribeNotifications) window.subscribeNotifications();
     if (window.subscribeTradeNotifications) window.subscribeTradeNotifications();
     if (window.subscribeFriendRequests) window.subscribeFriendRequests();
@@ -7673,7 +7749,7 @@ window.onPlayerWin = async function() {
   const userId = state.currentUser?.id;
   if (!db || !userId) return;
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _todayStr();
 
   if (state.firstWinTodayDone) return;
 
@@ -7691,13 +7767,12 @@ window.onPlayerWin = async function() {
   showXpToast(20, '1ère victoire du jour');
   await db.from('players').update({ first_win_date: today }).eq('id', userId);
   setState({ firstWinTodayDone: true });
-  // Marquer la quête quotidienne 1ère victoire comme complétée
-  setDailyData(userId, {
-    'dq_first_win': 1, 'dq_first_win_date': today,
-    'dq_first_win_done': true, 'dq_first_win_done_date': today,
-  });
-  // Quête hebdomadaire victoires
-  progressWeeklyQuest('wins_15');
+  // Marquer la quête quotidienne 1ère victoire comme complétée via le cache
+  if (!_questCache[userId]) await _loadQuestCache(userId);
+  _questCache[userId].daily['first_win'] = { progress: 1, done: true };
+  await _persistDailyQuest(userId, 'first_win', 1, true);
+  // Quête hebdomadaire victoires — await pour garantir la persistence avant la suite
+  await progressWeeklyQuest('wins_15');
   // Incrémenter le compteur hebdo "3 quêtes quotidiennes complétées"
   _checkDailyQuestCountForWeekly(userId);
 };
@@ -7788,30 +7863,27 @@ function _checkDailyQuestCountForWeekly(userId) {
 async function progressDailyQuest(questId) {
   const userId = state.currentUser?.id;
   if (!userId) return;
-  const d = getDailyData(userId);
-  const today = _todayStr();
+  // S'assurer que le cache est chargé (cas rare où action précède le chargement initial)
+  if (!_questCache[userId]) await _loadQuestCache(userId);
 
-  const questKey = 'dq_' + questId;
-  const doneKey  = 'dq_' + questId + '_done';
-
-  // Vérifier que c'est bien aujourd'hui (reset auto)
-  const progress = (d[questKey + '_date'] === today) ? (d[questKey] || 0) : 0;
-  const done     = (d[doneKey + '_date'] === today) ? d[doneKey] : false;
-  if (done) return; // déjà complétée
+  const cached = _questCache[userId].daily[questId];
+  if (cached?.done) return; // déjà complétée aujourd'hui
 
   const quest = DAILY_QUESTS.find(q => q.id === questId);
   if (!quest) return;
 
-  const newProgress = progress + 1;
-  setDailyData(userId, {
-    [questKey]: newProgress,
-    [questKey + '_date']: today,
-  });
-  setState({ _questUpdate: Date.now() }); // forcer re-render
+  const oldProgress = cached?.progress || 0;
+  const newProgress = oldProgress + 1;
+  const done = newProgress >= quest.target;
 
-  if (newProgress >= quest.target) {
-    // Récompense !
-    setDailyData(userId, { [doneKey]: true, [doneKey + '_date']: today });
+  // Mettre à jour le cache mémoire
+  _questCache[userId].daily[questId] = { progress: newProgress, done };
+  setState({ _questUpdate: Date.now() });
+
+  // Persister dans Supabase (quest_daily)
+  await _persistDailyQuest(userId, questId, newProgress, done);
+
+  if (done) {
     await grantCoins(userId, quest.coins, 'Quête : ' + quest.label);
     showRewardToast('Quête : ' + quest.label, quest.coins, quest.icon);
     await grantXp(userId, quest.xp, 'Quête : ' + quest.label);
@@ -7826,23 +7898,27 @@ async function progressDailyQuest(questId) {
 async function progressWeeklyQuest(questId) {
   const userId = state.currentUser?.id;
   if (!userId) return;
-  const w = getWeeklyData(userId);
+  // S'assurer que le cache est chargé
+  if (!_questCache[userId]) await _loadQuestCache(userId);
 
-  const questKey = 'wq_' + questId;
-  const doneKey  = 'wq_' + questId + '_done';
-
-  const progress = w[questKey] || 0;
-  if (w[doneKey]) return;
+  const cached = _questCache[userId].weekly[questId];
+  if (cached?.done) return; // déjà complétée cette semaine
 
   const quest = WEEKLY_QUESTS.find(q => q.id === questId);
   if (!quest) return;
 
-  const newProgress = progress + 1;
-  setWeeklyData(userId, { [questKey]: newProgress });
+  const oldProgress = cached?.progress || 0;
+  const newProgress = oldProgress + 1;
+  const done = newProgress >= quest.target;
+
+  // Mettre à jour le cache mémoire
+  _questCache[userId].weekly[questId] = { progress: newProgress, done };
   setState({ _questUpdate: Date.now() });
 
-  if (newProgress >= quest.target) {
-    setWeeklyData(userId, { [doneKey]: true });
+  // Persister dans Supabase (quest_weekly)
+  await _persistWeeklyQuest(userId, questId, newProgress, done);
+
+  if (done) {
     await grantCoins(userId, quest.coins, 'Quête semaine : ' + quest.label);
     showRewardToast('Quête semaine : ' + quest.label, quest.coins, quest.icon);
     await grantXp(userId, quest.xp, 'Quête semaine : ' + quest.label);
@@ -9588,6 +9664,14 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
   const myId = state.currentUser?.id;
   if (!db || !myId || !tradeId) return;
 
+  // Verrou anti-double-déclenchement
+  if (window._respondTradeLocked) return;
+  window._respondTradeLocked = true;
+  try { await _respondTradeCore(tradeId, accept, db, myId); }
+  finally { window._respondTradeLocked = false; }
+};
+
+async function _respondTradeCore(tradeId, accept, db, myId) {
   const incoming = state.tradeIncoming;
   if (!incoming) return;
 
@@ -9677,6 +9761,12 @@ window.respondTrade = async function respondTrade(tradeId, accept) {
   }
 
   setState({ showTrade: false, tradeIncoming: null, tradeStep: null, tradeWantedNum: null });
+  // Marquer ce trade comme vu pour qu'il ne réapparaisse pas automatiquement
+  try {
+    const _d = JSON.parse(sessionStorage.getItem('_dismissedTrades')||'[]');
+    if(!_d.includes(String(tradeId))) _d.push(String(tradeId));
+    sessionStorage.setItem('_dismissedTrades', JSON.stringify(_d));
+  } catch(e) {}
   // Rafraîchir les trades dans la conv si elle est ouverte avec cet ami
   const partnerId = incoming?.from_id;
   if (partnerId && state.activeConvId === partnerId) loadConvTrades(partnerId);
