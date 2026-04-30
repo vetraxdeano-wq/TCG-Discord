@@ -1464,6 +1464,7 @@ html.ios .mob-card-modal{
     <div class="ov-log-box" id="ov-log-box"></div>
   </div>
   <button class="btn btn-gold" onclick="restartGame()">Rejouer</button>
+  <button class="btn btn-gold" onclick="restartGameAutoBattle()" style="margin-top:8px;">⚡ Rejouer en Auto-Battle</button>
   <button class="btn btn-secondary" onclick="window.location.href='index.html'" style="margin-top:8px;">← Menu principal</button>
 </div></div>
 
@@ -3192,6 +3193,16 @@ function restartGame(){
   addTourLog(1);showCoinToast(G.fp);render();
   // ▶ Le joueur choisit TOUJOURS son fighter en premier (cf. startGame)
   setTimeout(()=>{ resetChrono(); }, 2400);
+}
+function restartGameAutoBattle(){
+  // Relance la partie normalement…
+  restartGame();
+  // …puis enclenche l'Auto-Battle en vitesse ×3 une fois le setup terminé.
+  // On laisse passer le délai de resetChrono (2400ms) pour que le fighter soit posé proprement.
+  setTimeout(()=>{
+    setSpeed(3);
+    if(!_autoBattle) toggleAuto();
+  }, 2500);
 }
 </script>
 
