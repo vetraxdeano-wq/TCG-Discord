@@ -324,72 +324,31 @@ const BOOSTERS = [
 let ALL_CARDS = [];
 
 // ─── DAILY LIMITS ─────────────────────────────────────────────────
-// Quêtes daily & weekly : Supabase (cross-device, par compte)
-// Colonnes players : quest_daily JSONB, quest_weekly JSONB
+// Pioche & Trade : localStorage (pas cross-device mais ok)
 // Boosters Prestige/Légendaire : Supabase (cross-device, par compte)
+function _dailyKey(userId){ return 'daily_' + userId; }
 
 function _weekStr(){
   const d = new Date();
+  // Numéro de semaine ISO (lundi = début)
   const jan4 = new Date(d.getFullYear(), 0, 4);
   const startOfWeek = new Date(jan4);
   startOfWeek.setDate(jan4.getDate() - (jan4.getDay()||7) + 1);
   const weekNum = Math.floor((d - startOfWeek) / 604800000) + 1;
   return d.getFullYear() + '-W' + String(weekNum).padStart(2,'0');
 }
-
-// ── Cache mémoire pour éviter trop de requêtes Supabase ──────────
-let _questDailyCache  = null; // { userId, data: {...} }
-let _questWeeklyCache = null; // { userId, data: {...} }
-
-async function getDailyData(userId){
-  if(_questDailyCache && _questDailyCache.userId === userId) return _questDailyCache.data;
+function _weeklyKey(userId){ return 'weekly_' + userId; }
+function getWeeklyData(userId){
   try{
-    const db = window.db;
-    if(!db) return {};
-    const { data } = await db.from('players').select('quest_daily').eq('id', userId).single();
-    const d = data?.quest_daily || {};
-    _questDailyCache = { userId, data: d };
-    return d;
-  }catch(e){ return {}; }
+    const raw = JSON.parse(localStorage.getItem(_weeklyKey(userId))||'{}');
+    // Reset si semaine différente
+    if(raw._week !== _weekStr()) return {_week: _weekStr()};
+    return raw;
+  }catch(e){ return {_week: _weekStr()}; }
 }
-
-async function setDailyData(userId, patch){
-  // Mise à jour du cache local
-  const cur = (_questDailyCache && _questDailyCache.userId === userId) ? _questDailyCache.data : {};
-  const next = { ...cur, ...patch };
-  _questDailyCache = { userId, data: next };
-  // Persistance Supabase
-  try{
-    const db = window.db;
-    if(db) await db.from('players').update({ quest_daily: next }).eq('id', userId);
-  }catch(e){ console.warn('setDailyData Supabase error', e); }
-}
-
-async function getWeeklyData(userId){
-  if(_questWeeklyCache && _questWeeklyCache.userId === userId){
-    const w = _questWeeklyCache.data;
-    if(w._week === _weekStr()) return w;
-  }
-  try{
-    const db = window.db;
-    if(!db) return { _week: _weekStr() };
-    const { data } = await db.from('players').select('quest_weekly').eq('id', userId).single();
-    let w = data?.quest_weekly || {};
-    // Reset si nouvelle semaine
-    if(w._week !== _weekStr()) w = { _week: _weekStr() };
-    _questWeeklyCache = { userId, data: w };
-    return w;
-  }catch(e){ return { _week: _weekStr() }; }
-}
-
-async function setWeeklyData(userId, patch){
-  const cur = (_questWeeklyCache && _questWeeklyCache.userId === userId) ? _questWeeklyCache.data : { _week: _weekStr() };
-  const next = { ...cur, ...patch };
-  _questWeeklyCache = { userId, data: next };
-  try{
-    const db = window.db;
-    if(db) await db.from('players').update({ quest_weekly: next }).eq('id', userId);
-  }catch(e){ console.warn('setWeeklyData Supabase error', e); }
+function setWeeklyData(userId, patch){
+  const cur = getWeeklyData(userId);
+  localStorage.setItem(_weeklyKey(userId), JSON.stringify({...cur, ...patch}));
 }
 // FIX : on utilise la date LOCALE (et non UTC), pour que le reset de la pioche
 // se cale sur minuit heure du joueur, et pas sur minuit UTC.
@@ -404,8 +363,14 @@ function _todayStr(){
   return `${y}-${m}-${day}`;
 }
 
-// getDailyData / setDailyData / getWeeklyData / setWeeklyData
-// sont désormais définies plus haut (async, Supabase cross-device)
+function getDailyData(userId){
+  try{ return JSON.parse(localStorage.getItem(_dailyKey(userId)) || '{}'); }
+  catch(e){ return {}; }
+}
+function setDailyData(userId, patch){
+  const cur = getDailyData(userId);
+  localStorage.setItem(_dailyKey(userId), JSON.stringify({...cur, ...patch}));
+}
 
 // ─── BOOSTERS DAILY LIMITS — cross-device via Supabase ────────────
 // Les colonnes Supabase utilisées :
@@ -554,12 +519,12 @@ async function markPiocheUsed(userId){
 
 
 // Trade : 1x/jour
-async function canTradeToday(userId){
-  const d = await getDailyData(userId);
+function canTradeToday(userId){
+  const d = getDailyData(userId);
   return d.tradeDate !== _todayStr();
 }
-async function markTradeUsed(userId){
-  await setDailyData(userId, { tradeDate: _todayStr() });
+function markTradeUsed(userId){
+  setDailyData(userId, { tradeDate: _todayStr() });
 }
 
 // Renvoie un string "Xh Ym Zs" jusqu'au prochain minuit
@@ -2512,8 +2477,8 @@ function renderTabPlay(th){
         </button>`).join('')}
       </div>
     </div>` : `
-    <!-- Desktop : 3 colonnes verticales -->
-    <div style="flex-shrink:0;display:grid;grid-template-columns:repeat(3,1fr);gap:28px;padding:0 28px 14px;min-height:0;align-items:start;justify-items:center;">
+    <!-- Desktop : 3 colonnes verticales, taille pilotée par la hauteur dispo -->
+    <div style="flex:1;display:flex;flex-direction:row;justify-content:space-evenly;align-items:stretch;gap:14px;padding:0 14px 14px;min-height:0;">
       ${modes.map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
           style="display:flex;flex-direction:column;align-items:stretch;
@@ -2525,9 +2490,9 @@ function renderTabPlay(th){
             position:relative;
             overflow:hidden;
             transition:all .22s;
-            width:100%;
-            max-width:340px;">
-          <div style="flex-shrink:0;width:100%;aspect-ratio:1/1;overflow:hidden;position:relative;background:${th.bg};">
+            height:100%;
+            min-height:0;">
+          <div style="flex:1;min-height:0;aspect-ratio:1/1;overflow:hidden;position:relative;background:${th.bg};">
             ${m.img
               ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;transition:transform .22s;" />`
               : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
@@ -4139,10 +4104,10 @@ function renderQuestsModal(th){
   const STREAK_COINS = [25,50,75,100,125,150,200];
   const today = _todayStr();
 
-  // Helper progress — lecture synchrone depuis le cache mémoire
+  // Helper progress
   function getDQProgress(questId){
     if(!userId) return {progress:0,done:false};
-    const d = (_questDailyCache && _questDailyCache.userId === userId) ? _questDailyCache.data : {};
+    const d = getDailyData(userId);
     const today2 = _todayStr();
     return {
       progress: (d['dq_'+questId+'_date']===today2) ? (d['dq_'+questId]||0) : 0,
@@ -4151,8 +4116,7 @@ function renderQuestsModal(th){
   }
   function getWQProgress(questId){
     if(!userId) return {progress:0,done:false};
-    const w = (_questWeeklyCache && _questWeeklyCache.userId === userId && _questWeeklyCache.data._week === _weekStr())
-      ? _questWeeklyCache.data : {};
+    const w = getWeeklyData(userId);
     return { progress: w['wq_'+questId]||0, done: !!w['wq_'+questId+'_done'] };
   }
 
@@ -4548,16 +4512,7 @@ function bindGame(){
   if(btnNotif) btnNotif.addEventListener('click',()=>setState({showNotif:true,showSettings:false,showFriends:false,showMessages:false}));
 
   const btnQuests = document.getElementById('btn-quests');
-  if(btnQuests) btnQuests.addEventListener('click', async ()=>{
-    const uid = state.currentUser?.id;
-    if(uid){
-      // Invalider le cache pour forcer un rechargement Supabase (cross-device)
-      _questDailyCache  = null;
-      _questWeeklyCache = null;
-      await Promise.all([ getDailyData(uid), getWeeklyData(uid) ]);
-    }
-    setState({showQuests:true});
-  });
+  if(btnQuests) btnQuests.addEventListener('click',()=>setState({showQuests:true}));
   const questsBg = document.getElementById('quests-bg');
   if(questsBg) questsBg.addEventListener('click',(e)=>{if(e.target===questsBg)setState({showQuests:false});});
   const questsClose = document.getElementById('quests-close');
@@ -6833,10 +6788,6 @@ function enterGame(user, coins) {
     const _musicWasOn = _loadMusicPref();
     const _musicVol = parseInt(localStorage.getItem('music_volume')||'25');
     state.musicVolume = isNaN(_musicVol) ? 25 : _musicVol;
-    // 3. Pré-charger les quêtes depuis Supabase (cross-device)
-    _questDailyCache  = null;
-    _questWeeklyCache = null;
-    await Promise.all([ getDailyData(user.id), getWeeklyData(user.id) ]);
     setState({ screen: "game", musicOn: _musicWasOn, currentUser: user, coins: coins });
     // 3. Démarrer (ou non) selon la vérité Supabase
     if (_musicWasOn && !audioPlaying) audioPlay();
@@ -7623,7 +7574,7 @@ window.onPlayerWin = async function() {
   await db.from('players').update({ first_win_date: today }).eq('id', userId);
   setState({ firstWinTodayDone: true });
   // Marquer la quête quotidienne 1ère victoire comme complétée
-  await setDailyData(userId, {
+  setDailyData(userId, {
     'dq_first_win': 1, 'dq_first_win_date': today,
     'dq_first_win_done': true, 'dq_first_win_done_date': today,
   });
@@ -7719,7 +7670,7 @@ function _checkDailyQuestCountForWeekly(userId) {
 async function progressDailyQuest(questId) {
   const userId = state.currentUser?.id;
   if (!userId) return;
-  const d = await getDailyData(userId);
+  const d = getDailyData(userId);
   const today = _todayStr();
 
   const questKey = 'dq_' + questId;
@@ -7734,7 +7685,7 @@ async function progressDailyQuest(questId) {
   if (!quest) return;
 
   const newProgress = progress + 1;
-  await setDailyData(userId, {
+  setDailyData(userId, {
     [questKey]: newProgress,
     [questKey + '_date']: today,
   });
@@ -7742,7 +7693,7 @@ async function progressDailyQuest(questId) {
 
   if (newProgress >= quest.target) {
     // Récompense !
-    await setDailyData(userId, { [doneKey]: true, [doneKey + '_date']: today });
+    setDailyData(userId, { [doneKey]: true, [doneKey + '_date']: today });
     await grantCoins(userId, quest.coins, 'Quête : ' + quest.label);
     showRewardToast('Quête : ' + quest.label, quest.coins, quest.icon);
     await grantXp(userId, quest.xp, 'Quête : ' + quest.label);
@@ -7757,7 +7708,7 @@ async function progressDailyQuest(questId) {
 async function progressWeeklyQuest(questId) {
   const userId = state.currentUser?.id;
   if (!userId) return;
-  const w = await getWeeklyData(userId);
+  const w = getWeeklyData(userId);
 
   const questKey = 'wq_' + questId;
   const doneKey  = 'wq_' + questId + '_done';
@@ -7769,11 +7720,11 @@ async function progressWeeklyQuest(questId) {
   if (!quest) return;
 
   const newProgress = progress + 1;
-  await setWeeklyData(userId, { [questKey]: newProgress });
+  setWeeklyData(userId, { [questKey]: newProgress });
   setState({ _questUpdate: Date.now() });
 
   if (newProgress >= quest.target) {
-    await setWeeklyData(userId, { [doneKey]: true });
+    setWeeklyData(userId, { [doneKey]: true });
     await grantCoins(userId, quest.coins, 'Quête semaine : ' + quest.label);
     showRewardToast('Quête semaine : ' + quest.label, quest.coins, quest.icon);
     await grantXp(userId, quest.xp, 'Quête semaine : ' + quest.label);
@@ -9395,7 +9346,7 @@ async function sendTradeOffer(theirCardId) {
     showToast('Tu ne peux pas échanger une carte contre elle-même', '⚠'); return;
   }
   // Limite 1 trade par jour
-  if (!await canTradeToday(myId)) {
+  if (!canTradeToday(myId)) {
     showToast('Tu as déjà effectué un échange aujourd\'hui ! ⏳ ' + timeUntilMidnight(), '🔄');
     return;
   }
@@ -9421,7 +9372,7 @@ async function sendTradeOffer(theirCardId) {
       read: false,
     }).then(()=>{}) } catch(e) {};
 
-    await markTradeUsed(myId);
+    markTradeUsed(myId);
     startDailyTicker();
     setState({ showTrade: false, tradeMyCard: null, tradeStep: null, tradeWantedNum: null });
     showToast('Proposition envoyée !', '🔄');
