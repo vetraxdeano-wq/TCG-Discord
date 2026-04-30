@@ -988,6 +988,7 @@ let state = {
   allTrades: [],       // tous les trades du joueur enrichis avec partner_name
   allTradesLoading: false,
   allTradesFilter: 'all', // 'all' | 'pending' | 'accepted' | 'declined'
+  allTradesSort: 'newest', // 'newest' | 'oldest'
   msgNotifCount: 0,
   pendingMsgNotifs: [],
   // Boosters
@@ -3678,8 +3679,11 @@ function renderTradeHistoryModal(th){
   const loading = state.allTradesLoading;
   const allTrades = state.allTrades || [];
 
-  const filtered = filter === 'all' ? allTrades
-    : allTrades.filter(t => t.status === filter);
+  const sort = state.allTradesSort || 'newest';
+  const filtered = (filter === 'all' ? allTrades : allTrades.filter(t => t.status === filter))
+    .slice().sort((a,b) => sort==='newest'
+      ? new Date(b.created_at)-new Date(a.created_at)
+      : new Date(a.created_at)-new Date(b.created_at));
 
   const pendingCount  = allTrades.filter(t=>t.status==='pending').length;
   const acceptedCount = allTrades.filter(t=>t.status==='accepted').length;
@@ -3722,10 +3726,7 @@ function renderTradeHistoryModal(th){
           <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />
           <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:8px;font-weight:700;color:rgba(255,255,255,.9);text-shadow:0 1px 3px #000;">#${cardId}</div>
         </div>
-        ${card
-          ? `<div style="font-size:9px;font-weight:700;color:${th.textMuted};text-align:center;max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-        <div style="font-size:8px;color:${col};font-weight:700;letter-spacing:.3px;">◆ ${RARITY_LABEL[card.rarity]||''}</div>`
-          : `<div style="font-size:9px;color:${th.textMuted};text-align:center;font-style:italic;">Inconnue</div>`}
+        <!-- Nom caché sur dos de carte -->
       </div>`;
   }
 
@@ -3845,7 +3846,13 @@ function renderTradeHistoryModal(th){
             <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${allTrades.length} trade${allTrades.length>1?'s':''} au total</div>
           </div>
         </div>
-        ${pendingCount>0?`<div style="background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.4);padding:5px 12px;font-size:11px;font-weight:900;color:#fb923c;">${pendingCount} en attente</div>`:''}
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          ${pendingCount>0?`<div style="background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.4);padding:5px 10px;font-size:11px;font-weight:900;color:#fb923c;">${pendingCount} en attente</div>`:''}
+          <!-- Toggle tri -->
+          <button id="th-sort-btn" style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:${th.bgTertiary};border:1px solid ${th.border};color:${th.textMuted};font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.3px;white-space:nowrap;">
+            ${sort==='newest'?'↓ Récents':'↑ Anciens'}
+          </button>
+        </div>
       </div>
 
       <!-- Filtres -->
@@ -4950,6 +4957,12 @@ function bindGame(){
   // Filtres trade history
   document.querySelectorAll('.th-filter-btn').forEach(btn=>{
     btn.addEventListener('click',()=>setState({allTradesFilter:btn.dataset.filter}));
+  });
+
+  // Toggle tri récent / ancien
+  const thSortBtn = document.getElementById('th-sort-btn');
+  if(thSortBtn) thSortBtn.addEventListener('click',()=>{
+    setState({allTradesSort: state.allTradesSort==='newest'?'oldest':'newest'});
   });
 
   // Accepter/Refuser depuis trade history
