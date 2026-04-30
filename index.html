@@ -3693,10 +3693,14 @@ function renderTradeHistoryModal(th){
   };
 
   // ── Carte visuelle ──────────────────────────────────────────────
-  function cardBox(cardId, isVisible) {
+  // Affiche le vrai PNG uniquement si le joueur qui consulte possède actuellement la carte.
+  // Sinon → dos de carte systématiquement, quelle que soit la direction du trade.
+  function cardBox(cardId) {
     const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(cardId));
-    const col = card ? (RARITY_COLOR[card.rarity]||'#96989d') : '#96989d';
-    if (card && isVisible) {
+    const col  = card ? (RARITY_COLOR[card.rarity]||'#96989d') : '#96989d';
+
+    if (card && card.owned) {
+      // Carte possédée → PNG réel
       return `
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
           <div onclick="if(window.openCard3DViewer)openCard3DViewer(${JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:col})})"
@@ -3707,17 +3711,21 @@ function renderTradeHistoryModal(th){
           </div>
           <div style="font-size:9px;font-weight:700;color:${th.text};text-align:center;max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
           <div style="font-size:8px;color:${col};font-weight:700;letter-spacing:.3px;">◆ ${RARITY_LABEL[card.rarity]||''}</div>
-          ${card.owned&&card.count>0?`<div style="font-size:8px;color:${th.green};font-weight:800;">✓ ×${card.count}</div>`:''}
+          ${card.count>0?`<div style="font-size:8px;color:${th.green};font-weight:800;">✓ ×${card.count}</div>`:''}
         </div>`;
     }
-    // Dos de carte — mystère
+
+    // Carte non possédée (ou inconnue) → dos de carte
     return `
       <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-        <div style="width:72px;height:102px;overflow:hidden;position:relative;opacity:.8;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5));">
+        <div style="width:72px;height:102px;overflow:hidden;position:relative;opacity:.85;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5));">
           <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />
           <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:8px;font-weight:700;color:rgba(255,255,255,.9);text-shadow:0 1px 3px #000;">#${cardId}</div>
         </div>
-        <div style="font-size:9px;color:${th.textMuted};text-align:center;font-style:italic;">Mystère</div>
+        ${card
+          ? `<div style="font-size:9px;font-weight:700;color:${th.textMuted};text-align:center;max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+        <div style="font-size:8px;color:${col};font-weight:700;letter-spacing:.3px;">◆ ${RARITY_LABEL[card.rarity]||''}</div>`
+          : `<div style="font-size:9px;color:${th.textMuted};text-align:center;font-style:italic;">Inconnue</div>`}
       </div>`;
   }
 
@@ -3729,11 +3737,14 @@ function renderTradeHistoryModal(th){
     const toCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(t.to_card_id));
     const receiverOwnsCard = toCard && toCard.owned;
 
-    // Avatar Discord : même logique que les DMs (exclure le dos de carte iic46c)
+    // Avatar Discord : image directe, sans aucun emoji de fallback
+    // Le container a un gradient+initiale en fond — si l'image charge, elle le recouvre
     const avatarSrc = t.partner_avatar && !t.partner_avatar.includes('iic46c') ? t.partner_avatar : null;
-    const avatarHTML = avatarSrc
-      ? `<img src="${avatarSrc}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\"font-size:16px;\\">👤</span>'">`
-      : `<span style="font-size:16px;">👤</span>`;
+    const initial = (t.partner_name||'?').charAt(0).toUpperCase();
+    // Couleur déterministe à partir du nom
+    const hue = (t.partner_name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0) % 360;
+    const avatarBg = `hsl(${hue},55%,38%)`;
+    const avatarContainerStyle = `width:42px;height:42px;border-radius:50%;overflow:hidden;background:${avatarBg};border:2px solid #000;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;font-family:'Luckiest Guy',cursive;letter-spacing:0;position:relative;`;
 
     const directionLabel = isMine
       ? `<span style="color:#fb923c;font-weight:900;font-size:10px;">↑ ENVOYÉ</span>`
@@ -3750,9 +3761,10 @@ function renderTradeHistoryModal(th){
       <!-- Header : avatar + nom + statut -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
 
-        <!-- Avatar Discord -->
-        <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:${th.bgTertiary};border:2px solid #000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-          ${avatarHTML}
+        <!-- Avatar Discord (image sur fond gradient+initiale) -->
+        <div style="${avatarContainerStyle}">
+          ${initial}
+          ${avatarSrc ? `<img src="${avatarSrc}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'">` : ''}
         </div>
 
         <!-- Infos partenaire -->
@@ -3778,14 +3790,14 @@ function renderTradeHistoryModal(th){
       <div style="display:flex;align-items:flex-start;justify-content:center;gap:16px;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
           <div style="font-size:9px;font-weight:700;color:${th.textMuted};text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${isMine?'Tu donnes':'Il donne'}</div>
-          ${cardBox(t.from_card_id, isMine)}
+          ${cardBox(t.from_card_id)}
         </div>
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:40px;gap:4px;">
           <div style="font-size:22px;color:${th.textMuted};line-height:1;">⇄</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
           <div style="font-size:9px;font-weight:700;color:${th.textMuted};text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${isMine?'Tu reçois':'Il veut'}</div>
-          ${cardBox(t.to_card_id, !isMine)}
+          ${cardBox(t.to_card_id)}
         </div>
       </div>
 
@@ -3845,7 +3857,7 @@ function renderTradeHistoryModal(th){
       </div>
 
       <!-- Liste scrollable -->
-      <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;">
+      <div style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;display:flex;flex-direction:column;">
         ${loading
           ? `<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
               <div style="font-size:32px;opacity:.3;animation:spin 1s linear infinite;">🔄</div>
