@@ -2477,8 +2477,8 @@ function renderTabPlay(th){
         </button>`).join('')}
       </div>
     </div>` : `
-    <!-- Desktop : 3 colonnes verticales, taille pilotée par la hauteur dispo -->
-    <div style="flex:1;display:flex;flex-direction:row;justify-content:space-evenly;align-items:stretch;gap:14px;padding:0 14px 14px;min-height:0;">
+    <!-- Desktop : 3 colonnes verticales, taille carrée dictée par la largeur -->
+    <div style="flex-shrink:0;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:6px 18px 14px;align-items:start;justify-items:center;">
       ${modes.map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
           style="display:flex;flex-direction:column;align-items:stretch;
@@ -2490,18 +2490,18 @@ function renderTabPlay(th){
             position:relative;
             overflow:hidden;
             transition:all .22s;
-            height:100%;
-            min-height:0;">
-          <div style="flex:1;min-height:0;aspect-ratio:1/1;overflow:hidden;position:relative;background:${th.bg};">
+            width:100%;
+            max-width:420px;">
+          <div style="flex-shrink:0;width:100%;aspect-ratio:1/1;overflow:hidden;position:relative;background:${th.bg};">
             ${m.img
               ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;transition:transform .22s;" />`
               : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
             }
           </div>
-          <div style="flex-shrink:0;padding:7px 6px 8px;text-align:center;background:${th.bgSecondary};border-top:1px solid rgba(0,0,0,.6);">
-            <div style="font-family:'Luckiest Guy',cursive;font-size:12px;font-weight:400;color:${th.text};letter-spacing:.5px;line-height:1.1;margin-bottom:4px;">${m.label}</div>
+          <div style="flex-shrink:0;padding:8px 6px 10px;text-align:center;background:${th.bgSecondary};border-top:1px solid rgba(0,0,0,.6);">
+            <div style="font-family:'Luckiest Guy',cursive;font-size:14px;font-weight:400;color:${th.text};letter-spacing:.5px;line-height:1.1;margin-bottom:5px;">${m.label}</div>
             ${m.available
-              ? `<div style="padding:3px 0;background:${m.color};font-size:8px;font-weight:900;color:#fff;letter-spacing:.8px;">JOUER</div>`
+              ? `<div style="padding:4px 0;background:${m.color};font-size:9px;font-weight:900;color:#fff;letter-spacing:.8px;">JOUER</div>`
               : `<div style="font-size:8px;color:${th.textMuted};letter-spacing:.5px;">${m.badge}</div>`
             }
           </div>
