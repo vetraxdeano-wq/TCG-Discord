@@ -3678,7 +3678,6 @@ function renderTradeHistoryModal(th){
   const loading = state.allTradesLoading;
   const allTrades = state.allTrades || [];
 
-  // Filtrer
   const filtered = filter === 'all' ? allTrades
     : allTrades.filter(t => t.status === filter);
 
@@ -3687,37 +3686,42 @@ function renderTradeHistoryModal(th){
   const declinedCount = allTrades.filter(t=>t.status==='declined').length;
 
   const STATUS = {
-    pending:  { label:'En attente',       color:'#fee75c', icon:'⏳', bg:'rgba(254,231,92,.08)',  border:'rgba(254,231,92,.25)' },
-    accepted: { label:'Accepté',          color:'#57f287', icon:'✓',  bg:'rgba(87,242,135,.08)', border:'rgba(87,242,135,.25)' },
-    declined: { label:'Refusé',           color:'#ed4245', icon:'✕',  bg:'rgba(237,66,69,.08)',  border:'rgba(237,66,69,.25)'  },
-    cancelled:{ label:'Annulé',           color:'#96989d', icon:'—',  bg:'rgba(150,152,157,.08)',border:'rgba(150,152,157,.2)' },
+    pending:  { label:'En attente', color:'#fee75c', icon:'⏳', bg:'rgba(254,231,92,.07)',  border:'rgba(254,231,92,.28)' },
+    accepted: { label:'Accepté',    color:'#57f287', icon:'✓',  bg:'rgba(87,242,135,.07)', border:'rgba(87,242,135,.28)' },
+    declined: { label:'Refusé',     color:'#ed4245', icon:'✕',  bg:'rgba(237,66,69,.07)',  border:'rgba(237,66,69,.28)'  },
+    cancelled:{ label:'Annulé',     color:'#96989d', icon:'—',  bg:'rgba(150,152,157,.07)',border:'rgba(150,152,157,.22)' },
   };
 
-  function cardBox(cardId, isSender) {
+  // ── Carte visuelle ──────────────────────────────────────────────
+  function cardBox(cardId, isVisible) {
     const card = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(cardId));
     const col = card ? (RARITY_COLOR[card.rarity]||'#96989d') : '#96989d';
-    const show = card && card.owned;
-    if (card && (isSender || show)) {
-      return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-        <div onclick="if(window.openCard3DViewer)openCard3DViewer(${JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:col})})" style="width:52px;height:74px;overflow:visible;position:relative;cursor:zoom-in;" title="Agrandir">
-          ${card.image_url
-            ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
-            : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${col}30,${col}10);display:flex;align-items:center;justify-content:center;font-size:20px;">🃏</div>`}
-        </div>
-        <div style="font-size:6px;font-weight:700;color:${th.text};text-align:center;max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-        <div style="font-size:6px;color:${col};font-weight:700;">◆ ${RARITY_LABEL[card.rarity]||''}</div>
-        ${card.owned&&card.count>0?`<div style="font-size:6px;color:${th.green};font-weight:800;">✓ ×${card.count}</div>`:''}
-      </div>`;
+    if (card && isVisible) {
+      return `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div onclick="if(window.openCard3DViewer)openCard3DViewer(${JSON.stringify({id:card.id,name:card.name,rarity:card.rarity,image_url:card.image_url,owned:card.owned,color:col})})"
+               style="width:72px;height:102px;overflow:visible;position:relative;cursor:zoom-in;filter:drop-shadow(0 3px 8px ${col}50);" title="Agrandir">
+            ${card.image_url
+              ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;" />`
+              : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${col}30,${col}10);display:flex;align-items:center;justify-content:center;font-size:28px;">🃏</div>`}
+          </div>
+          <div style="font-size:9px;font-weight:700;color:${th.text};text-align:center;max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
+          <div style="font-size:8px;color:${col};font-weight:700;letter-spacing:.3px;">◆ ${RARITY_LABEL[card.rarity]||''}</div>
+          ${card.owned&&card.count>0?`<div style="font-size:8px;color:${th.green};font-weight:800;">✓ ×${card.count}</div>`:''}
+        </div>`;
     }
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <div style="width:52px;height:74px;overflow:hidden;position:relative;opacity:.75;">
-        <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />
-        <div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.85);text-shadow:0 1px 2px #000;">#${cardId}</div>
-      </div>
-      <div style="font-size:6px;color:${th.textMuted};text-align:center;">Mystère</div>
-    </div>`;
+    // Dos de carte — mystère
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+        <div style="width:72px;height:102px;overflow:hidden;position:relative;opacity:.8;filter:drop-shadow(0 3px 8px rgba(0,0,0,.5));">
+          <img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />
+          <div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:8px;font-weight:700;color:rgba(255,255,255,.9);text-shadow:0 1px 3px #000;">#${cardId}</div>
+        </div>
+        <div style="font-size:9px;color:${th.textMuted};text-align:center;font-style:italic;">Mystère</div>
+      </div>`;
   }
 
+  // ── Rendu d'un trade ───────────────────────────────────────────
   function renderTrade(t) {
     const isMine = t.from_id === myId;
     const st = STATUS[t.status] || STATUS.pending;
@@ -3725,92 +3729,135 @@ function renderTradeHistoryModal(th){
     const toCard = ALL_CARDS.find(c=>parseInt(c.id)===parseInt(t.to_card_id));
     const receiverOwnsCard = toCard && toCard.owned;
 
-    return `<div style="background:${st.bg};border:1px solid ${st.border};padding:10px 12px;margin-bottom:8px;">
-      <!-- Header trade -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;">
-        <div style="display:flex;align-items:center;gap:6px;min-width:0;">
-          <div style="width:22px;height:22px;border-radius:50%;overflow:hidden;background:${th.accent}20;border:1px solid #000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
-            ${t.partner_avatar?`<img src="${t.partner_avatar}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\"font-size:10px;\\">👤</span>'">`:'<span style="font-size:10px;">👤</span>'}
-          </div>
-          <div style="min-width:0;">
-            <div style="font-size:10px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${isMine?'→ '+t.partner_name:'← '+t.partner_name}</div>
-            <div style="font-size:8px;color:${th.textFaint};">${new Date(t.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
-          </div>
+    // Avatar Discord : même logique que les DMs (exclure le dos de carte iic46c)
+    const avatarSrc = t.partner_avatar && !t.partner_avatar.includes('iic46c') ? t.partner_avatar : null;
+    const avatarHTML = avatarSrc
+      ? `<img src="${avatarSrc}" style="width:100%;height:100%;object-fit:cover;" onerror="this.outerHTML='<span style=\\"font-size:16px;\\">👤</span>'">`
+      : `<span style="font-size:16px;">👤</span>`;
+
+    const directionLabel = isMine
+      ? `<span style="color:#fb923c;font-weight:900;font-size:10px;">↑ ENVOYÉ</span>`
+      : `<span style="color:${th.accent};font-weight:900;font-size:10px;">↓ REÇU</span>`;
+
+    const dateStr = new Date(t.created_at).toLocaleDateString('fr-FR',{
+      weekday:'short', day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    });
+
+    return `
+    <div style="background:${st.bg};border:1px solid ${st.border};padding:14px;margin-bottom:10px;position:relative;">
+
+      <!-- Header : avatar + nom + statut -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+
+        <!-- Avatar Discord -->
+        <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:${th.bgTertiary};border:2px solid #000;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+          ${avatarHTML}
         </div>
-        <div style="display:flex;align-items:center;gap:3px;background:${st.bg};border:1px solid ${st.border};padding:2px 7px;flex-shrink:0;">
-          <span style="font-size:9px;">${st.icon}</span>
-          <span style="font-size:8px;font-weight:700;color:${st.color};">${st.label}</span>
+
+        <!-- Infos partenaire -->
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            ${directionLabel}
+            <div style="font-size:13px;font-weight:700;color:${th.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.partner_name}</div>
+          </div>
+          <div style="font-size:10px;color:${th.textMuted};margin-top:2px;letter-spacing:.2px;">${dateStr}</div>
+        </div>
+
+        <!-- Badge statut -->
+        <div style="display:flex;align-items:center;gap:4px;border:1px solid ${st.border};background:${st.bg};padding:4px 10px;flex-shrink:0;">
+          <span style="font-size:12px;">${st.icon}</span>
+          <span style="font-size:10px;font-weight:800;color:${st.color};letter-spacing:.3px;">${st.label}</span>
         </div>
       </div>
+
+      <!-- Séparateur -->
+      <div style="height:1px;background:${st.border};margin-bottom:14px;opacity:.5;"></div>
+
       <!-- Cartes -->
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-          <div style="font-size:7px;color:${th.textMuted};margin-bottom:3px;">${isMine?'Tu donnes':'Il donne'}</div>
+      <div style="display:flex;align-items:flex-start;justify-content:center;gap:16px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+          <div style="font-size:9px;font-weight:700;color:${th.textMuted};text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${isMine?'Tu donnes':'Il donne'}</div>
           ${cardBox(t.from_card_id, isMine)}
         </div>
-        <div style="font-size:14px;color:${th.textMuted};">⇄</div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-          <div style="font-size:7px;color:${th.textMuted};margin-bottom:3px;">${isMine?'Tu reçois':'Il veut'}</div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:40px;gap:4px;">
+          <div style="font-size:22px;color:${th.textMuted};line-height:1;">⇄</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+          <div style="font-size:9px;font-weight:700;color:${th.textMuted};text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">${isMine?'Tu reçois':'Il veut'}</div>
           ${cardBox(t.to_card_id, !isMine)}
         </div>
       </div>
-      <!-- Boutons si pending pour moi -->
+
+      <!-- Boutons Accepter / Refuser (si pending ET destinataire) -->
       ${isPendingForMe ? `
-      <div style="margin-top:10px;display:flex;gap:6px;">
+      <div style="margin-top:14px;display:flex;gap:8px;">
         ${!receiverOwnsCard
-          ? `<div style="width:100%;padding:6px;background:rgba(237,66,69,.1);border:1px solid rgba(237,66,69,.3);font-size:9px;color:#ed4245;text-align:center;font-weight:700;">Tu ne possèdes pas la carte #${t.to_card_id}</div>`
-          : `<button class="th-trade-accept" data-tradeid="${t.id}" style="flex:1;padding:8px 6px;background:#57f287;color:#000;border:none;font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✓ Accepter</button>`}
-        <button class="th-trade-decline" data-tradeid="${t.id}" style="flex:${receiverOwnsCard?1:0};padding:8px ${receiverOwnsCard?'6':'14'}px;background:transparent;color:#ed4245;border:1px solid rgba(237,66,69,.4);font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✕ Refuser</button>
+          ? `<div style="width:100%;padding:10px;background:rgba(237,66,69,.1);border:1px solid rgba(237,66,69,.3);font-size:11px;color:#ed4245;text-align:center;font-weight:700;">⚠ Tu ne possèdes pas la carte #${t.to_card_id}</div>`
+          : `<button class="th-trade-accept" data-tradeid="${t.id}" style="flex:1;padding:11px 8px;background:#57f287;color:#000;border:none;font-size:12px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✓ Accepter</button>`}
+        <button class="th-trade-decline" data-tradeid="${t.id}" style="flex:${receiverOwnsCard?1:0};padding:11px ${receiverOwnsCard?'8':'18'}px;background:transparent;color:#ed4245;border:1px solid rgba(237,66,69,.4);font-size:12px;font-weight:900;cursor:pointer;letter-spacing:.5px;">✕ Refuser</button>
       </div>` : ''}
     </div>`;
   }
 
+  // ── Bouton filtre ──────────────────────────────────────────────
   const filterBtn = (f, label, count) => `
-    <button class="th-filter-btn" data-filter="${f}" style="flex:1;padding:6px 4px;font-size:9px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;border:none;
+    <button class="th-filter-btn" data-filter="${f}" style="flex:1;padding:10px 4px;font-size:10px;font-weight:900;letter-spacing:.4px;text-transform:uppercase;cursor:pointer;transition:all .15s;border:none;
       background:${filter===f?th.accent:th.bgTertiary};
       color:${filter===f?'#000':th.textMuted};
-      border-bottom:2px solid ${filter===f?th.accent:'transparent'};">
-      ${label}${count>0?` <span style="background:${filter===f?'rgba(0,0,0,.2)':'rgba(255,255,255,.1)'};padding:1px 5px;font-size:8px;">${count}</span>`:''}
+      border-bottom:3px solid ${filter===f?th.accent:'transparent'};">
+      ${label}${count>0?`<br><span style="font-size:11px;font-weight:900;color:${filter===f?'rgba(0,0,0,.6)':st_color(f)};">${count}</span>`:''}
     </button>`;
+
+  function st_color(f){
+    return f==='pending'?'#fee75c':f==='accepted'?'#57f287':f==='declined'?'#ed4245':th.textMuted;
+  }
 
   return `
   <div id="trade-hist-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div class="slide-up" style="width:100%;max-width:420px;height:93%;background:${th.bgSecondary};padding:0;padding-bottom:max(env(safe-area-inset-bottom,0px),24px);box-shadow:0 -24px 80px rgba(0,0,0,.7);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
+    <div class="slide-up" style="width:100%;max-width:420px;height:94%;background:${th.bgSecondary};padding:0;padding-bottom:max(env(safe-area-inset-bottom,0px),24px);box-shadow:0 -24px 80px rgba(0,0,0,.7);display:flex;flex-direction:column;border-top:1px solid ${th.borderStrong};">
 
-      <!-- Pull handle -->
-      <div id="trade-hist-close" style="display:flex;justify-content:center;padding:10px 0 6px;cursor:pointer;flex-shrink:0;touch-action:manipulation;">
-        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
+      <!-- Pull handle / fermer -->
+      <div id="trade-hist-close" style="display:flex;justify-content:center;padding:12px 0 8px;cursor:pointer;flex-shrink:0;touch-action:manipulation;">
+        <div style="width:44px;height:4px;background:rgba(255,255,255,.14);border-radius:2px;"></div>
       </div>
 
       <!-- Header -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px 10px;flex-shrink:0;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="color:#fb923c;">${SVG.tradeMenu}</div>
-          <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:${th.text};letter-spacing:1px;">Mes Échanges</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0 18px 12px;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:34px;height:34px;background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.3);display:flex;align-items:center;justify-content:center;color:#fb923c;">
+            ${SVG.tradeMenu}
+          </div>
+          <div>
+            <div style="font-family:'Luckiest Guy',cursive;font-size:17px;color:${th.text};letter-spacing:1.5px;">Mes Échanges</div>
+            <div style="font-size:10px;color:${th.textMuted};margin-top:1px;">${allTrades.length} trade${allTrades.length>1?'s':''} au total</div>
+          </div>
         </div>
-        <div style="font-size:9px;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">${allTrades.length} trade${allTrades.length>1?'s':''}</div>
+        ${pendingCount>0?`<div style="background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.4);padding:5px 12px;font-size:11px;font-weight:900;color:#fb923c;">${pendingCount} en attente</div>`:''}
       </div>
 
       <!-- Filtres -->
-      <div style="display:flex;gap:0;flex-shrink:0;border-bottom:1px solid ${th.border};">
+      <div style="display:flex;gap:0;flex-shrink:0;border-top:1px solid ${th.border};border-bottom:1px solid ${th.border};">
         ${filterBtn('all','Tous',allTrades.length)}
-        ${filterBtn('pending','En attente',pendingCount)}
+        ${filterBtn('pending','Attente',pendingCount)}
         ${filterBtn('accepted','Acceptés',acceptedCount)}
         ${filterBtn('declined','Refusés',declinedCount)}
       </div>
 
-      <!-- Liste -->
-      <div style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;">
-        ${loading ? `<div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;flex-direction:column;">
-            <div style="font-size:28px;opacity:.3;">🔄</div>
-            <div style="font-size:11px;color:${th.textMuted};">Chargement…</div>
-          </div>`
-        : filtered.length === 0 ? `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:30px 20px;">
-            <div style="font-size:38px;opacity:.2;">🔄</div>
-            <div style="font-size:13px;font-weight:700;color:${th.text};">Aucun échange ${filter==='all'?'':'dans cette catégorie'}</div>
-            <div style="font-size:10px;color:${th.textMuted};">Propose un échange depuis la collection ou les DMs !</div>
-          </div>`
-        : filtered.map(t=>renderTrade(t)).join('')}
+      <!-- Liste scrollable -->
+      <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;">
+        ${loading
+          ? `<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+              <div style="font-size:32px;opacity:.3;animation:spin 1s linear infinite;">🔄</div>
+              <div style="font-size:12px;color:${th.textMuted};">Chargement des échanges…</div>
+             </div>`
+          : filtered.length === 0
+          ? `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:40px 20px;">
+              <div style="font-size:44px;opacity:.18;">🔄</div>
+              <div style="font-size:14px;font-weight:700;color:${th.text};">Aucun échange${filter==='all'?'':' dans cette catégorie'}</div>
+              <div style="font-size:11px;color:${th.textMuted};line-height:1.5;">Propose un échange depuis<br>ta collection ou tes DMs !</div>
+             </div>`
+          : filtered.map(t=>renderTrade(t)).join('')}
       </div>
     </div>
   </div>`;
