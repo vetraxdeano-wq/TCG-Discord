@@ -995,6 +995,8 @@ function setState(updates){
   window._gameState = state;
   render();
 }
+// Exposer setState à window pour que les onclick inline puissent l'appeler de manière fiable.
+window.setState = setState;
 
 // ─── SVG ICONS ────────────────────────────────────────────────────
 const SVG = {
@@ -1615,8 +1617,8 @@ function renderDeckZoomModal(cardId, th){
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:6px;">
-      <button id="dz-back" style="flex:1;padding:${isMobile?'11':'13'}px;background:${th.bgTertiary};color:${th.text};border:2px solid #000;font-size:${isMobile?'12':'13'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;">← RETOUR</button>
-      <button id="dz-remove" data-cardid="${card.id}" style="flex:1;padding:${isMobile?'11':'13'}px;background:${th.red};color:#000;border:2px solid #000;font-size:${isMobile?'12':'13'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;">🗑 RETIRER DU DECK</button>
+      <button type="button" id="dz-back" onclick="setState({deckZoomCardId:null});" style="flex:1;padding:${isMobile?'11':'13'}px;background:${th.bgTertiary};color:${th.text};border:2px solid #000;font-size:${isMobile?'12':'13'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;">← RETOUR</button>
+      <button type="button" id="dz-remove" data-cardid="${card.id}" onclick="_dbZoomRemove('${card.id}');" style="flex:1;padding:${isMobile?'11':'13'}px;background:${th.red};color:#000;border:2px solid #000;font-size:${isMobile?'12':'13'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;">🗑 RETIRER DU DECK</button>
     </div>`;
 
   if (isMobile) {
@@ -1625,9 +1627,9 @@ function renderDeckZoomModal(cardId, th){
     const cardH = Math.round(vh * 0.55);
     const cardW = Math.round(cardH * 0.667);
     return `
-    <div id="dz-bg" style="position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;background:rgba(0,0,0,0.94);backdrop-filter:blur(14px);">
+    <div id="dz-bg" onclick="if(event.target===this)setState({deckZoomCardId:null});" style="position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;background:rgba(0,0,0,0.94);backdrop-filter:blur(14px);">
       <div style="display:flex;justify-content:flex-end;padding:10px 12px 0;padding-top:max(env(safe-area-inset-top,10px),10px);flex-shrink:0;">
-        <button id="dz-close" style="width:44px;height:44px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;">${SVG.x||'✕'}</button>
+        <button type="button" id="dz-close" onclick="setState({deckZoomCardId:null});" style="width:44px;height:44px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;">${SVG.x||'✕'}</button>
       </div>
       <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 16px 8px;">
         <div style="width:${cardW}px;max-width:90%;height:${cardH}px;max-height:55vh;position:relative;display:flex;align-items:center;justify-content:center;">
@@ -1646,7 +1648,7 @@ function renderDeckZoomModal(cardId, th){
   const cardW = Math.round(maxCardW);
   const cardH = Math.round(cardW * 1.5);
   return `
-  <div id="dz-bg" style="position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
+  <div id="dz-bg" onclick="if(event.target===this)setState({deckZoomCardId:null});" style="position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
     <div style="display:flex;gap:28px;align-items:center;max-width:min(820px,calc(100vw - 48px));width:100%;">
       <div style="flex-shrink:0;">
         <div style="width:${cardW}px;height:${cardH}px;position:relative;display:flex;align-items:center;justify-content:center;">
@@ -1655,7 +1657,7 @@ function renderDeckZoomModal(cardId, th){
       </div>
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
         <div style="display:flex;justify-content:flex-end;">
-          <button id="dz-close" style="width:34px;height:34px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;">${SVG.x||'✕'}</button>
+          <button type="button" id="dz-close" onclick="setState({deckZoomCardId:null});" style="width:34px;height:34px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;">${SVG.x||'✕'}</button>
         </div>
         ${infoRows}
       </div>
@@ -1736,7 +1738,7 @@ function renderDeckEdit(th){
                 ${entry.quantity>1?`<div style="position:absolute;top:-3px;right:-3px;width:${window.innerWidth<600?14:18}px;height:${window.innerWidth<600?14:18}px;background:${th.accent};color:#000;font-size:${window.innerWidth<600?7:9}px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">×${entry.quantity}</div>`:''}
                 <div style="position:absolute;bottom:2px;font-size:${window.innerWidth<600?6:8}px;color:${card.color};font-weight:700;z-index:2;${card.image_url?'text-shadow:0 0 4px #000;':''}">◆</div>
               </div>
-              <button type="button" class="db-deck-zoom" data-cardid="${card.id}" title="Agrandir ${card.name}" style="height:${zoomBtnH}px;background:${th.bgTertiary};color:${th.textMuted};border:1px solid ${th.border};font-size:${window.innerWidth<600?9:10}px;font-weight:700;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:4px;cursor:zoom-in;padding:0 6px;line-height:1;">🔍 ZOOM</button>
+              <button type="button" class="db-deck-zoom" data-cardid="${card.id}" onclick="event.stopPropagation();setState({deckZoomCardId:'${card.id}'});" title="Agrandir ${card.name}" style="height:${zoomBtnH}px;background:${th.bgTertiary};color:${th.textMuted};border:1px solid ${th.border};font-size:${window.innerWidth<600?9:10}px;font-weight:700;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:4px;cursor:zoom-in;padding:0 6px;line-height:1;">🔍 ZOOM</button>
             </div>`;
           }).join('')}
       </div>
@@ -5248,42 +5250,8 @@ function bindGame(){
     });
   });
 
-  // Bouton 🔍 sur chaque carte du deck → ouvre la modal de zoom
-  // On utilise une délégation au niveau document pour être robuste au re-render
-  // (au cas où l'attachement direct sur le bouton serait perdu pour une raison X).
-  if (!window._deckZoomDelegationInstalled) {
-    window._deckZoomDelegationInstalled = true;
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest && e.target.closest('.db-deck-zoom');
-      if (!btn) return;
-      e.stopPropagation();
-      e.preventDefault();
-      setState({ deckZoomCardId: btn.dataset.cardid });
-    }, true); // capture = true pour intercepter avant la carte parent
-  }
-
-  // ── Modal de zoom (deck builder) ──
-  const dzClose = (e) => { if(e) e.stopPropagation(); setState({ deckZoomCardId: null }); };
-  const dzBg = document.getElementById('dz-bg');
-  if (dzBg) dzBg.addEventListener('click', (e)=>{ if (e.target === dzBg) dzClose(); });
-  const dzCloseBtn = document.getElementById('dz-close');
-  if (dzCloseBtn) dzCloseBtn.addEventListener('click', dzClose);
-  const dzBack = document.getElementById('dz-back');
-  if (dzBack) dzBack.addEventListener('click', dzClose);
-  const dzRemove = document.getElementById('dz-remove');
-  if (dzRemove) dzRemove.addEventListener('click', () => {
-    const cardId = dzRemove.dataset.cardid;
-    if (!cardId) return;
-    removeCardFromDeck(cardId);
-    // Vérifier s'il reste des exemplaires de cette carte dans le deck après le retrait.
-    // Si plus rien → fermer la modal automatiquement.
-    const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
-    const remaining = deck ? (deck.cards||[]).find(c=>parseInt(c.card_id)===parseInt(cardId)) : null;
-    if (!remaining || remaining.quantity <= 0) {
-      setState({ deckZoomCardId: null });
-    }
-    // Sinon : on laisse la modal ouverte → setState dans removeCardFromDeck a déjà re-rendu et la quantité affichée est mise à jour
-  });
+  // Note : les boutons de zoom (.db-deck-zoom, dz-close, dz-back, dz-remove, dz-bg)
+  // utilisent des onclick inline directement dans le HTML — pas besoin de listeners ici.
 
   // Mode de jeu
 
@@ -9195,6 +9163,18 @@ function removeCardFromDeck(cardId) {
   const updatedDecks = decks.map(d=>d.id===deck.id?{...d,cards:newCards}:d);
   setState({ decks: updatedDecks });
 }
+
+// Helper utilisé par le bouton "Retirer du deck" de la modal de zoom (deck builder).
+// Retire un exemplaire et ferme la modal s'il n'en reste plus dans le deck.
+function _dbZoomRemove(cardId) {
+  removeCardFromDeck(cardId);
+  const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
+  const remaining = deck ? (deck.cards||[]).find(c=>parseInt(c.card_id)===parseInt(cardId)) : null;
+  if (!remaining || remaining.quantity <= 0) {
+    setState({ deckZoomCardId: null });
+  }
+}
+window._dbZoomRemove = _dbZoomRemove;
 
 // ─── AUTO-FILL DECK ───────────────────────────────────────────────
 // Complète le deck existant (sans écraser) en respectant les règles :
