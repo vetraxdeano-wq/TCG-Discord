@@ -2737,7 +2737,7 @@ function humanPlayCard(idx){
     return;
   }
   if(c.ct==='sort'&&G.phase==='sort'&&!G.human.sortJoue){
-    if(G.human.noSpellThisTurn){addLog('🚫 Sorts bloqués ce tour !','sys','JOUEUR');return;}
+    if(G.human.noSpellThisTurn){addLog('🚫 Sorts bloqués ce tour !','sys','JOUEUR');if(_autoBattle){humanPassSort();}return;}
     G.human.hand.splice(idx,1);G.human.sortJoue=true;
     addLog(`🃏 ${c.nom} — ${c.desc}`,c.type==='Magie'?'sm':'sp','JOUEUR');
     spellAnnounce('Joueur',c.nom,c.desc,c.type);
