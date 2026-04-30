@@ -2477,8 +2477,8 @@ function renderTabPlay(th){
         </button>`).join('')}
       </div>
     </div>` : `
-    <!-- Desktop : 3 colonnes verticales, taille carrée dictée par la largeur -->
-    <div style="flex-shrink:0;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:6px 18px 14px;align-items:start;justify-items:center;">
+    <!-- Desktop : 3 colonnes verticales, remplit toute la largeur, touche le bas -->
+    <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding:0 14px 14px;min-height:0;">
       ${modes.map((m)=>`
         <button class="mode-btn btn-hover" data-mode="${m.id}"
           style="display:flex;flex-direction:column;align-items:stretch;
@@ -2491,10 +2491,11 @@ function renderTabPlay(th){
             overflow:hidden;
             transition:all .22s;
             width:100%;
-            max-width:420px;">
-          <div style="flex-shrink:0;width:100%;aspect-ratio:1/1;overflow:hidden;position:relative;background:${th.bg};">
+            min-width:0;
+            min-height:0;">
+          <div style="flex:1;min-height:0;width:100%;aspect-ratio:1/1;max-height:100%;overflow:hidden;position:relative;background:${th.bg};">
             ${m.img
-              ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;transition:transform .22s;" />`
+              ? `<img src="${m.img}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s;" />`
               : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;filter:drop-shadow(0 4px 24px ${m.color}60);">${m.icon}</div>`
             }
           </div>
