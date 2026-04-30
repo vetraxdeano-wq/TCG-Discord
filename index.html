@@ -1736,7 +1736,7 @@ function renderDeckEdit(th){
                 ${entry.quantity>1?`<div style="position:absolute;top:-3px;right:-3px;width:${window.innerWidth<600?14:18}px;height:${window.innerWidth<600?14:18}px;background:${th.accent};color:#000;font-size:${window.innerWidth<600?7:9}px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:2;">×${entry.quantity}</div>`:''}
                 <div style="position:absolute;bottom:2px;font-size:${window.innerWidth<600?6:8}px;color:${card.color};font-weight:700;z-index:2;${card.image_url?'text-shadow:0 0 4px #000;':''}">◆</div>
               </div>
-              <button class="db-deck-zoom" data-cardid="${card.id}" title="Agrandir ${card.name}" style="height:${zoomBtnH}px;background:${th.bgTertiary};color:${th.textMuted};border:1px solid ${th.border};font-size:${window.innerWidth<600?9:10}px;font-weight:700;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:4px;cursor:zoom-in;padding:0 6px;line-height:1;">🔍 ZOOM</button>
+              <button type="button" class="db-deck-zoom" data-cardid="${card.id}" title="Agrandir ${card.name}" style="height:${zoomBtnH}px;background:${th.bgTertiary};color:${th.textMuted};border:1px solid ${th.border};font-size:${window.innerWidth<600?9:10}px;font-weight:700;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:4px;cursor:zoom-in;padding:0 6px;line-height:1;">🔍 ZOOM</button>
             </div>`;
           }).join('')}
       </div>
@@ -5249,13 +5249,18 @@ function bindGame(){
   });
 
   // Bouton 🔍 sur chaque carte du deck → ouvre la modal de zoom
-  document.querySelectorAll('.db-deck-zoom').forEach(btn=>{
-    btn.addEventListener('click',(e)=>{
+  // On utilise une délégation au niveau document pour être robuste au re-render
+  // (au cas où l'attachement direct sur le bouton serait perdu pour une raison X).
+  if (!window._deckZoomDelegationInstalled) {
+    window._deckZoomDelegationInstalled = true;
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('.db-deck-zoom');
+      if (!btn) return;
       e.stopPropagation();
       e.preventDefault();
       setState({ deckZoomCardId: btn.dataset.cardid });
-    });
-  });
+    }, true); // capture = true pour intercepter avant la carte parent
+  }
 
   // ── Modal de zoom (deck builder) ──
   const dzClose = (e) => { if(e) e.stopPropagation(); setState({ deckZoomCardId: null }); };
