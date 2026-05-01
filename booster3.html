@@ -1794,7 +1794,7 @@ async function autoOpenBooster() {
   // Déduire les coins
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
-  showCoinsDeductedPopup(2000);
+  if (window._lastBoosterCost > 0) showCoinsDeductedPopup(2000);
 
   // Tirer les cartes
   boosterCards = pickWeightedCards(5);
@@ -4370,6 +4370,30 @@ function showDone(){
     </div>`;
   }).join('');
   document.getElementById('doneOverlay').classList.add('active');
+  // Cacher "Nouveau Booster" si :
+  //  - le booster ouvert était offert (gratuit) → pas de nouveau booster offert disponible
+  //  - la limite quotidienne (1 Légendaire/jour) est déjà atteinte
+  (async () => {
+    try {
+      const wasFreeBooster = (window._lastBoosterCost === 0);
+      let hideRestart = wasFreeBooster;
+      if (!hideRestart) {
+        // Vérifier la limite quotidienne pour le prochain achat
+        const db = window._db;
+        const myId = window._currentUserId;
+        if (db && myId) {
+          const today = new Date().toISOString().slice(0, 10);
+          const { data } = await db.from('players')
+            .select('booster_leg_date, booster_leg_count')
+            .eq('id', myId).single();
+          const usedToday = (data && data.booster_leg_date === today) ? (data.booster_leg_count || 0) : 0;
+          if (usedToday >= 1) hideRestart = true;
+        }
+      }
+      const restartBtn = document.querySelector('#doneOverlay .done-actions .btn-restart[onclick*="restart"]');
+      if (restartBtn) restartBtn.style.display = hideRestart ? 'none' : '';
+    } catch(e) {}
+  })();
   sndDone(); haptic(HAPTIC.done);
   spawnParticles(window.innerWidth/2,window.innerHeight/2,'#f0c060',65);
   spawn3DParticles(window.innerWidth/2,window.innerHeight/2,'#c8953a',30);
@@ -4447,6 +4471,75 @@ async function deductBoosterCost() {
   window._lastBoosterCost = 2000;
   return true;
 }
+
+// ===== DAILY LIMIT — pour le bouton "Nouveau Booster" =====
+// Réplique la logique de markBoosterUsed/getBoosterRemaining d'index.html
+// pour que "Nouveau Booster" soit aussi soumis à la limite quotidienne.
+// boosterId = 2 (Prestige, 2/jour) ou 3 (Légendaire, 1/jour).
+async function checkAndConsumeDailyLimit(boosterId) {
+  const db = window._db;
+  const myId = window._currentUserId;
+  if (!db || !myId) return true; // pas connecté → laisser passer
+
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+  const max = boosterId === 2 ? 2 : (boosterId === 3 ? 1 : Infinity);
+
+  try {
+    const { data } = await db.from('players')
+      .select('booster_prestige_date, booster_prestige_count, booster_leg_date, booster_leg_count')
+      .eq('id', myId).single();
+    if (!data) return true;
+
+    let dateField, countField, currentDate, currentCount;
+    if (boosterId === 2) {
+      dateField = 'booster_prestige_date';
+      countField = 'booster_prestige_count';
+      currentDate = data.booster_prestige_date;
+      currentCount = data.booster_prestige_count || 0;
+    } else if (boosterId === 3) {
+      dateField = 'booster_leg_date';
+      countField = 'booster_leg_count';
+      currentDate = data.booster_leg_date;
+      currentCount = data.booster_leg_count || 0;
+    } else {
+      return true;
+    }
+
+    // Reset si nouveau jour
+    const usedToday = (currentDate === today) ? currentCount : 0;
+    if (usedToday >= max) return false; // limite atteinte
+
+    // Incrémenter le compteur en DB
+    const patch = {};
+    patch[dateField] = today;
+    patch[countField] = usedToday + 1;
+    await db.from('players').update(patch).eq('id', myId);
+    return true;
+  } catch (e) {
+    console.error('[checkAndConsumeDailyLimit] error', e);
+    return true; // En cas d'erreur DB, ne pas bloquer le joueur
+  }
+}
+
+function showDailyLimitReached() {
+  const msg = document.createElement('div');
+  msg.style.cssText = `
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:9999;padding:24px 36px;border-radius:6px;text-align:center;
+    background:var(--noir-panel);border:1px solid var(--gold-deep);
+    box-shadow:0 0 60px #c8953a30;
+    font-family:'Cinzel',serif;
+  `;
+  msg.innerHTML = `
+    <div style="font-size:.85rem;color:var(--gold-bright);letter-spacing:.2em;margin-bottom:12px;">LIMITE QUOTIDIENNE ATTEINTE</div>
+    <div style="font-size:.65rem;color:var(--text-muted);letter-spacing:.15em;margin-bottom:20px;">Tu as déjà ouvert ton booster Légendaire aujourd'hui.<br>Reviens demain pour en ouvrir un autre ! ⏳</div>
+    <div style="display:flex;justify-content:center;">
+      <button onclick="this.parentElement.parentElement.remove()" style="padding:8px 22px;border-radius:2px;background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep);font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:.2em;cursor:pointer;margin-right:8px;">Fermer</button>
+      <button onclick="window.location.href='index.html'" style="padding:8px 22px;border-radius:2px;background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep);font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:.2em;cursor:pointer;">← Retour au menu</button>
+    </div>
+  `;
+  document.body.appendChild(msg);
+}
 function showInsufficientCoins() {
   const msg = document.createElement('div');
   msg.style.cssText = `
@@ -4468,10 +4561,15 @@ function showInsufficientCoins() {
 
 // ===== RESTART =====
 async function restart(){
-  // 1. Déduire les coins en premier (avant tout reset visuel)
+  // 0. Vérifier la limite quotidienne (1 booster Légendaire par jour, cross-device via Supabase)
+  //    "Nouveau Booster" est toujours un achat → soumis à la limite quotidienne.
+  const limitOk = await checkAndConsumeDailyLimit(3); // 3 = booster Légendaire
+  if (!limitOk) { showDailyLimitReached(); return; }
+
+  // 1. Déduire les coins
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
-  showCoinsDeductedPopup(2000);
+  if (window._lastBoosterCost > 0) showCoinsDeductedPopup(2000);
 
   // 2. Reset état complet
   document.getElementById('doneOverlay').classList.remove('active');
