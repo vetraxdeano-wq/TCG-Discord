@@ -1763,7 +1763,7 @@ async function autoOpenBooster() {
   // Déduire les coins
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
-  showCoinsDeductedPopup(150);
+  if (window._lastBoosterCost > 0) showCoinsDeductedPopup(150);
 
   // Tirer les cartes
   boosterCards = pickWeightedCards(5);
@@ -4698,6 +4698,13 @@ function showDone(){
     </div>`;
   }).join('');
   document.getElementById('doneOverlay').classList.add('active');
+  // Si le booster ouvert était offert (gratuit), cacher "Nouveau Booster"
+  // car aucun nouveau booster n'est offert et le bouton enclencherait un achat.
+  try {
+    const wasFreeBooster = (window._lastBoosterCost === 0);
+    const restartBtn = document.querySelector('#doneOverlay .done-actions .btn-restart[onclick*="restart"]');
+    if (restartBtn) restartBtn.style.display = wasFreeBooster ? 'none' : '';
+  } catch(e) {}
   sndDone(); haptic(HAPTIC.done);
   spawnParticles(window.innerWidth/2,window.innerHeight/2,'#f0c060',65);
   spawn3DParticles(window.innerWidth/2,window.innerHeight/2,'#c8953a',30);
@@ -4800,7 +4807,7 @@ async function restart(){
   // 1. Déduire les coins en premier (avant tout reset visuel)
   const ok = await deductBoosterCost();
   if (!ok) { showInsufficientCoins(); return; }
-  showCoinsDeductedPopup(150);
+  if (window._lastBoosterCost > 0) showCoinsDeductedPopup(150);
 
   // 2. Reset état complet
   document.getElementById('doneOverlay').classList.remove('active');
