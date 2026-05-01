@@ -8755,8 +8755,13 @@ async function subscribeNotifications() {
     const _tn = _pendingTradeNotifs[_pendingTradeNotifs.length - 1];
     let _tnMeta = {};
     try { _tnMeta = JSON.parse(_tn.meta || '{}'); } catch(e) {}
-    const _tnObtainedName = _tnMeta.to_card   || null; // carte que l'expéditeur REÇOIT
-    const _tnGivenName    = _tnMeta.from_card  || null; // carte que l'expéditeur a DONNÉE
+    // Convention meta (côté expéditeur, destinataire de cette notif) :
+    //   from_card(_id) = carte qu'il a DONNÉE  → ce qu'il a cédé
+    //   to_card(_id)   = carte qu'il a REÇUE   → ce qu'il a obtenu (à montrer en grand)
+    const _tnObtainedName = _tnMeta.to_card    || null;
+    const _tnGivenName    = _tnMeta.from_card  || null;
+    const _tnObtainedId   = _tnMeta.to_card_id   != null ? parseInt(_tnMeta.to_card_id)   : null;
+    const _tnGivenId      = _tnMeta.from_card_id != null ? parseInt(_tnMeta.from_card_id) : null;
 
     // Marquer toutes lues immédiatement (une seule animation, pas de replay)
     try {
@@ -8767,11 +8772,20 @@ async function subscribeNotifications() {
         .eq('read', false);
     } catch(e) {}
 
-    if (_tnObtainedName) {
+    if (_tnObtainedName || _tnObtainedId != null) {
       // Attendre que ALL_CARDS soit chargé (loadCollection peut être asynchrone)
       const _runTradeAnim = () => {
-        const _tcOb = ALL_CARDS.find(c => c.name === _tnObtainedName);
-        const _tcGv = ALL_CARDS.find(c => c.name === _tnGivenName);
+        // Priorité aux IDs (carte exactement échangée, évite les collisions d'homonymes
+        // qui pouvaient afficher la mauvaise rareté). Fallback sur le nom pour les
+        // anciennes notifs sans IDs.
+        const _tcOb = (_tnObtainedId != null
+            ? ALL_CARDS.find(c => parseInt(c.id) === _tnObtainedId)
+            : null)
+          || ALL_CARDS.find(c => c.name === _tnObtainedName);
+        const _tcGv = (_tnGivenId != null
+            ? ALL_CARDS.find(c => parseInt(c.id) === _tnGivenId)
+            : null)
+          || ALL_CARDS.find(c => c.name === _tnGivenName);
         const _tcAccepterName = (state.friends || []).find(f => f.id === _tn.from_id)?.discord_username || 'Ton ami';
         if (_tcOb) {
           showTradeCompleteAnimation({
@@ -8857,13 +8871,23 @@ async function subscribeNotifications() {
           try {
             let meta = {};
             try { meta = JSON.parse(n.meta || '{}'); } catch(e2) {}
-            // meta.from_card = carte que l'expéditeur a DONNÉE  → ce que le receveur a reçu
-            // meta.to_card   = carte que le receveur a DONNÉE   → ce que l'expéditeur reçoit
-            const _senderObtainedName = meta.to_card || null;
-            const _senderGivenName    = meta.from_card || null;
-            if (_senderObtainedName) {
-              const _tcOb = ALL_CARDS.find(c=>c.name===_senderObtainedName);
-              const _tcGv = ALL_CARDS.find(c=>c.name===_senderGivenName);
+            // Convention meta (côté expéditeur, destinataire de cette notif) :
+            //   from_card(_id) = carte qu'il a DONNÉE
+            //   to_card(_id)   = carte qu'il a REÇUE  → carte mise en avant dans l'animation
+            const _senderObtainedName = meta.to_card    || null;
+            const _senderGivenName    = meta.from_card  || null;
+            const _senderObtainedId   = meta.to_card_id   != null ? parseInt(meta.to_card_id)   : null;
+            const _senderGivenId      = meta.from_card_id != null ? parseInt(meta.from_card_id) : null;
+            if (_senderObtainedName || _senderObtainedId != null) {
+              // Priorité aux IDs (carte exactement échangée). Fallback nom pour anciennes notifs.
+              const _tcOb = (_senderObtainedId != null
+                  ? ALL_CARDS.find(c=>parseInt(c.id)===_senderObtainedId)
+                  : null)
+                || ALL_CARDS.find(c=>c.name===_senderObtainedName);
+              const _tcGv = (_senderGivenId != null
+                  ? ALL_CARDS.find(c=>parseInt(c.id)===_senderGivenId)
+                  : null)
+                || ALL_CARDS.find(c=>c.name===_senderGivenName);
               const _tcAccepterName = (state.friends||[]).find(f=>f.id===n.from_id)?.discord_username || 'Ton ami';
               if (_tcOb) {
                 setTimeout(()=>showTradeCompleteAnimation({
@@ -10058,10 +10082,20 @@ async function _respondTradeCore(tradeId, accept, db, myId) {
     const tradeMeta  = JSON.stringify({ from_card: fromCardName, to_card: toCardName });
 
     // Notifier l'expéditeur avec récap
+    // Convention du meta (du point de vue de l'expéditeur, qui recevra cette notif) :
+    //   from_card / from_card_id = carte qu'IL a DONNÉE   (= incoming.from_card_id)
+    //   to_card   / to_card_id   = carte qu'IL a REÇUE    (= incoming.to_card_id)
+    // On stocke aussi les IDs pour pouvoir reconstruire la carte exacte
+    // (évite les collisions sur les homonymes lors d'un find by name).
     try { await db.from('notifications').insert({
       user_id: incoming.from_id, type: 'trade_accepted', from_id: myId,
       text: `Échange accepté ! Tu as donné "${fromCardName}" et reçu "${toCardName}"`,
-      meta: JSON.stringify({ from_card: toCardName, to_card: fromCardName }),
+      meta: JSON.stringify({
+        from_card: fromCardName,
+        to_card: toCardName,
+        from_card_id: incoming.from_card_id,
+        to_card_id: incoming.to_card_id,
+      }),
       read: false,
     }).then(()=>{}) } catch(e) {};
 
