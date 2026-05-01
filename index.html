@@ -1682,86 +1682,74 @@ function renderDeckZoomModal(cardId, th){
   const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(cardId));
   if (!card) return '';
 
-  // Quantité dans le deck en cours
+  // Quantité dans le deck en cours + total deck
   const deck = (state.decks||[]).find(d=>d.id===state.activeDeckId);
   const deckCards = deck ? (deck.cards||[]) : [];
   const entry = deckCards.find(c => parseInt(c.card_id) === parseInt(cardId));
   const qtyInDeck = entry ? entry.quantity : 0;
+  const deckTotal = deckCards.reduce((s,c)=>s+c.quantity,0);
+  const maxInDeck = Math.min(2, card.count || 0);
 
-  const isMobile = window.innerWidth < 600;
+  const rarCol   = RARITY_COLOR[card.rarity] || '#a78bfa';
+  const rarLabel = RARITY_LABEL[card.rarity] || '';
 
-  // Image / placeholder
+  // Dimensions carte (ratio 2/3) — calquées sur openDeckCardPreview
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const maxH  = Math.round(vh * 0.72);
+  const maxW  = Math.round(vw * 0.85);
+  const cardH = Math.min(maxH, Math.round(maxW * 1.5));
+  const cardW = Math.round(cardH / 1.5);
+  const colW  = Math.max(cardW, 340);
+
   const imgContent = card.image_url
-    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" />`
-    : `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:64px;">🃏</div>`;
+    ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:contain;display:block;" draggable="false" />`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:96px;">🃏</div>`;
 
-  // Lignes d'infos / stats (réutilise le même style que renderCardDetailModal)
-  const statRow = (label, value) => value == null ? '' : `
-    <div style="display:flex;justify-content:space-between;padding:${isMobile?'4':'7'}px 0;border-bottom:1px solid ${th.border};">
-      <span style="font-size:${isMobile?'11':'13'}px;color:${th.textMuted};">${label}</span>
-      <span style="font-size:${isMobile?'11':'13'}px;font-weight:700;color:${th.text};">${value}</span>
-    </div>`;
-
-  const infoRows = `
-    <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'16px':'22px'};font-weight:400;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-    <div style="font-size:${isMobile?'10px':'12px'};color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:2px;">◆ ${RARITY_LABEL[card.rarity]}</div>
-    ${statRow('Type', card.type)}
-    ${statRow('Set', SET_LABELS[card.set] || card.set || 'SET-1')}
-    ${statRow('ID', `#${card.id}`)}
-    ${statRow('ATQ', card.attack)}
-    ${statRow('DEF', card.defense)}
-    ${statRow('PRECISION', card.precision != null ? card.precision + '%' : null)}
-    ${statRow('HP', card.hp)}
-    <div style="background:${th.bgSecondary};padding:${isMobile?'8':'12'}px 14px;border:2px solid #000;margin-top:4px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:${isMobile?'11':'12'}px;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">Dans ce deck</span>
-        <span style="font-size:${isMobile?'14':'15'}px;font-weight:800;color:${th.accent};">×${qtyInDeck}</span>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:6px;">
-      <button type="button" id="dz-back" onclick="setState({deckZoomCardId:null});" style="flex:1;padding:${isMobile?'11':'13'}px;background:${th.bgTertiary};color:${th.text};border:2px solid #000;font-size:${isMobile?'12':'13'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;">← RETOUR</button>
-      <button type="button" id="dz-remove" data-cardid="${card.id}" onclick="_dbZoomRemove('${card.id}');" style="flex:1;padding:${isMobile?'11':'13'}px;background:${th.red};color:#000;border:2px solid #000;font-size:${isMobile?'12':'13'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;">🗑 RETIRER DU DECK</button>
-    </div>`;
-
-  if (isMobile) {
-    // ── MOBILE : layout vertical, image grande en haut ──
-    const vh = window.innerHeight;
-    const cardH = Math.round(vh * 0.55);
-    const cardW = Math.round(cardH * 0.667);
-    return `
-    <div id="dz-bg" onclick="if(event.target===this)setState({deckZoomCardId:null});" style="position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;background:rgba(0,0,0,0.94);backdrop-filter:blur(14px);">
-      <div style="display:flex;justify-content:flex-end;padding:10px 12px 0;padding-top:max(env(safe-area-inset-top,10px),10px);flex-shrink:0;">
-        <button type="button" id="dz-close" onclick="setState({deckZoomCardId:null});" style="width:44px;height:44px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;">${SVG.x||'✕'}</button>
-      </div>
-      <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 16px 8px;">
-        <div style="width:${cardW}px;max-width:90%;height:${cardH}px;max-height:55vh;position:relative;display:flex;align-items:center;justify-content:center;">
-          ${imgContent}
-        </div>
-      </div>
-      <div style="flex-shrink:0;width:100%;background:${th.bgSecondary};border-top:2px solid #000;padding:12px 16px max(env(safe-area-inset-bottom,18px),18px);display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
-        ${infoRows}
-      </div>
-    </div>`;
-  }
-
-  // ── DESKTOP : image à gauche, infos à droite ──
-  const vw = window.innerWidth;
-  const maxCardW = Math.min(vw * 0.42, 340);
-  const cardW = Math.round(maxCardW);
-  const cardH = Math.round(cardW * 1.5);
   return `
-  <div id="dz-bg" onclick="if(event.target===this)setState({deckZoomCardId:null});" style="position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,0.88);backdrop-filter:blur(12px);">
-    <div style="display:flex;gap:28px;align-items:center;max-width:min(820px,calc(100vw - 48px));width:100%;">
-      <div style="flex-shrink:0;">
-        <div style="width:${cardW}px;height:${cardH}px;position:relative;display:flex;align-items:center;justify-content:center;">
-          ${imgContent}
+  <div id="dz-bg" onclick="if(event.target===this)setState({deckZoomCardId:null});" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.92);backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;">
+
+    <!-- Bouton fermer en haut à droite -->
+    <button type="button" id="dz-close" onclick="setState({deckZoomCardId:null});" style="position:absolute;top:max(env(safe-area-inset-top,14px),14px);right:14px;width:48px;height:48px;background:rgba(0,0,0,.65);border:1px solid ${th.border};color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:3;">✕</button>
+
+    <!-- Colonne centrale : compteurs + carte + infos + boutons -->
+    <div style="width:${colW}px;max-width:94vw;display:flex;flex-direction:column;align-items:center;gap:12px;">
+
+      <!-- Compteurs au-dessus de la carte -->
+      <div style="width:100%;display:flex;justify-content:space-between;align-items:stretch;gap:10px;">
+        <div style="background:rgba(0,0,0,.7);border:1px solid ${qtyInDeck>0?rarCol+'80':th.border};padding:8px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;min-width:0;">
+          <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Dans deck</div>
+          <div style="font-size:19px;font-weight:900;color:${qtyInDeck>0?rarCol:th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${qtyInDeck}/${maxInDeck||1}</div>
+        </div>
+        <div style="background:rgba(0,0,0,.7);border:1px solid ${deckTotal===30?th.green+'80':th.border};padding:8px 14px;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;">
+          <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Deck</div>
+          <div style="font-size:19px;font-weight:900;color:${deckTotal===30?th.green:th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">${deckTotal}/30</div>
+        </div>
+        <div style="background:rgba(0,0,0,.7);border:1px solid ${th.border};padding:8px 12px;display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex:1;min-width:0;">
+          <div style="font-size:10px;color:${th.textMuted};font-weight:700;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;">Possédées</div>
+          <div style="font-size:19px;font-weight:900;color:${th.text};font-family:'Luckiest Guy',cursive;letter-spacing:1px;">×${card.count||0}</div>
         </div>
       </div>
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;justify-content:flex-end;">
-          <button type="button" id="dz-close" onclick="setState({deckZoomCardId:null});" style="width:34px;height:34px;background:${th.surface};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;">${SVG.x||'✕'}</button>
+
+      <!-- Carte (grande) -->
+      <div style="width:${cardW}px;height:${cardH}px;position:relative;box-shadow:0 0 40px ${rarCol}55,0 0 80px rgba(0,0,0,.6);background:linear-gradient(135deg,${rarCol}30,${rarCol}10);border:2px solid ${rarCol}80;overflow:hidden;">
+        ${imgContent}
+      </div>
+
+      <!-- Infos carte -->
+      <div style="text-align:center;padding:0 10px;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:20px;font-weight:400;color:${th.text};letter-spacing:.5px;line-height:1.15;">${card.name}</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:800;color:${rarCol};letter-spacing:.5px;text-transform:uppercase;">${rarLabel}</span>
+          <span style="font-size:13px;color:${th.textMuted};">·</span>
+          <span style="font-size:13px;color:${th.textMuted};font-weight:600;">#${parseInt(card.id)}</span>
+          ${card.type ? `<span style="font-size:13px;color:${th.textMuted};">·</span><span style="font-size:13px;color:${th.textMuted};font-weight:600;">${card.type}</span>` : ''}
         </div>
-        ${infoRows}
+      </div>
+
+      <!-- Boutons -->
+      <div style="display:flex;gap:12px;align-items:center;padding-bottom:max(env(safe-area-inset-bottom,10px),10px);">
+        <button type="button" id="dz-back" onclick="setState({deckZoomCardId:null});" style="padding:14px 22px;background:transparent;color:${th.textMuted};border:1px solid ${th.border};font-size:13px;font-weight:800;cursor:pointer;letter-spacing:.5px;">← RETOUR</button>
+        <button type="button" id="dz-remove" data-cardid="${card.id}" onclick="_dbZoomRemove('${card.id}');" style="padding:14px 28px;background:${th.red};color:#000;border:none;font-size:15px;font-weight:900;cursor:pointer;letter-spacing:.5px;">🗑 RETIRER DU DECK</button>
       </div>
     </div>
   </div>`;
