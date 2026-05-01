@@ -8845,6 +8845,13 @@ async function subscribeNotifications() {
         setState({ tradeResultNotifs: [...prev, { id: n.id, accepted: isAccepted, from_id: n.from_id, text: notifText }] });
         showToast(notifText || (isAccepted ? 'Échange accepté !' : 'Échange refusé'), isAccepted ? '🔄' : '✗');
 
+        // Si l'échange a été accepté, recharger collection + decks côté expéditeur :
+        // sa carte cédée a été retirée de tous ses decks côté BDD, il faut refléter ça dans le Deck Builder.
+        if (isAccepted) {
+          if (window.loadCollection) window.loadCollection();
+          if (window.loadDecks) window.loadDecks();
+        }
+
         // Animation côté expéditeur (il reçoit la carte to_card)
         if (isAccepted) {
           try {
@@ -9920,10 +9927,15 @@ function updateTradePreview() {
 async function _removeCardFromAllDecks(db, playerId, cardId) {
   try {
     const cid = parseInt(cardId);
+    if (isNaN(cid)) {
+      console.warn('[_removeCardFromAllDecks] cardId invalide:', cardId);
+      return;
+    }
     // 1. Récupérer tous les decks du joueur
     const { data: decks, error: de } = await db.from('decks')
       .select('id').eq('player_id', playerId);
-    if (de || !decks || decks.length === 0) return;
+    if (de) { console.warn('[_removeCardFromAllDecks] erreur lecture decks:', de); return; }
+    if (!decks || decks.length === 0) return;
 
     const deckIds = decks.map(d => d.id);
 
@@ -9932,20 +9944,28 @@ async function _removeCardFromAllDecks(db, playerId, cardId) {
       .select('deck_id, quantity')
       .in('deck_id', deckIds)
       .eq('card_id', cid);
-    if (re || !rows || rows.length === 0) return;
+    if (re) { console.warn('[_removeCardFromAllDecks] erreur lecture deck_cards:', re); return; }
+    if (!rows || rows.length === 0) {
+      console.log('[_removeCardFromAllDecks] aucun deck ne contient card_id', cid, 'pour player', playerId);
+      return;
+    }
+
+    console.log('[_removeCardFromAllDecks] retrait card_id', cid, 'de', rows.length, 'deck(s) du player', playerId);
 
     // 3. Pour chaque deck contenant la carte, la retirer (quantity - 1, ou delete si = 1)
     for (const row of rows) {
       if (row.quantity > 1) {
-        await db.from('deck_cards')
+        const { error: ue } = await db.from('deck_cards')
           .update({ quantity: row.quantity - 1 })
           .eq('deck_id', row.deck_id)
           .eq('card_id', cid);
+        if (ue) console.warn('[_removeCardFromAllDecks] erreur update deck', row.deck_id, ':', ue);
       } else {
-        await db.from('deck_cards')
+        const { error: dee } = await db.from('deck_cards')
           .delete()
           .eq('deck_id', row.deck_id)
           .eq('card_id', cid);
+        if (dee) console.warn('[_removeCardFromAllDecks] erreur delete deck', row.deck_id, ':', dee);
       }
     }
   } catch(e) {
@@ -10047,6 +10067,8 @@ async function _respondTradeCore(tradeId, accept, db, myId) {
 
     // Recharger la collection
     if (window.loadCollection) window.loadCollection();
+    // Recharger les decks pour refléter le retrait de la carte cédée dans le Deck Builder
+    if (window.loadDecks) window.loadDecks();
     showToast('Échange effectué ! Tu as reçu : ' + fromCardName, '🔄');
 
     // Animation de finalisation d'échange
