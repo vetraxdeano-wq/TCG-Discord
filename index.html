@@ -6337,9 +6337,18 @@ function bindGame(){
       const _uid = state.currentUser?.id || '';
       const db = window.db;
 
-      // Anti-double-clic
+      // Anti-double-clic + feedback visuel
       if (btn._busy) return;
       btn._busy = true;
+      const originalContent = btn.innerHTML;
+      const originalCursor = btn.style.cursor;
+      btn.innerHTML = '<span style="opacity:.85;">⋯ OUVERTURE…</span>';
+      btn.style.cursor = 'wait';
+      const _restoreBtn = () => {
+        btn._busy = false;
+        btn.innerHTML = originalContent;
+        btn.style.cursor = originalCursor;
+      };
 
       // 1) Lire le solde EN DB (source de vérité) et déduire de manière atomique
       //    AVANT toute autre opération qui pourrait interférer (quêtes, etc.)
@@ -6350,7 +6359,7 @@ function bindGame(){
           if (e1) throw e1;
           const currentCoins = row?.coins ?? 0;
           if (currentCoins < totalCost) {
-            btn._busy = false;
+            _restoreBtn();
             showToast(`Il vous faut ${totalCost.toLocaleString('fr-FR')} coins pour ouvrir 10 boosters.`,'🚫');
             return;
           }
@@ -6362,7 +6371,7 @@ function bindGame(){
           // Synchroniser le state local
           setState({ coins: coinsAfter });
         } catch(err) {
-          btn._busy = false;
+          _restoreBtn();
           console.error('[x10] erreur déduction coins', err);
           showToast('Erreur, réessaye dans un instant.', '🚫');
           return;
@@ -6370,37 +6379,34 @@ function bindGame(){
       } else {
         // Fallback hors-ligne / non-connecté : check sur state.coins
         if ((state.coins||0) < totalCost) {
-          btn._busy = false;
+          _restoreBtn();
           showToast(`Il vous faut ${totalCost.toLocaleString('fr-FR')} coins pour ouvrir 10 boosters.`,'🚫');
           return;
         }
       }
 
-      // 2) Indiquer à booster1.html que la déduction est DÉJÀ faite
-      //    (évite double-déduction côté booster1.html en mode x10)
-      try {
-        sessionStorage.setItem('booster_ticket', JSON.stringify({
-          bid: bid, qty: 10, ts: Date.now(),
-          paid: true, // flag : coins déjà déduits côté index
-          paidAmount: totalCost,
-          coinsAfter: coinsAfter, // pour affichage du solde correct
-        }));
-      } catch(e) {}
-
-      // 3) Tâches secondaires (stats + quêtes) en arrière-plan, sans bloquer
-      //    et sans interférer avec la déduction (déjà faite plus haut)
+      // 3) Stats Supabase uniquement (pas de progression de quêtes en mode x10)
+      //    On marque les 10 ouvertures pour les compteurs boosters_normal / boosters_total.
       try {
         const tasks = [];
         for (let i=0;i<10;i++) tasks.push(markBoosterUsed(_uid, bid));
-        tasks.push(progressDailyQuest('open_booster'));
-        for (let i=0;i<10;i++) tasks.push(progressWeeklyQuest('boosters_10'));
         Promise.all(tasks).catch(err => console.error('[x10] tasks error', err));
       } catch(e) { console.error('[x10] tasks error', e); }
 
       startDailyTicker();
       render();
 
-      // 4) Redirection — la page booster1.html ne re-déduira plus rien
+      // 4) Ticket : déduction déjà faite côté index, pas de bonus quête en mode x10
+      try {
+        sessionStorage.setItem('booster_ticket', JSON.stringify({
+          bid: bid, qty: 10, ts: Date.now(),
+          paid: true,
+          paidAmount: totalCost,
+          coinsAfter: coinsAfter,
+        }));
+      } catch(e) {}
+
+      // 5) Redirection — la page booster1.html ne re-déduira plus rien
       window.location.href = 'booster1.html';
     });
   });
