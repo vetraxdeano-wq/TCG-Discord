@@ -1871,6 +1871,9 @@ async function saveBoosterToCollection(cards) {
 const BOOSTER_BID = 1;
 const TICKET_MAX_AGE_MS = 30000; // 30s : ticket périme rapidement
 window._boosterQty = 1; // 1 par défaut, 10 si le ticket le précise
+window._boosterPrepaid = false;     // true si la déduction a été faite côté index
+window._boosterPrepaidAmount = 0;
+window._boosterPrepaidCoinsAfter = null;
 
 function _consumeBoosterTicket() {
   try {
@@ -1879,7 +1882,14 @@ function _consumeBoosterTicket() {
     if (!raw) return false;
     const t = JSON.parse(raw);
     const ok = t && t.bid === BOOSTER_BID && (Date.now() - (t.ts || 0)) < TICKET_MAX_AGE_MS;
-    if (ok && t.qty === 10) window._boosterQty = 10;
+    if (ok && t.qty === 10) {
+      window._boosterQty = 10;
+      if (t.paid) {
+        window._boosterPrepaid = true;
+        window._boosterPrepaidAmount = t.paidAmount || 1500;
+        window._boosterPrepaidCoinsAfter = (typeof t.coinsAfter === 'number') ? t.coinsAfter : null;
+      }
+    }
     return ok;
   } catch(e) { return false; }
 }
@@ -4864,10 +4874,35 @@ function showInsufficientCoinsX10() {
 async function autoOpenBoosterX10() {
   await new Promise(r => setTimeout(r, 80));
 
-  // 1. Déduire 1500 coins d'un coup
-  const ok = await deductBoosterCostX10();
-  if (!ok) { showInsufficientCoinsX10(); return; }
-  if (window._lastBoosterCost > 0) showCoinsDeductedPopup(1500);
+  // 1. Déduction des coins
+  //    Cas normal (legacy / fallback) : on déduit ici 1500 coins.
+  //    Cas pré-payé (ticket avec paid:true posé par index.html) : déjà déduit, on ne fait rien.
+  if (window._boosterPrepaid) {
+    // Solde déjà à jour côté DB ; on initialise les variables pour l'animation du récap
+    window._lastBoosterCost = window._boosterPrepaidAmount || 1500;
+    if (typeof window._boosterPrepaidCoinsAfter === 'number') {
+      window._playerCoins = window._boosterPrepaidCoinsAfter;
+      // Le solde "avant ouverture" = solde actuel + montant déduit
+      window._coinsBeforeOpen = window._boosterPrepaidCoinsAfter + window._lastBoosterCost;
+    } else {
+      // Re-lecture du solde si on n'a pas l'info dans le ticket
+      try {
+        const db = window._db;
+        const myId = window._currentUserId;
+        if (db && myId) {
+          const { data } = await db.from('players').select('coins').eq('id', myId).single();
+          window._playerCoins = data?.coins ?? 0;
+          window._coinsBeforeOpen = window._playerCoins + window._lastBoosterCost;
+        }
+      } catch(e) {}
+    }
+    showCoinsDeductedPopup(window._lastBoosterCost);
+  } else {
+    // Fallback : la déduction n'a pas été faite côté index → on la fait ici
+    const ok = await deductBoosterCostX10();
+    if (!ok) { showInsufficientCoinsX10(); return; }
+    if (window._lastBoosterCost > 0) showCoinsDeductedPopup(1500);
+  }
 
   // 2. Tirer les 50 cartes (10 packs × 5 cartes)
   // On stocke par pack pour pouvoir teaser les rares pendant les déchirures
@@ -5249,8 +5284,8 @@ function runX10CardReveal(allCards, root) {
 // Flip pack par pack — chaque pack se révèle d'un coup, puis le suivant
 function runX10FlipCascadePackByPack(allCardEls, root, scroller, onComplete) {
   const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
-  const PACK_INTERVAL = 280; // entre 2 packs (plus lent que le drop pour qu'on voie chaque pack)
-  const CARD_INTERVAL = 50;  // entre 2 cartes d'un même pack
+  const PACK_INTERVAL = 380; // entre 2 packs (laisse le temps d'apprécier chaque pack)
+  const CARD_INTERVAL = 110; // entre 2 cartes d'un même pack (assez lent pour suivre)
   let mythicSeen = false;
 
   // Grouper par pack
