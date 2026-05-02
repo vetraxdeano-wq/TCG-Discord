@@ -8197,6 +8197,12 @@ window.onPlayerWin = async function() {
 
   const today = _todayStr();
 
+  if (!_questCache[userId]) await _loadQuestCache(userId);
+
+  // Quête hebdomadaire victoires — incrémentée à CHAQUE victoire, pas seulement la 1ère du jour
+  await progressWeeklyQuest('wins_15');
+
+  // Quête quotidienne 1ère victoire du jour — une seule fois par jour
   if (state.firstWinTodayDone) return;
 
   // Vérifier en DB pour éviter le doublon multi-device
@@ -8214,11 +8220,8 @@ window.onPlayerWin = async function() {
   await db.from('players').update({ first_win_date: today }).eq('id', userId);
   setState({ firstWinTodayDone: true });
   // Marquer la quête quotidienne 1ère victoire comme complétée via le cache
-  if (!_questCache[userId]) await _loadQuestCache(userId);
   _questCache[userId].daily['first_win'] = { progress: 1, done: true };
   await _persistDailyQuest(userId, 'first_win', 1, true);
-  // Quête hebdomadaire victoires — await pour garantir la persistence avant la suite
-  await progressWeeklyQuest('wins_15');
   // Incrémenter le compteur hebdo "3 quêtes quotidiennes complétées"
   _checkDailyQuestCountForWeekly(userId);
 };
