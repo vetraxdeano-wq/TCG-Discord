@@ -2732,9 +2732,6 @@ function renderTabCollection(th){
       return false;
     })
     .sort((a,b)=>{
-      const aFav=a.owned&&state.collFavorites.has(String(a.id))?1:0;
-      const bFav=b.owned&&state.collFavorites.has(String(b.id))?1:0;
-      if(bFav!==aFav) return bFav-aFav;
       const dir=state.collSortDir==="desc"?-1:1;
       if(state.collSortBy==="id") return dir*a.id.localeCompare(b.id,undefined,{numeric:true});
       if(state.collSortBy==="alpha") return dir*(a.name||"").localeCompare(b.name||"","fr",{sensitivity:"base"});
@@ -2885,7 +2882,7 @@ function renderCollCard(card,th,x,y,CW,CH){
   const isFav = state.collFavorites.has(String(card.id));
   return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;overflow:visible;display:flex;align-items:center;justify-content:center;">
     ${card.count>1?`<div style="position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;background:${th.accent};color:#000;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">x${card.count}</div>`:''}
-    <div class="coll-fav-btn" data-cardid="${card.id}" style="position:absolute;top:0px;left:0px;z-index:3;width:${Math.round(CW*0.28)}px;height:${Math.round(CW*0.28)}px;display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.22)}px;line-height:1;text-shadow:0 1px 4px rgba(0,0,0,.8);filter:drop-shadow(0 1px 3px rgba(0,0,0,.9));cursor:pointer;color:${isFav?'#facc15':'rgba(255,255,255,0.55)'};">${isFav?'★':'☆'}</div>
+    <div class="coll-fav-btn" data-cardid="${card.id}" style="position:absolute;top:-2px;left:-2px;min-width:18px;height:18px;background:transparent;border:1px solid ${isFav?'#facc15':'rgba(255,255,255,0.3)'};display:flex;align-items:center;justify-content:center;padding:0 3px;z-index:3;cursor:pointer;font-size:9px;font-weight:900;color:${isFav?'#facc15':'rgba(255,255,255,0.45)'};box-shadow:0 2px 6px rgba(0,0,0,.5);line-height:1;">${isFav?'★':'☆'}</div>
     ${card.image_url
       ? `<img src="${card.image_url}" style="width:${imgW}px;height:${imgH}px;object-fit:contain;display:block;flex-shrink:0;" />`
       : `<div style="width:${imgW}px;height:${imgH}px;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
