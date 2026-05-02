@@ -6333,32 +6333,75 @@ function bindGame(){
       if(!selectedBooster || selectedBooster.id !== bid) return;
       const booster = BOOSTERS.find(b=>b.id===bid);
       if(!booster) return;
-      const totalCost = booster.price * 10;
-      const coins = state.coins || 0;
-      if(coins < totalCost){
-        showToast(`Il vous faut ${totalCost.toLocaleString('fr-FR')} coins pour ouvrir 10 boosters.`,'🚫');
-        return;
-      }
+      const totalCost = booster.price * 10; // 1500
       const _uid = state.currentUser?.id || '';
-      // Le booster Normal n'a pas de limite quotidienne, mais on incrémente bien les stats x10
-      const meta = {color:'#9ca3af', src:'https://i.goopics.net/ueiki4.png', href:'booster1.html'};
-      // Marquer 10 ouvertures pour les stats Supabase + déclencher les quêtes
-      // (open_booster est target=1 → premier appel suffit ; boosters_10 target=10 → on appelle 10×)
+      const db = window.db;
+
+      // Anti-double-clic
+      if (btn._busy) return;
+      btn._busy = true;
+
+      // 1) Lire le solde EN DB (source de vérité) et déduire de manière atomique
+      //    AVANT toute autre opération qui pourrait interférer (quêtes, etc.)
+      let coinsAfter = null;
+      if (db && _uid) {
+        try {
+          const { data: row, error: e1 } = await db.from('players').select('coins').eq('id', _uid).single();
+          if (e1) throw e1;
+          const currentCoins = row?.coins ?? 0;
+          if (currentCoins < totalCost) {
+            btn._busy = false;
+            showToast(`Il vous faut ${totalCost.toLocaleString('fr-FR')} coins pour ouvrir 10 boosters.`,'🚫');
+            return;
+          }
+          coinsAfter = currentCoins - totalCost;
+          const { error: e2 } = await db.from('players').update({ coins: coinsAfter }).eq('id', _uid);
+          if (e2) throw e2;
+          // Stats coins_spent
+          try { db.rpc('increment_stat', { p_user_id: _uid, p_field: 'coins_spent', p_amount: totalCost }).then(()=>{}).catch(()=>{}); } catch(e){}
+          // Synchroniser le state local
+          setState({ coins: coinsAfter });
+        } catch(err) {
+          btn._busy = false;
+          console.error('[x10] erreur déduction coins', err);
+          showToast('Erreur, réessaye dans un instant.', '🚫');
+          return;
+        }
+      } else {
+        // Fallback hors-ligne / non-connecté : check sur state.coins
+        if ((state.coins||0) < totalCost) {
+          btn._busy = false;
+          showToast(`Il vous faut ${totalCost.toLocaleString('fr-FR')} coins pour ouvrir 10 boosters.`,'🚫');
+          return;
+        }
+      }
+
+      // 2) Indiquer à booster1.html que la déduction est DÉJÀ faite
+      //    (évite double-déduction côté booster1.html en mode x10)
       try {
-        // Lancer en parallèle : 10 stats + 1 daily + 10 weekly
+        sessionStorage.setItem('booster_ticket', JSON.stringify({
+          bid: bid, qty: 10, ts: Date.now(),
+          paid: true, // flag : coins déjà déduits côté index
+          paidAmount: totalCost,
+          coinsAfter: coinsAfter, // pour affichage du solde correct
+        }));
+      } catch(e) {}
+
+      // 3) Tâches secondaires (stats + quêtes) en arrière-plan, sans bloquer
+      //    et sans interférer avec la déduction (déjà faite plus haut)
+      try {
         const tasks = [];
         for (let i=0;i<10;i++) tasks.push(markBoosterUsed(_uid, bid));
         tasks.push(progressDailyQuest('open_booster'));
         for (let i=0;i<10;i++) tasks.push(progressWeeklyQuest('boosters_10'));
-        // On n'attend pas la fin pour ne pas retarder l'ouverture — Supabase fera le job
         Promise.all(tasks).catch(err => console.error('[x10] tasks error', err));
       } catch(e) { console.error('[x10] tasks error', e); }
+
       startDailyTicker();
       render();
-      // Ticket spécial x10 : indique au booster1.html d'ouvrir 10 packs en mode rapide
-      try { sessionStorage.setItem('booster_ticket', JSON.stringify({ bid: bid, qty: 10, ts: Date.now() })); } catch(e) {}
-      // Mode x10 : on saute l'animation d'ouverture et on file direct sur booster1.html
-      window.location.href = meta.href;
+
+      // 4) Redirection — la page booster1.html ne re-déduira plus rien
+      window.location.href = 'booster1.html';
     });
   });
 
