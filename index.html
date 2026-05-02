@@ -980,6 +980,7 @@ let state = {
   collSetOpen: false,
   collSelectedCard: null,
   collScrollTop: 0,
+  collFavorites: (function(){ try{ const s=localStorage.getItem('coll_favorites'); return s?new Set(JSON.parse(s)):new Set(); }catch(e){ return new Set(); } })(),
   showMessages: false,
   activeConvId: null,
   messages: {},
@@ -2730,7 +2731,17 @@ function renderTabCollection(th){
       if(c.owned && c.name.toLowerCase().includes(q)) return true;
       return false;
     })
-    .sort((a,b)=>{const dir=state.collSortDir==="desc"?-1:1;if(state.collSortBy==="id") return dir*a.id.localeCompare(b.id,undefined,{numeric:true});if(state.collSortBy==="alpha") return dir*(a.name||"").localeCompare(b.name||"","fr",{sensitivity:"base"});if(state.collSortBy==="count") return dir*((a.count||0)-(b.count||0));if(state.collSortBy==="date"){const da=a.obtainedAt?new Date(a.obtainedAt).getTime():0;const db2=b.obtainedAt?new Date(b.obtainedAt).getTime():0;if(!da&&!db2)return 0;if(!da)return 1;if(!db2)return -1;return dir*(da-db2);}return dir*(RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));});
+    .sort((a,b)=>{
+      const aFav=a.owned&&state.collFavorites.has(String(a.id))?1:0;
+      const bFav=b.owned&&state.collFavorites.has(String(b.id))?1:0;
+      if(bFav!==aFav) return bFav-aFav;
+      const dir=state.collSortDir==="desc"?-1:1;
+      if(state.collSortBy==="id") return dir*a.id.localeCompare(b.id,undefined,{numeric:true});
+      if(state.collSortBy==="alpha") return dir*(a.name||"").localeCompare(b.name||"","fr",{sensitivity:"base"});
+      if(state.collSortBy==="count") return dir*((a.count||0)-(b.count||0));
+      if(state.collSortBy==="date"){const da=a.obtainedAt?new Date(a.obtainedAt).getTime():0;const db2=b.obtainedAt?new Date(b.obtainedAt).getTime():0;if(!da&&!db2)return 0;if(!da)return 1;if(!db2)return -1;return dir*(da-db2);}
+      return dir*(RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
+    });
   const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
 
   return `
@@ -2871,8 +2882,10 @@ function renderCollCard(card,th,x,y,CW,CH){
   const oversize = 1.18;
   const imgW = Math.round(CW * oversize);
   const imgH = Math.round(CH * oversize);
+  const isFav = state.collFavorites.has(String(card.id));
   return `<div class="coll-card" data-cardid="${card.id}" style="position:absolute;left:${x}px;top:${y}px;width:${CW}px;height:${CH}px;cursor:pointer;background:transparent;border:none;overflow:visible;display:flex;align-items:center;justify-content:center;">
     ${card.count>1?`<div style="position:absolute;top:-2px;right:-2px;min-width:18px;height:18px;background:${th.accent};color:#000;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.5);">x${card.count}</div>`:''}
+    <div class="coll-fav-btn" data-cardid="${card.id}" style="position:absolute;top:0px;left:0px;z-index:3;width:${Math.round(CW*0.28)}px;height:${Math.round(CW*0.28)}px;display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.22)}px;line-height:1;text-shadow:0 1px 4px rgba(0,0,0,.8);filter:drop-shadow(0 1px 3px rgba(0,0,0,.9));cursor:pointer;color:${isFav?'#facc15':'rgba(255,255,255,0.55)'};">${isFav?'★':'☆'}</div>
     ${card.image_url
       ? `<img src="${card.image_url}" style="width:${imgW}px;height:${imgH}px;object-fit:contain;display:block;flex-shrink:0;" />`
       : `<div style="width:${imgW}px;height:${imgH}px;background:linear-gradient(135deg,${rarCol}25,${rarCol}08);display:flex;align-items:center;justify-content:center;font-size:${Math.round(CW*0.38)}px;">🃏</div>`}
@@ -5295,7 +5308,9 @@ function bindGame(){
 
   // Coll cards
   document.querySelectorAll('.coll-card').forEach(el=>{
-    el.addEventListener('click',()=>{
+    el.addEventListener('click',(e)=>{
+      // Empêcher l'ouverture du modal si on clique sur l'étoile favori
+      if(e.target.closest('.coll-fav-btn')) return;
       const card = ALL_CARDS.find(c=>c.id===el.dataset.cardid);
       if(card) {
         // Sauvegarder la position de scroll avant d'ouvrir le modal
@@ -5311,6 +5326,18 @@ function bindGame(){
       el.addEventListener('mouseenter',()=>{el.style.opacity='.55';el.style.transform='scale(1.04)';});
       el.addEventListener('mouseleave',()=>{el.style.opacity='.32';el.style.transform='scale(1)';});
     }
+  });
+
+  // Favoris
+  document.querySelectorAll('.coll-fav-btn').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{
+      e.stopPropagation();
+      const id = String(btn.dataset.cardid);
+      const favs = new Set(state.collFavorites);
+      if(favs.has(id)) favs.delete(id); else favs.add(id);
+      try{ localStorage.setItem('coll_favorites', JSON.stringify([...favs])); }catch(ex){}
+      setState({collFavorites: favs});
+    });
   });
 
   // Card modal close
