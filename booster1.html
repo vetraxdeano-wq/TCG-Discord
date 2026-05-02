@@ -1874,6 +1874,8 @@ window._boosterQty = 1; // 1 par défaut, 10 si le ticket le précise
 window._boosterPrepaid = false;     // true si la déduction a été faite côté index
 window._boosterPrepaidAmount = 0;
 window._boosterPrepaidCoinsAfter = null;
+window._boosterQuestBonus = 0;          // total des coins gagnés via quêtes pendant l'ouverture
+window._boosterQuestLabels = [];        // [{label, coins, type}]
 
 function _consumeBoosterTicket() {
   try {
@@ -1888,6 +1890,8 @@ function _consumeBoosterTicket() {
         window._boosterPrepaid = true;
         window._boosterPrepaidAmount = t.paidAmount || 1500;
         window._boosterPrepaidCoinsAfter = (typeof t.coinsAfter === 'number') ? t.coinsAfter : null;
+        window._boosterQuestBonus = t.questBonus || 0;
+        window._boosterQuestLabels = Array.isArray(t.questLabels) ? t.questLabels : [];
       }
     }
     return ok;
