@@ -4902,26 +4902,16 @@ function runX10Animation(packs, allCards) {
   `;
   document.body.appendChild(root);
 
-  // Compteur "Pack X/10" en haut
-  const counter = document.createElement('div');
-  counter.id = 'x10-counter';
-  counter.style.cssText = `
-    position:absolute;top:24px;right:28px;
-    font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.25em;
-    color:var(--gold-main);opacity:0;transition:opacity .3s;
-    text-shadow:0 0 12px var(--gold-main);
-  `;
-  counter.textContent = 'PACK 0 / 10';
-  root.appendChild(counter);
-
-  // Titre/sous-titre
+  // Titre principal centré en haut
   const title = document.createElement('div');
   title.style.cssText = `
-    position:absolute;top:24px;left:28px;
-    font-family:'Cinzel Decorative',serif;font-size:.85rem;letter-spacing:.2em;
-    color:var(--cream);text-shadow:0 0 18px var(--gold-deep);
+    position:absolute;top:18px;left:50%;transform:translateX(-50%);
+    text-align:center;
   `;
-  title.textContent = 'OUVERTURE × 10';
+  title.innerHTML = `
+    <div style="font-family:'Cinzel Decorative',serif;font-size:.95rem;letter-spacing:.3em;color:var(--gold-bright);text-shadow:0 0 18px var(--gold-deep);">OUVERTURE × 10</div>
+    <div style="font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.2em;color:var(--text-muted);margin-top:3px;">10 boosters · 50 cartes</div>
+  `;
   root.appendChild(title);
 
   // ── PHASE A : 10 boosters en éventail ──
@@ -4967,15 +4957,13 @@ function runX10Animation(packs, allCards) {
   // Petit son d'ambiance pendant le fan-out
   setTimeout(() => { try { sndBoosterShake && sndBoosterShake(); } catch(e){} }, 200);
 
-  // ── PHASE B : déchirures en cascade après le fan-out ──
+  // ── On saute la phase déchirure : on laisse les boosters visibles un instant
+  //    puis on enchaîne directement sur le reveal des cartes ──
   const fanInDur = 80 + 9 * 55 + 550; // dernier pack apparu
   setTimeout(() => {
-    counter.style.opacity = '1';
-    runX10TearCascade(packs, packEls, root, counter, () => {
-      // Callback quand toutes les déchirures sont finies
-      runX10CardReveal(allCards, root);
-    });
-  }, fanInDur + 280);
+    // Le compteur "PACK X/10" n'est plus utilisé (pas de cascade de déchirures)
+    runX10CardReveal(allCards, root);
+  }, fanInDur + 600); // 600ms de pose pour qu'on voie bien les boosters côte à côte
 }
 
 // ─── PHASE B : déchirure en cascade ─────────────────────────────────────
@@ -5044,11 +5032,26 @@ function runX10TearCascade(packs, packEls, root, counter, onComplete) {
   });
 }
 
-// ─── PHASE C + D : pluie de cartes face cachée → flip cascade ──────────
+// ─── PHASE C + D : pluie de cartes face cachée → flip cascade (groupées par pack) ──
 function runX10CardReveal(allCards, root) {
   const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
   const RC = {COMMUNE:'#9ca3af','PEU COMMMUNE':'#7ec8e3',RARE:'#b890f8',MYTHIQUE:'#f0c060'};
-  const RC2 = {COMMUNE:'#d1d5db','PEU COMMMUNE':'#93c5fd',RARE:'#d4b8ff',MYTHIQUE:'#fde68a'};
+
+  // Snapshot des cartes possédées AVANT cette ouverture (pour détecter les nouvelles)
+  // _ownedMap a été chargé au démarrage, mais on prend une copie pour ne pas être
+  // affecté par la sauvegarde qui se fait pendant l'animation.
+  const ownedBefore = Object.assign({}, window._ownedMap || {});
+  // Marquer chaque carte avec un flag _isNew (true si pas dans ownedBefore)
+  // Attention : si plusieurs exemplaires de la même carte tombent dans le booster,
+  // seule la première est "nouvelle"
+  const seenInBooster = {};
+  allCards.forEach(card => {
+    const cardId = card.dbId;
+    const wasOwned = !!ownedBefore[cardId];
+    const alreadySeenInThisBooster = !!seenInBooster[cardId];
+    card._isNew = !wasOwned && !alreadySeenInThisBooster;
+    if (card._isNew) seenInBooster[cardId] = true;
+  });
 
   // Nettoyer les anciens packs (fade out rapide)
   const fan = document.getElementById('x10-fan');
@@ -5059,194 +5062,345 @@ function runX10CardReveal(allCards, root) {
   }
 
   const isMobile = window.innerWidth < 700;
-  // Grille 5×10 (5 colonnes, 10 lignes) sur mobile, 10×5 (10 col, 5 lignes) sur desktop
-  const cols = isMobile ? 5 : 10;
-  const rows = isMobile ? 10 : 5;
-  const gap = isMobile ? 6 : 10;
-  const padding = isMobile ? 12 : 24;
+  const cardsPerPack = 5;
+  const packCount = 10;
+  const cardGap = isMobile ? 5 : 8;
+  const packGap = isMobile ? 14 : 18;
+  const padX = isMobile ? 10 : 24;
+  const headerH = isMobile ? 20 : 24; // hauteur du header de pack
 
-  // Calculer la taille de carte qui rentre dans le viewport (en gardant ratio 1:1.4)
-  const availW = window.innerWidth - padding * 2;
-  const availH = window.innerHeight - padding * 2 - 90; // -90 pour le bandeau bas
-  const maxCardW1 = (availW - gap * (cols - 1)) / cols;
-  const maxCardH1 = (availH - gap * (rows - 1)) / rows;
-  const cardW = Math.min(maxCardW1, maxCardH1 / 1.4);
+  // Calculer la taille de carte qui rentre dans la largeur (5 cartes par ligne)
+  const availW = window.innerWidth - padX * 2;
+  // Taille raisonnable selon largeur
+  const cardW = Math.min(
+    (availW - cardGap * (cardsPerPack - 1)) / cardsPerPack,
+    isMobile ? 70 : 100
+  );
   const cardH = cardW * 1.4;
 
-  // Conteneur grille
-  const grid = document.createElement('div');
-  grid.id = 'x10-grid';
-  grid.style.cssText = `
-    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-    display:grid;grid-template-columns:repeat(${cols},${cardW}px);
-    grid-auto-rows:${cardH}px;gap:${gap}px;
-    perspective:1400px;pointer-events:none;
+  // Conteneur principal scrollable
+  const scroller = document.createElement('div');
+  scroller.id = 'x10-scroller';
+  scroller.style.cssText = `
+    position:absolute;top:60px;bottom:120px;left:0;right:0;
+    overflow-y:auto;overflow-x:hidden;
+    padding:6px ${padX}px 12px;
+    pointer-events:auto;
+    perspective:1400px;
+    scroll-behavior:smooth;
   `;
-  root.appendChild(grid);
+  // Style scrollbar discret
+  scroller.style.scrollbarWidth = 'thin';
+  root.appendChild(scroller);
 
-  // Centre approximatif du viewport (départ "explosion")
+  // Stack vertical des 10 packs
+  const stack = document.createElement('div');
+  stack.id = 'x10-stack';
+  stack.style.cssText = `
+    display:flex;flex-direction:column;gap:${packGap}px;
+    align-items:center;width:100%;
+  `;
+  scroller.appendChild(stack);
+
+  // Centre du viewport (départ de la pluie)
   const centerX = window.innerWidth / 2;
   const centerY = window.innerHeight / 2;
 
-  const cardEls = [];
-  allCards.forEach((card, i) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'x10-card-wrap';
-    wrap.style.cssText = `
-      position:relative;width:${cardW}px;height:${cardH}px;
-      transform-style:preserve-3d;
-      will-change:transform,opacity;
-      opacity:0;
+  const allCardEls = []; // { wrap, inner, card, packIdx, idxInPack, globalIdx }
+  const packBlocks = []; // pour positionner les éléments
+
+  for (let p = 0; p < packCount; p++) {
+    const packCards = allCards.slice(p * cardsPerPack, (p + 1) * cardsPerPack);
+    const bestR = packCards.reduce((b, c) => RO[c.rarity] > RO[b] ? c.rarity : b, 'COMMUNE');
+    const accentColor = RC[bestR];
+
+    // Bloc d'un pack
+    const block = document.createElement('div');
+    block.className = 'x10-pack-block';
+    block.style.cssText = `
+      display:flex;flex-direction:column;gap:6px;align-items:center;width:100%;
+      opacity:0;transition:opacity .3s ease;
     `;
 
-    // Face cachée (back) + face avant (front)
-    const inner = document.createElement('div');
-    inner.className = 'x10-card-inner';
-    inner.style.cssText = `
-      position:absolute;inset:0;transform-style:preserve-3d;
-      transition:transform .55s cubic-bezier(.4,0,.2,1);
+    // Header "PACK X" — discret, juste un séparateur stylé
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display:flex;align-items:center;gap:8px;width:100%;max-width:${cardW * cardsPerPack + cardGap * (cardsPerPack-1) + 20}px;
+      height:${headerH}px;
     `;
-
-    const back = document.createElement('div');
-    back.style.cssText = `
-      position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
-      background:#0a0805;border:1px solid var(--gold-deep);overflow:hidden;
+    header.innerHTML = `
+      <div style="flex:1;height:1px;background:linear-gradient(90deg,transparent,${accentColor}60);"></div>
+      <div style="font-family:'Cinzel',serif;font-size:${isMobile?'9px':'10px'};letter-spacing:.25em;color:${accentColor};text-shadow:0 0 8px ${accentColor}60;white-space:nowrap;">PACK ${p+1}</div>
+      <div style="flex:1;height:1px;background:linear-gradient(-90deg,transparent,${accentColor}60);"></div>
     `;
-    back.innerHTML = `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" draggable="false"/>`;
+    block.appendChild(header);
 
-    const front = document.createElement('div');
-    const rColor = RC[card.rarity] || '#9ca3af';
-    front.style.cssText = `
-      position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
-      transform:rotateY(180deg);
-      background:#0a0805;border:1.5px solid ${rColor};overflow:hidden;
-      box-shadow:0 0 ${card.rarity==='MYTHIQUE'?'24px':card.rarity==='RARE'?'14px':'6px'} ${rColor}${card.rarity==='MYTHIQUE'?'b0':card.rarity==='RARE'?'80':'40'};
-    `;
+    // Ligne des 5 cartes du pack
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex;gap:${cardGap}px;justify-content:center;`;
+    block.appendChild(row);
 
-    // Image de la carte si dispo, sinon placeholder texte
-    const imgUrl = card.image_url || '';
-    front.innerHTML = `
-      ${imgUrl ? `<img src="${imgUrl}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" draggable="false"/>` : `
-        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;text-align:center;background:linear-gradient(160deg,#161210,#0a0805);">
-          <div style="font-family:'Cinzel',serif;font-size:9px;color:${rColor};letter-spacing:.1em;line-height:1.2;">${(card.name||'').slice(0,20)}</div>
+    packCards.forEach((card, idxInPack) => {
+      const globalIdx = p * cardsPerPack + idxInPack;
+      const wrap = document.createElement('div');
+      wrap.className = 'x10-card-wrap';
+      wrap.style.cssText = `
+        position:relative;width:${cardW}px;height:${cardH}px;
+        transform-style:preserve-3d;will-change:transform,opacity;
+        opacity:0;
+      `;
+
+      const inner = document.createElement('div');
+      inner.className = 'x10-card-inner';
+      inner.style.cssText = `
+        position:absolute;inset:0;transform-style:preserve-3d;
+        transition:transform .55s cubic-bezier(.4,0,.2,1);
+      `;
+
+      const back = document.createElement('div');
+      back.style.cssText = `
+        position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+        background:#0a0805;border:1px solid var(--gold-deep);overflow:hidden;
+      `;
+      back.innerHTML = `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" draggable="false"/>`;
+
+      const front = document.createElement('div');
+      const rColor = RC[card.rarity] || '#9ca3af';
+      front.style.cssText = `
+        position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+        transform:rotateY(180deg);
+        background:#0a0805;border:1.5px solid ${rColor};overflow:hidden;
+        box-shadow:0 0 ${card.rarity==='MYTHIQUE'?'24px':card.rarity==='RARE'?'14px':'6px'} ${rColor}${card.rarity==='MYTHIQUE'?'b0':card.rarity==='RARE'?'80':'40'};
+      `;
+      const imgUrl = card.image_url || '';
+      front.innerHTML = `
+        ${imgUrl ? `<img src="${imgUrl}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" draggable="false"/>` : `
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;text-align:center;background:linear-gradient(160deg,#161210,#0a0805);">
+            <div style="font-family:'Cinzel',serif;font-size:9px;color:${rColor};letter-spacing:.1em;line-height:1.2;">${(card.name||'').slice(0,20)}</div>
+          </div>
+        `}
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:2px 4px;background:linear-gradient(0deg,${rColor}cc,transparent);">
+          <div style="font-family:'Cinzel',serif;font-size:${cardW < 60 ? '6' : '7'}px;color:#fff;letter-spacing:.1em;text-shadow:0 1px 2px #000;text-align:center;">${RS[card.rarity]||''}</div>
         </div>
-      `}
-      <div style="position:absolute;bottom:0;left:0;right:0;padding:2px 4px;background:linear-gradient(0deg,${rColor}cc,transparent);">
-        <div style="font-family:'Cinzel',serif;font-size:${cardW < 60 ? '6' : '7'}px;color:#fff;letter-spacing:.1em;text-shadow:0 1px 2px #000;text-align:center;">${RS[card.rarity]||''}</div>
-      </div>
-    `;
+        ${card._isNew ? `
+          <div class="x10-new-badge" style="
+            position:absolute;top:4px;left:4px;
+            background:linear-gradient(135deg,#22c55e,#16a34a);
+            color:#fff;font-family:'Bebas Neue',sans-serif;
+            font-size:${cardW < 60 ? '7px' : '8px'};letter-spacing:.12em;
+            padding:1.5px 5px;border-radius:2px;
+            box-shadow:0 0 8px rgba(34,197,94,.6);
+            opacity:0;transform:scale(.5);
+            transition:opacity .3s ease,transform .3s cubic-bezier(.34,1.56,.64,1);
+            pointer-events:none;z-index:2;
+          ">NOUVELLE</div>
+        ` : ''}
+      `;
 
-    inner.appendChild(back);
-    inner.appendChild(front);
-    wrap.appendChild(inner);
-    grid.appendChild(wrap);
+      inner.appendChild(back);
+      inner.appendChild(front);
+      wrap.appendChild(inner);
+      row.appendChild(wrap);
 
-    cardEls.push({ wrap, inner, card });
-  });
+      allCardEls.push({ wrap, inner, card, packIdx: p, idxInPack, globalIdx });
+    });
+
+    stack.appendChild(block);
+    packBlocks.push(block);
+  }
 
   // ── PHASE C : pluie depuis le centre ──
-  // Position de chaque cellule par rapport au centre du grid
+  // Le wrap commence positionné au centre de l'écran (translate vers center) à scale .2
+  // puis revient à sa position naturelle (translate 0) avec un délai par carte
   requestAnimationFrame(() => {
-    const gridRect = grid.getBoundingClientRect();
-    cardEls.forEach((c, i) => {
+    // Rendre tous les blocs visibles d'un coup (les cartes sont opacity:0 individuellement)
+    packBlocks.forEach(b => { b.style.opacity = '1'; });
+
+    allCardEls.forEach((c) => {
       const r = c.wrap.getBoundingClientRect();
       const dx = (centerX - (r.left + r.width/2));
       const dy = (centerY - (r.top + r.height/2));
-      // Position initiale : décalée vers le centre + scale 0
       c.wrap.style.transform = `translate(${dx}px, ${dy}px) scale(.2) rotate(${(Math.random()*60-30)|0}deg)`;
-      // Animation : retour à sa place
-      const delay = 30 + i * 18;
+    });
+
+    // Animer pack par pack pour renforcer le sentiment "voici ce qu'il y avait dans chaque booster"
+    const PACK_DELAY  = 220; // délai entre 2 packs
+    const CARD_DELAY  = 35;  // délai entre 2 cartes d'un même pack
+
+    allCardEls.forEach((c) => {
+      const delay = c.packIdx * PACK_DELAY + c.idxInPack * CARD_DELAY;
       setTimeout(() => {
-        c.wrap.style.transition = 'transform .55s cubic-bezier(.22,.68,0,1.25), opacity .25s ease';
+        c.wrap.style.transition = 'transform .5s cubic-bezier(.22,.68,0,1.25), opacity .25s ease';
         c.wrap.style.opacity = '1';
         c.wrap.style.transform = 'translate(0,0) scale(1) rotate(0deg)';
       }, delay);
     });
 
-    // ── PHASE D : flip cascade après que toutes les cartes sont en place ──
-    const lastDelay = 30 + (cardEls.length - 1) * 18 + 600;
+    // ── PHASE D : flip cascade (pack par pack) ──
+    const lastDropDelay = (packCount - 1) * PACK_DELAY + (cardsPerPack - 1) * CARD_DELAY + 550;
     setTimeout(() => {
-      runX10FlipCascade(cardEls, root, () => {
-        // Callback final : afficher le récap + sauvegarder
+      runX10FlipCascadePackByPack(allCardEls, root, scroller, () => {
         runX10Recap(allCards, root);
       });
-    }, lastDelay);
+    }, lastDropDelay);
   });
 }
 
-// Flip en cascade : cartes se retournent l'une après l'autre
-function runX10FlipCascade(cardEls, root, onComplete) {
+// Flip pack par pack — chaque pack se révèle d'un coup, puis le suivant
+function runX10FlipCascadePackByPack(allCardEls, root, scroller, onComplete) {
   const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
-  const FLIP_INTERVAL = 42;
+  const PACK_INTERVAL = 280; // entre 2 packs (plus lent que le drop pour qu'on voie chaque pack)
+  const CARD_INTERVAL = 50;  // entre 2 cartes d'un même pack
   let mythicSeen = false;
 
-  cardEls.forEach((c, i) => {
-    const isRarePlus = RO[c.card.rarity] >= 2;
-    const isMythic = c.card.rarity === 'MYTHIQUE';
-    setTimeout(() => {
-      c.inner.style.transform = 'rotateY(180deg)';
-      // Petit pop sur les rares+
-      if (isRarePlus) {
-        c.wrap.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
-        c.wrap.style.transform = 'scale(1.08)';
-        setTimeout(() => { c.wrap.style.transform = 'scale(1)'; }, 300);
-        try { haptic && haptic(isMythic ? [0,40,20,30] : [0,20]); } catch(e){}
-      }
-      // Flash plein écran sur le 1er mythique
-      if (isMythic && !mythicSeen) {
-        mythicSeen = true;
-        const flash = document.createElement('div');
-        flash.style.cssText = `
-          position:absolute;inset:0;background:radial-gradient(ellipse at center,#fde68a40 0%,transparent 70%);
-          opacity:0;animation:x10MythicFlash .9s ease-out forwards;pointer-events:none;mix-blend-mode:screen;
-        `;
-        root.appendChild(flash);
-        setTimeout(() => flash.remove(), 1000);
-      }
-    }, i * FLIP_INTERVAL);
+  // Grouper par pack
+  const byPack = {};
+  allCardEls.forEach(c => {
+    if (!byPack[c.packIdx]) byPack[c.packIdx] = [];
+    byPack[c.packIdx].push(c);
   });
 
-  // Quand toutes les cartes sont retournées
-  setTimeout(() => {
-    onComplete();
-  }, cardEls.length * FLIP_INTERVAL + 600);
+  Object.keys(byPack).map(Number).sort((a,b)=>a-b).forEach(packIdx => {
+    const cards = byPack[packIdx];
+    const packBaseDelay = packIdx * (cards.length * CARD_INTERVAL + PACK_INTERVAL);
+
+    cards.forEach((c, j) => {
+      const delay = packBaseDelay + j * CARD_INTERVAL;
+      const isRarePlus = RO[c.card.rarity] >= 2;
+      const isMythic = c.card.rarity === 'MYTHIQUE';
+
+      setTimeout(() => {
+        // Auto-scroll vers le pack en cours pour qu'il soit visible
+        if (j === 0 && scroller) {
+          const firstWrap = c.wrap;
+          try {
+            const block = firstWrap.closest('.x10-pack-block');
+            if (block) {
+              const blockRect = block.getBoundingClientRect();
+              const scrollerRect = scroller.getBoundingClientRect();
+              // Si le block n'est pas (entièrement) visible, scroll pour le centrer
+              if (blockRect.bottom > scrollerRect.bottom - 40 || blockRect.top < scrollerRect.top + 40) {
+                const target = scroller.scrollTop + (blockRect.top - scrollerRect.top) - 20;
+                scroller.scrollTo({ top: target, behavior: 'smooth' });
+              }
+            }
+          } catch(e) {}
+        }
+
+        c.inner.style.transform = 'rotateY(180deg)';
+
+        // Pop sur les rares+
+        if (isRarePlus) {
+          c.wrap.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
+          c.wrap.style.transform = 'scale(1.08)';
+          setTimeout(() => { c.wrap.style.transform = 'scale(1)'; }, 300);
+          try { haptic && haptic(isMythic ? [0,40,20,30] : [0,20]); } catch(e){}
+        }
+
+        // Badge "NOUVELLE" : faire pop le badge un peu après le flip
+        if (c.card._isNew) {
+          setTimeout(() => {
+            const badge = c.wrap.querySelector('.x10-new-badge');
+            if (badge) {
+              badge.style.opacity = '1';
+              badge.style.transform = 'scale(1)';
+            }
+          }, 280);
+        }
+
+        // Flash plein écran sur le 1er mythique
+        if (isMythic && !mythicSeen) {
+          mythicSeen = true;
+          const flash = document.createElement('div');
+          flash.style.cssText = `
+            position:absolute;inset:0;background:radial-gradient(ellipse at center,#fde68a40 0%,transparent 70%);
+            opacity:0;animation:x10MythicFlash .9s ease-out forwards;pointer-events:none;mix-blend-mode:screen;z-index:5;
+          `;
+          root.appendChild(flash);
+          setTimeout(() => flash.remove(), 1000);
+        }
+      }, delay);
+    });
+  });
+
+  // Total
+  const totalDuration = (10 - 1) * (5 * CARD_INTERVAL + PACK_INTERVAL) + 5 * CARD_INTERVAL + 600;
+  setTimeout(onComplete, totalDuration);
 }
 
 // ─── PHASE E : Récap final + sauvegarde Supabase ────────────────────────
 function runX10Recap(allCards, root) {
-  // Compter par rareté
+  // Compter par rareté + nouvelles
   const counts = { COMMUNE:0, 'PEU COMMMUNE':0, RARE:0, MYTHIQUE:0 };
-  allCards.forEach(c => { counts[c.rarity] = (counts[c.rarity]||0) + 1; });
+  const newCounts = { COMMUNE:0, 'PEU COMMMUNE':0, RARE:0, MYTHIQUE:0 };
+  let totalNew = 0;
+  allCards.forEach(c => {
+    counts[c.rarity] = (counts[c.rarity]||0) + 1;
+    if (c._isNew) {
+      newCounts[c.rarity] = (newCounts[c.rarity]||0) + 1;
+      totalNew++;
+    }
+  });
 
   // Bandeau récap en bas
   const recap = document.createElement('div');
   recap.id = 'x10-recap';
   recap.style.cssText = `
-    position:absolute;bottom:0;left:0;right:0;padding:14px 18px 18px;
-    background:linear-gradient(0deg,rgba(5,4,4,.96),rgba(5,4,4,.85) 60%,transparent);
+    position:absolute;bottom:0;left:0;right:0;padding:12px 18px 16px;
+    background:linear-gradient(0deg,rgba(5,4,4,.97),rgba(5,4,4,.88) 70%,transparent);
     display:flex;flex-direction:column;align-items:center;gap:10px;
     opacity:0;transform:translateY(20px);transition:opacity .5s ease, transform .5s ease;
     pointer-events:auto;z-index:10;
   `;
 
   const RC = {COMMUNE:'#9ca3af','PEU COMMMUNE':'#7ec8e3',RARE:'#b890f8',MYTHIQUE:'#f0c060'};
-  const labels = {COMMUNE:'COMMUNES','PEU COMMMUNE':'PEU COMMUNES',RARE:'RARES',MYTHIQUE:'MYTHIQUES'};
+  const labels = {COMMUNE:'Communes','PEU COMMMUNE':'Peu communes',RARE:'Rares',MYTHIQUE:'Mythiques'};
+  const isMobile = window.innerWidth < 700;
 
-  const stats = ['COMMUNE','PEU COMMMUNE','RARE','MYTHIQUE'].filter(r => counts[r] > 0).map(r => `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 12px;">
-      <div style="font-family:'Cinzel',serif;font-size:1.4rem;font-weight:900;color:${RC[r]};text-shadow:0 0 14px ${RC[r]}80;">${counts[r]}</div>
-      <div style="font-size:.55rem;letter-spacing:.18em;color:var(--text-muted);">${labels[r]}</div>
-    </div>
-  `).join('<div style="width:1px;align-self:stretch;background:var(--noir-border);"></div>');
+  // Construire chaque "stat box" : nombre + label + (X nouvelle/s)
+  const statsHtml = ['COMMUNE','PEU COMMMUNE','RARE','MYTHIQUE'].filter(r => counts[r] > 0).map(r => {
+    const n = counts[r];
+    const newN = newCounts[r];
+    const newPlural = newN > 1 ? 's' : '';
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 ${isMobile?'8px':'14px'};min-width:${isMobile?'58px':'78px'};">
+        <div style="display:flex;align-items:baseline;gap:4px;">
+          <div style="font-family:'Cinzel',serif;font-size:${isMobile?'1.3rem':'1.55rem'};font-weight:900;color:${RC[r]};text-shadow:0 0 14px ${RC[r]}80;line-height:1;">${n}</div>
+        </div>
+        <div style="font-size:${isMobile?'.5rem':'.55rem'};letter-spacing:.18em;color:var(--text-muted);text-transform:uppercase;text-align:center;">${labels[r]}</div>
+        ${newN > 0 ? `
+          <div style="
+            font-family:'Bebas Neue',sans-serif;
+            font-size:${isMobile?'.55rem':'.6rem'};letter-spacing:.1em;
+            color:#22c55e;background:rgba(34,197,94,.12);
+            border:1px solid rgba(34,197,94,.35);
+            padding:1px 6px;margin-top:1px;
+            text-shadow:0 0 6px rgba(34,197,94,.4);
+            white-space:nowrap;
+          ">+${newN} nouvelle${newPlural}</div>
+        ` : `
+          <div style="font-size:${isMobile?'.5rem':'.55rem'};color:rgba(255,255,255,.18);margin-top:1px;letter-spacing:.05em;">—</div>
+        `}
+      </div>
+    `;
+  }).join(`<div style="width:1px;align-self:stretch;background:var(--noir-border);margin:6px 0;"></div>`);
+
+  // Sous-titre adaptatif selon les nouvelles
+  const newSummary = totalNew > 0
+    ? `<span style="color:#22c55e;font-weight:700;">${totalNew} nouvelle${totalNew>1?'s':''}</span> ajoutée${totalNew>1?'s':''} à ta collection`
+    : `Aucune nouvelle carte cette fois`;
 
   recap.innerHTML = `
-    <div style="font-family:'Cinzel Decorative',serif;font-size:.75rem;letter-spacing:.25em;color:var(--gold-bright);text-shadow:0 0 12px var(--gold-deep);">50 CARTES OBTENUES</div>
-    <div style="display:flex;align-items:center;gap:0;">${stats}</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <div style="font-family:'Cinzel Decorative',serif;font-size:${isMobile?'.7rem':'.8rem'};letter-spacing:.25em;color:var(--gold-bright);text-shadow:0 0 12px var(--gold-deep);">50 CARTES OBTENUES</div>
+      <div style="font-size:${isMobile?'.55rem':'.6rem'};color:var(--text-muted);letter-spacing:.1em;font-style:italic;">${newSummary}</div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:0;flex-wrap:wrap;justify-content:center;">${statsHtml}</div>
     <button id="x10-continue" style="
-      margin-top:6px;padding:10px 32px;border-radius:2px;
+      margin-top:4px;padding:${isMobile?'9px 28px':'10px 36px'};border-radius:2px;
       background:var(--gold-subtle);color:var(--gold-main);
       border:1px solid var(--gold-deep);
-      font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.3em;
+      font-family:'Bebas Neue',sans-serif;font-size:${isMobile?'.78rem':'.85rem'};letter-spacing:.3em;
       cursor:pointer;transition:all .2s;
       box-shadow:0 0 24px rgba(200,149,58,.25);
     ">CONTINUER →</button>
