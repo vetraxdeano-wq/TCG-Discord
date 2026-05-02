@@ -2732,6 +2732,9 @@ function renderTabCollection(th){
       return false;
     })
     .sort((a,b)=>{
+      const aFav=a.owned&&state.collFavorites.has(String(a.id))?1:0;
+      const bFav=b.owned&&state.collFavorites.has(String(b.id))?1:0;
+      if(bFav!==aFav) return bFav-aFav;
       const dir=state.collSortDir==="desc"?-1:1;
       if(state.collSortBy==="id") return dir*a.id.localeCompare(b.id,undefined,{numeric:true});
       if(state.collSortBy==="alpha") return dir*(a.name||"").localeCompare(b.name||"","fr",{sensitivity:"base"});
@@ -5333,7 +5336,17 @@ function bindGame(){
       const favs = new Set(state.collFavorites);
       if(favs.has(id)) favs.delete(id); else favs.add(id);
       try{ localStorage.setItem('coll_favorites', JSON.stringify([...favs])); }catch(ex){}
+      // Capturer le scroll avant le re-render pour le restaurer après
+      const scrollEl = document.getElementById('coll-grid-scroll');
+      const savedScroll = scrollEl ? scrollEl.scrollTop : 0;
       setState({collFavorites: favs});
+      // Restaurer le scroll après le re-render (double rAF pour attendre le paint)
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          const s = document.getElementById('coll-grid-scroll');
+          if(s) s.scrollTop = savedScroll;
+        });
+      });
     });
   });
 
