@@ -7744,6 +7744,42 @@ function showXpLevelUpToast(newLevel, reward) {
   });
 })();
 
+// ─── INVALIDATION DU CACHE BOOSTER AU RETOUR ───────────────────────
+// Quand on revient sur l'index depuis booster2.html/booster3.html (notamment
+// via le bfcache du navigateur), il faut RELIRE les compteurs Supabase pour
+// éviter d'afficher un compteur périmé. Sans ça : ouvrir Booster Prestige →
+// "Nouveau Booster" → revenir : l'index affiche encore "Reste 1" alors que
+// la DB est à 2 (limite atteinte).
+async function _refreshBoosterCacheFromDb() {
+  try {
+    const uid = state?.currentUser?.id;
+    if (!uid || !window.db) return;
+    _boosterCache = null; // invalidation
+    await _loadBoosterCache(uid); // relit depuis Supabase
+    // Idem pour la pioche (autre limite quotidienne stockée côté serveur)
+    if (typeof canPiocheToday === 'function') { try { await canPiocheToday(uid); } catch(e){} }
+    // Et les coins (peuvent avoir été déduits dans la page booster)
+    if (typeof refreshCoins === 'function') { try { await refreshCoins(uid); } catch(e){} }
+    setState({}); // re-render des compteurs UI
+  } catch (e) { console.error('[refreshBoosterCache] error', e); }
+}
+
+// Au retour via pageshow (back/forward cache OU navigation classique)
+window.addEventListener('pageshow', (e) => {
+  // e.persisted=true → restauration depuis bfcache (cas critique : tout l'état JS
+  // est gelé, il faut relire la DB).
+  if (e.persisted) _refreshBoosterCacheFromDb();
+});
+
+// Au retour via visibilitychange (tab redevenu visible — couvre les cas où
+// l'onglet était caché pendant l'ouverture d'un booster dans un autre onglet,
+// et aussi un retour depuis un autre booster sur mobile).
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    _refreshBoosterCacheFromDb();
+  }
+});
+
 async function loadPlayerXp(userId) {
   const db = window.db;
   if (!db || !userId) return;
