@@ -1016,6 +1016,7 @@ let state = {
   marketStandNote: '',
   marketOfferSearch: '',
   marketWantSearch: '',
+  marketEditTab: 'offer',
   decks: [],           // [{id, name, is_default, cards:[{card_id, quantity}]}]
   activeDeckId: null,  // deck en cours d'édition
   deckBuilderView: 'list', // 'list' | 'edit'
@@ -10917,7 +10918,11 @@ function renderMarket(th){
     </div>`;
   };
 
+  const editTab = state.marketEditTab || 'offer';
   return `<div style="position:fixed;inset:0;z-index:300;background:${th.bg};display:flex;flex-direction:column;overflow:hidden;">
+    <style>
+      @media (min-width:600px) { .mkt-tab-bar { display:none !important; } .mkt-edit-panel { display:flex !important; } }
+    </style>
     <!-- Header edit -->
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
       <button onclick="(function(){_mktOfferQ='';_mktWantQ='';setState({marketView:'list',marketOfferSearch:'',marketWantSearch:'',marketSelectedStand:null});})()" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">✕</button>
@@ -10927,6 +10932,11 @@ function renderMarket(th){
       </div>
       ${myStand?`<button onclick="deleteMarketStand()" style="padding:6px 10px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.35);font-size:9px;font-weight:800;cursor:pointer;">🗑</button>`:''}
       <button onclick="saveMarketStand()" style="padding:8px 18px;background:#fbbf24;color:#000;border:none;font-size:11px;font-weight:900;cursor:pointer;">💾 SAVE</button>
+    </div>
+    <!-- Tabs mobile uniquement — masqués sur >= 600px via CSS -->
+    <div class="mkt-tab-bar" style="display:flex;flex-shrink:0;border-bottom:2px solid #000;">
+      <button onclick="setState({marketEditTab:'offer'})" style="flex:1;padding:10px 6px;font-size:11px;font-weight:900;border:none;cursor:pointer;letter-spacing:.4px;background:${editTab==='offer'?'rgba(34,197,94,.18)':'rgba(0,0,0,.3)'};color:${editTab==='offer'?'#22c55e':'#6b7280'};border-bottom:3px solid ${editTab==='offer'?'#22c55e':'transparent'};transition:all .15s;">🟢 JE PROPOSE (${offerIds.length})</button>
+      <button onclick="setState({marketEditTab:'want'})" style="flex:1;padding:10px 6px;font-size:11px;font-weight:900;border:none;cursor:pointer;letter-spacing:.4px;background:${editTab==='want'?'rgba(239,68,68,.18)':'rgba(0,0,0,.3)'};color:${editTab==='want'?'#ef4444':'#6b7280'};border-bottom:3px solid ${editTab==='want'?'#ef4444':'transparent'};transition:all .15s;">🔴 JE RECHERCHE (${wantIds.length})</button>
     </div>
     <!-- Corps plein écran 2 colonnes — pas de scroll sur le wrapper -->
     <div style="flex-shrink:0;padding:8px 12px 0;">
@@ -10939,7 +10949,7 @@ function renderMarket(th){
     <div style="flex:1;min-height:0;padding:8px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;overflow:hidden;">
       ${notLoaded?`<div style="grid-column:1/-1;text-align:center;padding:30px;color:#f59e0b;font-size:12px;">⏳ Chargement…</div>`:''}
       <!-- ── JE PROPOSE ── -->
-      <div style="background:${th.bgSecondary};border:2px solid #000;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+      <div class="mkt-edit-panel" style="background:${th.bgSecondary};border:2px solid #000;flex-direction:column;min-height:0;overflow:hidden;display:${editTab==='offer'?'flex':'none'};">
         <div style="height:3px;background:linear-gradient(90deg,#22c55e,#16a34a);flex-shrink:0;"></div>
         <div style="padding:9px 11px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden;">
           <div style="font-size:11px;font-weight:900;color:#22c55e;flex-shrink:0;">🟢 JE PROPOSE <span id="mkt-offer-count" style="font-weight:500;color:${th.textMuted};">(${offerIds.length})</span></div>
@@ -10970,7 +10980,7 @@ function renderMarket(th){
         </div>
       </div>
       <!-- ── JE RECHERCHE ── -->
-      <div style="background:${th.bgSecondary};border:2px solid #000;display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+      <div class="mkt-edit-panel" style="background:${th.bgSecondary};border:2px solid #000;flex-direction:column;min-height:0;overflow:hidden;display:${editTab==='want'?'flex':'none'};">
         <div style="height:3px;background:linear-gradient(90deg,#ef4444,#dc2626);flex-shrink:0;"></div>
         <div style="padding:9px 11px;display:flex;flex-direction:column;gap:5px;flex:1;min-height:0;overflow:hidden;">
           <div style="font-size:11px;font-weight:900;color:#ef4444;flex-shrink:0;">🔴 JE RECHERCHE <span id="mkt-want-count" style="font-weight:500;color:${th.textMuted};">(${wantIds.length})</span></div>
