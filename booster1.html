@@ -1176,6 +1176,101 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
   20%{opacity:1}
   100%{opacity:0}
 }
+/* ═══ CARD ZOOM POP-UP (Récap x10 + récap normal) ═══ */
+.card-zoom-overlay{
+  position:fixed;inset:0;z-index:99999;
+  background:rgba(4,8,18,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s ease;
+  padding:20px;
+}
+.card-zoom-overlay.active{ opacity:1;pointer-events:auto; }
+.card-zoom-content{
+  position:relative;
+  max-width:min(90vw,420px);
+  width:100%;
+  max-height:90vh;
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  transform:scale(.85);
+  transition:transform .35s cubic-bezier(.34,1.5,.64,1);
+}
+.card-zoom-overlay.active .card-zoom-content{ transform:scale(1); }
+.card-zoom-img-wrap{
+  width:100%;
+  aspect-ratio:0.71/1;
+  border-radius:14px;
+  overflow:hidden;
+  border:2px solid var(--rzcolor,#9ca3af);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.6),
+    0 0 36px var(--rzcolor,#9ca3af),
+    0 20px 60px rgba(0,0,0,.85);
+  background:#0a0805;
+  position:relative;
+}
+.card-zoom-img-wrap img{
+  width:100%;height:100%;object-fit:cover;display:block;
+}
+.card-zoom-close{
+  position:absolute;
+  top:-14px;right:-14px;
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(10,7,5,.95);
+  border:2px solid var(--gold-deep);
+  color:var(--gold-bright);
+  font-family:'Cinzel',serif;font-size:18px;font-weight:700;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .18s ease;
+  box-shadow:0 4px 14px rgba(0,0,0,.6);
+  z-index:2;
+  line-height:1;
+}
+.card-zoom-close:hover{
+  background:var(--gold-main);
+  color:#0a0805;
+  transform:scale(1.08) rotate(90deg);
+}
+.card-zoom-info{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:0 10px;text-align:center;
+  width:100%;
+}
+.card-zoom-name{
+  font-family:'Cinzel',serif;
+  font-size:1.05rem;
+  font-weight:700;
+  color:var(--rzcolor,#fff);
+  text-shadow:0 0 14px var(--rzcolor,#fff), 0 2px 4px #000;
+  letter-spacing:.04em;
+  line-height:1.2;
+}
+.card-zoom-rarity{
+  font-family:'Cinzel',serif;
+  font-size:.72rem;
+  font-weight:400;
+  font-style:italic;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--rzcolor,#fff);
+  opacity:.85;
+}
+.card-zoom-stars{
+  display:flex;gap:3px;justify-content:center;line-height:1;
+}
+.card-zoom-stars span{
+  font-size:1rem;
+  color:var(--rzcolor,#fff);
+  text-shadow:0 0 8px var(--rzcolor,#fff), 1px 1px 0 #000;
+}
+/* Curseur "cliquable" sur les cartes du récap */
+.recap-card-wrap, .x10-card-wrap.x10-clickable{ cursor:zoom-in; }
+@media (max-width: 600px){
+  .card-zoom-content{ max-width:88vw; }
+  .card-zoom-close{ width:34px;height:34px;font-size:17px;top:-10px;right:-10px; }
+  .card-zoom-name{ font-size:.95rem; }
+}
 /* Debris particles from tear */
 .tear-debris{
   position:fixed;border-radius:1px;pointer-events:none;z-index:165;
@@ -1669,6 +1764,21 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 
 <div class="particle-container" id="particleContainer"></div>
 <div class="particle3d-container" id="p3dContainer"></div>
+
+<!-- ═══ POP-UP DE ZOOM CARTE (Récap x10 + récap normal) ═══ -->
+<div class="card-zoom-overlay" id="cardZoomOverlay" onclick="closeCardZoom(event)">
+  <div class="card-zoom-content" onclick="event.stopPropagation()">
+    <div class="card-zoom-img-wrap" id="cardZoomImgWrap">
+      <button class="card-zoom-close" onclick="closeCardZoom()" aria-label="Fermer">×</button>
+      <img id="cardZoomImg" src="" alt="" draggable="false"/>
+    </div>
+    <div class="card-zoom-info">
+      <div class="card-zoom-name" id="cardZoomName">—</div>
+      <div class="card-zoom-stars" id="cardZoomStars"></div>
+      <div class="card-zoom-rarity" id="cardZoomRarity">—</div>
+    </div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0"></script>
 <script>
 // ===== DATA — chargé depuis Supabase =====
@@ -4698,6 +4808,77 @@ function updateDoneBalance(){
   requestAnimationFrame(tick);
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// POP-UP DE ZOOM SUR UNE CARTE — Récap x10 et récap normal
+// ═══════════════════════════════════════════════════════════════════
+const RARITY_FR_ZOOM = {
+  'COMMUNE':'Commune','PEU COMMMUNE':'Peu Commune','RARE':'Rare','MYTHIQUE':'Mythique'
+};
+const RARITY_COL_ZOOM = {
+  'COMMUNE':'#9ca3af','PEU COMMMUNE':'#7ec8e3','RARE':'#b890f8','MYTHIQUE':'#f0c060'
+};
+const RARITY_STARS_ZOOM = {
+  'COMMUNE':1,'PEU COMMMUNE':2,'RARE':3,'MYTHIQUE':4
+};
+
+function openCardZoom(card){
+  if(!card) return;
+  const overlay = document.getElementById('cardZoomOverlay');
+  const wrap    = document.getElementById('cardZoomImgWrap');
+  const img     = document.getElementById('cardZoomImg');
+  const nameEl  = document.getElementById('cardZoomName');
+  const rarEl   = document.getElementById('cardZoomRarity');
+  const starsEl = document.getElementById('cardZoomStars');
+  if(!overlay || !wrap || !img) return;
+
+  const col = RARITY_COL_ZOOM[card.rarity] || '#9ca3af';
+  // Couleur dynamique via variable CSS
+  wrap.style.setProperty('--rzcolor', col);
+  document.querySelector('.card-zoom-content').style.setProperty('--rzcolor', col);
+
+  // Image
+  if(card.image_url){
+    img.src = card.image_url;
+    img.alt = card.name || 'Carte';
+    img.style.display = 'block';
+  } else {
+    img.removeAttribute('src');
+    img.style.display = 'none';
+  }
+
+  // Nom + rareté + étoiles
+  nameEl.textContent = card.name || '—';
+  nameEl.style.color = col;
+  nameEl.style.textShadow = `0 0 14px ${col}90, 0 2px 4px #000`;
+  rarEl.textContent = RARITY_FR_ZOOM[card.rarity] || card.rarity || '';
+  rarEl.style.color = col;
+  const starsCount = RARITY_STARS_ZOOM[card.rarity] || 1;
+  starsEl.innerHTML = Array(starsCount).fill(0)
+    .map(()=>`<span style="color:${col};text-shadow:0 0 8px ${col},1px 1px 0 #000;">★</span>`).join('');
+
+  overlay.classList.add('active');
+  // Empêcher le scroll de fond
+  document.body.style.overflow = 'hidden';
+  try { haptic && haptic([0,15]); } catch(e){}
+}
+
+function closeCardZoom(ev){
+  // Si appelée via clic sur l'overlay, vérifier qu'on a bien cliqué dessus (et pas un enfant)
+  if(ev && ev.target && ev.currentTarget && ev.target !== ev.currentTarget) return;
+  const overlay = document.getElementById('cardZoomOverlay');
+  if(!overlay) return;
+  overlay.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// Échap pour fermer
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape'){
+    const ov = document.getElementById('cardZoomOverlay');
+    if(ov && ov.classList.contains('active')) closeCardZoom();
+  }
+});
+
 function showDone(){
   stopAmbientDrone();
   stopStackAura();
@@ -5279,6 +5460,15 @@ function runX10CardReveal(allCards, root) {
     const lastDropDelay = (packCount - 1) * PACK_DELAY + (cardsPerPack - 1) * CARD_DELAY + 550;
     setTimeout(() => {
       runX10FlipCascadePackByPack(allCardEls, root, scroller, () => {
+        // Rendre les cartes cliquables pour le zoom
+        allCardEls.forEach(c => {
+          c.wrap.classList.add('x10-clickable');
+          // Empêcher la propagation pour ne pas conflicter avec les autres listeners
+          c.wrap.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            openCardZoom(c.card);
+          });
+        });
         runX10Recap(allCards, root);
       });
     }, lastDropDelay);
