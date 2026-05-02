@@ -2799,13 +2799,16 @@ function renderTabCollection(th){
         <button class="owned-filter-btn" data-val="all" style="flex:1;padding:4px 6px;font-size:9px;font-weight:700;text-align:center;border:1px solid ${state.collShowOwned==='all'?th.accent+'50':th.border};background:${state.collShowOwned==='all'?th.accent+'18':'transparent'};color:${state.collShowOwned==='all'?th.accent:th.textMuted};transition:all .15s;white-space:nowrap;">Toutes</button>
         <button class="owned-filter-btn" data-val="owned" style="flex:1;padding:4px 6px;font-size:9px;font-weight:700;text-align:center;border:1px solid ${state.collShowOwned==='owned'?th.green+'50':th.border};background:${state.collShowOwned==='owned'?th.green+'18':'transparent'};color:${state.collShowOwned==='owned'?th.green:th.textMuted};transition:all .15s;white-space:nowrap;">Possédées</button>
         <button class="owned-filter-btn" data-val="missing" style="flex:1;padding:4px 6px;font-size:9px;font-weight:700;text-align:center;border:1px solid ${state.collShowOwned==='missing'?th.red+'50':th.border};background:${state.collShowOwned==='missing'?th.red+'18':'transparent'};color:${state.collShowOwned==='missing'?th.red:th.textMuted};transition:all .15s;white-space:nowrap;">Manquantes</button>
+      </div>
+      <!-- Ligne filtre sets — juste au-dessus de la rareté -->
+      <div style="display:flex;gap:4px;align-items:center;">
         <div style="position:relative;flex-shrink:0;">
           <button id="set-filter-btn" style="display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:9px;font-weight:700;background:${state.collFilterSet!=='all'?th.accent+'18':'transparent'};color:${state.collFilterSet!=='all'?th.accent:th.textMuted};border:1px solid ${state.collFilterSet!=='all'?th.accent+'50':th.border};white-space:nowrap;transition:all .15s;">
             ${state.collFilterSet === "all" ? "Sets" : state.collFilterSet}
             <span style="display:inline-block;transform:${state.collSetOpen?'rotate(180deg)':'none'};transition:transform .2s;">${SVG.chevron}</span>
           </button>
           ${state.collSetOpen?`
-          <div id="set-dropdown" style="position:absolute;right:0;top:calc(100% + 6px);background:${th.bgSecondary};border:2px solid #000;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:50;min-width:150px;">
+          <div id="set-dropdown" style="position:absolute;left:0;top:calc(100% + 6px);background:${th.bgSecondary};border:2px solid #000;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:50;min-width:150px;">
             <button class="set-opt" data-val="all" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:11px;font-weight:700;background:${state.collFilterSet==='all'?th.accent+'18':'transparent'};color:${state.collFilterSet==='all'?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">Tous les Sets</button>
             ${[...new Set(ALL_CARDS.map(c=>c.set))].sort().map(s=>`
               <button class="set-opt" data-val="${s}" style="display:block;width:100%;text-align:left;padding:10px 14px;font-size:11px;font-weight:700;background:${state.collFilterSet===s?th.accent+'18':'transparent'};color:${state.collFilterSet===s?th.accent:th.text};border:none;border-bottom:1px solid ${th.border};">${s}</button>`).join('')}
@@ -8192,7 +8195,15 @@ async function checkLoginStreak(userId) {
 // Appelée par le système de jeu après chaque victoire
 window.onPlayerWin = async function() {
   const db = window.db;
-  const userId = state.currentUser?.id;
+  let userId = state.currentUser?.id;
+  // Si l'utilisateur n'est pas encore chargé (retour depuis page de jeu), attendre jusqu'à 5s
+  if (!userId) {
+    for (let i = 0; i < 50; i++) {
+      await new Promise(r => setTimeout(r, 100));
+      userId = state.currentUser?.id;
+      if (userId) break;
+    }
+  }
   if (!db || !userId) return;
 
   const today = _todayStr();
