@@ -1148,6 +1148,34 @@ body{background:#050404 url(https://i.goopics.net/cypyrc.png) center/cover no-re
 @keyframes tearLightFlash{
   0%{opacity:0}15%{opacity:1}85%{opacity:.6}100%{opacity:0}
 }
+/* ═══ X10 ANIMATIONS ═══ */
+@keyframes x10TearFlash{
+  0%{opacity:0;transform:scale(.6)}
+  35%{opacity:1;transform:scale(1.15)}
+  100%{opacity:0;transform:scale(1.4)}
+}
+@keyframes x10TearSplit{
+  0%{
+    clip-path:polygon(0 0,100% 0,100% 100%,0 100%);
+    transform:translate(var(--tx,0),var(--ty,0)) rotate(var(--tr,0deg)) scale(1);
+    opacity:1;
+  }
+  30%{
+    clip-path:polygon(0 0,100% 0,100% 100%,0 100%);
+    transform:translate(var(--tx,0),var(--ty,0)) rotate(var(--tr,0deg)) scale(1.06);
+    filter:brightness(1.5);
+  }
+  100%{
+    transform:translate(var(--tx,0),calc(var(--ty,0) + 80px)) rotate(var(--tr,0deg)) scale(.85);
+    opacity:0;
+    filter:brightness(.6);
+  }
+}
+@keyframes x10MythicFlash{
+  0%{opacity:0}
+  20%{opacity:1}
+  100%{opacity:0}
+}
 /* Debris particles from tear */
 .tear-debris{
   position:fixed;border-radius:1px;pointer-events:none;z-index:165;
@@ -1753,6 +1781,12 @@ async function loadCardsFromSupabase() {
   console.log('[Booster] ' + ALL_CARDS.length + ' cartes chargées depuis Supabase');
   _dbReady = true;
 
+  // Mode x10 : ouvrir 10 boosters en mode rapide (50 cartes au total)
+  if (window._boosterQty === 10) {
+    autoOpenBoosterX10();
+    return;
+  }
+
   // Skip l'animation d'ouverture : lancer directement le tirage et afficher le stack
   autoOpenBooster();
 }
@@ -1836,6 +1870,7 @@ async function saveBoosterToCollection(cards) {
 // Toute autre arrivée (retour navigateur, bfcache, accès direct, F5) → erreur + retour menu.
 const BOOSTER_BID = 1;
 const TICKET_MAX_AGE_MS = 30000; // 30s : ticket périme rapidement
+window._boosterQty = 1; // 1 par défaut, 10 si le ticket le précise
 
 function _consumeBoosterTicket() {
   try {
@@ -1843,7 +1878,9 @@ function _consumeBoosterTicket() {
     sessionStorage.removeItem('booster_ticket'); // consommation immédiate
     if (!raw) return false;
     const t = JSON.parse(raw);
-    return t && t.bid === BOOSTER_BID && (Date.now() - (t.ts || 0)) < TICKET_MAX_AGE_MS;
+    const ok = t && t.bid === BOOSTER_BID && (Date.now() - (t.ts || 0)) < TICKET_MAX_AGE_MS;
+    if (ok && t.qty === 10) window._boosterQty = 10;
+    return ok;
   } catch(e) { return false; }
 }
 
@@ -4781,6 +4818,469 @@ async function deductBoosterCost() {
   window._playerCoins = currentCoins - 150;
   window._lastBoosterCost = 150;
   return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODE X10 : ouverture rapide de 10 boosters Normaux d'un coup
+// ═══════════════════════════════════════════════════════════════════════
+
+async function deductBoosterCostX10() {
+  const TOTAL = 1500; // 150 × 10
+  const db = window._db;
+  const myId = window._currentUserId;
+  if (!db || !myId) return true;
+
+  const { data: playerRow } = await db.from('players')
+    .select('coins').eq('id', myId).single();
+  const currentCoins = playerRow ? playerRow.coins : 0;
+  window._playerCoins = currentCoins;
+  window._coinsBeforeOpen = currentCoins;
+
+  if (currentCoins < TOTAL) return false;
+  await db.from('players').update({ coins: currentCoins - TOTAL }).eq('id', myId);
+  window._playerCoins = currentCoins - TOTAL;
+  window._lastBoosterCost = TOTAL;
+  return true;
+}
+
+function showInsufficientCoinsX10() {
+  const msg = document.createElement('div');
+  msg.style.cssText = `
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:9999;padding:24px 36px;border-radius:6px;text-align:center;
+    background:var(--noir-panel);border:1px solid var(--gold-deep);
+    box-shadow:0 0 60px #c8953a30;font-family:'Cinzel',serif;
+  `;
+  msg.innerHTML = `
+    <div style="font-size:.85rem;color:var(--gold-bright);letter-spacing:.2em;margin-bottom:12px;">COINS INSUFFISANTS</div>
+    <div style="font-size:.65rem;color:var(--text-muted);letter-spacing:.15em;margin-bottom:20px;">Il vous faut <span style="color:var(--gold-main)">1 500 coins</span> pour ouvrir 10 boosters.<br>Solde actuel : <span style="color:var(--gold-main)">${window._playerCoins||0} coins</span></div>
+    <div style="display:flex;justify-content:center;">
+      <button onclick="window.location.href='index.html'" style="padding:8px 22px;border-radius:2px;background:var(--gold-subtle);color:var(--gold-main);border:1px solid var(--gold-deep);font-family:'Bebas Neue',sans-serif;font-size:.7rem;letter-spacing:.2em;cursor:pointer;">← Retour au menu</button>
+    </div>
+  `;
+  document.body.appendChild(msg);
+}
+
+async function autoOpenBoosterX10() {
+  await new Promise(r => setTimeout(r, 80));
+
+  // 1. Déduire 1500 coins d'un coup
+  const ok = await deductBoosterCostX10();
+  if (!ok) { showInsufficientCoinsX10(); return; }
+  if (window._lastBoosterCost > 0) showCoinsDeductedPopup(1500);
+
+  // 2. Tirer les 50 cartes (10 packs × 5 cartes)
+  // On stocke par pack pour pouvoir teaser les rares pendant les déchirures
+  const packs = [];
+  for (let i = 0; i < 10; i++) {
+    packs.push(pickWeightedCards(5));
+  }
+  const allCards = packs.flat(); // 50 cartes dans l'ordre
+  window._x10Packs = packs;
+  window._x10AllCards = allCards;
+
+  // 3. Cacher le boosterWrap classique (au cas où)
+  const bw = document.getElementById('boosterWrap');
+  if (bw) bw.style.display = 'none';
+
+  // 4. Lancer l'animation
+  runX10Animation(packs, allCards);
+}
+
+// ─── Animation x10 : 10 boosters → déchirures cascade → 50 cartes flip cascade ───
+function runX10Animation(packs, allCards) {
+  const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
+
+  // Conteneur principal plein écran
+  const root = document.createElement('div');
+  root.id = 'x10-root';
+  root.style.cssText = `
+    position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,rgba(20,15,8,.65) 0%,rgba(5,4,4,.92) 70%);
+    overflow:hidden;
+  `;
+  document.body.appendChild(root);
+
+  // Compteur "Pack X/10" en haut
+  const counter = document.createElement('div');
+  counter.id = 'x10-counter';
+  counter.style.cssText = `
+    position:absolute;top:24px;right:28px;
+    font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.25em;
+    color:var(--gold-main);opacity:0;transition:opacity .3s;
+    text-shadow:0 0 12px var(--gold-main);
+  `;
+  counter.textContent = 'PACK 0 / 10';
+  root.appendChild(counter);
+
+  // Titre/sous-titre
+  const title = document.createElement('div');
+  title.style.cssText = `
+    position:absolute;top:24px;left:28px;
+    font-family:'Cinzel Decorative',serif;font-size:.85rem;letter-spacing:.2em;
+    color:var(--cream);text-shadow:0 0 18px var(--gold-deep);
+  `;
+  title.textContent = 'OUVERTURE × 10';
+  root.appendChild(title);
+
+  // ── PHASE A : 10 boosters en éventail ──
+  const fanWrap = document.createElement('div');
+  fanWrap.id = 'x10-fan';
+  fanWrap.style.cssText = `position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;`;
+  root.appendChild(fanWrap);
+
+  const isMobile = window.innerWidth < 700;
+  const packW = isMobile ? Math.min(90, window.innerWidth * 0.22) : 130;
+  const packH = packW / 0.54; // ratio booster
+  const fanArc = isMobile ? 36 : 48;       // angle total de l'éventail (deg)
+  const fanRadius = isMobile ? 60 : 90;    // rayon vertical (offset)
+
+  const packEls = [];
+  packs.forEach((pack, i) => {
+    const angle = -fanArc/2 + (fanArc / 9) * i;
+    const dx = Math.sin(angle * Math.PI/180) * (isMobile ? 90 : 130);
+    const dy = -Math.cos(angle * Math.PI/180) * fanRadius + fanRadius * 0.5;
+
+    const el = document.createElement('div');
+    el.className = 'x10-pack';
+    el.style.cssText = `
+      position:absolute;width:${packW}px;height:${packH}px;
+      transform:translate(${dx}px,${dy + 200}px) rotate(${angle}deg) scale(.7);
+      opacity:0;transition:transform .55s cubic-bezier(.34,1.56,.64,1), opacity .4s ease;
+      filter:drop-shadow(0 12px 24px rgba(0,0,0,.7)) drop-shadow(0 0 14px rgba(200,149,58,.25));
+      will-change:transform,opacity;
+    `;
+    el.innerHTML = `<img src="https://i.goopics.net/ueiki4.png" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;" draggable="false"/>`;
+    fanWrap.appendChild(el);
+    packEls.push({ el, dx, dy, angle });
+  });
+
+  // Animation d'entrée échelonnée
+  packEls.forEach((p, i) => {
+    setTimeout(() => {
+      p.el.style.opacity = '1';
+      p.el.style.transform = `translate(${p.dx}px,${p.dy}px) rotate(${p.angle}deg) scale(1)`;
+    }, 80 + i * 55);
+  });
+
+  // Petit son d'ambiance pendant le fan-out
+  setTimeout(() => { try { sndBoosterShake && sndBoosterShake(); } catch(e){} }, 200);
+
+  // ── PHASE B : déchirures en cascade après le fan-out ──
+  const fanInDur = 80 + 9 * 55 + 550; // dernier pack apparu
+  setTimeout(() => {
+    counter.style.opacity = '1';
+    runX10TearCascade(packs, packEls, root, counter, () => {
+      // Callback quand toutes les déchirures sont finies
+      runX10CardReveal(allCards, root);
+    });
+  }, fanInDur + 280);
+}
+
+// ─── PHASE B : déchirure en cascade ─────────────────────────────────────
+function runX10TearCascade(packs, packEls, root, counter, onComplete) {
+  const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
+  const RC = {COMMUNE:'#9ca3af','PEU COMMMUNE':'#7ec8e3',RARE:'#b890f8',MYTHIQUE:'#f0c060'};
+  const TEAR_INTERVAL = 180; // "tac tac tac"
+
+  packs.forEach((pack, i) => {
+    setTimeout(() => {
+      const { el } = packEls[i];
+      const bestR = pack.reduce((b,c)=>RO[c.rarity]>RO[b]?c.rarity:b,'COMMUNE');
+      const flashColor = RC[bestR];
+      const isHighRarity = bestR === 'RARE' || bestR === 'MYTHIQUE';
+
+      // Compteur
+      counter.textContent = `PACK ${i+1} / 10`;
+      counter.style.color = isHighRarity ? flashColor : 'var(--gold-main)';
+      counter.style.textShadow = `0 0 12px ${flashColor}`;
+
+      // Petit haptique sec
+      try { haptic && haptic(isHighRarity ? [0,30,15,40] : [0,15]); } catch(e){}
+
+      // Flash blanc bref sur le pack
+      const flash = document.createElement('div');
+      flash.style.cssText = `
+        position:absolute;inset:0;background:radial-gradient(ellipse at center,${flashColor}cc 0%,${flashColor}30 40%,transparent 70%);
+        mix-blend-mode:screen;opacity:0;animation:x10TearFlash .35s ease-out forwards;pointer-events:none;
+      `;
+      el.appendChild(flash);
+
+      // Déchirure : split horizontal, deux moitiés s'écartent
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top + rect.height/2;
+
+      // Burst de particules colorées si rare+
+      if (isHighRarity) {
+        try { spawnParticles && spawnParticles(cx, cy, flashColor, bestR === 'MYTHIQUE' ? 18 : 10); } catch(e){}
+      }
+
+      // Animer la séparation (préserver position via CSS vars)
+      el.style.setProperty('--tx', `${packEls[i].dx}px`);
+      el.style.setProperty('--ty', `${packEls[i].dy}px`);
+      el.style.setProperty('--tr', `${packEls[i].angle}deg`);
+      el.style.transition = 'none';
+      requestAnimationFrame(() => {
+        el.style.animation = 'x10TearSplit .42s cubic-bezier(.4,0,.6,1) forwards';
+      });
+
+      // Son sec
+      try {
+        if (isHighRarity) sndTear && sndTear();
+        else sndBoosterShake && sndBoosterShake();
+      } catch(e){}
+
+      // Si dernier pack
+      if (i === packs.length - 1) {
+        setTimeout(() => {
+          // Fade out le compteur et le wrap des packs avant la pluie
+          counter.style.opacity = '0';
+          onComplete();
+        }, 420);
+      }
+    }, i * TEAR_INTERVAL);
+  });
+}
+
+// ─── PHASE C + D : pluie de cartes face cachée → flip cascade ──────────
+function runX10CardReveal(allCards, root) {
+  const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
+  const RC = {COMMUNE:'#9ca3af','PEU COMMMUNE':'#7ec8e3',RARE:'#b890f8',MYTHIQUE:'#f0c060'};
+  const RC2 = {COMMUNE:'#d1d5db','PEU COMMMUNE':'#93c5fd',RARE:'#d4b8ff',MYTHIQUE:'#fde68a'};
+
+  // Nettoyer les anciens packs (fade out rapide)
+  const fan = document.getElementById('x10-fan');
+  if (fan) {
+    fan.style.transition = 'opacity .3s ease';
+    fan.style.opacity = '0';
+    setTimeout(() => fan.remove(), 320);
+  }
+
+  const isMobile = window.innerWidth < 700;
+  // Grille 5×10 (5 colonnes, 10 lignes) sur mobile, 10×5 (10 col, 5 lignes) sur desktop
+  const cols = isMobile ? 5 : 10;
+  const rows = isMobile ? 10 : 5;
+  const gap = isMobile ? 6 : 10;
+  const padding = isMobile ? 12 : 24;
+
+  // Calculer la taille de carte qui rentre dans le viewport (en gardant ratio 1:1.4)
+  const availW = window.innerWidth - padding * 2;
+  const availH = window.innerHeight - padding * 2 - 90; // -90 pour le bandeau bas
+  const maxCardW1 = (availW - gap * (cols - 1)) / cols;
+  const maxCardH1 = (availH - gap * (rows - 1)) / rows;
+  const cardW = Math.min(maxCardW1, maxCardH1 / 1.4);
+  const cardH = cardW * 1.4;
+
+  // Conteneur grille
+  const grid = document.createElement('div');
+  grid.id = 'x10-grid';
+  grid.style.cssText = `
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    display:grid;grid-template-columns:repeat(${cols},${cardW}px);
+    grid-auto-rows:${cardH}px;gap:${gap}px;
+    perspective:1400px;pointer-events:none;
+  `;
+  root.appendChild(grid);
+
+  // Centre approximatif du viewport (départ "explosion")
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+
+  const cardEls = [];
+  allCards.forEach((card, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'x10-card-wrap';
+    wrap.style.cssText = `
+      position:relative;width:${cardW}px;height:${cardH}px;
+      transform-style:preserve-3d;
+      will-change:transform,opacity;
+      opacity:0;
+    `;
+
+    // Face cachée (back) + face avant (front)
+    const inner = document.createElement('div');
+    inner.className = 'x10-card-inner';
+    inner.style.cssText = `
+      position:absolute;inset:0;transform-style:preserve-3d;
+      transition:transform .55s cubic-bezier(.4,0,.2,1);
+    `;
+
+    const back = document.createElement('div');
+    back.style.cssText = `
+      position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+      background:#0a0805;border:1px solid var(--gold-deep);overflow:hidden;
+    `;
+    back.innerHTML = `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;" draggable="false"/>`;
+
+    const front = document.createElement('div');
+    const rColor = RC[card.rarity] || '#9ca3af';
+    front.style.cssText = `
+      position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+      transform:rotateY(180deg);
+      background:#0a0805;border:1.5px solid ${rColor};overflow:hidden;
+      box-shadow:0 0 ${card.rarity==='MYTHIQUE'?'24px':card.rarity==='RARE'?'14px':'6px'} ${rColor}${card.rarity==='MYTHIQUE'?'b0':card.rarity==='RARE'?'80':'40'};
+    `;
+
+    // Image de la carte si dispo, sinon placeholder texte
+    const imgUrl = card.image_url || '';
+    front.innerHTML = `
+      ${imgUrl ? `<img src="${imgUrl}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;" draggable="false"/>` : `
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;text-align:center;background:linear-gradient(160deg,#161210,#0a0805);">
+          <div style="font-family:'Cinzel',serif;font-size:9px;color:${rColor};letter-spacing:.1em;line-height:1.2;">${(card.name||'').slice(0,20)}</div>
+        </div>
+      `}
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:2px 4px;background:linear-gradient(0deg,${rColor}cc,transparent);">
+        <div style="font-family:'Cinzel',serif;font-size:${cardW < 60 ? '6' : '7'}px;color:#fff;letter-spacing:.1em;text-shadow:0 1px 2px #000;text-align:center;">${RS[card.rarity]||''}</div>
+      </div>
+    `;
+
+    inner.appendChild(back);
+    inner.appendChild(front);
+    wrap.appendChild(inner);
+    grid.appendChild(wrap);
+
+    cardEls.push({ wrap, inner, card });
+  });
+
+  // ── PHASE C : pluie depuis le centre ──
+  // Position de chaque cellule par rapport au centre du grid
+  requestAnimationFrame(() => {
+    const gridRect = grid.getBoundingClientRect();
+    cardEls.forEach((c, i) => {
+      const r = c.wrap.getBoundingClientRect();
+      const dx = (centerX - (r.left + r.width/2));
+      const dy = (centerY - (r.top + r.height/2));
+      // Position initiale : décalée vers le centre + scale 0
+      c.wrap.style.transform = `translate(${dx}px, ${dy}px) scale(.2) rotate(${(Math.random()*60-30)|0}deg)`;
+      // Animation : retour à sa place
+      const delay = 30 + i * 18;
+      setTimeout(() => {
+        c.wrap.style.transition = 'transform .55s cubic-bezier(.22,.68,0,1.25), opacity .25s ease';
+        c.wrap.style.opacity = '1';
+        c.wrap.style.transform = 'translate(0,0) scale(1) rotate(0deg)';
+      }, delay);
+    });
+
+    // ── PHASE D : flip cascade après que toutes les cartes sont en place ──
+    const lastDelay = 30 + (cardEls.length - 1) * 18 + 600;
+    setTimeout(() => {
+      runX10FlipCascade(cardEls, root, () => {
+        // Callback final : afficher le récap + sauvegarder
+        runX10Recap(allCards, root);
+      });
+    }, lastDelay);
+  });
+}
+
+// Flip en cascade : cartes se retournent l'une après l'autre
+function runX10FlipCascade(cardEls, root, onComplete) {
+  const RO = {COMMUNE:0,'PEU COMMMUNE':1,RARE:2,MYTHIQUE:3};
+  const FLIP_INTERVAL = 42;
+  let mythicSeen = false;
+
+  cardEls.forEach((c, i) => {
+    const isRarePlus = RO[c.card.rarity] >= 2;
+    const isMythic = c.card.rarity === 'MYTHIQUE';
+    setTimeout(() => {
+      c.inner.style.transform = 'rotateY(180deg)';
+      // Petit pop sur les rares+
+      if (isRarePlus) {
+        c.wrap.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1)';
+        c.wrap.style.transform = 'scale(1.08)';
+        setTimeout(() => { c.wrap.style.transform = 'scale(1)'; }, 300);
+        try { haptic && haptic(isMythic ? [0,40,20,30] : [0,20]); } catch(e){}
+      }
+      // Flash plein écran sur le 1er mythique
+      if (isMythic && !mythicSeen) {
+        mythicSeen = true;
+        const flash = document.createElement('div');
+        flash.style.cssText = `
+          position:absolute;inset:0;background:radial-gradient(ellipse at center,#fde68a40 0%,transparent 70%);
+          opacity:0;animation:x10MythicFlash .9s ease-out forwards;pointer-events:none;mix-blend-mode:screen;
+        `;
+        root.appendChild(flash);
+        setTimeout(() => flash.remove(), 1000);
+      }
+    }, i * FLIP_INTERVAL);
+  });
+
+  // Quand toutes les cartes sont retournées
+  setTimeout(() => {
+    onComplete();
+  }, cardEls.length * FLIP_INTERVAL + 600);
+}
+
+// ─── PHASE E : Récap final + sauvegarde Supabase ────────────────────────
+function runX10Recap(allCards, root) {
+  // Compter par rareté
+  const counts = { COMMUNE:0, 'PEU COMMMUNE':0, RARE:0, MYTHIQUE:0 };
+  allCards.forEach(c => { counts[c.rarity] = (counts[c.rarity]||0) + 1; });
+
+  // Bandeau récap en bas
+  const recap = document.createElement('div');
+  recap.id = 'x10-recap';
+  recap.style.cssText = `
+    position:absolute;bottom:0;left:0;right:0;padding:14px 18px 18px;
+    background:linear-gradient(0deg,rgba(5,4,4,.96),rgba(5,4,4,.85) 60%,transparent);
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    opacity:0;transform:translateY(20px);transition:opacity .5s ease, transform .5s ease;
+    pointer-events:auto;z-index:10;
+  `;
+
+  const RC = {COMMUNE:'#9ca3af','PEU COMMMUNE':'#7ec8e3',RARE:'#b890f8',MYTHIQUE:'#f0c060'};
+  const labels = {COMMUNE:'COMMUNES','PEU COMMMUNE':'PEU COMMUNES',RARE:'RARES',MYTHIQUE:'MYTHIQUES'};
+
+  const stats = ['COMMUNE','PEU COMMMUNE','RARE','MYTHIQUE'].filter(r => counts[r] > 0).map(r => `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 12px;">
+      <div style="font-family:'Cinzel',serif;font-size:1.4rem;font-weight:900;color:${RC[r]};text-shadow:0 0 14px ${RC[r]}80;">${counts[r]}</div>
+      <div style="font-size:.55rem;letter-spacing:.18em;color:var(--text-muted);">${labels[r]}</div>
+    </div>
+  `).join('<div style="width:1px;align-self:stretch;background:var(--noir-border);"></div>');
+
+  recap.innerHTML = `
+    <div style="font-family:'Cinzel Decorative',serif;font-size:.75rem;letter-spacing:.25em;color:var(--gold-bright);text-shadow:0 0 12px var(--gold-deep);">50 CARTES OBTENUES</div>
+    <div style="display:flex;align-items:center;gap:0;">${stats}</div>
+    <button id="x10-continue" style="
+      margin-top:6px;padding:10px 32px;border-radius:2px;
+      background:var(--gold-subtle);color:var(--gold-main);
+      border:1px solid var(--gold-deep);
+      font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:.3em;
+      cursor:pointer;transition:all .2s;
+      box-shadow:0 0 24px rgba(200,149,58,.25);
+    ">CONTINUER →</button>
+  `;
+  root.appendChild(recap);
+
+  requestAnimationFrame(() => {
+    recap.style.opacity = '1';
+    recap.style.transform = 'translateY(0)';
+  });
+
+  // Sauvegarder en background pendant que l'utilisateur regarde le récap
+  saveBoosterToCollection(allCards).then(() => {
+    console.log('[Booster x10] 50 cartes sauvegardées');
+  }).catch(err => {
+    console.error('[Booster x10] Erreur sauvegarde:', err);
+  });
+
+  // Bouton continuer
+  document.getElementById('x10-continue').addEventListener('click', () => {
+    clearBoosterSession();
+    window.location.href = 'index.html';
+  });
+
+  // Hover effect bouton
+  const btn = document.getElementById('x10-continue');
+  btn.addEventListener('mouseenter', () => {
+    btn.style.background = 'var(--gold-main)';
+    btn.style.color = '#0a0805';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.style.background = 'var(--gold-subtle)';
+    btn.style.color = 'var(--gold-main)';
+  });
 }
 
 function showInsufficientCoins() {
