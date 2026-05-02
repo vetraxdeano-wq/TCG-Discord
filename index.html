@@ -506,16 +506,49 @@ function getBoosterRemainingSync(userId, boosterId){
 
 async function markBoosterUsed(userId, boosterId){
   const today = _todayStr();
-  const c = await _loadBoosterCache(userId);
+  // ── Lecture FRAÎCHE de la DB ──
+  // Ne pas utiliser le cache pour calculer le nouveau count : il peut être
+  // obsolète (autre onglet, retour depuis booster2.html, etc.) → on relirait
+  // une valeur trop basse et on incrémenterait sur une mauvaise base.
+  // La lecture directe garantit qu'on incrémente la valeur réelle de la DB.
+  let currentPrestigeDate = null, currentPrestigeCount = 0;
+  let currentLegDate = null, currentLegCount = 0;
+  try {
+    const db = window.db;
+    if(db && userId){
+      const { data } = await db.from('players')
+        .select('booster_prestige_date, booster_prestige_count, booster_leg_date, booster_leg_count')
+        .eq('id', userId).single();
+      if(data){
+        currentPrestigeDate  = data.booster_prestige_date  || null;
+        currentPrestigeCount = data.booster_prestige_count || 0;
+        currentLegDate       = data.booster_leg_date       || null;
+        currentLegCount      = data.booster_leg_count      || 0;
+      }
+    }
+  } catch(e){ console.error('markBoosterUsed read error', e); }
+
   let patch = {};
   if(boosterId === 2){
-    const count = c.prestigeDate === today ? (c.prestigeCount || 0) : 0;
+    const count = currentPrestigeDate === today ? currentPrestigeCount : 0;
     patch = { booster_prestige_date: today, booster_prestige_count: count + 1 };
-    _boosterCache = { ...c, prestigeDate: today, prestigeCount: count + 1 };
+    _boosterCache = {
+      userId,
+      prestigeDate:  today,
+      prestigeCount: count + 1,
+      legDate:       currentLegDate,
+      legCount:      currentLegCount,
+    };
   } else if(boosterId === 3){
-    const count = c.legDate === today ? (c.legCount || 0) : 0;
+    const count = currentLegDate === today ? currentLegCount : 0;
     patch = { booster_leg_date: today, booster_leg_count: count + 1 };
-    _boosterCache = { ...c, legDate: today, legCount: count + 1 };
+    _boosterCache = {
+      userId,
+      prestigeDate:  currentPrestigeDate,
+      prestigeCount: currentPrestigeCount,
+      legDate:       today,
+      legCount:      count + 1,
+    };
   }
   if(Object.keys(patch).length){
     try{
@@ -6329,22 +6362,37 @@ function bindGame(){
   document.querySelectorAll('.open-booster').forEach(btn=>{
     btn.addEventListener('click', async (e)=>{
       e.stopPropagation();
+      // ── Anti-double-clic ──
+      // Sans ce verrou, un double-clic (ou un événement dupliqué touch+click sur
+      // mobile) appellait markBoosterUsed deux fois → le compteur passait de 0 à 2
+      // au lieu de 0 à 1, et le joueur perdait son 2ème pack journalier.
+      if (btn._opening) return;
+      btn._opening = true;
+      const _origPointerEvents = btn.style.pointerEvents;
+      btn.style.pointerEvents = 'none';
+      const _release = () => { btn._opening = false; btn.style.pointerEvents = _origPointerEvents; };
+
       const bid = parseInt(btn.dataset.bid);
       const selectedBooster = BOOSTERS[state.boosterSelectedIdx ?? 1];
-      if(!selectedBooster || selectedBooster.id !== bid) return;
+      if(!selectedBooster || selectedBooster.id !== bid) { _release(); return; }
       const booster = BOOSTERS.find(b=>b.id===bid);
-      if(!booster) return;
+      if(!booster) { _release(); return; }
       const coins = state.coins || 0;
       if(coins < booster.price){
         showToast(`Il vous faut ${booster.price.toLocaleString('fr-FR')} coins pour ouvrir ce booster.`,'🚫');
+        _release();
         return;
       }
       // Vérifier la limite quotidienne — via Supabase (cross-device, par compte)
+      // Force une relecture fraîche pour éviter le cache obsolète après un retour
+      // depuis booster2.html (où le compteur a pu changer).
+      _boosterCache = null;
       const _uid = state.currentUser?.id || '';
       const _rem = await getBoosterRemaining(_uid, bid);
       if(_rem === 0){
         showToast('Limite quotidienne atteinte — réessaie demain ! ⏳ ' + timeUntilMidnight(), '🚫');
         render(); // Rafraîchir l'UI avec le compteur à jour
+        _release();
         return;
       }
       const meta = [
@@ -6360,6 +6408,11 @@ function bindGame(){
         // Ticket à usage unique : autorise l'ouverture sur boosterX.html
         try { sessionStorage.setItem('booster_ticket', JSON.stringify({ bid: bid, ts: Date.now() })); } catch(e) {}
         triggerBoosterOpen(bid, m.color, m.src, m.href);
+        // On ne libère PAS le verrou : la page va être quittée. Si jamais
+        // triggerBoosterOpen échoue, on libère après un timeout de sécurité.
+        setTimeout(_release, 4000);
+      } else {
+        _release();
       }
     });
   });
@@ -7913,10 +7966,14 @@ async function _refreshBoosterCacheFromDb() {
 }
 
 // Au retour via pageshow (back/forward cache OU navigation classique)
+// Anciennement on ne rafraîchissait QUE si e.persisted (bfcache). Mais quand
+// le joueur clique "← Menu" depuis booster2.html, c'est une navigation
+// classique (e.persisted=false) et le rafraîchissement n'avait pas lieu si la
+// page index.html était servie depuis le cache HTTP du navigateur (rare mais
+// possible). Pour fiabiliser, on rafraîchit aussi en navigation classique.
 window.addEventListener('pageshow', (e) => {
-  // e.persisted=true → restauration depuis bfcache (cas critique : tout l'état JS
-  // est gelé, il faut relire la DB).
-  if (e.persisted) _refreshBoosterCacheFromDb();
+  // Toujours rafraîchir : ça évite tout compteur périmé après un retour.
+  _refreshBoosterCacheFromDb();
 });
 
 // Au retour via visibilitychange (tab redevenu visible — couvre les cas où
