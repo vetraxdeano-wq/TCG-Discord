@@ -12205,28 +12205,26 @@ function formatDuration(minutes) {
 
 function getOwnedCards(rarity) {
   // Renvoie la liste des cartes du joueur de rareté donnée
-  // avec quantity > 1 (donc au moins 1 doublon utilisable)
+  // avec count > 1 (donc au moins 1 doublon utilisable)
   // en excluant PEACE/LOVE
+  // Source : ALL_CARDS (variable globale, contient .owned, .count, .id)
   const excluded = getRecycleExcluded();
-  const myCards = state.currentUser?.cards || [];
-  return myCards
-    .filter(c => {
-      const card = ALL_CARDS.find(x => x.id === c.card_id);
-      if (!card) return false;
+  if (!Array.isArray(ALL_CARDS)) return [];
+  return ALL_CARDS
+    .filter(card => {
+      if (!card || !card.owned) return false;
       if (card.rarity !== rarity) return false;
-      if (excluded.includes(card.id)) return false;
-      return c.quantity > 1; // garde >=1 ex en collection
+      const intId = parseInt(card.id, 10);
+      if (excluded.includes(intId)) return false;
+      return (card.count || 0) > 1;
     })
-    .map(c => {
-      const card = ALL_CARDS.find(x => x.id === c.card_id);
-      return {
-        card_id: c.card_id,
-        name: (card.name || '').replace(/^"|"$/g, ''),
-        image_url: card.image_url,
-        quantity: c.quantity,       // total possédé
-        usable: c.quantity - 1      // dispo pour recyclage
-      };
-    })
+    .map(card => ({
+      card_id: parseInt(card.id, 10),
+      name: (card.name || '').replace(/^"|"$/g, ''),
+      image_url: card.image_url,
+      quantity: card.count || 0,
+      usable: (card.count || 0) - 1
+    }))
     .sort((a, b) => b.usable - a.usable);
 }
 
@@ -12242,48 +12240,46 @@ function renderRecycleModal() {
   const th = (typeof t === 'function') ? t() : (window.th || {});
   const step = state.recycleStep || 'menu';
 
-  // Choix du sous-render selon l'étape
   let body = '';
-  if (step === 'help')      body = renderRecycleHelp();
-  else if (step === 'progress' && state.recycleActiveJob) body = renderRecycleProgress();
-  else if (step === 'result' && state.recycleResultCard)  body = renderRecycleResult();
-  else if (step === 'select') body = renderRecycleSelect();
-  else                        body = renderRecycleMenu();
+  if (step === 'help')                                       body = renderRecycleHelp();
+  else if (step === 'progress' && state.recycleActiveJob)    body = renderRecycleProgress();
+  else if (step === 'result' && state.recycleResultCard)     body = renderRecycleResult();
+  else if (step === 'select')                                body = renderRecycleSelect();
+  else                                                       body = renderRecycleMenu();
 
   return `
-  <div id="recycle-overlay" style="position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.85);
-       display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(6px);">
-    <div style="position:relative;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;
-         background:${th.surface};border:2px solid ${th.text};
-         box-shadow:0 12px 0 #000, 0 0 0 4px ${th.text};">
+  <div id="recycle-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
+    <div id="recycle-sheet" class="slide-up" style="width:100%;max-width:440px;max-height:92vh;overflow-y:auto;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;padding-bottom:max(env(safe-area-inset-bottom,0px),20px);">
+
+      <!-- Pull handle -->
+      <div style="display:flex;justify-content:center;padding:10px 0 0;">
+        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
+      </div>
 
       <!-- Header -->
-      <div style="position:sticky;top:0;z-index:2;background:${th.surface};
-           border-bottom:2px solid ${th.text};padding:12px 14px;display:flex;align-items:center;gap:10px;">
-        <div style="font-size:24px;">♻</div>
+      <div style="padding:10px 18px 14px;display:flex;align-items:center;gap:10px;border-bottom:2px solid #000;">
+        <div style="font-size:24px;line-height:1;">♻</div>
         <div style="flex:1;">
-          <div style="font-family:'Luckiest Guy',cursive;font-size:18px;letter-spacing:1px;color:${th.text};line-height:1;">RECYCLAGE</div>
-          <div style="font-size:9px;color:${th.textMuted};margin-top:3px;letter-spacing:.6px;">DOUBLONS → CARTES SUPÉRIEURES</div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:18px;letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
+          <div style="font-size:9px;color:${th.textMuted};margin-top:3px;letter-spacing:.6px;text-transform:uppercase;">Doublons → cartes supérieures</div>
         </div>
         <button id="recycle-help-btn" title="Comment ça marche ?"
-          style="width:30px;height:30px;background:${th.surface};border:2px solid ${th.text};
-                 box-shadow:2px 2px 0 #000;cursor:pointer;font-size:14px;font-weight:900;color:${th.text};">?</button>
+          style="width:30px;height:30px;background:${th.bgTertiary};border:2px solid #000;cursor:pointer;font-size:14px;font-weight:900;color:${th.text};">?</button>
         <button id="recycle-close-btn"
-          style="width:30px;height:30px;background:#ef4444;border:2px solid #000;
-                 box-shadow:2px 2px 0 #000;cursor:pointer;font-size:14px;font-weight:900;color:#fff;">×</button>
+          style="padding:6px 11px;background:transparent;border:1px solid ${th.red}35;color:${th.red};font-size:9px;font-weight:800;cursor:pointer;letter-spacing:.8px;">FERMER</button>
       </div>
 
       <!-- Body -->
-      <div style="padding:14px;">${body}</div>
+      <div style="padding:14px 16px 4px;">${body}</div>
 
     </div>
   </div>`;
-
   } catch (err) {
     console.error('renderRecycleModal:', err);
     return '';
   }
 }
+
 // ─── RENDER : aide ────────────────────────────────────────────────────
 
 function renderRecycleHelp() {
@@ -12294,51 +12290,60 @@ function renderRecycleHelp() {
   const tB = state.recycleConfig?.timers_minutes?.B || RECYCLE_DEFAULTS.timers_minutes.B;
 
   return `
-  <div style="font-size:12px;color:${th.text};line-height:1.55;">
+  <div style="font-size:12px;color:${th.text};line-height:1.5;">
 
-    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
-      <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:${th.text};margin-bottom:6px;letter-spacing:.6px;">À QUOI ÇA SERT ?</div>
-      Tu as trop de doublons ? Échange-les contre des cartes de rareté supérieure !
-      Le recyclage prend du temps et seules tes <b>cartes en double</b> peuvent être sacrifiées
-      (1 exemplaire reste toujours dans ta collection).
-    </div>
-
-    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
-      <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#3b82f6;margin-bottom:6px;letter-spacing:.6px;">🔵 OPTION A · STANDARD</div>
-      <div style="font-size:11px;color:${th.textMuted};margin-bottom:8px;">Toujours dispo. Tu choisis n'importe quelles cartes de la rareté demandée.</div>
-      <div style="font-size:11px;line-height:1.7;">
-        • <b>${cA.common}</b> communes → 1 peu commune <span style="color:${th.textMuted};">(${formatDuration(tA.common)})</span><br>
-        • <b>${cA.uncommon}</b> peu communes → 1 rare <span style="color:${th.textMuted};">(${formatDuration(tA.uncommon)})</span><br>
-        • <b>${cA.rare}</b> rares → 1 mythique <span style="color:${th.textMuted};">(${formatDuration(tA.rare)})</span>
+    <div style="background:${th.bgTertiary};border:2px solid #000;padding:11px 12px;margin-bottom:10px;">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};margin-bottom:5px;letter-spacing:.6px;">À QUOI ÇA SERT ?</div>
+      <div style="font-size:11px;color:${th.textMuted};line-height:1.5;">
+        Tu as trop de doublons ? Échange-les contre des cartes de rareté supérieure.
+        Seules tes <b style="color:${th.text};">cartes en double</b> peuvent être sacrifiées (1 exemplaire reste toujours en collection).
       </div>
     </div>
 
-    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
-      <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#f59e0b;margin-bottom:6px;letter-spacing:.6px;">⭐ OPTION B · DU JOUR</div>
-      <div style="font-size:11px;color:${th.textMuted};margin-bottom:8px;">2 cartes spécifiques tirées chaque jour à 00h00. Coûte moins, va plus vite — mais il faut avoir empilé la bonne carte !</div>
-      <div style="font-size:11px;line-height:1.7;">
-        • <b>${cB.common}</b> communes <i>identiques</i> → 1 peu commune <span style="color:${th.textMuted};">(${formatDuration(tB.common)})</span><br>
-        • <b>${cB.uncommon}</b> peu communes <i>identiques</i> → 1 rare <span style="color:${th.textMuted};">(${formatDuration(tB.uncommon)})</span><br>
-        • <b>${cB.rare}</b> rares <i>identiques</i> → 1 mythique <span style="color:${th.textMuted};">(${formatDuration(tB.rare)})</span>
+    <div style="background:${th.bgTertiary};border:2px solid #000;padding:11px 12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:14px;">🔵</span>
+        <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:#3b82f6;letter-spacing:.5px;">OPTION A · STANDARD</div>
+      </div>
+      <div style="font-size:10px;color:${th.textMuted};margin-bottom:7px;">Toujours dispo. N'importe quelles cartes de la rareté demandée.</div>
+      <div style="font-size:11px;color:${th.text};line-height:1.7;">
+        • <b>${cA.common}</b> communes → 1 peu commune <span style="color:${th.textMuted};">· ${formatDuration(tA.common)}</span><br>
+        • <b>${cA.uncommon}</b> peu communes → 1 rare <span style="color:${th.textMuted};">· ${formatDuration(tA.uncommon)}</span><br>
+        • <b>${cA.rare}</b> rares → 1 mythique <span style="color:${th.textMuted};">· ${formatDuration(tA.rare)}</span>
       </div>
     </div>
 
-    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;font-size:11px;line-height:1.7;">
-      <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};margin-bottom:6px;letter-spacing:.6px;">⚙ RÈGLES</div>
-      • <b>1 seul recyclage</b> en cours à la fois (file d'attente).<br>
-      • Carte obtenue = <b>aléatoire</b> dans la rareté supérieure.<br>
-      • Tu peux <b>tenter</b> d'accélérer contre coins (10 coins / minute restante)<br>
-      &nbsp;&nbsp;mais chaque tentative peut <b style="color:#ef4444;">échouer</b> :<br>
-      &nbsp;&nbsp;— vers Peu commune : 10% d'échec<br>
-      &nbsp;&nbsp;— vers Rare : 20% d'échec<br>
-      &nbsp;&nbsp;— vers Mythique : 35% d'échec<br>
-      &nbsp;&nbsp;En cas d'échec, les coins sont perdus mais le recyclage continue avec son timer.<br>
-      • Les cartes <b>PEACE</b> et <b>LOVE</b> ne peuvent ni être recyclées ni obtenues par recyclage.
+    <div style="background:${th.bgTertiary};border:2px solid #000;padding:11px 12px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="font-size:14px;">⭐</span>
+        <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:#f59e0b;letter-spacing:.5px;">OPTION B · DU JOUR</div>
+      </div>
+      <div style="font-size:10px;color:${th.textMuted};margin-bottom:7px;">2 cartes spécifiques tirées chaque jour à 00h00. Coûte moins, va plus vite.</div>
+      <div style="font-size:11px;color:${th.text};line-height:1.7;">
+        • <b>${cB.common}</b> communes <i>identiques</i> → 1 peu commune <span style="color:${th.textMuted};">· ${formatDuration(tB.common)}</span><br>
+        • <b>${cB.uncommon}</b> peu communes <i>identiques</i> → 1 rare <span style="color:${th.textMuted};">· ${formatDuration(tB.uncommon)}</span><br>
+        • <b>${cB.rare}</b> rares <i>identiques</i> → 1 mythique <span style="color:${th.textMuted};">· ${formatDuration(tB.rare)}</span>
+      </div>
     </div>
 
-    <button id="recycle-help-back" style="width:100%;padding:10px;background:${th.text};color:${th.surface};
-            border:2px solid ${th.text};box-shadow:3px 3px 0 #000;cursor:pointer;
-            font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:1px;">RETOUR</button>
+    <div style="background:${th.bgTertiary};border:2px solid #000;padding:11px 12px;margin-bottom:12px;font-size:11px;line-height:1.7;color:${th.text};">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};margin-bottom:5px;letter-spacing:.5px;">⚙ RÈGLES</div>
+      <div style="color:${th.textMuted};">
+        • <b style="color:${th.text};">1 seul recyclage</b> en cours à la fois.<br>
+        • Carte obtenue = <b style="color:${th.text};">aléatoire</b> dans la rareté supérieure.<br>
+        • Tu peux <b style="color:${th.text};">tenter d'accélérer</b> contre coins (10c/min restante)<br>
+        &nbsp;&nbsp;mais chaque tentative peut <b style="color:${th.red};">échouer</b> :<br>
+        &nbsp;&nbsp;— vers Peu commune : 10% d'échec<br>
+        &nbsp;&nbsp;— vers Rare : 20% d'échec<br>
+        &nbsp;&nbsp;— vers Mythique : 35% d'échec<br>
+        &nbsp;&nbsp;En cas d'échec, les coins sont perdus mais le recyclage continue.<br>
+        • <b style="color:${th.text};">PEACE</b> et <b style="color:${th.text};">LOVE</b> ne peuvent ni être recyclées ni obtenues par recyclage.
+      </div>
+    </div>
+
+    <button id="recycle-help-back" style="width:100%;padding:11px;background:${th.bgTertiary};color:${th.text};
+            border:2px solid #000;cursor:pointer;
+            font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.8px;">RETOUR</button>
   </div>`;
 }
 
@@ -12351,19 +12356,19 @@ function renderRecycleMenu() {
 
   return `
   <!-- Tabs A / B -->
-  <div style="display:flex;gap:6px;margin-bottom:14px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
     <button class="recycle-tab" data-tab="A"
-      style="flex:1;padding:10px;background:${tab==='A'?th.text:th.bg};color:${tab==='A'?th.surface:th.text};
-             border:2px solid ${th.text};box-shadow:${tab==='A'?'0 0 0 #000':'3px 3px 0 #000'};
-             font-family:'Luckiest Guy',cursive;font-size:12px;letter-spacing:.8px;cursor:pointer;
-             transform:translate(${tab==='A'?'3px,3px':'0,0'});transition:transform .12s;">
+      style="padding:9px;background:${tab==='A'?th.bgTertiary:'transparent'};color:${tab==='A'?th.text:th.textMuted};
+             border:2px solid #000;
+             font-family:'Luckiest Guy',cursive;font-size:11px;letter-spacing:.7px;cursor:pointer;
+             ${tab==='A'?'box-shadow:inset 0 0 0 2px #3b82f6;':''}">
       🔵 STANDARD
     </button>
     <button class="recycle-tab" data-tab="B"
-      style="flex:1;padding:10px;background:${tab==='B'?th.text:th.bg};color:${tab==='B'?th.surface:th.text};
-             border:2px solid ${th.text};box-shadow:${tab==='B'?'0 0 0 #000':'3px 3px 0 #000'};
-             font-family:'Luckiest Guy',cursive;font-size:12px;letter-spacing:.8px;cursor:pointer;
-             transform:translate(${tab==='B'?'3px,3px':'0,0'});transition:transform .12s;">
+      style="padding:9px;background:${tab==='B'?th.bgTertiary:'transparent'};color:${tab==='B'?th.text:th.textMuted};
+             border:2px solid #000;
+             font-family:'Luckiest Guy',cursive;font-size:11px;letter-spacing:.7px;cursor:pointer;
+             ${tab==='B'?'box-shadow:inset 0 0 0 2px #f59e0b;':''}">
       ⭐ DU JOUR
     </button>
   </div>
@@ -12375,8 +12380,8 @@ function renderRecycleMenu() {
 function renderTabA() {
   const th = (typeof t === 'function') ? t() : (window.th || {});
   return `
-  <div style="font-size:11px;color:${th.textMuted};margin-bottom:10px;line-height:1.5;">
-    Choisis n'importe quelles cartes de la rareté demandée pour les sacrifier.
+  <div style="font-size:10px;color:${th.textMuted};margin-bottom:10px;line-height:1.5;letter-spacing:.2px;">
+    Choisis n'importe quelles cartes de la rareté demandée.
   </div>
 
   ${['common','uncommon','rare'].map(rarity => {
@@ -12390,26 +12395,25 @@ function renderTabA() {
     return `
     <button class="recycle-tile" data-option="A" data-rarity="${rarity}"
       ${enabled ? '' : 'disabled'}
-      style="width:100%;display:flex;align-items:center;gap:10px;padding:12px;
-             background:${enabled?th.bg:'rgba(127,127,127,.1)'};border:2px solid ${th.text};
-             box-shadow:${enabled?'4px 4px 0 #000':'2px 2px 0 #000'};
-             margin-bottom:10px;cursor:${enabled?'pointer':'not-allowed'};
-             opacity:${enabled?1:.55};text-align:left;transition:transform .12s;">
+      style="width:100%;display:flex;align-items:center;gap:10px;padding:11px;
+             background:${th.bgTertiary};border:2px solid #000;
+             margin-bottom:8px;cursor:${enabled?'pointer':'not-allowed'};
+             opacity:${enabled?1:.45};text-align:left;transition:transform .15s;">
 
-      <div style="width:36px;height:36px;background:${RARITY_COLORS[rarity]};
-                  border:2px solid ${th.text};display:flex;align-items:center;justify-content:center;
-                  font-size:16px;font-weight:900;color:#fff;">${cost}</div>
+      <div style="width:40px;height:40px;background:${RARITY_COLORS[rarity]};
+                  border:2px solid #000;display:flex;align-items:center;justify-content:center;
+                  font-family:'Luckiest Guy',cursive;font-size:18px;color:#fff;flex-shrink:0;">${cost}</div>
 
       <div style="flex:1;min-width:0;">
-        <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.4px;line-height:1.2;">
           ${cost} ${RARITY_LABELS[rarity].toLowerCase()}s → 1 ${RARITY_LABELS[next].toLowerCase()}
         </div>
         <div style="font-size:10px;color:${th.textMuted};margin-top:3px;">
-          ⏱ ${formatDuration(timer)} · Tu en as <b style="color:${enabled?'#22c55e':'#ef4444'}">${totalUsable}</b> dispo
+          ⏱ ${formatDuration(timer)} · Tu en as <b style="color:${enabled?th.green:th.red};">${totalUsable}</b> dispo
         </div>
       </div>
 
-      <div style="font-size:18px;color:${th.text};">›</div>
+      <div style="font-size:18px;color:${th.textMuted};">›</div>
     </button>
     `;
   }).join('')}
@@ -12428,63 +12432,63 @@ function renderTabB(offers) {
   ];
 
   return `
-  <div style="font-size:11px;color:${th.textMuted};margin-bottom:10px;line-height:1.5;">
-    2 offres aléatoires · réinitialisées à minuit · cartes <b>identiques</b> requises.
+  <div style="font-size:10px;color:${th.textMuted};margin-bottom:10px;line-height:1.5;">
+    2 offres aléatoires · réinitialisées à minuit · cartes <b style="color:${th.text};">identiques</b> requises.
   </div>
 
-  ${offersList.map((offer, idx) => {
+  ${offersList.map((offer) => {
     const cost = getRecycleCost('B', offer.rarity);
     const timer = getRecycleTimer('B', offer.rarity);
-    const card = ALL_CARDS.find(c => c.id === offer.card_id);
+    const card = (ALL_CARDS || []).find(c => parseInt(c.id, 10) === offer.card_id);
     if (!card) return '';
     const cardName = (card.name||'').replace(/^"|"$/g, '');
     const next = RARITY_NEXT[offer.rarity];
 
-    // Combien le joueur a-t-il de cette carte spécifique ?
-    const myCards = state.currentUser?.cards || [];
-    const owned = myCards.find(c => c.card_id === offer.card_id);
-    const usable = owned ? Math.max(0, owned.quantity - 1) : 0;
+    const ownedCard = card;
+    const ownedQty = ownedCard.owned ? (ownedCard.count || 0) : 0;
+    const usable = Math.max(0, ownedQty - 1);
     const enabled = usable >= cost;
 
     return `
     <button class="recycle-tile" data-option="B" data-rarity="${offer.rarity}" data-cardid="${offer.card_id}"
       ${enabled ? '' : 'disabled'}
-      style="width:100%;display:flex;align-items:center;gap:10px;padding:12px;
-             background:${enabled?th.bg:'rgba(127,127,127,.1)'};border:2px solid ${th.text};
-             box-shadow:${enabled?'4px 4px 0 #000':'2px 2px 0 #000'};
-             margin-bottom:10px;cursor:${enabled?'pointer':'not-allowed'};
-             opacity:${enabled?1:.55};text-align:left;transition:transform .12s;">
+      style="width:100%;display:flex;align-items:center;gap:10px;padding:10px;
+             background:${th.bgTertiary};border:2px solid #000;
+             margin-bottom:8px;cursor:${enabled?'pointer':'not-allowed'};
+             opacity:${enabled?1:.45};text-align:left;">
 
-      <div style="position:relative;width:42px;height:56px;flex-shrink:0;border:2px solid ${th.text};overflow:hidden;
+      <div style="position:relative;width:42px;height:56px;flex-shrink:0;border:2px solid #000;overflow:hidden;
                   background:${RARITY_COLORS[offer.rarity]};">
         ${card.image_url
           ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
-          : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:18px;color:#fff;">?</div>`}
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.75);color:#fff;
-                    font-size:9px;text-align:center;padding:1px 0;letter-spacing:.4px;">${cost}×</div>
+          : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:20px;color:#fff;">?</div>`}
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.78);color:#fff;
+                    font-family:'Luckiest Guy',cursive;font-size:10px;text-align:center;padding:1px 0;letter-spacing:.4px;">${cost}×</div>
       </div>
 
       <div style="flex:1;min-width:0;">
-        <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.4px;
-                    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.3px;
+                    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;">
           ${cardName}
         </div>
-        <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">
+        <div style="font-size:10px;color:${th.textMuted};margin-top:3px;">
           ${cost} × ${RARITY_LABELS[offer.rarity]} → 1 ${RARITY_LABELS[next]}
         </div>
-        <div style="font-size:10px;color:${enabled?'#22c55e':'#ef4444'};margin-top:2px;font-weight:700;">
+        <div style="font-size:9px;color:${enabled?th.green:th.red};margin-top:2px;font-weight:700;letter-spacing:.3px;">
           Tu en as ${usable} ${usable >= cost ? '✓' : `(besoin ${cost})`}
         </div>
       </div>
 
-      <div style="font-size:10px;color:${th.textMuted};white-space:nowrap;">⏱ ${formatDuration(timer)}</div>
-      <div style="font-size:18px;color:${th.text};">›</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+        <div style="font-size:9px;color:${th.textMuted};white-space:nowrap;">⏱ ${formatDuration(timer)}</div>
+        <div style="font-size:14px;color:${th.textMuted};">›</div>
+      </div>
     </button>
     `;
   }).join('')}
 
-  <div style="margin-top:14px;padding:8px 10px;background:${th.bg};border:1px solid ${th.text};font-size:10px;color:${th.textMuted};text-align:center;">
-    🔄 Prochaines offres dans <span data-recycle-midnight></span>
+  <div style="margin-top:14px;padding:9px 11px;background:${th.bgTertiary};border:2px solid #000;font-size:10px;color:${th.textMuted};text-align:center;letter-spacing:.3px;">
+    🔄 Prochaines offres dans <b style="color:${th.text};" data-recycle-midnight></b>
   </div>
   `;
 }
@@ -12506,40 +12510,37 @@ function renderRecycleSelect() {
   const selectedTotal = getSelectedTotal();
   const next = RARITY_NEXT[rarity];
 
-  // Si Option B, on auto-fill (le joueur n'a pas de choix réel)
-  // Si Option A, l'utilisateur sélectionne lui-même
-
   return `
-  <div style="margin-bottom:12px;">
+  <div style="margin-bottom:10px;">
     <button id="recycle-back-menu" style="font-size:10px;color:${th.textMuted};background:none;border:none;cursor:pointer;padding:0;letter-spacing:.4px;">
       ‹ Retour
     </button>
   </div>
 
-  <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
-    <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;">
+  <div style="background:${th.bgTertiary};border:2px solid #000;padding:11px;margin-bottom:10px;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:12px;color:${th.text};letter-spacing:.4px;">
       ${cost} ${RARITY_LABELS[rarity].toLowerCase()}${required ? ' identiques' : 's'} → 1 ${RARITY_LABELS[next].toLowerCase()}
     </div>
     <div style="font-size:10px;color:${th.textMuted};margin-top:3px;">
-      ⏱ Temps : ${formatDuration(timer)} · 💸 Accélération : ${(timer * getSpeedupRate()).toLocaleString('fr-FR')} coins
+      ⏱ ${formatDuration(timer)} · 💸 Accélération : ${(timer * getSpeedupRate()).toLocaleString('fr-FR')} coins
     </div>
   </div>
 
-  <!-- Compteur de sélection -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;
-              background:${selectedTotal===cost?'#22c55e22':th.bg};border:2px solid ${selectedTotal===cost?'#22c55e':th.text};
+  <!-- Compteur -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;
+              background:${selectedTotal===cost?'#22c55e22':th.bgTertiary};border:2px solid ${selectedTotal===cost?th.green:'#000'};
               margin-bottom:10px;">
-    <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;">
-      ${selectedTotal} / ${cost} sélectionnée${selectedTotal>1?'s':''}
+    <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.4px;">
+      ${selectedTotal} / ${cost}
     </div>
-    <div style="font-size:11px;color:${th.textMuted};">
-      ${selectedTotal === cost ? '✓ Prêt' : `Encore ${cost - selectedTotal}`}
+    <div style="font-size:10px;color:${th.textMuted};">
+      ${selectedTotal === cost ? '✓ Prêt à lancer' : `Encore ${cost - selectedTotal}`}
     </div>
   </div>
 
   <!-- Liste des cartes -->
-  <div style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;
-              padding:4px;border:1px solid ${th.text}40;background:${th.bg}30;">
+  <div style="display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto;
+              padding:6px;border:2px solid #000;background:${th.bg};">
     ${owned.length === 0
       ? `<div style="text-align:center;padding:30px;color:${th.textMuted};font-size:11px;">Aucun doublon disponible.</div>`
       : owned.map(c => {
@@ -12548,9 +12549,9 @@ function renderRecycleSelect() {
           const maxForThis = Math.min(c.usable, remaining);
 
           return `
-          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:${th.surface};
-                      border:2px solid ${th.text};">
-            <div style="width:28px;height:38px;flex-shrink:0;border:1px solid ${th.text};overflow:hidden;
+          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:${th.bgSecondary};
+                      border:1px solid #000;">
+            <div style="width:28px;height:38px;flex-shrink:0;border:1px solid #000;overflow:hidden;
                         background:${RARITY_COLORS[rarity]};">
               ${c.image_url
                 ? `<img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
@@ -12565,26 +12566,24 @@ function renderRecycleSelect() {
             </div>
             <div style="display:flex;align-items:center;gap:4px;">
               <button class="recycle-card-minus" data-cardid="${c.card_id}" ${sel<=0?'disabled':''}
-                style="width:26px;height:26px;background:${sel>0?th.surface:'#ddd'};
-                       border:2px solid ${th.text};box-shadow:${sel>0?'2px 2px 0 #000':'none'};
-                       cursor:${sel>0?'pointer':'not-allowed'};font-size:14px;font-weight:900;color:${th.text};">−</button>
-              <div style="min-width:24px;text-align:center;font-size:13px;font-weight:900;color:${th.text};">${sel}</div>
+                style="width:24px;height:24px;background:${sel>0?th.bgTertiary:'transparent'};
+                       border:1px solid #000;cursor:${sel>0?'pointer':'not-allowed'};font-size:13px;font-weight:900;color:${th.text};opacity:${sel>0?1:.4};">−</button>
+              <div style="min-width:22px;text-align:center;font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};">${sel}</div>
               <button class="recycle-card-plus" data-cardid="${c.card_id}" ${maxForThis<=sel?'disabled':''}
-                style="width:26px;height:26px;background:${maxForThis>sel?th.surface:'#ddd'};
-                       border:2px solid ${th.text};box-shadow:${maxForThis>sel?'2px 2px 0 #000':'none'};
-                       cursor:${maxForThis>sel?'pointer':'not-allowed'};font-size:14px;font-weight:900;color:${th.text};">+</button>
+                style="width:24px;height:24px;background:${maxForThis>sel?th.bgTertiary:'transparent'};
+                       border:1px solid #000;cursor:${maxForThis>sel?'pointer':'not-allowed'};font-size:13px;font-weight:900;color:${th.text};opacity:${maxForThis>sel?1:.4};">+</button>
             </div>
           </div>`;
         }).join('')}
   </div>
 
-  <!-- Bouton démarrer -->
   <button id="recycle-confirm" ${selectedTotal!==cost?'disabled':''}
-    style="width:100%;padding:14px;margin-top:12px;
-           background:${selectedTotal===cost?'#22c55e':'#ddd'};color:${selectedTotal===cost?'#fff':'#999'};
-           border:2px solid ${th.text};box-shadow:${selectedTotal===cost?'4px 4px 0 #000':'none'};
+    style="width:100%;padding:13px;margin-top:12px;
+           background:${selectedTotal===cost?th.green:th.bgTertiary};color:${selectedTotal===cost?'#fff':th.textMuted};
+           border:2px solid #000;
            cursor:${selectedTotal===cost?'pointer':'not-allowed'};
-           font-family:'Luckiest Guy',cursive;font-size:14px;letter-spacing:1px;">
+           font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.8px;
+           ${selectedTotal===cost?'box-shadow:0 4px 16px '+th.green+'40;':''}">
     LANCER LE RECYCLAGE
   </button>
   `;
@@ -12608,80 +12607,76 @@ function renderRecycleProgress() {
   const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
 
   const rarityLabel = RARITY_LABELS[job.output_rarity];
-  const myCoins = state.currentUser?.coins || 0;
+  const myCoins = state.coins || 0;
+  const failRate = getFailRate(job.output_rarity);
+  const failPct = Math.round(failRate * 100);
+  const successPct = 100 - failPct;
+  const lastResult = state.recycleSpeedupLastResult;
 
   return `
-  <div style="text-align:center;padding:8px;">
-    <div style="font-size:48px;margin-bottom:6px;animation:${isReady?'recycleReady 1.4s infinite':'recycleSpin 3s linear infinite'};display:inline-block;">
+  <div style="text-align:center;padding:6px 0 12px;">
+    <div style="font-size:44px;margin-bottom:4px;${isReady?'animation:recycleReady 1.4s infinite;':'animation:recycleSpin 3s linear infinite;'}display:inline-block;">
       ${isReady ? '🎁' : '⚙'}
     </div>
-    <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:${th.text};letter-spacing:.7px;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:${th.text};letter-spacing:.6px;">
       ${isReady ? 'RECYCLAGE TERMINÉ !' : 'RECYCLAGE EN COURS'}
     </div>
-    <div style="font-size:11px;color:${th.textMuted};margin-top:4px;">
+    <div style="font-size:10px;color:${th.textMuted};margin-top:3px;letter-spacing:.3px;">
       Option ${job.option_type} · ${RARITY_LABELS[job.input_rarity]} → ${rarityLabel}
     </div>
   </div>
 
   <!-- Progress bar -->
   <div style="margin:14px 0 10px;">
-    <div style="background:${th.bg};border:2px solid ${th.text};height:24px;position:relative;overflow:hidden;">
-      <div style="background:linear-gradient(90deg,#3b82f6,#22c55e);height:100%;width:${pct}%;transition:width .5s;"></div>
+    <div style="background:${th.bg};border:2px solid #000;height:24px;position:relative;overflow:hidden;">
+      <div style="background:linear-gradient(90deg,#3b82f6,${th.green});height:100%;width:${pct}%;transition:width .5s;"></div>
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-                  font-size:11px;font-weight:900;color:${th.text};letter-spacing:.5px;mix-blend-mode:difference;color:#fff;">
-        ${isReady ? 'PRÊT À RÉCLAMER' : `Reste <span data-recycle-timer>${formatDuration(remainingMin)}</span>`}
+                  font-size:11px;font-weight:900;color:#fff;letter-spacing:.5px;text-shadow:0 1px 2px #000;">
+        ${isReady ? 'PRÊT À RÉCLAMER' : `Reste <span data-recycle-timer style="margin-left:4px;">${formatDuration(remainingMin)}</span>`}
       </div>
     </div>
   </div>
 
   ${isReady ? `
-    <button id="recycle-claim" style="width:100%;padding:14px;background:#22c55e;color:#fff;
-            border:2px solid ${th.text};box-shadow:4px 4px 0 #000;cursor:pointer;
-            font-family:'Luckiest Guy',cursive;font-size:14px;letter-spacing:1px;animation:recyclePulse 1.2s infinite;">
+    <button id="recycle-claim" style="width:100%;padding:13px;background:${th.green};color:#fff;
+            border:2px solid #000;cursor:pointer;
+            font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.8px;
+            box-shadow:0 4px 16px ${th.green}50;animation:recyclePulse 1.2s infinite;">
       RÉCLAMER MA ${rarityLabel.toUpperCase()}
     </button>
-  ` : (() => {
-    const failRate = getFailRate(job.output_rarity);
-    const failPct = Math.round(failRate * 100);
-    const successPct = 100 - failPct;
-    const lastResult = state.recycleSpeedupLastResult;  // 'fail' | 'success' | null
-    return `
+  ` : `
     <button id="recycle-speedup" ${myCoins<speedupCost?'disabled':''}
-      style="width:100%;padding:12px;background:${myCoins>=speedupCost?'#f59e0b':'#ddd'};color:${myCoins>=speedupCost?'#fff':'#999'};
-             border:2px solid ${th.text};box-shadow:${myCoins>=speedupCost?'4px 4px 0 #000':'none'};
+      style="width:100%;padding:11px;background:${myCoins>=speedupCost?'#f59e0b':th.bgTertiary};color:${myCoins>=speedupCost?'#fff':th.textMuted};
+             border:2px solid #000;
              cursor:${myCoins>=speedupCost?'pointer':'not-allowed'};
-             font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.7px;
+             font-family:'Luckiest Guy',cursive;font-size:12px;letter-spacing:.6px;
              ${lastResult==='fail'?'animation:recycleShake .5s;':''}">
       ⚡ TENTER · ${speedupCost.toLocaleString('fr-FR')} COINS
     </button>
 
-    <!-- Mini-bar succès/échec -->
     <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:10px;">
-      <div style="flex:1;height:8px;background:${th.bg};border:1px solid ${th.text};display:flex;overflow:hidden;">
-        <div style="width:${successPct}%;background:#22c55e;"></div>
-        <div style="width:${failPct}%;background:#ef4444;"></div>
+      <div style="flex:1;height:8px;background:${th.bg};border:1px solid #000;display:flex;overflow:hidden;">
+        <div style="width:${successPct}%;background:${th.green};"></div>
+        <div style="width:${failPct}%;background:${th.red};"></div>
       </div>
-      <div style="white-space:nowrap;color:${th.textMuted};font-weight:700;">
-        ${successPct}% réussite · <span style="color:#ef4444;">${failPct}% échec</span>
+      <div style="white-space:nowrap;color:${th.textMuted};font-weight:700;font-size:9px;">
+        ${successPct}% ✓ · <span style="color:${th.red};">${failPct}% ✗</span>
       </div>
     </div>
 
     <div style="font-size:9px;color:${th.textMuted};text-align:center;margin-top:6px;line-height:1.4;">
-      Coins disponibles : ${myCoins.toLocaleString('fr-FR')}<br>
-      ⚠ En cas d'échec, les coins sont perdus mais le recyclage continue normalement.
+      💰 ${myCoins.toLocaleString('fr-FR')} coins · En cas d'échec, coins perdus mais le recyclage continue.
     </div>
 
     ${lastResult === 'fail' ? `
-      <div style="margin-top:10px;padding:8px;background:#ef444415;border:2px solid #ef4444;text-align:center;font-size:11px;color:#ef4444;font-weight:700;animation:recycleFlash .4s;">
+      <div style="margin-top:10px;padding:8px;background:${th.red}22;border:2px solid ${th.red};text-align:center;font-size:11px;color:${th.red};font-weight:700;animation:recycleFlash .4s;">
         ❌ Tentative ratée ! Réessaie ou attends.
       </div>
     ` : ''}
-    `;
-  })()}
+  `}
 
-  <!-- Détails -->
-  <div style="margin-top:14px;padding:8px;background:${th.bg};border:1px solid ${th.text};font-size:10px;color:${th.textMuted};line-height:1.6;">
-    Démarré le ${new Date(job.started_at).toLocaleString('fr-FR')}<br>
+  <div style="margin-top:14px;padding:9px 11px;background:${th.bgTertiary};border:1px solid #000;font-size:10px;color:${th.textMuted};line-height:1.5;">
+    Démarré : ${new Date(job.started_at).toLocaleString('fr-FR')}<br>
     Cartes consommées : ${job.consumed_card_ids?.length || 0}
   </div>
 
@@ -12690,11 +12685,11 @@ function renderRecycleProgress() {
     @keyframes recycleReady { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
     @keyframes recyclePulse { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-2px,-2px)} }
     @keyframes recycleShake {
-      0%,100%   { transform: translateX(0); }
-      20%       { transform: translateX(-6px); }
-      40%       { transform: translateX(6px); }
-      60%       { transform: translateX(-4px); }
-      80%       { transform: translateX(4px); }
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-5px); }
+      40%     { transform: translateX(5px); }
+      60%     { transform: translateX(-3px); }
+      80%     { transform: translateX(3px); }
     }
     @keyframes recycleFlash {
       0%   { opacity: 0; transform: scale(.92); }
@@ -12710,32 +12705,31 @@ function renderRecycleResult() {
   const th = (typeof t === 'function') ? t() : (window.th || {});
   const r = state.recycleResultCard;
   if (!r) return '';
-  const card = ALL_CARDS.find(c => c.id === r.result_card_id);
+  const card = (ALL_CARDS || []).find(c => parseInt(c.id, 10) === r.result_card_id);
   const name = (card?.name || r.result_card_name || '').replace(/^"|"$/g, '');
   const rarity = card?.rarity || r.result_card_rarity;
 
   return `
   <div style="text-align:center;padding:14px 8px;">
-    <div style="font-family:'Luckiest Guy',cursive;font-size:18px;color:${th.text};letter-spacing:1px;margin-bottom:14px;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:16px;color:${th.text};letter-spacing:.8px;margin-bottom:14px;">
       🎉 NOUVELLE CARTE !
     </div>
 
-    <div style="display:inline-block;border:3px solid ${th.text};box-shadow:6px 6px 0 #000;
-                background:${RARITY_COLORS[rarity]};padding:6px;margin-bottom:14px;animation:recycleReveal .6s;">
+    <div style="display:inline-block;border:3px solid #000;background:${RARITY_COLORS[rarity]};padding:5px;margin-bottom:14px;animation:recycleReveal .6s;box-shadow:0 8px 24px rgba(0,0,0,.5);">
       ${card?.image_url
         ? `<img src="${card.image_url}" style="width:160px;height:auto;display:block;"/>`
         : `<div style="width:160px;height:220px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px;">?</div>`}
     </div>
 
-    <div style="font-family:'Luckiest Guy',cursive;font-size:16px;color:${th.text};letter-spacing:.5px;">${name}</div>
-    <div style="font-size:11px;color:${RARITY_COLORS[rarity]};font-weight:900;margin-top:4px;letter-spacing:1px;text-transform:uppercase;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:${th.text};letter-spacing:.4px;">${name}</div>
+    <div style="font-size:10px;color:${RARITY_COLORS[rarity]};font-weight:900;margin-top:4px;letter-spacing:1px;text-transform:uppercase;">
       ${RARITY_LABELS[rarity]}
     </div>
 
-    <button id="recycle-result-ok" style="width:100%;padding:14px;margin-top:18px;
-            background:${th.text};color:${th.surface};
-            border:2px solid ${th.text};box-shadow:4px 4px 0 #000;cursor:pointer;
-            font-family:'Luckiest Guy',cursive;font-size:14px;letter-spacing:1px;">
+    <button id="recycle-result-ok" style="width:100%;padding:13px;margin-top:18px;
+            background:${th.bgTertiary};color:${th.text};
+            border:2px solid #000;cursor:pointer;
+            font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.8px;">
       SUPER !
     </button>
   </div>
@@ -12893,40 +12887,37 @@ async function startRecyclingFlow() {
       requiredCardId: required
     });
 
-    // Mettre à jour la collection locale (décrémenter les cartes consommées)
-    if (state.currentUser?.cards) {
-      const newCards = state.currentUser.cards.map(c => {
-        const used = consumed.find(x => x.card_id === c.card_id);
-        if (!used) return c;
-        return { ...c, quantity: c.quantity - used.qty };
+    // Mettre à jour ALL_CARDS localement (décrémenter les cartes consommées)
+    if (Array.isArray(ALL_CARDS)) {
+      consumed.forEach(used => {
+        const card = ALL_CARDS.find(c => parseInt(c.id, 10) === used.card_id);
+        if (card) {
+          card.count = Math.max(0, (card.count || 0) - used.qty);
+          if (card.count === 0) card.owned = false;
+        }
       });
-      state.currentUser = { ...state.currentUser, cards: newCards };
     }
 
-    // Synchroniser les decks locaux pour refléter le nettoyage côté DB :
-    // si on n'a plus assez d'exemplaires en collection, retirer/réduire dans les decks
+    // Synchroniser les decks locaux pour refléter le nettoyage côté DB
     if (Array.isArray(state.decks)) {
-      const newDecks = state.decks.map(deck => {
-        const updated = { ...deck };
-        const myQty = (cid) => {
-          const c = state.currentUser?.cards?.find(x => x.card_id === cid);
-          return c ? c.quantity : 0;
-        };
-        updated.cards = (deck.cards || [])
+      const myQty = (cid) => {
+        const card = ALL_CARDS?.find(c => parseInt(c.id, 10) === cid);
+        return card ? (card.count || 0) : 0;
+      };
+      state.decks = state.decks.map(deck => ({
+        ...deck,
+        cards: (deck.cards || [])
           .map(dc => {
             const remaining = myQty(dc.card_id);
             if (remaining <= 0) return null;
             return { ...dc, quantity: Math.min(dc.quantity, remaining) };
           })
-          .filter(Boolean);
-        return updated;
-      });
-      state.decks = newDecks;
+          .filter(Boolean)
+      }));
     }
-    // Recharger les decks depuis Supabase pour être 100% sûr (en arrière-plan)
-    if (typeof loadDecks === 'function') {
-      loadDecks().catch(()=>{});
-    }
+    // Recharger collection + decks depuis Supabase pour être 100% sûr (arrière-plan)
+    if (typeof loadCollection === 'function') loadCollection().catch?.(()=>{});
+    if (typeof loadDecks === 'function') loadDecks().catch?.(()=>{});
 
     showToast('Recyclage lancé !', '♻');
     setState({
@@ -12952,7 +12943,7 @@ async function speedupRecyclingFlow() {
   const cost = remainingMin * getSpeedupRate();
   const failPct = Math.round(getFailRate(job.output_rarity) * 100);
   const successPct = 100 - failPct;
-  const myCoins = state.currentUser?.coins || 0;
+  const myCoins = state.coins || 0;
 
   if (myCoins < cost) {
     showToast(`Il te manque ${(cost - myCoins).toLocaleString('fr-FR')} coins`, '⚠️');
@@ -12977,8 +12968,8 @@ async function speedupRecyclingFlow() {
     const data = Array.isArray(result) ? result[0] : result;
 
     // Mettre à jour les coins localement (montant exact renvoyé par la RPC)
-    if (state.currentUser && typeof data?.coins_left === 'number') {
-      state.currentUser = { ...state.currentUser, coins: data.coins_left };
+    if (typeof data?.coins_left === 'number') {
+      state.coins = data.coins_left;
     }
 
     if (data?.success) {
@@ -13011,14 +13002,17 @@ async function claimRecyclingFlow() {
   if (!uid || !job) return;
   try {
     const result = await rpcClaimRecycling(uid, job.id);
-    // Mettre à jour la collection locale (ajouter la carte gagnée)
-    if (state.currentUser?.cards) {
-      const cards = [...state.currentUser.cards];
-      const existing = cards.find(c => c.card_id === result.result_card_id);
-      if (existing) existing.quantity += 1;
-      else cards.push({ card_id: result.result_card_id, quantity: 1 });
-      state.currentUser = { ...state.currentUser, cards };
+    // Mettre à jour ALL_CARDS localement (ajouter la carte gagnée)
+    if (Array.isArray(ALL_CARDS) && result?.result_card_id) {
+      const card = ALL_CARDS.find(c => parseInt(c.id, 10) === result.result_card_id);
+      if (card) {
+        card.count = (card.count || 0) + 1;
+        card.owned = true;
+        if (!card.obtainedAt) card.obtainedAt = new Date().toISOString();
+      }
     }
+    // Recharger la collection depuis Supabase en arrière-plan
+    if (typeof loadCollection === 'function') loadCollection().catch?.(()=>{});
     setState({
       recycleResultCard: result,
       recycleStep: 'result',
