@@ -12313,6 +12313,8 @@ function renderRecycleModal() {
   try {
   const th = (typeof t === 'function') ? t() : (window.th || {});
   const step = state.recycleStep || 'menu';
+  const isMobile = window.innerWidth < 600;
+  const isNarrow = window.innerWidth < 380;
 
   let body = '';
   if (step === 'help')                                       body = renderRecycleHelp();
@@ -12322,8 +12324,8 @@ function renderRecycleModal() {
   else                                                       body = renderRecycleMenu();
 
   return `
-  <div id="recycle-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;">
-    <div id="recycle-sheet" class="slide-up" style="width:100%;max-width:440px;max-height:92vh;overflow-y:auto;background:${th.bgSecondary};border-top:4px solid #000;border-left:3px solid #000;border-right:3px solid #000;box-shadow:-4px -4px 0 #000;padding-bottom:max(env(safe-area-inset-bottom,0px),20px);">
+  <div id="recycle-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;${isMobile?'padding:0 4px;':''}box-sizing:border-box;">
+    <div id="recycle-sheet" class="slide-up" style="width:100%;max-width:440px;max-height:92vh;overflow-y:auto;overflow-x:hidden;background:${th.bgSecondary};border-top:4px solid #000;border-left:${isMobile?'2px':'3px'} solid #000;border-right:${isMobile?'2px':'3px'} solid #000;box-shadow:-4px -4px 0 #000;padding-bottom:max(env(safe-area-inset-bottom,0px),${isMobile?'14px':'20px'});box-sizing:border-box;">
 
       <!-- Pull handle -->
       <div style="display:flex;justify-content:center;padding:10px 0 0;">
@@ -12331,20 +12333,20 @@ function renderRecycleModal() {
       </div>
 
       <!-- Header -->
-      <div style="padding:10px 18px 14px;display:flex;align-items:center;gap:10px;border-bottom:2px solid #000;">
-        <div style="font-size:24px;line-height:1;">♻</div>
-        <div style="flex:1;">
-          <div style="font-family:'Luckiest Guy',cursive;font-size:18px;letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
-          <div style="font-size:9px;color:${th.textMuted};margin-top:3px;letter-spacing:.6px;text-transform:uppercase;">Doublons → cartes supérieures</div>
+      <div style="padding:${isMobile?'10px 10px 12px':'10px 18px 14px'};display:flex;align-items:center;gap:${isNarrow?'6px':(isMobile?'8px':'10px')};border-bottom:2px solid #000;">
+        <div style="font-size:${isMobile?'20px':'24px'};line-height:1;flex-shrink:0;">♻</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'15px':'18px'};letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
+          <div style="font-size:${isMobile?'8px':'9px'};color:${th.textMuted};margin-top:3px;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Doublons → cartes supérieures</div>
         </div>
         <button id="recycle-help-btn" title="Comment ça marche ?"
-          style="width:30px;height:30px;background:${th.bgTertiary};border:2px solid #000;cursor:pointer;font-size:14px;font-weight:900;color:${th.text};">?</button>
+          style="width:${isMobile?'26px':'30px'};height:${isMobile?'26px':'30px'};background:${th.bgTertiary};border:2px solid #000;cursor:pointer;font-size:${isMobile?'12px':'14px'};font-weight:900;color:${th.text};flex-shrink:0;padding:0;">?</button>
         <button id="recycle-close-btn"
-          style="padding:6px 11px;background:transparent;border:1px solid ${th.red}35;color:${th.red};font-size:9px;font-weight:800;cursor:pointer;letter-spacing:.8px;">FERMER</button>
+          style="padding:${isMobile?'5px 8px':'6px 11px'};background:transparent;border:1px solid ${th.red}35;color:${th.red};font-size:${isMobile?'8px':'9px'};font-weight:800;cursor:pointer;letter-spacing:.8px;flex-shrink:0;white-space:nowrap;">FERMER</button>
       </div>
 
       <!-- Body -->
-      <div style="padding:14px 16px 4px;">${body}</div>
+      <div style="padding:${isMobile?'12px 10px 4px':'14px 16px 4px'};">${body}</div>
 
     </div>
   </div>`;
