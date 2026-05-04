@@ -12203,6 +12203,80 @@ function formatDuration(minutes) {
   return m === 0 ? `${h}h` : `${h}h ${m}min`;
 }
 
+// Combien d'exemplaires d'une carte sont engagés dans les decks du joueur
+// (max sur tous ses decks, pas la somme — un même ex peut être dans plusieurs decks)
+function getCardEngagedInDecks(cardId) {
+  const decks = state.decks || [];
+  let maxQty = 0;
+  for (const deck of decks) {
+    const c = (deck.cards || []).find(x => parseInt(x.card_id, 10) === parseInt(cardId, 10));
+    if (c && c.quantity > maxQty) maxQty = c.quantity;
+  }
+  return maxQty;
+}
+
+// Auto-sélection : remplit selon une stratégie qui évite les cartes dans les decks
+// Retourne { selected: {card_id: qty}, total }
+function autoSelectCards(rarity, cost, requiredCardId = null) {
+  const owned = requiredCardId
+    ? getOwnedCards(rarity).filter(c => c.card_id === requiredCardId)
+    : getOwnedCards(rarity);
+
+  // Calcul du "free" (dispo SANS toucher aux decks) pour chaque carte
+  const enriched = owned.map(c => {
+    const inDecks = getCardEngagedInDecks(c.card_id);
+    // free = ce qu'on peut prendre sans casser un deck
+    // collection = c.quantity, on garde 1 (collection) + inDecks (réservés decks)
+    // donc free = c.quantity - 1 - inDecks
+    const free = Math.max(0, c.quantity - 1 - inDecks);
+    return { ...c, free, inDecks };
+  });
+
+  // Stratégie 1 : prioriser les cartes "libres" (pas dans des decks),
+  // en commençant par les plus grosses piles
+  const selected = {};
+  let remaining = cost;
+
+  // Phase 1 : prendre dans le "free" (cartes hors decks)
+  const sortedByFree = [...enriched].sort((a, b) => b.free - a.free);
+  for (const c of sortedByFree) {
+    if (remaining <= 0) break;
+    const take = Math.min(c.free, remaining);
+    if (take > 0) {
+      selected[c.card_id] = (selected[c.card_id] || 0) + take;
+      remaining -= take;
+    }
+  }
+
+  // Phase 2 : si pas assez avec le free, on commence à puiser dans les decks
+  // (en prenant les cartes les moins engagées en priorité)
+  if (remaining > 0) {
+    const sortedByUsable = [...enriched].sort((a, b) => {
+      // priorité aux cartes les moins critiques (peu engagées dans les decks)
+      // et avec le plus de quantité dispo restante
+      const aTaken = selected[a.card_id] || 0;
+      const bTaken = selected[b.card_id] || 0;
+      const aLeft = a.usable - aTaken;
+      const bLeft = b.usable - bTaken;
+      if (a.inDecks !== b.inDecks) return a.inDecks - b.inDecks;
+      return bLeft - aLeft;
+    });
+    for (const c of sortedByUsable) {
+      if (remaining <= 0) break;
+      const taken = selected[c.card_id] || 0;
+      const canTake = c.usable - taken;
+      const take = Math.min(canTake, remaining);
+      if (take > 0) {
+        selected[c.card_id] = taken + take;
+        remaining -= take;
+      }
+    }
+  }
+
+  const total = Object.values(selected).reduce((s, n) => s + n, 0);
+  return { selected, total };
+}
+
 function getOwnedCards(rarity) {
   // Renvoie la liste des cartes du joueur de rareté donnée
   // avec count > 1 (donc au moins 1 doublon utilisable)
@@ -12510,6 +12584,10 @@ function renderRecycleSelect() {
   const selectedTotal = getSelectedTotal();
   const next = RARITY_NEXT[rarity];
 
+  // Pour info en bas : combien le joueur peut auto-sélectionner sans toucher aux decks ?
+  const autoFreeTotal = owned.reduce((s, c) => s + Math.max(0, c.usable - getCardEngagedInDecks(c.card_id)), 0);
+  const autoCanReachCost = autoFreeTotal >= cost;
+
   return `
   <div style="margin-bottom:10px;">
     <button id="recycle-back-menu" style="font-size:10px;color:${th.textMuted};background:none;border:none;cursor:pointer;padding:0;letter-spacing:.4px;">
@@ -12526,17 +12604,36 @@ function renderRecycleSelect() {
     </div>
   </div>
 
-  <!-- Compteur -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;
-              background:${selectedTotal===cost?'#22c55e22':th.bgTertiary};border:2px solid ${selectedTotal===cost?th.green:'#000'};
-              margin-bottom:10px;">
-    <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.4px;">
-      ${selectedTotal} / ${cost}
+  <!-- Compteur + Auto + Reset -->
+  <div style="display:flex;align-items:stretch;gap:6px;margin-bottom:10px;">
+    <div style="flex:1;display:flex;align-items:center;justify-content:space-between;padding:9px 12px;
+                background:${selectedTotal===cost?'#22c55e22':th.bgTertiary};border:2px solid ${selectedTotal===cost?th.green:'#000'};">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.4px;">
+        ${selectedTotal} / ${cost}
+      </div>
+      <div style="font-size:9px;color:${th.textMuted};">
+        ${selectedTotal === cost ? '✓ Prêt' : (selectedTotal>cost ? `Trop (${selectedTotal-cost})` : `Encore ${cost - selectedTotal}`)}
+      </div>
     </div>
-    <div style="font-size:10px;color:${th.textMuted};">
-      ${selectedTotal === cost ? '✓ Prêt à lancer' : `Encore ${cost - selectedTotal}`}
-    </div>
+    ${!required ? `
+    <button id="recycle-auto" title="${autoCanReachCost?'Auto-sélectionne en évitant tes decks':'Pas assez de cartes hors decks, l\'auto-sélection puisera aussi dans tes decks'}"
+      style="padding:0 12px;background:${th.accent};color:#000;border:2px solid #000;cursor:pointer;
+             font-family:'Luckiest Guy',cursive;font-size:11px;letter-spacing:.6px;">
+      AUTO
+    </button>
+    ` : ''}
+    <button id="recycle-reset" title="Tout déselectionner"
+      style="padding:0 11px;background:${th.bgTertiary};color:${th.textMuted};border:2px solid #000;cursor:pointer;
+             font-family:'Luckiest Guy',cursive;font-size:11px;letter-spacing:.6px;">
+      RESET
+    </button>
   </div>
+
+  ${!required && !autoCanReachCost && autoFreeTotal > 0 ? `
+  <div style="margin-bottom:8px;padding:7px 10px;background:#f59e0b22;border:1px solid #f59e0b;font-size:9px;color:${th.text};line-height:1.4;">
+    ⚠ Tu n'as que <b>${autoFreeTotal}</b> carte${autoFreeTotal>1?'s':''} hors decks. L'auto-sélection puisera dans tes decks (qui seront ajustés).
+  </div>
+  ` : ''}
 
   <!-- Liste des cartes -->
   <div style="display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto;
@@ -12545,12 +12642,13 @@ function renderRecycleSelect() {
       ? `<div style="text-align:center;padding:30px;color:${th.textMuted};font-size:11px;">Aucun doublon disponible.</div>`
       : owned.map(c => {
           const sel = selected[c.card_id] || 0;
-          const remaining = cost - selectedTotal + sel;
-          const maxForThis = Math.min(c.usable, remaining);
+          const inDecks = getCardEngagedInDecks(c.card_id);
+          // Note : on autorise au-delà de "free" mais on previent visuellement
+          const inputId = 'recycle-input-' + c.card_id;
 
           return `
           <div style="display:flex;align-items:center;gap:8px;padding:6px;background:${th.bgSecondary};
-                      border:1px solid #000;">
+                      border:1px solid #000;${sel>0?'box-shadow:inset 0 0 0 1px '+th.green+';':''}">
             <div style="width:28px;height:38px;flex-shrink:0;border:1px solid #000;overflow:hidden;
                         background:${RARITY_COLORS[rarity]};">
               ${c.image_url
@@ -12561,17 +12659,22 @@ function renderRecycleSelect() {
               <div style="font-size:11px;color:${th.text};font-weight:700;
                           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</div>
               <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">
-                Possédées : ${c.quantity} · Dispo : ${c.usable}
+                ${c.quantity} possédée${c.quantity>1?'s':''} · ${c.usable} dispo${inDecks>0?` · <span style="color:#f59e0b;">${inDecks} dans deck${inDecks>1?'s':''}</span>`:''}
               </div>
             </div>
-            <div style="display:flex;align-items:center;gap:4px;">
+            <div style="display:flex;align-items:center;gap:3px;">
               <button class="recycle-card-minus" data-cardid="${c.card_id}" ${sel<=0?'disabled':''}
-                style="width:24px;height:24px;background:${sel>0?th.bgTertiary:'transparent'};
+                style="width:24px;height:26px;background:${sel>0?th.bgTertiary:'transparent'};
                        border:1px solid #000;cursor:${sel>0?'pointer':'not-allowed'};font-size:13px;font-weight:900;color:${th.text};opacity:${sel>0?1:.4};">−</button>
-              <div style="min-width:22px;text-align:center;font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};">${sel}</div>
-              <button class="recycle-card-plus" data-cardid="${c.card_id}" ${maxForThis<=sel?'disabled':''}
-                style="width:24px;height:24px;background:${maxForThis>sel?th.bgTertiary:'transparent'};
-                       border:1px solid #000;cursor:${maxForThis>sel?'pointer':'not-allowed'};font-size:13px;font-weight:900;color:${th.text};opacity:${maxForThis>sel?1:.4};">+</button>
+              <input type="number" id="${inputId}" class="recycle-card-input" data-cardid="${c.card_id}" data-max="${c.usable}"
+                value="${sel}" min="0" max="${c.usable}"
+                style="width:38px;height:26px;text-align:center;font-family:'Luckiest Guy',cursive;font-size:12px;
+                       background:${th.bg};color:${th.text};border:1px solid #000;outline:none;padding:0;
+                       -moz-appearance:textfield;" inputmode="numeric"/>
+              <button class="recycle-card-plus" data-cardid="${c.card_id}" data-max="${c.usable}"
+                ${sel>=c.usable?'disabled':''}
+                style="width:24px;height:26px;background:${sel<c.usable?th.bgTertiary:'transparent'};
+                       border:1px solid #000;cursor:${sel<c.usable?'pointer':'not-allowed'};font-size:13px;font-weight:900;color:${th.text};opacity:${sel<c.usable?1:.4};">+</button>
             </div>
           </div>`;
         }).join('')}
@@ -12586,6 +12689,14 @@ function renderRecycleSelect() {
            ${selectedTotal===cost?'box-shadow:0 4px 16px '+th.green+'40;':''}">
     LANCER LE RECYCLAGE
   </button>
+
+  <style>
+    /* Hide spin buttons sur input number */
+    .recycle-card-input::-webkit-outer-spin-button,
+    .recycle-card-input::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+  </style>
   `;
 }
 
@@ -12809,28 +12920,155 @@ function bindRecycleEvents() {
     });
   });
 
-  // +/- sur les cartes
+  // ============ Sélection cartes : DOM direct (pas de re-render) ============
+  // Helper pour mettre à jour l'UI sans re-render complet
+  function _updateSelectionUI() {
+    const rarity = state.recycleSelectedRarity;
+    const required = state.recycleRequiredCardId;
+    const option = required ? 'B' : 'A';
+    const cost = getRecycleCost(option, rarity);
+    const total = getSelectedTotal();
+    const th = (typeof t === 'function') ? t() : (window.th || {});
+
+    // Compteur
+    const counterDiv = document.querySelector('#recycle-sheet .recycle-counter') 
+                    || document.querySelector('#recycle-sheet [data-counter]');
+    // On accède au compteur via son contenu (1ère div du compteur)
+    const counterContainers = document.querySelectorAll('#recycle-sheet > div > div');
+    
+    // Approche simple : on modifie directement les éléments via querySelector
+    // sur le bouton confirm et le wrapper du compteur
+    const confirmBtn = document.getElementById('recycle-confirm');
+    if (confirmBtn) {
+      const ok = total === cost;
+      confirmBtn.disabled = !ok;
+      confirmBtn.style.background = ok ? th.green : th.bgTertiary;
+      confirmBtn.style.color = ok ? '#fff' : th.textMuted;
+      confirmBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+      confirmBtn.style.boxShadow = ok ? '0 4px 16px ' + th.green + '40' : '';
+    }
+
+    // Mettre à jour le compteur (cherche le 1er div qui matche le pattern)
+    document.querySelectorAll('#recycle-sheet div').forEach(el => {
+      const txt = (el.textContent || '').trim();
+      // Pattern "X / Y" en gros (Luckiest Guy)
+      if (el.style.fontFamily && el.style.fontFamily.includes('Luckiest') 
+          && /^\d+\s*\/\s*\d+$/.test(txt)) {
+        el.textContent = total + ' / ' + cost;
+      }
+    });
+    
+    // Ré-écrire le statut "✓ Prêt" / "Encore X" / "Trop"
+    document.querySelectorAll('#recycle-sheet div').forEach(el => {
+      const txt = (el.textContent || '').trim();
+      if (/^(✓ Prêt|Encore \d+|Trop \(\d+\))$/.test(txt)) {
+        if (total === cost) el.textContent = '✓ Prêt';
+        else if (total > cost) el.textContent = `Trop (${total - cost})`;
+        else el.textContent = `Encore ${cost - total}`;
+      }
+    });
+
+    // Mettre à jour la couleur du wrapper du compteur (vert si prêt)
+    const counterWrapper = document.querySelector('#recycle-sheet button#recycle-confirm');
+    // (déjà fait au-dessus pour le bouton confirm)
+  }
+
+  function _setCardQty(cardId, newQty) {
+    const sel = { ...(state.recycleSelectedCards || {}) };
+    const max = parseInt(document.querySelector(`.recycle-card-input[data-cardid="${cardId}"]`)?.dataset.max || '0', 10);
+    newQty = Math.max(0, Math.min(max, newQty | 0));
+    if (newQty === 0) delete sel[cardId];
+    else sel[cardId] = newQty;
+    state.recycleSelectedCards = sel;  // mise à jour directe sans re-render
+
+    // Mettre à jour l'input + boutons +/-
+    const input = document.querySelector(`.recycle-card-input[data-cardid="${cardId}"]`);
+    if (input) input.value = newQty;
+    const minusBtn = document.querySelector(`.recycle-card-minus[data-cardid="${cardId}"]`);
+    if (minusBtn) {
+      minusBtn.disabled = newQty <= 0;
+      minusBtn.style.opacity = newQty > 0 ? 1 : 0.4;
+      minusBtn.style.cursor = newQty > 0 ? 'pointer' : 'not-allowed';
+    }
+    const plusBtn = document.querySelector(`.recycle-card-plus[data-cardid="${cardId}"]`);
+    if (plusBtn) {
+      plusBtn.disabled = newQty >= max;
+      plusBtn.style.opacity = newQty < max ? 1 : 0.4;
+      plusBtn.style.cursor = newQty < max ? 'pointer' : 'not-allowed';
+    }
+
+    _updateSelectionUI();
+  }
+
+  // Boutons +
   document.querySelectorAll('.recycle-card-plus').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
       const id = parseInt(btn.dataset.cardid, 10);
-      const sel = { ...(state.recycleSelectedCards || {}) };
-      sel[id] = (sel[id] || 0) + 1;
-      setState({ recycleSelectedCards: sel });
+      const cur = (state.recycleSelectedCards || {})[id] || 0;
+      _setCardQty(id, cur + 1);
     });
   });
+  
+  // Boutons −
   document.querySelectorAll('.recycle-card-minus').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.disabled) return;
       const id = parseInt(btn.dataset.cardid, 10);
-      const sel = { ...(state.recycleSelectedCards || {}) };
-      if (sel[id]) {
-        sel[id] -= 1;
-        if (sel[id] <= 0) delete sel[id];
-      }
-      setState({ recycleSelectedCards: sel });
+      const cur = (state.recycleSelectedCards || {})[id] || 0;
+      _setCardQty(id, cur - 1);
     });
   });
+
+  // Inputs texte (saisie directe)
+  document.querySelectorAll('.recycle-card-input').forEach(inp => {
+    // Sélectionner tout au focus pour faciliter la frappe
+    inp.addEventListener('focus', () => inp.select());
+    inp.addEventListener('input', () => {
+      const id = parseInt(inp.dataset.cardid, 10);
+      let v = parseInt(inp.value, 10);
+      if (isNaN(v)) v = 0;
+      _setCardQty(id, v);
+    });
+  });
+
+  // Bouton AUTO
+  const autoBtn = document.getElementById('recycle-auto');
+  if (autoBtn) {
+    autoBtn.addEventListener('click', () => {
+      const rarity = state.recycleSelectedRarity;
+      const required = state.recycleRequiredCardId;
+      const option = required ? 'B' : 'A';
+      const cost = getRecycleCost(option, rarity);
+      const result = autoSelectCards(rarity, cost, required);
+      state.recycleSelectedCards = result.selected;
+      // Re-render local : on a besoin d'un refresh visuel global ici
+      // mais sans toucher tout le rendu. Le plus simple: setState juste pour la modale.
+      setState({ recycleSelectedCards: result.selected });
+    });
+  }
+
+  // Bouton RESET
+  const resetBtn = document.getElementById('recycle-reset');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      state.recycleSelectedCards = {};
+      // Reset visuel direct (pour éviter flicker)
+      document.querySelectorAll('.recycle-card-input').forEach(inp => { inp.value = '0'; });
+      document.querySelectorAll('.recycle-card-minus').forEach(b => {
+        b.disabled = true;
+        b.style.opacity = 0.4;
+        b.style.cursor = 'not-allowed';
+      });
+      document.querySelectorAll('.recycle-card-plus').forEach(b => {
+        const max = parseInt(b.dataset.max || '0', 10);
+        b.disabled = max <= 0;
+        b.style.opacity = max > 0 ? 1 : 0.4;
+        b.style.cursor = max > 0 ? 'pointer' : 'not-allowed';
+      });
+      _updateSelectionUI();
+    });
+  }
 
   // Confirm démarrer
   const confirmBtn = document.getElementById('recycle-confirm');
