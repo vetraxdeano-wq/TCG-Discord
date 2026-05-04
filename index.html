@@ -3333,6 +3333,7 @@ function renderTabBoosters(th){
     ${(()=>{
       const _rColor = '#a855f7';
       return `<div id="btn-recycle"
+        onclick="if(typeof openRecycleModal==='function'){openRecycleModal();}else{alert('Module recyclage pas chargé');}"
         style="margin:${isMobile?'4px 12px':'8px 14px'};flex-shrink:0;
           background:linear-gradient(135deg,${_rColor}12,${_rColor}03);
           border:1px solid ${_rColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
@@ -12744,12 +12745,7 @@ function renderRecycleResult() {
 
 function bindRecycleEvents() {
   try {
-  // Bouton ouvrir (sur la home, à côté de Pioche)
-  const openBtn = document.getElementById('btn-recycle');
-  if (openBtn && !openBtn._bound) {
-    openBtn._bound = true;
-    openBtn.addEventListener('click', openRecycleModal);
-  }
+  // Bouton ouvrir : géré via onclick inline dans le HTML, pas besoin ici
 
   if (!state.showRecycle) return;
 
