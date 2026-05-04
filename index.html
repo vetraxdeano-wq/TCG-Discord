@@ -3296,56 +3296,59 @@ function renderTabBoosters(th){
       <button id="booster-next" style="width:36px;height:36px;background:${selectedIdx===BOOSTERS.length-1?'rgba(255,255,255,.04)':'rgba(255,255,255,.08)'};border:1px solid rgba(255,255,255,.1);color:${selectedIdx===BOOSTERS.length-1?'rgba(255,255,255,.2)':'#fff'};font-size:18px;cursor:${selectedIdx===BOOSTERS.length-1?'default':'pointer'};transition:all .2s;display:flex;align-items:center;justify-content:center;">›</button>
     </div>`}
 
-    <!-- Séparateur + Bonus (Pioche & Recyclage) -->
+    <!-- Séparateur + Pioche -->
     <div style="padding:${isMobile?'2px 12px 2px':'4px 16px 4px'};flex-shrink:0;display:flex;align-items:center;gap:8px;">
-      <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Bonus</div>
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Pioche</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
-      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;padding:2px 8px;letter-spacing:.6px;">PIOCHE 1×/J</span>
-      <span style="font-size:7px;font-weight:900;color:#a78bfa;background:#a78bfa14;border:1px solid #a78bfa30;padding:2px 8px;letter-spacing:.6px;">RECYCLAGE</span>
+      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
+      <span style="font-size:7px;font-weight:900;color:#a78bfa;background:#a78bfa14;border:1px solid #a78bfa30;padding:2px 8px;letter-spacing:.6px;">1× PAR JOUR</span>
     </div>
 
-    <!-- Pioche + Recyclage côte à côte -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:${isMobile?'6px':'10px'};margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'8px'};flex-shrink:0;">
-
+    <!-- Pioche compacte -->
     ${(()=>{
       const _pUid = state.currentUser?.id || '';
       const _pUsed = !canPiocheTodaySync(_pUid);
       const _pColor = _pUsed ? '#ef4444' : th.green;
       return `<div id="btn-pioche"
-        style="background:linear-gradient(135deg,${_pColor}10,${_pColor}03);
+        style="margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'8px'};flex-shrink:0;
+          background:linear-gradient(135deg,${_pColor}10,${_pColor}03);
           border:1px solid ${_pColor}25;overflow:hidden;cursor:${_pUsed?'not-allowed':'pointer'};position:relative;transition:all .22s;opacity:${_pUsed?.7:1};">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_pColor}80,transparent);"></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:${isMobile?'4px':'6px'};padding:${isMobile?'8px 6px':'10px 8px'};text-align:center;">
-          <div style="position:relative;width:${isMobile?'24px':'32px'};height:${isMobile?'32px':'42px'};flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'10px 16px'};">
+          <div style="position:relative;width:${isMobile?'24px':'36px'};height:${isMobile?'32px':'48px'};flex-shrink:0;">
             ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;border:1px solid ${_pColor}35;transform:rotate(${(k-2)*5}deg) translateY(${k}px);overflow:hidden;"><img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.7;"/></div>`).join('')}
           </div>
-          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'10px':'12px'};font-weight:400;color:${th.text};letter-spacing:.3px;line-height:1;">Pioche</div>
-          <div style="font-size:${isMobile?'7px':'9px'};color:${_pUsed?_pColor:th.textMuted};line-height:1.1;min-height:${isMobile?'9px':'11px'};">
-            ${_pUsed ? `⏳ <span data-daily-timer>${timeUntilMidnight()}</span>` : '1 carte gratuite'}
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'11px':'13px'};font-weight:400;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
+            <div style="font-size:${isMobile?'8px':'10px'};color:${_pUsed?_pColor:th.textMuted};margin-top:2px;">
+              ${_pUsed ? `⏳ Disponible dans <span data-daily-timer>${timeUntilMidnight()}</span>` : (isMobile?'1 carte gratuite · 1× par jour':'50 cartes face cachée · retourne-en une · 1× par jour')}
+            </div>
           </div>
-          <div style="padding:${isMobile?'4px 8px':'5px 10px'};background:${_pUsed?th.surface:th.green};color:${_pUsed?th.textMuted:'#fff'};border:${_pUsed?'1px solid #000':'none'};font-size:${isMobile?'8px':'9px'};font-weight:900;letter-spacing:.7px;box-shadow:${_pUsed?'none':'0 3px 12px '+th.green+'40'};">${_pUsed?'ÉPUISÉ':'PIOCHER'}</div>
+          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_pUsed?th.surface:th.green};color:${_pUsed?th.textMuted:'#fff'};border:${_pUsed?'1px solid #000':'none'};font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:${_pUsed?'none':'0 3px 12px '+th.green+'40'};flex-shrink:0;">${_pUsed?'ÉPUISÉ':'PIOCHER'}</div>
         </div>
       </div>`;
     })()}
 
+    <!-- ═══ Bouton Recyclage (ajouté) ═══ -->
     ${(()=>{
       const _rColor = '#a855f7';
       return `<div id="btn-recycle"
-        style="background:linear-gradient(135deg,${_rColor}12,${_rColor}03);
+        style="margin:${isMobile?'4px 12px':'8px 14px'};flex-shrink:0;
+          background:linear-gradient(135deg,${_rColor}12,${_rColor}03);
           border:1px solid ${_rColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_rColor}90,transparent);"></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:${isMobile?'4px':'6px'};padding:${isMobile?'8px 6px':'10px 8px'};text-align:center;">
-          <div style="font-size:${isMobile?'26px':'34px'};line-height:1;animation:recycleIconSpin 6s linear infinite;height:${isMobile?'32px':'42px'};display:flex;align-items:center;justify-content:center;">♻</div>
-          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'10px':'12px'};font-weight:400;color:${th.text};letter-spacing:.3px;line-height:1;">Recyclage</div>
-          <div style="font-size:${isMobile?'7px':'9px'};color:${th.textMuted};line-height:1.1;min-height:${isMobile?'9px':'11px'};">
-            Doublons → cartes ↑
+        <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'10px 16px'};">
+          <div style="font-size:${isMobile?'24px':'34px'};line-height:1;animation:recycleIconSpin 6s linear infinite;flex-shrink:0;width:${isMobile?'24px':'36px'};text-align:center;">♻</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'11px':'13px'};font-weight:400;color:${th.text};letter-spacing:.3px;">Recyclage</div>
+            <div style="font-size:${isMobile?'8px':'10px'};color:${th.textMuted};margin-top:2px;">
+              ${isMobile?'Doublons → cartes ↑':'Échange tes doublons contre des cartes de rareté supérieure'}
+            </div>
           </div>
-          <div style="padding:${isMobile?'4px 8px':'5px 10px'};background:${_rColor};color:#fff;font-size:${isMobile?'8px':'9px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${_rColor}40;">OUVRIR</div>
+          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_rColor};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${_rColor}40;flex-shrink:0;">OUVRIR</div>
         </div>
       </div>`;
     })()}
-
-    </div>
 
     <style>
       @keyframes recycleIconSpin { to { transform: rotate(360deg); } }
