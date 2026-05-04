@@ -12239,6 +12239,7 @@ function getSelectedTotal() {
 function renderRecycleModal() {
   if (!state.showRecycle) return '';
   try {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   const step = state.recycleStep || 'menu';
 
   // Choix du sous-render selon l'étape
@@ -12286,6 +12287,7 @@ function renderRecycleModal() {
 // ─── RENDER : aide ────────────────────────────────────────────────────
 
 function renderRecycleHelp() {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   const cA = state.recycleConfig?.costs?.A || RECYCLE_DEFAULTS.costs.A;
   const cB = state.recycleConfig?.costs?.B || RECYCLE_DEFAULTS.costs.B;
   const tA = state.recycleConfig?.timers_minutes?.A || RECYCLE_DEFAULTS.timers_minutes.A;
@@ -12343,6 +12345,7 @@ function renderRecycleHelp() {
 // ─── RENDER : menu principal (choix Option A / B) ────────────────────
 
 function renderRecycleMenu() {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   const tab = state.recycleTab || 'A';
   const offers = state.recycleDailyOffers;
 
@@ -12370,6 +12373,7 @@ function renderRecycleMenu() {
 }
 
 function renderTabA() {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   return `
   <div style="font-size:11px;color:${th.textMuted};margin-bottom:10px;line-height:1.5;">
     Choisis n'importe quelles cartes de la rareté demandée pour les sacrifier.
@@ -12413,6 +12417,7 @@ function renderTabA() {
 }
 
 function renderTabB(offers) {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   if (!offers) {
     return `<div style="text-align:center;padding:30px;color:${th.textMuted};font-size:11px;">Chargement des offres du jour…</div>`;
   }
@@ -12487,6 +12492,7 @@ function renderTabB(offers) {
 // ─── RENDER : sélection des cartes (Option A) ────────────────────────
 
 function renderRecycleSelect() {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   const rarity = state.recycleSelectedRarity;
   const required = state.recycleRequiredCardId;
   const option = required ? 'B' : 'A';
@@ -12587,6 +12593,7 @@ function renderRecycleSelect() {
 // ─── RENDER : recyclage en cours ─────────────────────────────────────
 
 function renderRecycleProgress() {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   const job = state.recycleActiveJob;
   if (!job) return renderRecycleMenu();
 
@@ -12700,6 +12707,7 @@ function renderRecycleProgress() {
 // ─── RENDER : carte gagnée ───────────────────────────────────────────
 
 function renderRecycleResult() {
+  const th = (typeof t === 'function') ? t() : (window.th || {});
   const r = state.recycleResultCard;
   if (!r) return '';
   const card = ALL_CARDS.find(c => c.id === r.result_card_id);
