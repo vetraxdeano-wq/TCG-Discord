@@ -12124,29 +12124,52 @@ async function rpcCancelRecycling(userId, jobId) {
 // ─── INIT (appeler à l'ouverture de la modale) ───────────────────────
 
 async function openRecycleModal() {
-  const uid = state.currentUser?.id;
-  if (!uid) { showToast('Connecte-toi d\'abord', '⚠️'); return; }
+  try {
+    const uid = state.currentUser?.id;
+    if (!uid) { 
+      if (typeof showToast === 'function') showToast('Connecte-toi d\'abord', '⚠️');
+      return; 
+    }
 
-  // Bootstrap : config + job actif + offres du jour
-  const [cfg, activeJob, offers] = await Promise.all([
-    loadRecycleConfig(),
-    loadActiveRecycleJob(uid),
-    loadDailyRecycleOffers()
-  ]);
+    // Ouvrir tout de suite la modale avec valeurs par défaut, charger en arrière-plan
+    setState({
+      showRecycle: true,
+      recycleConfig: RECYCLE_DEFAULTS,
+      recycleActiveJob: null,
+      recycleDailyOffers: null,
+      recycleStep: 'menu',
+      recycleTab: 'A',
+      recycleSelectedRarity: null,
+      recycleSelectedCards: {},
+      recycleRequiredCardId: null,
+      recycleResultCard: null,
+      recycleSpeedupLastResult: null
+    });
 
-  setState({
-    showRecycle: true,
-    recycleConfig: cfg,
-    recycleActiveJob: activeJob,
-    recycleDailyOffers: offers,
-    recycleStep: activeJob ? 'progress' : 'menu',
-    recycleTab: 'A',
-    recycleSelectedRarity: null,
-    recycleSelectedCards: {},
-    recycleRequiredCardId: null,
-    recycleResultCard: null,
-    recycleSpeedupLastResult: null
-  });
+    // Charger config (silencieux si erreur)
+    let cfg = RECYCLE_DEFAULTS;
+    try { cfg = await loadRecycleConfig(); } catch(e) { console.warn('loadRecycleConfig:', e); }
+    
+    // Charger job actif (silencieux si erreur)
+    let activeJob = null;
+    try { activeJob = await loadActiveRecycleJob(uid); } catch(e) { console.warn('loadActiveRecycleJob:', e); }
+    
+    // Charger offres du jour (silencieux si erreur)
+    let offers = null;
+    try { offers = await loadDailyRecycleOffers(); } catch(e) { console.warn('loadDailyRecycleOffers:', e); }
+
+    if (!state.showRecycle) return;  // l'utilisateur a déjà fermé la modale entre temps
+
+    setState({
+      recycleConfig: cfg || RECYCLE_DEFAULTS,
+      recycleActiveJob: activeJob,
+      recycleDailyOffers: offers,
+      recycleStep: activeJob ? 'progress' : 'menu'
+    });
+  } catch (err) {
+    console.error('openRecycleModal:', err);
+    if (typeof showToast === 'function') showToast('Erreur ouverture recyclage', '❌');
+  }
 }
 
 function closeRecycleModal() {
@@ -12214,6 +12237,7 @@ function getSelectedTotal() {
 
 function renderRecycleModal() {
   if (!state.showRecycle) return '';
+  try {
   const step = state.recycleStep || 'menu';
 
   // Choix du sous-render selon l'étape
@@ -12252,8 +12276,12 @@ function renderRecycleModal() {
 
     </div>
   </div>`;
-}
 
+  } catch (err) {
+    console.error('renderRecycleModal:', err);
+    return '';
+  }
+}
 // ─── RENDER : aide ────────────────────────────────────────────────────
 
 function renderRecycleHelp() {
@@ -12715,6 +12743,7 @@ function renderRecycleResult() {
 // ─── EVENT BINDING ────────────────────────────────────────────────────
 
 function bindRecycleEvents() {
+  try {
   // Bouton ouvrir (sur la home, à côté de Pioche)
   const openBtn = document.getElementById('btn-recycle');
   if (openBtn && !openBtn._bound) {
@@ -12828,8 +12857,11 @@ function bindRecycleEvents() {
       recycleRequiredCardId: null
     });
   });
-}
 
+  } catch (err) {
+    console.error('bindRecycleEvents:', err);
+  }
+}
 // ─── ACTIONS ─────────────────────────────────────────────────────────
 
 async function startRecyclingFlow() {
@@ -13009,10 +13041,13 @@ function startRecycleTimerTicker() {
       const remainingMin = Math.ceil(remainingMs / 60000);
       const el = document.querySelector('[data-recycle-timer]');
       if (el) el.textContent = formatDuration(remainingMin);
-      // Si vient de devenir prêt, re-render
+      // Si vient de devenir prêt, re-render via une mise à jour ciblée
       if (remainingMs <= 0 && !job._readyShown) {
         job._readyShown = true;
-        setState({});  // déclenche un re-render
+        // re-render seulement si la modale est encore ouverte
+        if (state.showRecycle && typeof setState === 'function') {
+          setState({ recycleActiveJob: { ...job } });
+        }
       }
     }
 
