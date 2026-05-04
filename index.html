@@ -1030,6 +1030,18 @@ let state = {
   boosterSelectedIdx: 1,
   boosterPrevIdx: 1,
   showPioche: false,
+  // Recyclage
+  showRecycle: false,
+  recycleTab: 'A',
+  recycleStep: 'menu',
+  recycleSelectedRarity: null,
+  recycleSelectedCards: {},
+  recycleRequiredCardId: null,
+  recycleActiveJob: null,
+  recycleDailyOffers: null,
+  recycleConfig: null,
+  recycleResultCard: null,
+  recycleSpeedupLastResult: null,
   // Pioche
   piocheFlipped: {},
   piocheChosen: null,
@@ -1509,6 +1521,7 @@ function renderGame(th){
     ${state.showTradeHistory?renderTradeHistoryModal(th):''}
     ${state.collSelectedCard?renderCardDetailModal(state.collSelectedCard,th):''}
     ${state.showPioche?renderPiocheMechanic(th):''}
+    ${typeof renderRecycleModal === 'function' ? renderRecycleModal() : ''}
     ${state.showProfile?renderProfileModal(th):''}
     ${state.showAddFriend?renderAddFriendModal(th):''}
     ${state.showDeckBuilder?renderDeckBuilder(th):''}
@@ -3283,38 +3296,60 @@ function renderTabBoosters(th){
       <button id="booster-next" style="width:36px;height:36px;background:${selectedIdx===BOOSTERS.length-1?'rgba(255,255,255,.04)':'rgba(255,255,255,.08)'};border:1px solid rgba(255,255,255,.1);color:${selectedIdx===BOOSTERS.length-1?'rgba(255,255,255,.2)':'#fff'};font-size:18px;cursor:${selectedIdx===BOOSTERS.length-1?'default':'pointer'};transition:all .2s;display:flex;align-items:center;justify-content:center;">›</button>
     </div>`}
 
-    <!-- Séparateur + Pioche -->
+    <!-- Séparateur + Bonus (Pioche & Recyclage) -->
     <div style="padding:${isMobile?'2px 12px 2px':'4px 16px 4px'};flex-shrink:0;display:flex;align-items:center;gap:8px;">
-      <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Pioche</div>
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:4px;text-transform:uppercase;font-weight:700;">Bonus</div>
       <div style="flex:1;height:1px;background:${th.border};"></div>
-      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;padding:2px 8px;letter-spacing:.6px;">GRATUIT</span>
-      <span style="font-size:7px;font-weight:900;color:#a78bfa;background:#a78bfa14;border:1px solid #a78bfa30;padding:2px 8px;letter-spacing:.6px;">1× PAR JOUR</span>
+      <span style="font-size:7px;font-weight:900;color:${th.green};background:${th.green}14;border:1px solid ${th.green}28;padding:2px 8px;letter-spacing:.6px;">PIOCHE 1×/J</span>
+      <span style="font-size:7px;font-weight:900;color:#a78bfa;background:#a78bfa14;border:1px solid #a78bfa30;padding:2px 8px;letter-spacing:.6px;">RECYCLAGE</span>
     </div>
 
-    <!-- Pioche compacte -->
+    <!-- Pioche + Recyclage côte à côte -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:${isMobile?'6px':'10px'};margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'8px'};flex-shrink:0;">
+
     ${(()=>{
       const _pUid = state.currentUser?.id || '';
       const _pUsed = !canPiocheTodaySync(_pUid);
       const _pColor = _pUsed ? '#ef4444' : th.green;
       return `<div id="btn-pioche"
-        style="margin:0 ${isMobile?'12px':'14px'} ${isMobile?'4px':'8px'};flex-shrink:0;
-          background:linear-gradient(135deg,${_pColor}10,${_pColor}03);
+        style="background:linear-gradient(135deg,${_pColor}10,${_pColor}03);
           border:1px solid ${_pColor}25;overflow:hidden;cursor:${_pUsed?'not-allowed':'pointer'};position:relative;transition:all .22s;opacity:${_pUsed?.7:1};">
         <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_pColor}80,transparent);"></div>
-        <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'10px 16px'};">
-          <div style="position:relative;width:${isMobile?'24px':'36px'};height:${isMobile?'32px':'48px'};flex-shrink:0;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:${isMobile?'4px':'6px'};padding:${isMobile?'8px 6px':'10px 8px'};text-align:center;">
+          <div style="position:relative;width:${isMobile?'24px':'32px'};height:${isMobile?'32px':'42px'};flex-shrink:0;">
             ${[0,1,2,3,4].map(k=>`<div style="position:absolute;inset:0;border:1px solid ${_pColor}35;transform:rotate(${(k-2)*5}deg) translateY(${k}px);overflow:hidden;"><img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:cover;display:block;opacity:.7;"/></div>`).join('')}
           </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'11px':'13px'};font-weight:400;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
-            <div style="font-size:${isMobile?'8px':'10px'};color:${_pUsed?_pColor:th.textMuted};margin-top:2px;">
-              ${_pUsed ? `⏳ Disponible dans <span data-daily-timer>${timeUntilMidnight()}</span>` : (isMobile?'1 carte gratuite · 1× par jour':'50 cartes face cachée · retourne-en une · 1× par jour')}
-            </div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'10px':'12px'};font-weight:400;color:${th.text};letter-spacing:.3px;line-height:1;">Pioche</div>
+          <div style="font-size:${isMobile?'7px':'9px'};color:${_pUsed?_pColor:th.textMuted};line-height:1.1;min-height:${isMobile?'9px':'11px'};">
+            ${_pUsed ? `⏳ <span data-daily-timer>${timeUntilMidnight()}</span>` : '1 carte gratuite'}
           </div>
-          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_pUsed?th.surface:th.green};color:${_pUsed?th.textMuted:'#fff'};border:${_pUsed?'1px solid #000':'none'};font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:${_pUsed?'none':'0 3px 12px '+th.green+'40'};flex-shrink:0;">${_pUsed?'ÉPUISÉ':'PIOCHER'}</div>
+          <div style="padding:${isMobile?'4px 8px':'5px 10px'};background:${_pUsed?th.surface:th.green};color:${_pUsed?th.textMuted:'#fff'};border:${_pUsed?'1px solid #000':'none'};font-size:${isMobile?'8px':'9px'};font-weight:900;letter-spacing:.7px;box-shadow:${_pUsed?'none':'0 3px 12px '+th.green+'40'};">${_pUsed?'ÉPUISÉ':'PIOCHER'}</div>
         </div>
       </div>`;
     })()}
+
+    ${(()=>{
+      const _rColor = '#a855f7';
+      return `<div id="btn-recycle"
+        style="background:linear-gradient(135deg,${_rColor}12,${_rColor}03);
+          border:1px solid ${_rColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_rColor}90,transparent);"></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:${isMobile?'4px':'6px'};padding:${isMobile?'8px 6px':'10px 8px'};text-align:center;">
+          <div style="font-size:${isMobile?'26px':'34px'};line-height:1;animation:recycleIconSpin 6s linear infinite;height:${isMobile?'32px':'42px'};display:flex;align-items:center;justify-content:center;">♻</div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'10px':'12px'};font-weight:400;color:${th.text};letter-spacing:.3px;line-height:1;">Recyclage</div>
+          <div style="font-size:${isMobile?'7px':'9px'};color:${th.textMuted};line-height:1.1;min-height:${isMobile?'9px':'11px'};">
+            Doublons → cartes ↑
+          </div>
+          <div style="padding:${isMobile?'4px 8px':'5px 10px'};background:${_rColor};color:#fff;font-size:${isMobile?'8px':'9px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${_rColor}40;">OUVRIR</div>
+        </div>
+      </div>`;
+    })()}
+
+    </div>
+
+    <style>
+      @keyframes recycleIconSpin { to { transform: rotate(360deg); } }
+    </style>
 
     <style>
       @keyframes shakePack{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
@@ -6556,6 +6591,9 @@ function bindGame(){
     track.addEventListener('mouseleave',()=>{ track.style.cursor='grab'; _cMouseDown = null; });
   }
 
+  // Recyclage : binder events à chaque render
+  if (typeof bindRecycleEvents === 'function') bindRecycleEvents();
+
   const btnPioche = document.getElementById('btn-pioche');
   if(btnPioche) btnPioche.addEventListener('click', async ()=>{
     const _uid = state.currentUser?.id || '';
@@ -7145,7 +7183,7 @@ render();
 
   function anyModalOpen(){
     return state.showSettings||state.showFriends||state.showNotif||state.showMessages||state.showTradeHistory||
-           state.showPioche||state.showLeaderboard||state.showTutorial||state.showDeckBuilder||
+           state.showPioche||state.showRecycle||state.showLeaderboard||state.showTutorial||state.showDeckBuilder||
            state.collSelectedCard||state.showTrade||state.showProfile||state.showAddFriend||
            state.showQuests||state.showHowTo;
   }
@@ -11928,6 +11966,1079 @@ function _showFriendPickerForTrade(card){
     });
   });
 }
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTÈME DE RECYCLAGE — Module ajouté
+// ═══════════════════════════════════════════════════════════════
+// =====================================================================
+// SYSTÈME DE RECYCLAGE — Module JS
+// =====================================================================
+// À intégrer dans index.html (voir recycling_integration.md)
+// Dépend de : window.db (Supabase), state, setState, ALL_CARDS, th, showToast
+// =====================================================================
+
+// ─── ÉTAT GLOBAL ─────────────────────────────────────────────────────
+// À ajouter dans l'objet `state` initial :
+//   showRecycle: false,
+//   recycleTab: 'A',                  // 'A' ou 'B'
+//   recycleStep: 'menu',              // 'menu' | 'select' | 'progress' | 'result' | 'help'
+//   recycleSelectedRarity: null,      // 'common'|'uncommon'|'rare'
+//   recycleSelectedCards: {},         // {card_id: qty_to_consume}
+//   recycleRequiredCardId: null,      // Option B : carte demandée (pour ce flow)
+//   recycleActiveJob: null,           // job pending courant
+//   recycleDailyOffers: null,         // {offer_1_card_id, offer_1_rarity, offer_2_card_id, offer_2_rarity}
+//   recycleConfig: null,              // costs / timers / speedup / excluded
+//   recycleResultCard: null,          // carte gagnée à afficher
+// ─────────────────────────────────────────────────────────────────────
+
+// ─── CONFIGURATION (fallback si Supabase pas encore chargé) ──────────
+const RECYCLE_DEFAULTS = {
+  costs: {
+    A: { common: 30, uncommon: 20, rare: 5 },
+    B: { common: 10, uncommon: 5,  rare: 2 }
+  },
+  timers_minutes: {
+    A: { common: 240,  uncommon: 480,  rare: 1320 },
+    B: { common: 120,  uncommon: 240,  rare: 720  }
+  },
+  speedup_coins_per_minute: 10,
+  speedup_fail_rates: {
+    uncommon: 0.10,
+    rare:     0.20,
+    mythic:   0.35
+  },
+  excluded_card_ids: [99, 100]   // LOVE et PEACE
+};
+
+const RARITY_LABELS = {
+  common:   'Commune',
+  uncommon: 'Peu commune',
+  rare:     'Rare',
+  mythic:   'Mythique'
+};
+const RARITY_NEXT = { common: 'uncommon', uncommon: 'rare', rare: 'mythic' };
+const RARITY_COLORS = {
+  common:   '#9ca3af',
+  uncommon: '#22c55e',
+  rare:     '#3b82f6',
+  mythic:   '#f59e0b'
+};
+
+// ─── HELPERS DB ──────────────────────────────────────────────────────
+
+async function loadRecycleConfig() {
+  try {
+    const { data } = await window.db.from('recycling_config').select('*');
+    if (!data || !data.length) return RECYCLE_DEFAULTS;
+    const cfg = {};
+    data.forEach(row => { cfg[row.key] = row.value; });
+    return {
+      costs:                    cfg.costs                    || RECYCLE_DEFAULTS.costs,
+      timers_minutes:           cfg.timers_minutes           || RECYCLE_DEFAULTS.timers_minutes,
+      speedup_coins_per_minute: cfg.speedup_coins_per_minute || RECYCLE_DEFAULTS.speedup_coins_per_minute,
+      speedup_fail_rates:       cfg.speedup_fail_rates       || RECYCLE_DEFAULTS.speedup_fail_rates,
+      excluded_card_ids:        cfg.excluded_card_ids        || RECYCLE_DEFAULTS.excluded_card_ids
+    };
+  } catch (e) {
+    console.error('loadRecycleConfig', e);
+    return RECYCLE_DEFAULTS;
+  }
+}
+
+async function loadActiveRecycleJob(userId) {
+  try {
+    const { data, error } = await window.db
+      .from('recycling_jobs')
+      .select('*')
+      .eq('player_id', userId)
+      .eq('status', 'pending')
+      .limit(1);
+    if (error) throw error;
+    return (data && data[0]) || null;
+  } catch (e) {
+    console.error('loadActiveRecycleJob', e);
+    return null;
+  }
+}
+
+async function loadDailyRecycleOffers() {
+  try {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    let { data } = await window.db
+      .from('daily_recycle_offers')
+      .select('*')
+      .eq('offer_date', today)
+      .maybeSingle();
+    if (!data) {
+      // Pas encore tirées pour aujourd'hui : appel RPC qui les crée
+      const { data: rolled, error } = await window.db.rpc('roll_daily_recycle_offers', { p_date: today });
+      if (error) throw error;
+      data = rolled;
+    }
+    return data;
+  } catch (e) {
+    console.error('loadDailyRecycleOffers', e);
+    return null;
+  }
+}
+
+async function rpcStartRecycling({ userId, optionType, inputRarity, consumedCards, requiredCardId }) {
+  const { data, error } = await window.db.rpc('start_recycling', {
+    p_user_id: userId,
+    p_option_type: optionType,
+    p_input_rarity: inputRarity,
+    p_consumed_cards: consumedCards,
+    p_required_card_id: requiredCardId
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function rpcSpeedupRecycling(userId, jobId) {
+  const { data, error } = await window.db.rpc('speedup_recycling', {
+    p_user_id: userId, p_job_id: jobId
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function rpcClaimRecycling(userId, jobId) {
+  const { data, error } = await window.db.rpc('claim_recycling', {
+    p_user_id: userId, p_job_id: jobId
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function rpcCancelRecycling(userId, jobId) {
+  const { data, error } = await window.db.rpc('cancel_recycling', {
+    p_user_id: userId, p_job_id: jobId
+  });
+  if (error) throw error;
+  return data;
+}
+
+// ─── INIT (appeler à l'ouverture de la modale) ───────────────────────
+
+async function openRecycleModal() {
+  const uid = state.currentUser?.id;
+  if (!uid) { showToast('Connecte-toi d\'abord', '⚠️'); return; }
+
+  // Bootstrap : config + job actif + offres du jour
+  const [cfg, activeJob, offers] = await Promise.all([
+    loadRecycleConfig(),
+    loadActiveRecycleJob(uid),
+    loadDailyRecycleOffers()
+  ]);
+
+  setState({
+    showRecycle: true,
+    recycleConfig: cfg,
+    recycleActiveJob: activeJob,
+    recycleDailyOffers: offers,
+    recycleStep: activeJob ? 'progress' : 'menu',
+    recycleTab: 'A',
+    recycleSelectedRarity: null,
+    recycleSelectedCards: {},
+    recycleRequiredCardId: null,
+    recycleResultCard: null,
+    recycleSpeedupLastResult: null
+  });
+}
+
+function closeRecycleModal() {
+  setState({ showRecycle: false, recycleResultCard: null });
+}
+
+// ─── HELPERS UI ──────────────────────────────────────────────────────
+
+function getRecycleCost(option, rarity) {
+  return state.recycleConfig?.costs?.[option]?.[rarity] ?? RECYCLE_DEFAULTS.costs[option][rarity];
+}
+function getRecycleTimer(option, rarity) {
+  return state.recycleConfig?.timers_minutes?.[option]?.[rarity] ?? RECYCLE_DEFAULTS.timers_minutes[option][rarity];
+}
+function getRecycleExcluded() {
+  return state.recycleConfig?.excluded_card_ids ?? RECYCLE_DEFAULTS.excluded_card_ids;
+}
+function getSpeedupRate() {
+  return state.recycleConfig?.speedup_coins_per_minute ?? RECYCLE_DEFAULTS.speedup_coins_per_minute;
+}
+function getFailRate(outputRarity) {
+  const rates = state.recycleConfig?.speedup_fail_rates ?? RECYCLE_DEFAULTS.speedup_fail_rates;
+  return rates[outputRarity] || 0;
+}
+
+function formatDuration(minutes) {
+  if (minutes < 60) return `${Math.ceil(minutes)} min`;
+  const h = Math.floor(minutes / 60);
+  const m = Math.ceil(minutes % 60);
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
+}
+
+function getOwnedCards(rarity) {
+  // Renvoie la liste des cartes du joueur de rareté donnée
+  // avec quantity > 1 (donc au moins 1 doublon utilisable)
+  // en excluant PEACE/LOVE
+  const excluded = getRecycleExcluded();
+  const myCards = state.currentUser?.cards || [];
+  return myCards
+    .filter(c => {
+      const card = ALL_CARDS.find(x => x.id === c.card_id);
+      if (!card) return false;
+      if (card.rarity !== rarity) return false;
+      if (excluded.includes(card.id)) return false;
+      return c.quantity > 1; // garde >=1 ex en collection
+    })
+    .map(c => {
+      const card = ALL_CARDS.find(x => x.id === c.card_id);
+      return {
+        card_id: c.card_id,
+        name: (card.name || '').replace(/^"|"$/g, ''),
+        image_url: card.image_url,
+        quantity: c.quantity,       // total possédé
+        usable: c.quantity - 1      // dispo pour recyclage
+      };
+    })
+    .sort((a, b) => b.usable - a.usable);
+}
+
+function getSelectedTotal() {
+  return Object.values(state.recycleSelectedCards || {}).reduce((s, n) => s + n, 0);
+}
+
+// ─── RENDER : modale principale ──────────────────────────────────────
+
+function renderRecycleModal() {
+  if (!state.showRecycle) return '';
+  const step = state.recycleStep || 'menu';
+
+  // Choix du sous-render selon l'étape
+  let body = '';
+  if (step === 'help')      body = renderRecycleHelp();
+  else if (step === 'progress' && state.recycleActiveJob) body = renderRecycleProgress();
+  else if (step === 'result' && state.recycleResultCard)  body = renderRecycleResult();
+  else if (step === 'select') body = renderRecycleSelect();
+  else                        body = renderRecycleMenu();
+
+  return `
+  <div id="recycle-overlay" style="position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.85);
+       display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(6px);">
+    <div style="position:relative;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;
+         background:${th.surface};border:2px solid ${th.text};
+         box-shadow:0 12px 0 #000, 0 0 0 4px ${th.text};">
+
+      <!-- Header -->
+      <div style="position:sticky;top:0;z-index:2;background:${th.surface};
+           border-bottom:2px solid ${th.text};padding:12px 14px;display:flex;align-items:center;gap:10px;">
+        <div style="font-size:24px;">♻</div>
+        <div style="flex:1;">
+          <div style="font-family:'Luckiest Guy',cursive;font-size:18px;letter-spacing:1px;color:${th.text};line-height:1;">RECYCLAGE</div>
+          <div style="font-size:9px;color:${th.textMuted};margin-top:3px;letter-spacing:.6px;">DOUBLONS → CARTES SUPÉRIEURES</div>
+        </div>
+        <button id="recycle-help-btn" title="Comment ça marche ?"
+          style="width:30px;height:30px;background:${th.surface};border:2px solid ${th.text};
+                 box-shadow:2px 2px 0 #000;cursor:pointer;font-size:14px;font-weight:900;color:${th.text};">?</button>
+        <button id="recycle-close-btn"
+          style="width:30px;height:30px;background:#ef4444;border:2px solid #000;
+                 box-shadow:2px 2px 0 #000;cursor:pointer;font-size:14px;font-weight:900;color:#fff;">×</button>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:14px;">${body}</div>
+
+    </div>
+  </div>`;
+}
+
+// ─── RENDER : aide ────────────────────────────────────────────────────
+
+function renderRecycleHelp() {
+  const cA = state.recycleConfig?.costs?.A || RECYCLE_DEFAULTS.costs.A;
+  const cB = state.recycleConfig?.costs?.B || RECYCLE_DEFAULTS.costs.B;
+  const tA = state.recycleConfig?.timers_minutes?.A || RECYCLE_DEFAULTS.timers_minutes.A;
+  const tB = state.recycleConfig?.timers_minutes?.B || RECYCLE_DEFAULTS.timers_minutes.B;
+
+  return `
+  <div style="font-size:12px;color:${th.text};line-height:1.55;">
+
+    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:${th.text};margin-bottom:6px;letter-spacing:.6px;">À QUOI ÇA SERT ?</div>
+      Tu as trop de doublons ? Échange-les contre des cartes de rareté supérieure !
+      Le recyclage prend du temps et seules tes <b>cartes en double</b> peuvent être sacrifiées
+      (1 exemplaire reste toujours dans ta collection).
+    </div>
+
+    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#3b82f6;margin-bottom:6px;letter-spacing:.6px;">🔵 OPTION A · STANDARD</div>
+      <div style="font-size:11px;color:${th.textMuted};margin-bottom:8px;">Toujours dispo. Tu choisis n'importe quelles cartes de la rareté demandée.</div>
+      <div style="font-size:11px;line-height:1.7;">
+        • <b>${cA.common}</b> communes → 1 peu commune <span style="color:${th.textMuted};">(${formatDuration(tA.common)})</span><br>
+        • <b>${cA.uncommon}</b> peu communes → 1 rare <span style="color:${th.textMuted};">(${formatDuration(tA.uncommon)})</span><br>
+        • <b>${cA.rare}</b> rares → 1 mythique <span style="color:${th.textMuted};">(${formatDuration(tA.rare)})</span>
+      </div>
+    </div>
+
+    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#f59e0b;margin-bottom:6px;letter-spacing:.6px;">⭐ OPTION B · DU JOUR</div>
+      <div style="font-size:11px;color:${th.textMuted};margin-bottom:8px;">2 cartes spécifiques tirées chaque jour à 00h00. Coûte moins, va plus vite — mais il faut avoir empilé la bonne carte !</div>
+      <div style="font-size:11px;line-height:1.7;">
+        • <b>${cB.common}</b> communes <i>identiques</i> → 1 peu commune <span style="color:${th.textMuted};">(${formatDuration(tB.common)})</span><br>
+        • <b>${cB.uncommon}</b> peu communes <i>identiques</i> → 1 rare <span style="color:${th.textMuted};">(${formatDuration(tB.uncommon)})</span><br>
+        • <b>${cB.rare}</b> rares <i>identiques</i> → 1 mythique <span style="color:${th.textMuted};">(${formatDuration(tB.rare)})</span>
+      </div>
+    </div>
+
+    <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;font-size:11px;line-height:1.7;">
+      <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};margin-bottom:6px;letter-spacing:.6px;">⚙ RÈGLES</div>
+      • <b>1 seul recyclage</b> en cours à la fois (file d'attente).<br>
+      • Carte obtenue = <b>aléatoire</b> dans la rareté supérieure.<br>
+      • Tu peux <b>tenter</b> d'accélérer contre coins (10 coins / minute restante)<br>
+      &nbsp;&nbsp;mais chaque tentative peut <b style="color:#ef4444;">échouer</b> :<br>
+      &nbsp;&nbsp;— vers Peu commune : 10% d'échec<br>
+      &nbsp;&nbsp;— vers Rare : 20% d'échec<br>
+      &nbsp;&nbsp;— vers Mythique : 35% d'échec<br>
+      &nbsp;&nbsp;En cas d'échec, les coins sont perdus mais le recyclage continue avec son timer.<br>
+      • Les cartes <b>PEACE</b> et <b>LOVE</b> ne peuvent ni être recyclées ni obtenues par recyclage.
+    </div>
+
+    <button id="recycle-help-back" style="width:100%;padding:10px;background:${th.text};color:${th.surface};
+            border:2px solid ${th.text};box-shadow:3px 3px 0 #000;cursor:pointer;
+            font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:1px;">RETOUR</button>
+  </div>`;
+}
+
+// ─── RENDER : menu principal (choix Option A / B) ────────────────────
+
+function renderRecycleMenu() {
+  const tab = state.recycleTab || 'A';
+  const offers = state.recycleDailyOffers;
+
+  return `
+  <!-- Tabs A / B -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;">
+    <button class="recycle-tab" data-tab="A"
+      style="flex:1;padding:10px;background:${tab==='A'?th.text:th.bg};color:${tab==='A'?th.surface:th.text};
+             border:2px solid ${th.text};box-shadow:${tab==='A'?'0 0 0 #000':'3px 3px 0 #000'};
+             font-family:'Luckiest Guy',cursive;font-size:12px;letter-spacing:.8px;cursor:pointer;
+             transform:translate(${tab==='A'?'3px,3px':'0,0'});transition:transform .12s;">
+      🔵 STANDARD
+    </button>
+    <button class="recycle-tab" data-tab="B"
+      style="flex:1;padding:10px;background:${tab==='B'?th.text:th.bg};color:${tab==='B'?th.surface:th.text};
+             border:2px solid ${th.text};box-shadow:${tab==='B'?'0 0 0 #000':'3px 3px 0 #000'};
+             font-family:'Luckiest Guy',cursive;font-size:12px;letter-spacing:.8px;cursor:pointer;
+             transform:translate(${tab==='B'?'3px,3px':'0,0'});transition:transform .12s;">
+      ⭐ DU JOUR
+    </button>
+  </div>
+
+  ${tab === 'A' ? renderTabA() : renderTabB(offers)}
+  `;
+}
+
+function renderTabA() {
+  return `
+  <div style="font-size:11px;color:${th.textMuted};margin-bottom:10px;line-height:1.5;">
+    Choisis n'importe quelles cartes de la rareté demandée pour les sacrifier.
+  </div>
+
+  ${['common','uncommon','rare'].map(rarity => {
+    const cost = getRecycleCost('A', rarity);
+    const timer = getRecycleTimer('A', rarity);
+    const owned = getOwnedCards(rarity);
+    const totalUsable = owned.reduce((s,c)=>s+c.usable, 0);
+    const enabled = totalUsable >= cost;
+    const next = RARITY_NEXT[rarity];
+
+    return `
+    <button class="recycle-tile" data-option="A" data-rarity="${rarity}"
+      ${enabled ? '' : 'disabled'}
+      style="width:100%;display:flex;align-items:center;gap:10px;padding:12px;
+             background:${enabled?th.bg:'rgba(127,127,127,.1)'};border:2px solid ${th.text};
+             box-shadow:${enabled?'4px 4px 0 #000':'2px 2px 0 #000'};
+             margin-bottom:10px;cursor:${enabled?'pointer':'not-allowed'};
+             opacity:${enabled?1:.55};text-align:left;transition:transform .12s;">
+
+      <div style="width:36px;height:36px;background:${RARITY_COLORS[rarity]};
+                  border:2px solid ${th.text};display:flex;align-items:center;justify-content:center;
+                  font-size:16px;font-weight:900;color:#fff;">${cost}</div>
+
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;">
+          ${cost} ${RARITY_LABELS[rarity].toLowerCase()}s → 1 ${RARITY_LABELS[next].toLowerCase()}
+        </div>
+        <div style="font-size:10px;color:${th.textMuted};margin-top:3px;">
+          ⏱ ${formatDuration(timer)} · Tu en as <b style="color:${enabled?'#22c55e':'#ef4444'}">${totalUsable}</b> dispo
+        </div>
+      </div>
+
+      <div style="font-size:18px;color:${th.text};">›</div>
+    </button>
+    `;
+  }).join('')}
+  `;
+}
+
+function renderTabB(offers) {
+  if (!offers) {
+    return `<div style="text-align:center;padding:30px;color:${th.textMuted};font-size:11px;">Chargement des offres du jour…</div>`;
+  }
+
+  const offersList = [
+    { card_id: offers.offer_1_card_id, rarity: offers.offer_1_rarity },
+    { card_id: offers.offer_2_card_id, rarity: offers.offer_2_rarity }
+  ];
+
+  return `
+  <div style="font-size:11px;color:${th.textMuted};margin-bottom:10px;line-height:1.5;">
+    2 offres aléatoires · réinitialisées à minuit · cartes <b>identiques</b> requises.
+  </div>
+
+  ${offersList.map((offer, idx) => {
+    const cost = getRecycleCost('B', offer.rarity);
+    const timer = getRecycleTimer('B', offer.rarity);
+    const card = ALL_CARDS.find(c => c.id === offer.card_id);
+    if (!card) return '';
+    const cardName = (card.name||'').replace(/^"|"$/g, '');
+    const next = RARITY_NEXT[offer.rarity];
+
+    // Combien le joueur a-t-il de cette carte spécifique ?
+    const myCards = state.currentUser?.cards || [];
+    const owned = myCards.find(c => c.card_id === offer.card_id);
+    const usable = owned ? Math.max(0, owned.quantity - 1) : 0;
+    const enabled = usable >= cost;
+
+    return `
+    <button class="recycle-tile" data-option="B" data-rarity="${offer.rarity}" data-cardid="${offer.card_id}"
+      ${enabled ? '' : 'disabled'}
+      style="width:100%;display:flex;align-items:center;gap:10px;padding:12px;
+             background:${enabled?th.bg:'rgba(127,127,127,.1)'};border:2px solid ${th.text};
+             box-shadow:${enabled?'4px 4px 0 #000':'2px 2px 0 #000'};
+             margin-bottom:10px;cursor:${enabled?'pointer':'not-allowed'};
+             opacity:${enabled?1:.55};text-align:left;transition:transform .12s;">
+
+      <div style="position:relative;width:42px;height:56px;flex-shrink:0;border:2px solid ${th.text};overflow:hidden;
+                  background:${RARITY_COLORS[offer.rarity]};">
+        ${card.image_url
+          ? `<img src="${card.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
+          : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:18px;color:#fff;">?</div>`}
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.75);color:#fff;
+                    font-size:9px;text-align:center;padding:1px 0;letter-spacing:.4px;">${cost}×</div>
+      </div>
+
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.4px;
+                    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${cardName}
+        </div>
+        <div style="font-size:10px;color:${th.textMuted};margin-top:2px;">
+          ${cost} × ${RARITY_LABELS[offer.rarity]} → 1 ${RARITY_LABELS[next]}
+        </div>
+        <div style="font-size:10px;color:${enabled?'#22c55e':'#ef4444'};margin-top:2px;font-weight:700;">
+          Tu en as ${usable} ${usable >= cost ? '✓' : `(besoin ${cost})`}
+        </div>
+      </div>
+
+      <div style="font-size:10px;color:${th.textMuted};white-space:nowrap;">⏱ ${formatDuration(timer)}</div>
+      <div style="font-size:18px;color:${th.text};">›</div>
+    </button>
+    `;
+  }).join('')}
+
+  <div style="margin-top:14px;padding:8px 10px;background:${th.bg};border:1px solid ${th.text};font-size:10px;color:${th.textMuted};text-align:center;">
+    🔄 Prochaines offres dans <span data-recycle-midnight></span>
+  </div>
+  `;
+}
+
+// ─── RENDER : sélection des cartes (Option A) ────────────────────────
+
+function renderRecycleSelect() {
+  const rarity = state.recycleSelectedRarity;
+  const required = state.recycleRequiredCardId;
+  const option = required ? 'B' : 'A';
+  const cost = getRecycleCost(option, rarity);
+  const timer = getRecycleTimer(option, rarity);
+  const owned = required
+    ? getOwnedCards(rarity).filter(c => c.card_id === required)
+    : getOwnedCards(rarity);
+
+  const selected = state.recycleSelectedCards || {};
+  const selectedTotal = getSelectedTotal();
+  const next = RARITY_NEXT[rarity];
+
+  // Si Option B, on auto-fill (le joueur n'a pas de choix réel)
+  // Si Option A, l'utilisateur sélectionne lui-même
+
+  return `
+  <div style="margin-bottom:12px;">
+    <button id="recycle-back-menu" style="font-size:10px;color:${th.textMuted};background:none;border:none;cursor:pointer;padding:0;letter-spacing:.4px;">
+      ‹ Retour
+    </button>
+  </div>
+
+  <div style="background:${th.bg};border:2px solid ${th.text};padding:10px;margin-bottom:12px;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;">
+      ${cost} ${RARITY_LABELS[rarity].toLowerCase()}${required ? ' identiques' : 's'} → 1 ${RARITY_LABELS[next].toLowerCase()}
+    </div>
+    <div style="font-size:10px;color:${th.textMuted};margin-top:3px;">
+      ⏱ Temps : ${formatDuration(timer)} · 💸 Accélération : ${(timer * getSpeedupRate()).toLocaleString('fr-FR')} coins
+    </div>
+  </div>
+
+  <!-- Compteur de sélection -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;
+              background:${selectedTotal===cost?'#22c55e22':th.bg};border:2px solid ${selectedTotal===cost?'#22c55e':th.text};
+              margin-bottom:10px;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:13px;color:${th.text};letter-spacing:.5px;">
+      ${selectedTotal} / ${cost} sélectionnée${selectedTotal>1?'s':''}
+    </div>
+    <div style="font-size:11px;color:${th.textMuted};">
+      ${selectedTotal === cost ? '✓ Prêt' : `Encore ${cost - selectedTotal}`}
+    </div>
+  </div>
+
+  <!-- Liste des cartes -->
+  <div style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;
+              padding:4px;border:1px solid ${th.text}40;background:${th.bg}30;">
+    ${owned.length === 0
+      ? `<div style="text-align:center;padding:30px;color:${th.textMuted};font-size:11px;">Aucun doublon disponible.</div>`
+      : owned.map(c => {
+          const sel = selected[c.card_id] || 0;
+          const remaining = cost - selectedTotal + sel;
+          const maxForThis = Math.min(c.usable, remaining);
+
+          return `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px;background:${th.surface};
+                      border:2px solid ${th.text};">
+            <div style="width:28px;height:38px;flex-shrink:0;border:1px solid ${th.text};overflow:hidden;
+                        background:${RARITY_COLORS[rarity]};">
+              ${c.image_url
+                ? `<img src="${c.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
+                : ''}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:11px;color:${th.text};font-weight:700;
+                          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</div>
+              <div style="font-size:9px;color:${th.textMuted};margin-top:1px;">
+                Possédées : ${c.quantity} · Dispo : ${c.usable}
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button class="recycle-card-minus" data-cardid="${c.card_id}" ${sel<=0?'disabled':''}
+                style="width:26px;height:26px;background:${sel>0?th.surface:'#ddd'};
+                       border:2px solid ${th.text};box-shadow:${sel>0?'2px 2px 0 #000':'none'};
+                       cursor:${sel>0?'pointer':'not-allowed'};font-size:14px;font-weight:900;color:${th.text};">−</button>
+              <div style="min-width:24px;text-align:center;font-size:13px;font-weight:900;color:${th.text};">${sel}</div>
+              <button class="recycle-card-plus" data-cardid="${c.card_id}" ${maxForThis<=sel?'disabled':''}
+                style="width:26px;height:26px;background:${maxForThis>sel?th.surface:'#ddd'};
+                       border:2px solid ${th.text};box-shadow:${maxForThis>sel?'2px 2px 0 #000':'none'};
+                       cursor:${maxForThis>sel?'pointer':'not-allowed'};font-size:14px;font-weight:900;color:${th.text};">+</button>
+            </div>
+          </div>`;
+        }).join('')}
+  </div>
+
+  <!-- Bouton démarrer -->
+  <button id="recycle-confirm" ${selectedTotal!==cost?'disabled':''}
+    style="width:100%;padding:14px;margin-top:12px;
+           background:${selectedTotal===cost?'#22c55e':'#ddd'};color:${selectedTotal===cost?'#fff':'#999'};
+           border:2px solid ${th.text};box-shadow:${selectedTotal===cost?'4px 4px 0 #000':'none'};
+           cursor:${selectedTotal===cost?'pointer':'not-allowed'};
+           font-family:'Luckiest Guy',cursive;font-size:14px;letter-spacing:1px;">
+    LANCER LE RECYCLAGE
+  </button>
+  `;
+}
+
+// ─── RENDER : recyclage en cours ─────────────────────────────────────
+
+function renderRecycleProgress() {
+  const job = state.recycleActiveJob;
+  if (!job) return renderRecycleMenu();
+
+  const ready = new Date(job.ready_at).getTime();
+  const now = Date.now();
+  const remainingMs = Math.max(0, ready - now);
+  const remainingMin = Math.ceil(remainingMs / 60000);
+  const isReady = remainingMs <= 0;
+  const speedupCost = remainingMin * getSpeedupRate();
+  const total = job.duration_minutes * 60000;
+  const elapsed = Math.min(total, total - remainingMs);
+  const pct = Math.max(0, Math.min(100, (elapsed / total) * 100));
+
+  const rarityLabel = RARITY_LABELS[job.output_rarity];
+  const myCoins = state.currentUser?.coins || 0;
+
+  return `
+  <div style="text-align:center;padding:8px;">
+    <div style="font-size:48px;margin-bottom:6px;animation:${isReady?'recycleReady 1.4s infinite':'recycleSpin 3s linear infinite'};display:inline-block;">
+      ${isReady ? '🎁' : '⚙'}
+    </div>
+    <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:${th.text};letter-spacing:.7px;">
+      ${isReady ? 'RECYCLAGE TERMINÉ !' : 'RECYCLAGE EN COURS'}
+    </div>
+    <div style="font-size:11px;color:${th.textMuted};margin-top:4px;">
+      Option ${job.option_type} · ${RARITY_LABELS[job.input_rarity]} → ${rarityLabel}
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div style="margin:14px 0 10px;">
+    <div style="background:${th.bg};border:2px solid ${th.text};height:24px;position:relative;overflow:hidden;">
+      <div style="background:linear-gradient(90deg,#3b82f6,#22c55e);height:100%;width:${pct}%;transition:width .5s;"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                  font-size:11px;font-weight:900;color:${th.text};letter-spacing:.5px;mix-blend-mode:difference;color:#fff;">
+        ${isReady ? 'PRÊT À RÉCLAMER' : `Reste <span data-recycle-timer>${formatDuration(remainingMin)}</span>`}
+      </div>
+    </div>
+  </div>
+
+  ${isReady ? `
+    <button id="recycle-claim" style="width:100%;padding:14px;background:#22c55e;color:#fff;
+            border:2px solid ${th.text};box-shadow:4px 4px 0 #000;cursor:pointer;
+            font-family:'Luckiest Guy',cursive;font-size:14px;letter-spacing:1px;animation:recyclePulse 1.2s infinite;">
+      RÉCLAMER MA ${rarityLabel.toUpperCase()}
+    </button>
+  ` : (() => {
+    const failRate = getFailRate(job.output_rarity);
+    const failPct = Math.round(failRate * 100);
+    const successPct = 100 - failPct;
+    const lastResult = state.recycleSpeedupLastResult;  // 'fail' | 'success' | null
+    return `
+    <button id="recycle-speedup" ${myCoins<speedupCost?'disabled':''}
+      style="width:100%;padding:12px;background:${myCoins>=speedupCost?'#f59e0b':'#ddd'};color:${myCoins>=speedupCost?'#fff':'#999'};
+             border:2px solid ${th.text};box-shadow:${myCoins>=speedupCost?'4px 4px 0 #000':'none'};
+             cursor:${myCoins>=speedupCost?'pointer':'not-allowed'};
+             font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.7px;
+             ${lastResult==='fail'?'animation:recycleShake .5s;':''}">
+      ⚡ TENTER · ${speedupCost.toLocaleString('fr-FR')} COINS
+    </button>
+
+    <!-- Mini-bar succès/échec -->
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:10px;">
+      <div style="flex:1;height:8px;background:${th.bg};border:1px solid ${th.text};display:flex;overflow:hidden;">
+        <div style="width:${successPct}%;background:#22c55e;"></div>
+        <div style="width:${failPct}%;background:#ef4444;"></div>
+      </div>
+      <div style="white-space:nowrap;color:${th.textMuted};font-weight:700;">
+        ${successPct}% réussite · <span style="color:#ef4444;">${failPct}% échec</span>
+      </div>
+    </div>
+
+    <div style="font-size:9px;color:${th.textMuted};text-align:center;margin-top:6px;line-height:1.4;">
+      Coins disponibles : ${myCoins.toLocaleString('fr-FR')}<br>
+      ⚠ En cas d'échec, les coins sont perdus mais le recyclage continue normalement.
+    </div>
+
+    ${lastResult === 'fail' ? `
+      <div style="margin-top:10px;padding:8px;background:#ef444415;border:2px solid #ef4444;text-align:center;font-size:11px;color:#ef4444;font-weight:700;animation:recycleFlash .4s;">
+        ❌ Tentative ratée ! Réessaie ou attends.
+      </div>
+    ` : ''}
+    `;
+  })()}
+
+  <!-- Détails -->
+  <div style="margin-top:14px;padding:8px;background:${th.bg};border:1px solid ${th.text};font-size:10px;color:${th.textMuted};line-height:1.6;">
+    Démarré le ${new Date(job.started_at).toLocaleString('fr-FR')}<br>
+    Cartes consommées : ${job.consumed_card_ids?.length || 0}
+  </div>
+
+  <style>
+    @keyframes recycleSpin { to { transform: rotate(360deg); } }
+    @keyframes recycleReady { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+    @keyframes recyclePulse { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-2px,-2px)} }
+    @keyframes recycleShake {
+      0%,100%   { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+    @keyframes recycleFlash {
+      0%   { opacity: 0; transform: scale(.92); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+  </style>
+  `;
+}
+
+// ─── RENDER : carte gagnée ───────────────────────────────────────────
+
+function renderRecycleResult() {
+  const r = state.recycleResultCard;
+  if (!r) return '';
+  const card = ALL_CARDS.find(c => c.id === r.result_card_id);
+  const name = (card?.name || r.result_card_name || '').replace(/^"|"$/g, '');
+  const rarity = card?.rarity || r.result_card_rarity;
+
+  return `
+  <div style="text-align:center;padding:14px 8px;">
+    <div style="font-family:'Luckiest Guy',cursive;font-size:18px;color:${th.text};letter-spacing:1px;margin-bottom:14px;">
+      🎉 NOUVELLE CARTE !
+    </div>
+
+    <div style="display:inline-block;border:3px solid ${th.text};box-shadow:6px 6px 0 #000;
+                background:${RARITY_COLORS[rarity]};padding:6px;margin-bottom:14px;animation:recycleReveal .6s;">
+      ${card?.image_url
+        ? `<img src="${card.image_url}" style="width:160px;height:auto;display:block;"/>`
+        : `<div style="width:160px;height:220px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px;">?</div>`}
+    </div>
+
+    <div style="font-family:'Luckiest Guy',cursive;font-size:16px;color:${th.text};letter-spacing:.5px;">${name}</div>
+    <div style="font-size:11px;color:${RARITY_COLORS[rarity]};font-weight:900;margin-top:4px;letter-spacing:1px;text-transform:uppercase;">
+      ${RARITY_LABELS[rarity]}
+    </div>
+
+    <button id="recycle-result-ok" style="width:100%;padding:14px;margin-top:18px;
+            background:${th.text};color:${th.surface};
+            border:2px solid ${th.text};box-shadow:4px 4px 0 #000;cursor:pointer;
+            font-family:'Luckiest Guy',cursive;font-size:14px;letter-spacing:1px;">
+      SUPER !
+    </button>
+  </div>
+
+  <style>
+    @keyframes recycleReveal {
+      from { transform: scale(.4) rotate(-12deg); opacity: 0; }
+      to   { transform: scale(1) rotate(0); opacity: 1; }
+    }
+  </style>
+  `;
+}
+
+// ─── EVENT BINDING ────────────────────────────────────────────────────
+
+function bindRecycleEvents() {
+  // Bouton ouvrir (sur la home, à côté de Pioche)
+  const openBtn = document.getElementById('btn-recycle');
+  if (openBtn && !openBtn._bound) {
+    openBtn._bound = true;
+    openBtn.addEventListener('click', openRecycleModal);
+  }
+
+  if (!state.showRecycle) return;
+
+  // Header
+  const closeBtn = document.getElementById('recycle-close-btn');
+  if (closeBtn) closeBtn.addEventListener('click', closeRecycleModal);
+  const helpBtn = document.getElementById('recycle-help-btn');
+  if (helpBtn) helpBtn.addEventListener('click', () => setState({ recycleStep: 'help' }));
+
+  // Aide
+  const helpBack = document.getElementById('recycle-help-back');
+  if (helpBack) helpBack.addEventListener('click', () => {
+    setState({ recycleStep: state.recycleActiveJob ? 'progress' : 'menu' });
+  });
+
+  // Tabs
+  document.querySelectorAll('.recycle-tab').forEach(btn => {
+    btn.addEventListener('click', () => setState({ recycleTab: btn.dataset.tab }));
+  });
+
+  // Tile cliqué (option A ou B)
+  document.querySelectorAll('.recycle-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      if (tile.disabled) return;
+      const opt = tile.dataset.option;
+      const rarity = tile.dataset.rarity;
+      const cardId = tile.dataset.cardid ? parseInt(tile.dataset.cardid, 10) : null;
+
+      if (opt === 'B') {
+        // Auto-fill : on prépare directement la sélection
+        const cost = getRecycleCost('B', rarity);
+        const sel = {};
+        sel[cardId] = cost;
+        setState({
+          recycleStep: 'select',
+          recycleSelectedRarity: rarity,
+          recycleRequiredCardId: cardId,
+          recycleSelectedCards: sel
+        });
+      } else {
+        setState({
+          recycleStep: 'select',
+          recycleSelectedRarity: rarity,
+          recycleRequiredCardId: null,
+          recycleSelectedCards: {}
+        });
+      }
+    });
+  });
+
+  // Retour menu
+  const backBtn = document.getElementById('recycle-back-menu');
+  if (backBtn) backBtn.addEventListener('click', () => {
+    setState({
+      recycleStep: 'menu',
+      recycleSelectedRarity: null,
+      recycleSelectedCards: {},
+      recycleRequiredCardId: null
+    });
+  });
+
+  // +/- sur les cartes
+  document.querySelectorAll('.recycle-card-plus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const id = parseInt(btn.dataset.cardid, 10);
+      const sel = { ...(state.recycleSelectedCards || {}) };
+      sel[id] = (sel[id] || 0) + 1;
+      setState({ recycleSelectedCards: sel });
+    });
+  });
+  document.querySelectorAll('.recycle-card-minus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const id = parseInt(btn.dataset.cardid, 10);
+      const sel = { ...(state.recycleSelectedCards || {}) };
+      if (sel[id]) {
+        sel[id] -= 1;
+        if (sel[id] <= 0) delete sel[id];
+      }
+      setState({ recycleSelectedCards: sel });
+    });
+  });
+
+  // Confirm démarrer
+  const confirmBtn = document.getElementById('recycle-confirm');
+  if (confirmBtn) confirmBtn.addEventListener('click', startRecyclingFlow);
+
+  // Speedup
+  const speedupBtn = document.getElementById('recycle-speedup');
+  if (speedupBtn) speedupBtn.addEventListener('click', speedupRecyclingFlow);
+
+  // Claim
+  const claimBtn = document.getElementById('recycle-claim');
+  if (claimBtn) claimBtn.addEventListener('click', claimRecyclingFlow);
+
+  // Result OK
+  const resultOk = document.getElementById('recycle-result-ok');
+  if (resultOk) resultOk.addEventListener('click', () => {
+    setState({
+      recycleStep: 'menu',
+      recycleResultCard: null,
+      recycleActiveJob: null,
+      recycleSelectedCards: {},
+      recycleRequiredCardId: null
+    });
+  });
+}
+
+// ─── ACTIONS ─────────────────────────────────────────────────────────
+
+async function startRecyclingFlow() {
+  const uid = state.currentUser?.id;
+  const rarity = state.recycleSelectedRarity;
+  const required = state.recycleRequiredCardId;
+  const option = required ? 'B' : 'A';
+  const cost = getRecycleCost(option, rarity);
+  const selected = state.recycleSelectedCards || {};
+  const total = getSelectedTotal();
+
+  if (total !== cost) { showToast(`Sélectionne exactement ${cost} cartes`, '⚠️'); return; }
+
+  // Format consumed_cards : [{card_id, qty}]
+  const consumed = Object.entries(selected)
+    .filter(([_, q]) => q > 0)
+    .map(([cid, q]) => ({ card_id: parseInt(cid, 10), qty: q }));
+
+  try {
+    const job = await rpcStartRecycling({
+      userId: uid,
+      optionType: option,
+      inputRarity: rarity,
+      consumedCards: consumed,
+      requiredCardId: required
+    });
+
+    // Mettre à jour la collection locale (décrémenter les cartes consommées)
+    if (state.currentUser?.cards) {
+      const newCards = state.currentUser.cards.map(c => {
+        const used = consumed.find(x => x.card_id === c.card_id);
+        if (!used) return c;
+        return { ...c, quantity: c.quantity - used.qty };
+      });
+      state.currentUser = { ...state.currentUser, cards: newCards };
+    }
+
+    // Synchroniser les decks locaux pour refléter le nettoyage côté DB :
+    // si on n'a plus assez d'exemplaires en collection, retirer/réduire dans les decks
+    if (Array.isArray(state.decks)) {
+      const newDecks = state.decks.map(deck => {
+        const updated = { ...deck };
+        const myQty = (cid) => {
+          const c = state.currentUser?.cards?.find(x => x.card_id === cid);
+          return c ? c.quantity : 0;
+        };
+        updated.cards = (deck.cards || [])
+          .map(dc => {
+            const remaining = myQty(dc.card_id);
+            if (remaining <= 0) return null;
+            return { ...dc, quantity: Math.min(dc.quantity, remaining) };
+          })
+          .filter(Boolean);
+        return updated;
+      });
+      state.decks = newDecks;
+    }
+    // Recharger les decks depuis Supabase pour être 100% sûr (en arrière-plan)
+    if (typeof loadDecks === 'function') {
+      loadDecks().catch(()=>{});
+    }
+
+    showToast('Recyclage lancé !', '♻');
+    setState({
+      recycleActiveJob: job,
+      recycleStep: 'progress',
+      recycleSelectedCards: {},
+      recycleRequiredCardId: null,
+      recycleSelectedRarity: null
+    });
+  } catch (e) {
+    console.error('startRecyclingFlow', e);
+    showToast(e.message || 'Erreur lors du démarrage', '❌');
+  }
+}
+
+async function speedupRecyclingFlow() {
+  const uid = state.currentUser?.id;
+  const job = state.recycleActiveJob;
+  if (!uid || !job) return;
+
+  // Confirmation avec proba
+  const remainingMin = Math.ceil((new Date(job.ready_at).getTime() - Date.now()) / 60000);
+  const cost = remainingMin * getSpeedupRate();
+  const failPct = Math.round(getFailRate(job.output_rarity) * 100);
+  const successPct = 100 - failPct;
+  const myCoins = state.currentUser?.coins || 0;
+
+  if (myCoins < cost) {
+    showToast(`Il te manque ${(cost - myCoins).toLocaleString('fr-FR')} coins`, '⚠️');
+    return;
+  }
+
+  const ok = window.confirm(
+    `⚡ Tenter d'accélérer ?\n\n` +
+    `• Coût : ${cost.toLocaleString('fr-FR')} coins (perdus dans tous les cas)\n` +
+    `• Chance de succès : ${successPct}%\n` +
+    `• Chance d'échec : ${failPct}%\n\n` +
+    `En cas d'échec, le recyclage continue normalement avec son timer.\nContinuer ?`
+  );
+  if (!ok) return;
+
+  // Reset le flash précédent
+  setState({ recycleSpeedupLastResult: null });
+
+  try {
+    const result = await rpcSpeedupRecycling(uid, job.id);
+    // result = { success, coins_spent, coins_left, job, fail_rate }
+    const data = Array.isArray(result) ? result[0] : result;
+
+    // Mettre à jour les coins localement (montant exact renvoyé par la RPC)
+    if (state.currentUser && typeof data?.coins_left === 'number') {
+      state.currentUser = { ...state.currentUser, coins: data.coins_left };
+    }
+
+    if (data?.success) {
+      showToast(`Réussi ! Recyclage accéléré`, '⚡');
+      setState({
+        recycleActiveJob: data.job,
+        recycleSpeedupLastResult: 'success'
+      });
+    } else {
+      showToast(`Échec ! ${data?.coins_spent?.toLocaleString('fr-FR') || cost} coins perdus`, '💸');
+      setState({
+        recycleSpeedupLastResult: 'fail'
+      });
+      // Retirer le flash après 3 secondes
+      setTimeout(() => {
+        if (state.recycleSpeedupLastResult === 'fail') {
+          setState({ recycleSpeedupLastResult: null });
+        }
+      }, 3000);
+    }
+  } catch (e) {
+    console.error('speedupRecyclingFlow', e);
+    showToast(e.message || 'Erreur', '❌');
+  }
+}
+
+async function claimRecyclingFlow() {
+  const uid = state.currentUser?.id;
+  const job = state.recycleActiveJob;
+  if (!uid || !job) return;
+  try {
+    const result = await rpcClaimRecycling(uid, job.id);
+    // Mettre à jour la collection locale (ajouter la carte gagnée)
+    if (state.currentUser?.cards) {
+      const cards = [...state.currentUser.cards];
+      const existing = cards.find(c => c.card_id === result.result_card_id);
+      if (existing) existing.quantity += 1;
+      else cards.push({ card_id: result.result_card_id, quantity: 1 });
+      state.currentUser = { ...state.currentUser, cards };
+    }
+    setState({
+      recycleResultCard: result,
+      recycleStep: 'result',
+      recycleActiveJob: null
+    });
+  } catch (e) {
+    console.error('claimRecyclingFlow', e);
+    showToast(e.message || 'Erreur', '❌');
+  }
+}
+
+// ─── TIMER LIVE (mise à jour de l'affichage) ─────────────────────────
+
+let _recycleTimerInterval = null;
+function startRecycleTimerTicker() {
+  if (_recycleTimerInterval) return;
+  _recycleTimerInterval = setInterval(() => {
+    if (!state.showRecycle) return;
+
+    // Mise à jour du timer en cours
+    const job = state.recycleActiveJob;
+    if (job && state.recycleStep === 'progress') {
+      const remainingMs = Math.max(0, new Date(job.ready_at).getTime() - Date.now());
+      const remainingMin = Math.ceil(remainingMs / 60000);
+      const el = document.querySelector('[data-recycle-timer]');
+      if (el) el.textContent = formatDuration(remainingMin);
+      // Si vient de devenir prêt, re-render
+      if (remainingMs <= 0 && !job._readyShown) {
+        job._readyShown = true;
+        setState({});  // déclenche un re-render
+      }
+    }
+
+    // Mise à jour du compteur "prochaines offres"
+    const midEl = document.querySelector('[data-recycle-midnight]');
+    if (midEl) {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const diff = Math.max(0, tomorrow - now);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      midEl.textContent = `${h}h ${String(m).padStart(2,'0')}min`;
+    }
+  }, 1000);
+}
+
+// Démarrer le ticker au chargement
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startRecycleTimerTicker);
+  } else {
+    startRecycleTimerTicker();
+  }
+}
+
+// ═══ FIN MODULE RECYCLAGE ═════════════════════════════════════
+
 </script>
 </body>
 </html>
