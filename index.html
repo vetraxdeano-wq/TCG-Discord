@@ -1787,6 +1787,7 @@ function renderDeckList(th){
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               ${!isDefault?`<button class="db-set-default btn-hover" data-deckid="${deck.id}" style="padding:5px 12px;font-size:8px;font-weight:900;background:${th.accent}10;color:${th.accent};border:1px solid ${th.accent}28;cursor:pointer;letter-spacing:.5px;">⭐ PAR DÉFAUT</button>`:''}
               <button class="db-rename btn-hover" data-deckid="${deck.id}" data-deckname="${deck.name}" style="padding:5px 12px;font-size:8px;font-weight:900;background:${th.bgTertiary};color:${th.textMuted};border:2px solid #000;cursor:pointer;letter-spacing:.5px;">✏️ RENOMMER</button>
+              <button class="db-duplicate btn-hover" data-deckid="${deck.id}" title="Dupliquer ce deck" style="padding:5px 12px;font-size:8px;font-weight:900;background:${th.bgTertiary};color:${th.textMuted};border:2px solid #000;cursor:pointer;letter-spacing:.5px;">📋 DUPLIQUER</button>
               <button class="db-delete btn-hover" data-deckid="${deck.id}" style="margin-left:auto;padding:5px 12px;font-size:8px;font-weight:900;background:transparent;color:${th.red};border:1px solid ${th.red}25;cursor:pointer;letter-spacing:.5px;">🗑</button>
             </div>
           </div>
@@ -5713,7 +5714,7 @@ function bindGame(){
   // Clic sur un deck → éditer
   document.querySelectorAll('.deck-item').forEach(el=>{
     el.addEventListener('click',(e)=>{
-      if(e.target.closest('.db-set-default')||e.target.closest('.db-delete')||e.target.closest('.db-rename')) return;
+      if(e.target.closest('.db-set-default')||e.target.closest('.db-delete')||e.target.closest('.db-rename')||e.target.closest('.db-duplicate')) return;
       setState({activeDeckId:el.dataset.deckid,deckBuilderView:'edit'});
     });
   });
@@ -5726,6 +5727,11 @@ function bindGame(){
   // Renommer deck (depuis la liste)
   document.querySelectorAll('.db-rename').forEach(btn=>{
     btn.addEventListener('click',(e)=>{e.stopPropagation();promptRenameDeck(btn.dataset.deckid,btn.dataset.deckname);});
+  });
+
+  // Dupliquer deck (depuis la liste)
+  document.querySelectorAll('.db-duplicate').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{e.stopPropagation();duplicateDeck(btn.dataset.deckid);});
   });
 
   // Renommer deck (depuis la vue édition)
@@ -9860,6 +9866,69 @@ async function deleteDeck(deckId) {
   showToast(`${deck.name} supprimé`, '🗑');
 }
 
+// Duplique un deck existant (nom + cartes). Le nouveau deck n'est jamais
+// par défaut et on bascule directement sur sa vue édition pour le modifier.
+async function duplicateDeck(deckId) {
+  const db = window.db;
+  const myId = state.currentUser?.id;
+  if (!db || !myId) return;
+
+  const decks = state.decks || [];
+  const source = decks.find(d => d.id === deckId);
+  if (!source) { showToast('Deck introuvable', '✗'); return; }
+
+  // Génère un nom unique : "<Original> (copie)", "<Original> (copie 2)", etc.
+  const baseName = (source.name || 'Deck').replace(/\s*\(copie(?:\s+\d+)?\)\s*$/i, '');
+  const existingNames = new Set(decks.map(d => d.name));
+  let newName = `${baseName} (copie)`;
+  let n = 2;
+  while (existingNames.has(newName)) {
+    newName = `${baseName} (copie ${n})`;
+    n++;
+  }
+  // La colonne name a souvent une limite — on garde une marge raisonnable
+  if (newName.length > 60) newName = newName.slice(0, 60);
+
+  try {
+    // 1. Créer la coquille du nouveau deck
+    const { data: newDeckRow, error: insErr } = await db.from('decks')
+      .insert({ player_id: myId, name: newName, is_default: false })
+      .select().single();
+    if (insErr) throw insErr;
+
+    // 2. Recopier les deck_cards du deck source (s'il y en a)
+    const sourceCards = source.cards || [];
+    if (sourceCards.length > 0) {
+      const rows = sourceCards.map(c => ({
+        deck_id: newDeckRow.id,
+        card_id: parseInt(c.card_id),
+        quantity: Math.min(c.quantity, 2)
+      }));
+      const { error: cardsErr } = await db.from('deck_cards').insert(rows);
+      if (cardsErr) {
+        // Rollback : on supprime la coquille pour ne pas laisser un deck vide
+        await db.from('decks').delete().eq('id', newDeckRow.id);
+        throw cardsErr;
+      }
+    }
+
+    // 3. Mise à jour du state local + bascule sur l'édition du nouveau deck
+    const newDeck = {
+      ...newDeckRow,
+      cards: sourceCards.map(c => ({ card_id: parseInt(c.card_id), quantity: Math.min(c.quantity, 2) }))
+    };
+    setState({
+      decks: [...decks, newDeck],
+      activeDeckId: newDeck.id,
+      deckBuilderView: 'edit'
+    });
+    showToast(`${newName} créé !`, '📋');
+  } catch (e) {
+    console.error('[duplicateDeck]', e);
+    showToast('Erreur duplication : ' + (e.message || 'inconnue'), '✗');
+  }
+}
+
 async function setDefaultDeck(deckId) {
   const db = window.db;
   const myId = state.currentUser?.id;
@@ -12403,15 +12472,15 @@ function renderRecycleModal() {
 
   return `
   <div id="recycle-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;${isMobile?'padding:0 4px;':''}box-sizing:border-box;">
-    <div id="recycle-sheet" class="slide-up" style="width:100%;max-width:440px;max-height:92vh;overflow-y:auto;overflow-x:hidden;background:${th.bgSecondary};border-top:4px solid #000;border-left:${isMobile?'2px':'3px'} solid #000;border-right:${isMobile?'2px':'3px'} solid #000;box-shadow:-4px -4px 0 #000;padding-bottom:max(env(safe-area-inset-bottom,0px),${isMobile?'14px':'20px'});box-sizing:border-box;">
+    <div id="recycle-sheet" class="slide-up" style="width:100%;max-width:440px;height:auto;max-height:min(94vh,calc(100dvh - 8px));display:flex;flex-direction:column;background:${th.bgSecondary};border-top:4px solid #000;border-left:${isMobile?'2px':'3px'} solid #000;border-right:${isMobile?'2px':'3px'} solid #000;box-shadow:-4px -4px 0 #000;box-sizing:border-box;overflow:hidden;">
 
-      <!-- Pull handle -->
-      <div style="display:flex;justify-content:center;padding:10px 0 0;">
+      <!-- Pull handle (fixe) -->
+      <div style="display:flex;justify-content:center;padding:10px 0 0;flex-shrink:0;">
         <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
       </div>
 
-      <!-- Header -->
-      <div style="padding:${isMobile?'10px 10px 12px':'10px 18px 14px'};display:flex;align-items:center;gap:${isNarrow?'6px':(isMobile?'8px':'10px')};border-bottom:2px solid #000;">
+      <!-- Header (fixe) -->
+      <div style="padding:${isMobile?'10px 10px 12px':'10px 18px 14px'};display:flex;align-items:center;gap:${isNarrow?'6px':(isMobile?'8px':'10px')};border-bottom:2px solid #000;flex-shrink:0;">
         <div style="font-size:${isMobile?'20px':'24px'};line-height:1;flex-shrink:0;">♻</div>
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'15px':'18px'};letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
@@ -12423,8 +12492,8 @@ function renderRecycleModal() {
           style="padding:${isMobile?'5px 8px':'6px 11px'};background:transparent;border:1px solid ${th.red}35;color:${th.red};font-size:${isMobile?'8px':'9px'};font-weight:800;cursor:pointer;letter-spacing:.8px;flex-shrink:0;white-space:nowrap;">FERMER</button>
       </div>
 
-      <!-- Body -->
-      <div style="padding:${isMobile?'12px 10px 4px':'14px 16px 4px'};">${body}</div>
+      <!-- Body (scrollable, occupe l'espace restant) -->
+      <div id="recycle-body" style="flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:${isMobile?'12px 10px':'14px 16px'};padding-bottom:max(env(safe-area-inset-bottom,0px),${isMobile?'14px':'20px'});">${body}</div>
 
     </div>
   </div>`;
@@ -12716,7 +12785,7 @@ function renderRecycleSelect() {
   ` : ''}
 
   <!-- Liste des cartes -->
-  <div style="display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto;
+  <div style="display:flex;flex-direction:column;gap:5px;
               padding:6px;border:2px solid #000;background:${th.bg};">
     ${owned.length === 0
       ? `<div style="text-align:center;padding:30px;color:${th.textMuted};font-size:11px;">Aucun doublon disponible.</div>`
@@ -12760,15 +12829,20 @@ function renderRecycleSelect() {
         }).join('')}
   </div>
 
-  <button id="recycle-confirm" ${selectedTotal!==cost?'disabled':''}
-    style="width:100%;padding:13px;margin-top:12px;
-           background:${selectedTotal===cost?th.green:th.bgTertiary};color:${selectedTotal===cost?'#fff':th.textMuted};
-           border:2px solid #000;
-           cursor:${selectedTotal===cost?'pointer':'not-allowed'};
-           font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.8px;
-           ${selectedTotal===cost?'box-shadow:0 4px 16px '+th.green+'40;':''}">
-    LANCER LE RECYCLAGE
-  </button>
+  <!-- Bouton LANCER : sticky en bas du body scrollable pour rester atteignable sur tous les écrans -->
+  <div style="position:sticky;bottom:0;left:0;right:0;margin:12px -10px 0;padding:10px;
+              background:linear-gradient(to bottom, ${th.bgSecondary}00 0%, ${th.bgSecondary} 35%);
+              z-index:5;">
+    <button id="recycle-confirm" ${selectedTotal!==cost?'disabled':''}
+      style="width:100%;padding:13px;
+             background:${selectedTotal===cost?th.green:th.bgTertiary};color:${selectedTotal===cost?'#fff':th.textMuted};
+             border:2px solid #000;
+             cursor:${selectedTotal===cost?'pointer':'not-allowed'};
+             font-family:'Luckiest Guy',cursive;font-size:13px;letter-spacing:.8px;
+             ${selectedTotal===cost?'box-shadow:0 4px 16px '+th.green+'40;':''}">
+      LANCER LE RECYCLAGE
+    </button>
+  </div>
 
   <style>
     /* Hide spin buttons sur input number */
