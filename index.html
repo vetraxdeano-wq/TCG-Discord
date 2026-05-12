@@ -690,6 +690,77 @@ async function markPiocheUsed(userId){
   }catch(e){ console.error('markPiocheUsed error', e); }
 }
 
+// ─── BOOSTS ACTIFS (Coins x2 / XP x2 sur N combats) ─────────────────
+// Stockage : table `players` colonnes `boost_coins_x2_remaining` (int) et `boost_xp_x2_remaining` (int)
+// Ces colonnes doivent exister côté Supabase (sinon les updates échoueront silencieusement, le booster ne sera juste pas persistant)
+
+async function loadActiveBoosts(userId){
+  try{
+    const db = window.db;
+    if(!db || !userId) return { coinsX2:0, xpX2:0 };
+    const { data } = await db.from('players')
+      .select('boost_coins_x2_remaining, boost_xp_x2_remaining')
+      .eq('id', userId).maybeSingle();
+    const c = Math.max(0, parseInt(data?.boost_coins_x2_remaining||0,10)||0);
+    const x = Math.max(0, parseInt(data?.boost_xp_x2_remaining||0,10)||0);
+    return { coinsX2:c, xpX2:x };
+  }catch(e){ return { coinsX2:0, xpX2:0 }; }
+}
+
+async function addBoostCombats(userId, kind, n){
+  // kind: 'coins_x2' | 'xp_x2'
+  try{
+    const db = window.db;
+    if(!db || !userId) return;
+    const col = kind==='coins_x2' ? 'boost_coins_x2_remaining' : 'boost_xp_x2_remaining';
+    const { data } = await db.from('players').select(col).eq('id', userId).maybeSingle();
+    const cur = Math.max(0, parseInt(data?.[col]||0,10)||0);
+    const next = cur + n;
+    const update = {};
+    update[col] = next;
+    await db.from('players').update(update).eq('id', userId);
+    // Mettre à jour le state local
+    if(kind==='coins_x2') setState({ boostCoinsX2Remaining: next });
+    else                  setState({ boostXpX2Remaining:    next });
+  }catch(e){ console.error('addBoostCombats',e); }
+}
+
+// Appelé par les modes de jeu (PVE/PVP/10v10) à la fin d'un combat normal (pas un forfait).
+// Retourne {coinsMul, xpMul, consumedCoins, consumedXp} pour info / affichage.
+// IMPORTANT : décrémente les compteurs en DB après usage.
+async function consumeBoostsForMatch(userId){
+  if(!userId) return { coinsMul:1, xpMul:1, consumedCoins:false, consumedXp:false };
+  try{
+    const db = window.db;
+    if(!db) return { coinsMul:1, xpMul:1, consumedCoins:false, consumedXp:false };
+    const { data } = await db.from('players')
+      .select('boost_coins_x2_remaining, boost_xp_x2_remaining')
+      .eq('id', userId).maybeSingle();
+    const c = Math.max(0, parseInt(data?.boost_coins_x2_remaining||0,10)||0);
+    const x = Math.max(0, parseInt(data?.boost_xp_x2_remaining||0,10)||0);
+    const useC = c>0, useX = x>0;
+    if(useC || useX){
+      const upd = {};
+      if(useC) upd.boost_coins_x2_remaining = c-1;
+      if(useX) upd.boost_xp_x2_remaining    = x-1;
+      await db.from('players').update(upd).eq('id', userId);
+    }
+    return {
+      coinsMul: useC?2:1,
+      xpMul:    useX?2:1,
+      consumedCoins: useC,
+      consumedXp:    useX,
+      remainingCoins: useC ? c-1 : c,
+      remainingXp:    useX ? x-1 : x,
+    };
+  }catch(e){
+    console.error('consumeBoostsForMatch',e);
+    return { coinsMul:1, xpMul:1, consumedCoins:false, consumedXp:false };
+  }
+}
+window.consumeBoostsForMatch = consumeBoostsForMatch;
+window.loadActiveBoosts      = loadActiveBoosts;
+
 
 
 // Trade : 1x/jour
@@ -1118,6 +1189,11 @@ let state = {
   piocheResult: null,
   piocheRevealImg: null,
   piocheConsumed: false, // true dès qu'une carte est retournée — bloque la réouverture via croix
+  piocheRewardType: null, // 'card' | 'coins_x2' | 'xp_x2' | 'coins_200' | 'coins_500'
+  piocheRewardData: null, // payload de la récompense (montant, durée, etc.)
+  // Boosts actifs (cross-device via Supabase players.boost_*)
+  boostCoinsX2Remaining: 0, // nb de combats restants avec coins x2
+  boostXpX2Remaining:    0, // nb de combats restants avec xp x2
   // Deck Builder
   showDeckBuilder: false,
   showMarket: false,
@@ -1503,6 +1579,21 @@ function renderGame(th){
         <svg width="10" height="10" viewBox="0 0 24 24" fill="${th.yellow}" style="flex-shrink:0;"><circle cx="12" cy="12" r="10" opacity=".4"/><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5h-2v-1.8c-1.4-.3-2.5-1.3-2.5-2.7h2c0 .6.7 1 1.5 1s1.5-.4 1.5-1c0-.7-.6-1-1.8-1.3C10.1 10.3 9 9.4 9 8c0-1.3 1-2.3 2.5-2.6V3.5h2v1.9c1.3.4 2.2 1.4 2.2 2.6h-2c0-.6-.6-1-1.5-1s-1.4.4-1.4 1c0 .6.5.9 1.7 1.2 1.8.4 3 1.4 3 3 0 1.4-1 2.5-2.5 2.8v1.5z"/></svg>
         <span style="font-size:${isMobile?'10px':'12px'};font-weight:900;color:${th.yellow};letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</span>
       </div>
+
+      <!-- Boosts actifs (affichés uniquement si > 0) -->
+      ${(state.boostCoinsX2Remaining>0) ? `
+      <div title="Tu as un boost actif : tes prochains combats rapportent 2x plus de coins" style="display:flex;align-items:center;gap:3px;padding:${isMobile?'3px 5px':'4px 8px'};background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);flex-shrink:0;animation:boostPulse 2s ease-in-out infinite;">
+        <span style="font-size:${isMobile?'10px':'12px'};line-height:1;">🪙</span>
+        <span style="font-size:${isMobile?'8px':'9px'};font-weight:900;color:#eab308;letter-spacing:.3px;">×2</span>
+        <span style="font-size:${isMobile?'8px':'9px'};font-weight:700;color:${th.text};letter-spacing:.2px;">${state.boostCoinsX2Remaining}</span>
+      </div>` : ''}
+      ${(state.boostXpX2Remaining>0) ? `
+      <div title="Tu as un boost actif : tes prochains combats rapportent 2x plus d'XP" style="display:flex;align-items:center;gap:3px;padding:${isMobile?'3px 5px':'4px 8px'};background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);flex-shrink:0;animation:boostPulse 2s ease-in-out infinite;">
+        <span style="font-size:${isMobile?'10px':'12px'};line-height:1;">⭐</span>
+        <span style="font-size:${isMobile?'8px':'9px'};font-weight:900;color:#fbbf24;letter-spacing:.3px;">×2</span>
+        <span style="font-size:${isMobile?'8px':'9px'};font-weight:700;color:${th.text};letter-spacing:.2px;">${state.boostXpX2Remaining}</span>
+      </div>` : ''}
+      <style>@keyframes boostPulse { 0%,100%{box-shadow:0 0 0 rgba(234,179,8,0);} 50%{box-shadow:0 0 12px rgba(234,179,8,.4);} }</style>
 
       <!-- Icon cluster -->
       <div style="display:flex;gap:${isMobile?'2px':'4px'};align-items:center;flex-shrink:0;">
@@ -3392,7 +3483,7 @@ function renderTabBoosters(th){
           <div style="flex:1;min-width:0;">
             <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'11px':'13px'};font-weight:400;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
             <div style="font-size:${isMobile?'8px':'10px'};color:${_pUsed?_pColor:th.textMuted};margin-top:2px;">
-              ${_pUsed ? `⏳ Disponible dans <span data-daily-timer>${timeUntilMidnight()}</span>` : (isMobile?'1 carte gratuite · 1× par jour':'50 cartes face cachée · retourne-en une · 1× par jour')}
+              ${_pUsed ? `⏳ Disponible dans <span data-daily-timer>${timeUntilMidnight()}</span>` : (isMobile?'1 carte ou bonus rare · 1× par jour':'50 cartes face cachée · carte aléatoire ou ✨ bonus rare (coins, boosts) · 1× par jour')}
             </div>
           </div>
           <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_pUsed?th.surface:th.green};color:${_pUsed?th.textMuted:'#fff'};border:${_pUsed?'1px solid #000':'none'};font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:${_pUsed?'none':'0 3px 12px '+th.green+'40'};flex-shrink:0;">${_pUsed?'ÉPUISÉ':'PIOCHER'}</div>
@@ -3403,27 +3494,50 @@ function renderTabBoosters(th){
     <!-- ═══ Bouton Recyclage (ajouté) ═══ -->
     ${(()=>{
       const _rColor = '#a855f7';
+      // Lire l'état du recyclage actif (chargé en arrière-plan)
+      const _rJob = state.recycleActiveJob;
+      let _rRemainMs = 0;
+      let _rIsReady = false;
+      let _rRemainLabel = '';
+      if (_rJob && _rJob.ready_at) {
+        _rRemainMs = Math.max(0, new Date(_rJob.ready_at).getTime() - Date.now());
+        _rIsReady = _rRemainMs <= 0;
+        if (!_rIsReady) {
+          const totalMin = Math.ceil(_rRemainMs / 60000);
+          const h = Math.floor(totalMin / 60);
+          const m = totalMin % 60;
+          _rRemainLabel = h > 0 ? `${h}h ${String(m).padStart(2,'0')}min` : `${m}min`;
+        }
+      }
+      // Couleur dynamique : vert si prêt, orange si en cours, violet si rien
+      const _rState = _rIsReady ? 'ready' : (_rJob ? 'progress' : 'idle');
+      const _rDynColor = _rState === 'ready' ? '#22c55e' : (_rState === 'progress' ? '#f59e0b' : _rColor);
       return `<div id="btn-recycle"
         onclick="if(typeof openRecycleModal==='function'){openRecycleModal();}else{alert('Module recyclage pas chargé');}"
         style="margin:${isMobile?'4px 12px':'8px 14px'};flex-shrink:0;
-          background:linear-gradient(135deg,${_rColor}12,${_rColor}03);
-          border:1px solid ${_rColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_rColor}90,transparent);"></div>
+          background:linear-gradient(135deg,${_rDynColor}12,${_rDynColor}03);
+          border:1px solid ${_rDynColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_rDynColor}90,transparent);"></div>
         <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'10px 16px'};">
-          <div style="font-size:${isMobile?'24px':'34px'};line-height:1;animation:recycleIconSpin 6s linear infinite;flex-shrink:0;width:${isMobile?'24px':'36px'};text-align:center;">♻</div>
+          <div style="font-size:${isMobile?'24px':'34px'};line-height:1;animation:recycleIconSpin ${_rState==='ready'?'1.5s':'6s'} linear infinite;flex-shrink:0;width:${isMobile?'24px':'36px'};text-align:center;">${_rState==='ready'?'🎁':'♻'}</div>
           <div style="flex:1;min-width:0;">
             <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'11px':'13px'};font-weight:400;color:${th.text};letter-spacing:.3px;">Recyclage</div>
-            <div style="font-size:${isMobile?'8px':'10px'};color:${th.textMuted};margin-top:2px;">
-              ${isMobile?'Doublons → cartes ↑':'Échange tes doublons contre des cartes de rareté supérieure'}
+            <div style="font-size:${isMobile?'8px':'10px'};color:${_rState==='idle'?th.textMuted:_rDynColor};margin-top:2px;">
+              ${_rState==='ready'
+                ? '✓ Carte prête à réclamer !'
+                : (_rState==='progress'
+                    ? `⏳ Reste <span data-recycle-btn-timer style="font-weight:900;">${_rRemainLabel}</span>`
+                    : (isMobile?'Doublons → cartes ↑':'Échange tes doublons contre des cartes de rareté supérieure'))}
             </div>
           </div>
-          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_rColor};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${_rColor}40;flex-shrink:0;">OUVRIR</div>
+          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_rDynColor};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${_rDynColor}40;flex-shrink:0;${_rState==='ready'?'animation:recyclePulseBtn 1.2s infinite;':''}">${_rState==='ready'?'RÉCLAMER':(_rState==='progress'?'EN COURS':'OUVRIR')}</div>
         </div>
       </div>`;
     })()}
 
     <style>
       @keyframes recycleIconSpin { to { transform: rotate(360deg); } }
+      @keyframes recyclePulseBtn { 0%,100%{transform:scale(1);box-shadow:0 3px 12px #22c55e40;} 50%{transform:scale(1.04);box-shadow:0 4px 18px #22c55e80;} }
     </style>
 
     <style>
@@ -4252,7 +4366,40 @@ function renderPiocheMechanic(th){
         </div>`;
       }).join('')}
     </div>`:''}
-    ${state.piocheResult?`
+    ${state.piocheResult?(()=>{
+      // ─── Cas récompense spéciale (boost / paquet de pièces) ───
+      if(state.piocheResult.__reward){
+        const rt = state.piocheResult.type;
+        const payload = state.piocheResult.payload || {};
+        const presets = {
+          coins_200: { icon:'💰', title:'+200 PIÈCES', sub:'Ajoutées à ton solde', color:'#22d3ee', bg:'linear-gradient(135deg,#22d3ee30,#0891b210)', borderCol:'#22d3ee80' },
+          coins_500: { icon:'💰', title:'+500 PIÈCES', sub:'Ajoutées à ton solde', color:'#a855f7', bg:'linear-gradient(135deg,#a855f730,#7e22ce10)', borderCol:'#a855f780' },
+          coins_x2:  { icon:'🪙', title:'COINS ×2', sub:`Pendant ${payload.combats||10} combats`, color:'#eab308', bg:'linear-gradient(135deg,#eab30830,#a1620810)', borderCol:'#eab30880' },
+          xp_x2:     { icon:'⭐', title:'XP ×2',    sub:`Pendant ${payload.combats||10} combats`, color:'#fbbf24', bg:'linear-gradient(135deg,#fbbf2430,#d9770610)', borderCol:'#fbbf2480' },
+        };
+        const p = presets[rt] || presets.coins_200;
+        return `
+        <div class="fade-up" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div style="width:110px;aspect-ratio:2/3;background:${p.bg};border:2px solid ${p.borderCol};display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 0 40px ${p.color}55;">
+            <div style="font-size:48px;line-height:1;">${p.icon}</div>
+            <div style="margin-top:8px;font-family:'Luckiest Guy',cursive;font-size:14px;color:#fff;letter-spacing:.5px;text-align:center;padding:0 4px;">${p.title}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 16px;background:${p.color}15;border:1.5px solid ${p.color}55;">
+            <span style="font-size:14px;">🎉</span>
+            <div>
+              <div style="font-size:10px;font-weight:900;color:${p.color};letter-spacing:.5px;">RÉCOMPENSE BONUS !</div>
+              <div style="font-size:9px;color:#8a9ab5;margin-top:1px;">${p.sub}</div>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:#f2f3f5;">${p.title}</div>
+            <div style="font-size:11px;color:${p.color};margin-top:3px;">${p.sub}</div>
+          </div>
+          <button id="pioche-collect" style="padding:10px 28px;background:linear-gradient(135deg,${p.color},${p.color}cc);color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 20px ${p.color}50;">${rt.startsWith('coins_x2')||rt.startsWith('xp_x2')?'ACTIVER LE BOOST':'RÉCUPÉRER'}</button>
+        </div>`;
+      }
+      // ─── Cas carte normale (logique d'origine) ───
+      return `
     <div class="fade-up" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="width:110px;aspect-ratio:2/3;background:linear-gradient(160deg,${state.piocheResult.color}30,#2b2d31);border:2px solid ${state.piocheResult.color||RARITY_COLOR[state.piocheResult.rarity]}80;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px ${state.piocheResult.color||RARITY_COLOR[state.piocheResult.rarity]}50;">
         ${state.piocheResult.image_url
@@ -4277,7 +4424,8 @@ function renderPiocheMechanic(th){
         <div style="font-size:11px;color:${RARITY_COLOR[state.piocheResult.rarity]};margin-top:3px;">◆ ${RARITY_LABEL[state.piocheResult.rarity]} · ${state.piocheResult.type}</div>
       </div>
       <button id="pioche-collect" style="padding:10px 28px;background:linear-gradient(135deg,#38bdf8,#818cf8);color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 20px rgba(56,189,248,.3);">AJOUTER À LA COLLECTION</button>
-    </div>`:''}
+    </div>`;
+    })():''}
   </div>`;
 }
 
@@ -6725,17 +6873,58 @@ function bindGame(){
       if(state.piocheConsumed)return; // sécurité anti-double-clic
       const idx=parseInt(el.dataset.idx);
       const newFlipped={...state.piocheFlipped,[idx]:true};
-      // ── Tirer la carte immédiatement pour afficher le PNG pendant le flip ──
-      const _roll = Math.random() * 100;
-      let _targetRarity;
-      if (_roll < 0.1)       _targetRarity = 'mythic';
-      else if (_roll < 1.1)  _targetRarity = 'rare';
-      else if (_roll < 13.0) _targetRarity = 'uncommon';
-      else                   _targetRarity = 'common';
-      const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity);
-      const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS;
-      const _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
-      setState({piocheChosen:idx,piocheFlipped:newFlipped,piocheConsumed:true,piocheRevealImg:_drawnCard?.image_url||null});
+
+      // ─── Roll global : 92% carte normale, 8% récompense spéciale ───
+      // Chaque récompense spéciale a sa propre probabilité dans la slice 8%.
+      const _globalRoll = Math.random() * 100;
+      let _rewardType = 'card';
+      let _rewardPayload = null;
+      let _drawnCard = null;
+      let _revealImg = null;
+
+      if (_globalRoll < 1.0) {
+        // 1.0% : XP doublé pendant 10 combats (le plus rare des boosts)
+        _rewardType = 'xp_x2';
+        _rewardPayload = { combats: 10 };
+        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="80" fill="#fff" font-weight="900">⭐</text><text x="100" y="180" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="36" fill="#fff" font-weight="900">XP ×2</text><text x="100" y="220" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="16" fill="#fff" font-weight="700">10 COMBATS</text></svg>`);
+      } else if (_globalRoll < 3.0) {
+        // 2.0% : Coins doublés pendant 10 combats
+        _rewardType = 'coins_x2';
+        _rewardPayload = { combats: 10 };
+        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#eab308"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="80" fill="#fff" font-weight="900">🪙</text><text x="100" y="180" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="32" fill="#fff" font-weight="900">COINS ×2</text><text x="100" y="220" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="16" fill="#fff" font-weight="700">10 COMBATS</text></svg>`);
+      } else if (_globalRoll < 4.5) {
+        // 1.5% : 500 pièces offertes (le + gros lot direct)
+        _rewardType = 'coins_500';
+        _rewardPayload = { amount: 500 };
+        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#7e22ce"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="70" fill="#fff" font-weight="900">💰</text><text x="100" y="190" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="56" fill="#fff" font-weight="900">+500</text><text x="100" y="230" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="18" fill="#fff" font-weight="700">PIÈCES</text></svg>`);
+      } else if (_globalRoll < 8.0) {
+        // 3.5% : 200 pièces offertes
+        _rewardType = 'coins_200';
+        _rewardPayload = { amount: 200 };
+        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#0891b2"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="70" fill="#fff" font-weight="900">💰</text><text x="100" y="190" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="56" fill="#fff" font-weight="900">+200</text><text x="100" y="230" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="18" fill="#fff" font-weight="700">PIÈCES</text></svg>`);
+      } else {
+        // 92% : carte normale (logique d'origine)
+        _rewardType = 'card';
+        const _roll = Math.random() * 100;
+        let _targetRarity;
+        if (_roll < 0.1)       _targetRarity = 'mythic';
+        else if (_roll < 1.1)  _targetRarity = 'rare';
+        else if (_roll < 13.0) _targetRarity = 'uncommon';
+        else                   _targetRarity = 'common';
+        const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity);
+        const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS;
+        _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
+        _revealImg = _drawnCard?.image_url || null;
+      }
+
+      setState({
+        piocheChosen:idx,
+        piocheFlipped:newFlipped,
+        piocheConsumed:true,
+        piocheRevealImg:_revealImg,
+        piocheRewardType:_rewardType,
+        piocheRewardData:_rewardPayload
+      });
       // ── Quête pioche : déclencher immédiatement au moment du tirage ──
       progressDailyQuest('pioche');
 
@@ -6753,40 +6942,71 @@ function bindGame(){
       })();
 
       setTimeout(async ()=>{
-        const drawn = _drawnCard;
-        if(!drawn){ setState({piocheResult:null}); return; }
+        if(_rewardType === 'card'){
+          const drawn = _drawnCard;
+          if(!drawn){ setState({piocheResult:null}); return; }
 
-        // ── Ajouter la carte en BDD IMMÉDIATEMENT (avant que le joueur clique collect) ──
-        const db = window.db;
-        if(db && myId && drawn){
-          const cardIdNum = parseInt(drawn.id, 10);
-          const { data: existing } = await db.from('player_cards')
-            .select('id, quantity').eq('player_id', myId).eq('card_id', cardIdNum).single();
-          if(existing){
-            await db.from('player_cards').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
-          } else {
-            await db.from('player_cards').insert({ player_id: myId, card_id: cardIdNum, quantity: 1 });
+          // ── Ajouter la carte en BDD IMMÉDIATEMENT ──
+          const db = window.db;
+          if(db && myId && drawn){
+            const cardIdNum = parseInt(drawn.id, 10);
+            const { data: existing } = await db.from('player_cards')
+              .select('id, quantity').eq('player_id', myId).eq('card_id', cardIdNum).single();
+            if(existing){
+              await db.from('player_cards').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
+            } else {
+              await db.from('player_cards').insert({ player_id: myId, card_id: cardIdNum, quantity: 1 });
+            }
+            if(window.loadCollection) window.loadCollection();
+            drawn.owned = !!existing;
+            try{
+              const rarityField = { common:'cards_common', uncommon:'cards_uncommon', rare:'cards_rare', mythic:'cards_mythic' }[drawn.rarity];
+              if(rarityField) db.rpc('increment_stat', { p_user_id: myId, p_field: rarityField }).then(()=>{}).catch(()=>{});
+            }catch(e){}
           }
-          if(window.loadCollection) window.loadCollection();
-          // Vérifier si déjà possédée (avant insert)
-          drawn.owned = !!existing;
-          // ── Stats cartes par rareté ─────────────────────────────
-          try{
-            const rarityField = { common:'cards_common', uncommon:'cards_uncommon', rare:'cards_rare', mythic:'cards_mythic' }[drawn.rarity];
-            if(rarityField) db.rpc('increment_stat', { p_user_id: myId, p_field: rarityField }).then(()=>{}).catch(()=>{});
-          }catch(e){}
-        }
 
-        setState({piocheResult: drawn});
+          setState({piocheResult: drawn});
+        } else {
+          // ── Récompense spéciale : appliquer côté Supabase ──
+          const db = window.db;
+          if(db && myId){
+            try{
+              if(_rewardType === 'coins_200' || _rewardType === 'coins_500'){
+                const amount = _rewardPayload.amount;
+                const { data:p } = await db.from('players').select('coins').eq('id', myId).single();
+                const newCoins = (p?.coins||0) + amount;
+                await db.from('players').update({ coins: newCoins }).eq('id', myId);
+                setState({ coins: newCoins });
+                // Stats
+                await db.rpc('increment_stat', { p_user_id: myId, p_field: 'coins_earned', p_amount: amount }).catch(()=>{});
+              } else if(_rewardType === 'coins_x2'){
+                await addBoostCombats(myId, 'coins_x2', _rewardPayload.combats);
+              } else if(_rewardType === 'xp_x2'){
+                await addBoostCombats(myId, 'xp_x2', _rewardPayload.combats);
+              }
+            }catch(e){ console.error('pioche reward apply', e); }
+          }
+          // Marquer comme résultat (objet sentinelle pour que le UI affiche le résultat)
+          setState({ piocheResult: { __reward: true, type:_rewardType, payload:_rewardPayload } });
+        }
       },700);
     });
   });
 
   const piocheCollect = document.getElementById('pioche-collect');
   if(piocheCollect) piocheCollect.addEventListener('click', async ()=>{
-    const card = state.piocheResult;
-    if(card){
-      showToast(`${card.name} ajoutée à la collection !`, '✓');
+    const r = state.piocheResult;
+    if(r && r.__reward){
+      // Récompense spéciale déjà appliquée — toast de confirmation
+      const labels = {
+        coins_200: '+200 pièces ajoutées 💰',
+        coins_500: '+500 pièces ajoutées 💰',
+        coins_x2:  'Boost Coins x2 actif (10 combats) 🪙',
+        xp_x2:     'Boost XP x2 actif (10 combats) ⭐',
+      };
+      showToast(labels[r.type] || 'Récompense reçue !', '✓');
+    } else if(r){
+      showToast(`${r.name} ajoutée à la collection !`, '✓');
     }
     setState({showPioche:false});
   });
@@ -7592,6 +7812,13 @@ function enterGame(user, coins) {
   }
     // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
     canPiocheToday(user.id).then(()=>{ setState({}); }); // force re-render après chargement
+    // Précharger les boosts actifs (Coins x2 / XP x2 sur N combats) depuis Supabase
+    loadActiveBoosts(user.id).then(b => {
+      setState({
+        boostCoinsX2Remaining: b.coinsX2 || 0,
+        boostXpX2Remaining:    b.xpX2    || 0,
+      });
+    }).catch(()=>{});
     // Précharger les compteurs de boosters depuis Supabase (cross-device, par compte)
     _loadBoosterCache(user.id).then(()=>{ setState({}); });
     // Précharger le cache des quêtes depuis Supabase (cross-plateforme)
@@ -10999,13 +11226,78 @@ function renderMarket(th){
         // Filtres locaux (persistés sur window pour survive au re-render)
         if(window._mktFilterMissing===undefined) window._mktFilterMissing=false;
         if(window._mktFilterOwned===undefined) window._mktFilterOwned=false;
+        // Filtres rareté/type cumulables (Sets persistés) — partagés par les deux sections (Propose / Cherche)
+        if(!window._mktFilterRarities) window._mktFilterRarities=new Set();
+        if(!window._mktFilterTypes)    window._mktFilterTypes=new Set();
 
-        const filteredOfferIds = window._mktFilterMissing
-          ? allOfferIds.filter(id=>!_mOwned(id))
-          : allOfferIds;
-        const filteredWantIds = window._mktFilterOwned
-          ? allWantIds.filter(id=>_mOwned(id))
-          : allWantIds;
+        // Helper : applique les filtres rareté + type cumulables à une liste d'IDs
+        const _applyRarTypeFilters = (ids) => {
+          const rar = window._mktFilterRarities;
+          const typ = window._mktFilterTypes;
+          if(rar.size===0 && typ.size===0) return ids;
+          return ids.filter(id => {
+            const c = _mGetCard(id);
+            if(!c) return false;
+            const okRar = rar.size===0 || rar.has(c.rarity);
+            const okTyp = typ.size===0 || typ.has(c.type || 'Héro');
+            return okRar && okTyp;
+          });
+        };
+
+        const filteredOfferIds = _applyRarTypeFilters(
+          window._mktFilterMissing ? allOfferIds.filter(id=>!_mOwned(id)) : allOfferIds
+        );
+        const filteredWantIds = _applyRarTypeFilters(
+          window._mktFilterOwned ? allWantIds.filter(id=>_mOwned(id)) : allWantIds
+        );
+
+        // Toggle helpers exposés à window (utilisés par les boutons inline)
+        window._mktToggleRarity = function(r){
+          if(window._mktFilterRarities.has(r)) window._mktFilterRarities.delete(r);
+          else window._mktFilterRarities.add(r);
+          window._mktRerender();
+        };
+        window._mktToggleType = function(ty){
+          if(window._mktFilterTypes.has(ty)) window._mktFilterTypes.delete(ty);
+          else window._mktFilterTypes.add(ty);
+          window._mktRerender();
+        };
+        window._mktResetRarTypeFilters = function(){
+          window._mktFilterRarities.clear();
+          window._mktFilterTypes.clear();
+          window._mktRerender();
+        };
+
+        // Rendu de la barre de filtres rareté + type (cumulables)
+        const _rarChip = (key, label, color) => {
+          const active = window._mktFilterRarities.has(key);
+          return `<button onclick="window._mktToggleRarity('${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':'◆ '}${label}</button>`;
+        };
+        const _typChip = (key, label, color) => {
+          const active = window._mktFilterTypes.has(key);
+          return `<button onclick="window._mktToggleType('${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':''}${label}</button>`;
+        };
+        const totalFiltersActive = window._mktFilterRarities.size + window._mktFilterTypes.size;
+        const rarTypeBar = `
+          <div style="margin:6px 0 10px;padding:8px 10px;background:${th.bg};border:1px solid ${th.border};">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <div style="font-size:9px;font-weight:800;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">Filtrer par rareté & type</div>
+              ${totalFiltersActive>0?`<button onclick="window._mktResetRarTypeFilters()" style="padding:1px 7px;font-size:8px;font-weight:800;cursor:pointer;border:1px solid ${th.red}50;background:${th.red}15;color:${th.red};letter-spacing:.3px;">✕ RESET (${totalFiltersActive})</button>`:''}
+              <div style="flex:1;"></div>
+              <div style="font-size:8px;color:${th.textFaint};font-style:italic;">cliquable · cumulable</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+              ${_rarChip('common','Commune','#94a3b8')}
+              ${_rarChip('uncommon','Peu Commune','#38bdf8')}
+              ${_rarChip('rare','Rare','#a78bfa')}
+              ${_rarChip('mythic','Mythique','#fbbf24')}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              ${_typChip('Héro','⚔ Héro','#f59e0b')}
+              ${_typChip('Ruse','🃏 Ruse','#10b981')}
+              ${_typChip('Arcane','✦ Arcane','#8b5cf6')}
+            </div>
+          </div>`;
 
         const standDetailRow=(ids,isOffer,rowIsMe)=>{
           if(!ids.length) return `<span style="font-size:10px;color:${th.textFaint};font-style:italic;padding:8px 0;">Aucune carte</span>`;
@@ -11038,7 +11330,7 @@ function renderMarket(th){
           <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.10;pointer-events:none;"></div>
           <!-- Header détail -->
           <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
-            <button onclick="window._mktFilterMissing=false;window._mktFilterOwned=false;setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
+            <button onclick="window._mktFilterMissing=false;window._mktFilterOwned=false;if(window._mktFilterRarities)window._mktFilterRarities.clear();if(window._mktFilterTypes)window._mktFilterTypes.clear();setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
             <div style="flex:1;min-width:0;">
               <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">MARCHÉ DES ÉCHANGES</div>
             </div>
@@ -11060,14 +11352,14 @@ function renderMarket(th){
             <div style="padding:14px 12px 0;">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                 <div style="height:2px;flex:1;background:linear-gradient(90deg,#22c55e,transparent);"></div>
-                <div style="font-size:11px;font-weight:900;color:#22c55e;">🟢 PROPOSÉES (${filteredOfferIds.length}${window._mktFilterMissing?'/'+allOfferIds.length:''})</div>
+                <div style="font-size:11px;font-weight:900;color:#22c55e;">🟢 PROPOSÉES (${filteredOfferIds.length}${(filteredOfferIds.length!==allOfferIds.length)?'/'+allOfferIds.length:''})</div>
                 <div style="height:2px;flex:1;background:linear-gradient(270deg,#22c55e,transparent);"></div>
               </div>
-              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:10px;">
+              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:6px;">
                 <button onclick="window._mktFilterMissing=!window._mktFilterMissing;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterMissing?'#22c55e':'rgba(34,197,94,.35)'};background:${window._mktFilterMissing?'rgba(34,197,94,.18)':'transparent'};color:${window._mktFilterMissing?'#22c55e':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterMissing?'✓ ':''} MANQUANTES SEULEMENT
                 </button>
-              </div>`:'<div style="margin-bottom:10px;"></div>'}
+              </div>${rarTypeBar}`:'<div style="margin-bottom:10px;"></div>'}
               <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;">
                 ${standDetailRow(filteredOfferIds,true,isMe)}
               </div>
@@ -11078,14 +11370,14 @@ function renderMarket(th){
             <div style="padding:0 12px 16px;">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                 <div style="height:2px;flex:1;background:linear-gradient(90deg,#ef4444,transparent);"></div>
-                <div style="font-size:11px;font-weight:900;color:#ef4444;">🔴 RECHERCHÉES (${filteredWantIds.length}${window._mktFilterOwned?'/'+allWantIds.length:''})</div>
+                <div style="font-size:11px;font-weight:900;color:#ef4444;">🔴 RECHERCHÉES (${filteredWantIds.length}${(filteredWantIds.length!==allWantIds.length)?'/'+allWantIds.length:''})</div>
                 <div style="height:2px;flex:1;background:linear-gradient(270deg,#ef4444,transparent);"></div>
               </div>
-              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:10px;">
+              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:6px;">
                 <button onclick="window._mktFilterOwned=!window._mktFilterOwned;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterOwned?'#ef4444':'rgba(239,68,68,.35)'};background:${window._mktFilterOwned?'rgba(239,68,68,.18)':'transparent'};color:${window._mktFilterOwned?'#ef4444':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterOwned?'✓ ':''} POSSÉDÉES SEULEMENT
                 </button>
-              </div>`:'<div style="margin-bottom:10px;"></div>'}
+              </div>${rarTypeBar}`:'<div style="margin-bottom:10px;"></div>'}
               <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;">
                 ${standDetailRow(filteredWantIds,false,isMe)}
               </div>
@@ -12470,30 +12762,31 @@ function renderRecycleModal() {
   else if (step === 'select')                                body = renderRecycleSelect();
   else                                                       body = renderRecycleMenu();
 
-  return `
-  <div id="recycle-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;${isMobile?'padding:0 4px;':''}box-sizing:border-box;">
-    <div id="recycle-sheet" class="slide-up" style="width:100%;max-width:440px;height:auto;max-height:min(94vh,calc(100dvh - 8px));display:flex;flex-direction:column;background:${th.bgSecondary};border-top:4px solid #000;border-left:${isMobile?'2px':'3px'} solid #000;border-right:${isMobile?'2px':'3px'} solid #000;box-shadow:-4px -4px 0 #000;box-sizing:border-box;overflow:hidden;">
+  // ── MODALE CENTRÉE (PC + mobile) — s'adapte aux résolutions ───────
+  // Mobile : prend quasi tout l'écran avec petits marges. PC : largeur raisonnable, jamais "trop gros".
+  const sheetMaxW = isMobile ? '100%' : '480px';
+  const sheetMaxH = isMobile ? 'calc(100dvh - 24px)' : 'min(86vh, 720px)';
+  const outerPad  = isMobile ? '12px 6px' : '20px';
 
-      <!-- Pull handle (fixe) -->
-      <div style="display:flex;justify-content:center;padding:10px 0 0;flex-shrink:0;">
-        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
-      </div>
+  return `
+  <div id="recycle-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:300;padding:${outerPad};box-sizing:border-box;">
+    <div id="recycle-sheet" class="fade-up" style="width:100%;max-width:${sheetMaxW};max-height:${sheetMaxH};display:flex;flex-direction:column;background:${th.bgSecondary};border:${isMobile?'2px':'3px'} solid #000;box-shadow:0 16px 60px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);box-sizing:border-box;overflow:hidden;">
 
       <!-- Header (fixe) -->
-      <div style="padding:${isMobile?'10px 10px 12px':'10px 18px 14px'};display:flex;align-items:center;gap:${isNarrow?'6px':(isMobile?'8px':'10px')};border-bottom:2px solid #000;flex-shrink:0;">
-        <div style="font-size:${isMobile?'20px':'24px'};line-height:1;flex-shrink:0;">♻</div>
+      <div style="padding:${isMobile?'12px 12px 12px':'14px 18px 14px'};display:flex;align-items:center;gap:${isNarrow?'6px':(isMobile?'8px':'10px')};border-bottom:2px solid #000;flex-shrink:0;background:${th.bgTertiary}40;">
+        <div style="font-size:${isMobile?'22px':'26px'};line-height:1;flex-shrink:0;">♻</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'15px':'18px'};letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'16px':'19px'};letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
           <div style="font-size:${isMobile?'8px':'9px'};color:${th.textMuted};margin-top:3px;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Doublons → cartes supérieures</div>
         </div>
         <button id="recycle-help-btn" title="Comment ça marche ?"
-          style="width:${isMobile?'26px':'30px'};height:${isMobile?'26px':'30px'};background:${th.bgTertiary};border:2px solid #000;cursor:pointer;font-size:${isMobile?'12px':'14px'};font-weight:900;color:${th.text};flex-shrink:0;padding:0;">?</button>
+          style="width:${isMobile?'28px':'32px'};height:${isMobile?'28px':'32px'};background:${th.bgTertiary};border:2px solid #000;cursor:pointer;font-size:${isMobile?'13px':'15px'};font-weight:900;color:${th.text};flex-shrink:0;padding:0;">?</button>
         <button id="recycle-close-btn"
-          style="padding:${isMobile?'5px 8px':'6px 11px'};background:transparent;border:1px solid ${th.red}35;color:${th.red};font-size:${isMobile?'8px':'9px'};font-weight:800;cursor:pointer;letter-spacing:.8px;flex-shrink:0;white-space:nowrap;">FERMER</button>
+          style="padding:${isMobile?'6px 10px':'7px 13px'};background:transparent;border:1px solid ${th.red}40;color:${th.red};font-size:${isMobile?'9px':'10px'};font-weight:800;cursor:pointer;letter-spacing:.8px;flex-shrink:0;white-space:nowrap;">FERMER</button>
       </div>
 
       <!-- Body (scrollable, occupe l'espace restant) -->
-      <div id="recycle-body" style="flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:${isMobile?'12px 10px':'14px 16px'};padding-bottom:max(env(safe-area-inset-bottom,0px),${isMobile?'14px':'20px'});">${body}</div>
+      <div id="recycle-body" style="flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:${isMobile?'12px 12px':'16px 18px'};padding-bottom:${isMobile?'16px':'20px'};overscroll-behavior:contain;">${body}</div>
 
     </div>
   </div>`;
@@ -13016,6 +13309,12 @@ function bindRecycleEvents() {
 
   if (!state.showRecycle) return;
 
+  // Clic sur le fond (hors sheet) → fermer la modale
+  const bg = document.getElementById('recycle-bg');
+  if (bg) bg.addEventListener('click', (e) => {
+    if (e.target === bg) closeRecycleModal();
+  });
+
   // Header
   const closeBtn = document.getElementById('recycle-close-btn');
   if (closeBtn) closeBtn.addEventListener('click', closeRecycleModal);
@@ -13418,16 +13717,70 @@ async function claimRecyclingFlow() {
 
 // ─── TIMER LIVE (mise à jour de l'affichage) ─────────────────────────
 
+// Charger le job actif en arrière-plan pour afficher l'état sur le bouton page boosters
+async function refreshActiveRecycleJobGlobal() {
+  try {
+    const uid = state.currentUser?.id;
+    if (!uid || !window.db) return;
+    const job = await loadActiveRecycleJob(uid);
+    // Ne pas écraser un job courant identique pour éviter les re-renders inutiles
+    const prev = state.recycleActiveJob;
+    const prevId = prev?.id || null;
+    const nextId = job?.id || null;
+    const prevReady = prev?.ready_at || null;
+    const nextReady = job?.ready_at || null;
+    if (prevId !== nextId || prevReady !== nextReady) {
+      setState({ recycleActiveJob: job || null });
+    } else if (!prev && !job) {
+      // rien à faire
+    }
+  } catch (e) {
+    // silent
+  }
+}
+window.refreshActiveRecycleJobGlobal = refreshActiveRecycleJobGlobal;
+
+// Helper pour formater le temps restant version compacte pour le bouton
+function _fmtBtnDuration(remainingMs) {
+  const totalMin = Math.ceil(remainingMs / 60000);
+  if (totalMin <= 0) return '0min';
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2,'0')}min` : `${m}min`;
+}
+
 let _recycleTimerInterval = null;
+let _recycleBtnLastState = null; // 'idle' | 'progress' | 'ready'
 function startRecycleTimerTicker() {
   if (_recycleTimerInterval) return;
   _recycleTimerInterval = setInterval(() => {
+    // ─── Mise à jour du bouton de la page boosters (toujours, même sans modale ouverte) ───
+    const job = state.recycleActiveJob;
+    let curState = 'idle';
+    let remainingMs = 0;
+    if (job && job.ready_at) {
+      remainingMs = Math.max(0, new Date(job.ready_at).getTime() - Date.now());
+      curState = remainingMs <= 0 ? 'ready' : 'progress';
+    }
+    // Mise à jour textuelle du timer du bouton (sans re-render)
+    const btnTimerEl = document.querySelector('[data-recycle-btn-timer]');
+    if (btnTimerEl && curState === 'progress') {
+      btnTimerEl.textContent = _fmtBtnDuration(remainingMs);
+    }
+    // Changement d'état (idle ↔ progress ↔ ready) → forcer re-render du bouton via setState
+    if (curState !== _recycleBtnLastState) {
+      _recycleBtnLastState = curState;
+      // Re-render seulement si on est sur la page d'accueil (sinon coût inutile)
+      if (typeof setState === 'function' && state.currentPage !== 'combat-pvp') {
+        // micro setState pour déclencher le re-render
+        setState({ _recycleBtnTick: Date.now() });
+      }
+    }
+
     if (!state.showRecycle) return;
 
-    // Mise à jour du timer en cours
-    const job = state.recycleActiveJob;
+    // ─── Mise à jour du timer dans la modale (job en cours) ───
     if (job && state.recycleStep === 'progress') {
-      const remainingMs = Math.max(0, new Date(job.ready_at).getTime() - Date.now());
       const remainingMin = Math.ceil(remainingMs / 60000);
       const el = document.querySelector('[data-recycle-timer]');
       if (el) el.textContent = formatDuration(remainingMin);
@@ -13454,6 +13807,15 @@ function startRecycleTimerTicker() {
       midEl.textContent = `${h}h ${String(m).padStart(2,'0')}min`;
     }
   }, 1000);
+
+  // Charger l'état initial du job actif + rafraîchir toutes les 60s en arrière-plan
+  refreshActiveRecycleJobGlobal();
+  setInterval(() => {
+    // Ne recharger que si on est connecté et qu'il n'y a pas de modale ouverte
+    if (state.currentUser?.id && !state.showRecycle) {
+      refreshActiveRecycleJobGlobal();
+    }
+  }, 60000);
 }
 
 // Démarrer le ticker au chargement
