@@ -3626,12 +3626,57 @@ endGame=function(w, reason){
   }
   _origEndGame(w);
   const isWin=w==='human';
-  const coins=isWin?50:25;
-  const xp   =isWin?8:3;
+  const baseCoins=isWin?50:25;
+  const baseXp   =isWin?8:3;
   // Signal de victoire pour la quête "1ère victoire du jour" de l'index
   if(isWin){ try{ localStorage.setItem('tcg_game_win', Date.now()); }catch(ex){} }
-  saveGameResult(isWin,coins,xp);
+  applyBoostsAndSave10v10(isWin, baseCoins, baseXp);
 };
+
+// ── Helper : applique les boosts actifs et appelle saveGameResult ──
+async function applyBoostsAndSave10v10(isWin, baseCoins, baseXp){
+  let coins = baseCoins;
+  let xp    = baseXp;
+  let usedCoinsBoost = false;
+  let usedXpBoost    = false;
+  let remCoins = 0, remXp = 0;
+  try{
+    if(_db && _currentUser){
+      const myId = _currentUser.id;
+      const { data } = await _db.from('players')
+        .select('boost_coins_x2_remaining, boost_xp_x2_remaining')
+        .eq('id', myId).maybeSingle();
+      const c = Math.max(0, parseInt(data?.boost_coins_x2_remaining||0,10)||0);
+      const x = Math.max(0, parseInt(data?.boost_xp_x2_remaining||0,10)||0);
+      if(c > 0){ coins = baseCoins * 2; usedCoinsBoost = true; remCoins = c - 1; }
+      if(x > 0){ xp    = baseXp    * 2; usedXpBoost    = true; remXp    = x - 1; }
+      if(usedCoinsBoost || usedXpBoost){
+        const upd = {};
+        if(usedCoinsBoost) upd.boost_coins_x2_remaining = remCoins;
+        if(usedXpBoost)    upd.boost_xp_x2_remaining    = remXp;
+        await _db.from('players').update(upd).eq('id', myId);
+      }
+    }
+  }catch(e){ console.warn('[10v10] boost apply failed', e); }
+
+  // Annoter le panneau de fin
+  if(usedCoinsBoost || usedXpBoost){
+    const rw=document.getElementById('ov-rewards');
+    if(rw){
+      rw.innerHTML = `
+        <div class="ov-reward-pill coins">🪙 +${coins}${usedCoinsBoost?' <span style="color:#eab308;font-size:10px;font-weight:900;">×2</span>':''} coins</div>
+        <div class="ov-reward-pill xp">⭐ +${xp}${usedXpBoost?' <span style="color:#fbbf24;font-size:10px;font-weight:900;">×2</span>':''} XP</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:6px;text-align:center;letter-spacing:.04em;width:100%;">
+          ${isWin ? '🏆 Victoire' : '💀 Défaite'} · récompenses boostées
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;">
+          ${usedCoinsBoost?`<span style="font-size:10px;font-weight:900;color:#eab308;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.45);padding:3px 10px;letter-spacing:.4px;">🪙 BOOST ACTIF — reste ${remCoins}</span>`:''}
+          ${usedXpBoost   ?`<span style="font-size:10px;font-weight:900;color:#fbbf24;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.45);padding:3px 10px;letter-spacing:.4px;">⭐ BOOST ACTIF — reste ${remXp}</span>`:''}
+        </div>`;
+    }
+  }
+  saveGameResult(isWin, coins, xp);
+}
 
 // ── Abandonner le combat (10v10 vs bot) ──────────────────────────────
 function forfeitMatch(){
