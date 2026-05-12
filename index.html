@@ -690,77 +690,6 @@ async function markPiocheUsed(userId){
   }catch(e){ console.error('markPiocheUsed error', e); }
 }
 
-// ─── BOOSTS ACTIFS (Coins x2 / XP x2 sur N combats) ─────────────────
-// Stockage : table `players` colonnes `boost_coins_x2_remaining` (int) et `boost_xp_x2_remaining` (int)
-// Ces colonnes doivent exister côté Supabase (sinon les updates échoueront silencieusement, le booster ne sera juste pas persistant)
-
-async function loadActiveBoosts(userId){
-  try{
-    const db = window.db;
-    if(!db || !userId) return { coinsX2:0, xpX2:0 };
-    const { data } = await db.from('players')
-      .select('boost_coins_x2_remaining, boost_xp_x2_remaining')
-      .eq('id', userId).maybeSingle();
-    const c = Math.max(0, parseInt(data?.boost_coins_x2_remaining||0,10)||0);
-    const x = Math.max(0, parseInt(data?.boost_xp_x2_remaining||0,10)||0);
-    return { coinsX2:c, xpX2:x };
-  }catch(e){ return { coinsX2:0, xpX2:0 }; }
-}
-
-async function addBoostCombats(userId, kind, n){
-  // kind: 'coins_x2' | 'xp_x2'
-  try{
-    const db = window.db;
-    if(!db || !userId) return;
-    const col = kind==='coins_x2' ? 'boost_coins_x2_remaining' : 'boost_xp_x2_remaining';
-    const { data } = await db.from('players').select(col).eq('id', userId).maybeSingle();
-    const cur = Math.max(0, parseInt(data?.[col]||0,10)||0);
-    const next = cur + n;
-    const update = {};
-    update[col] = next;
-    await db.from('players').update(update).eq('id', userId);
-    // Mettre à jour le state local
-    if(kind==='coins_x2') setState({ boostCoinsX2Remaining: next });
-    else                  setState({ boostXpX2Remaining:    next });
-  }catch(e){ console.error('addBoostCombats',e); }
-}
-
-// Appelé par les modes de jeu (PVE/PVP/10v10) à la fin d'un combat normal (pas un forfait).
-// Retourne {coinsMul, xpMul, consumedCoins, consumedXp} pour info / affichage.
-// IMPORTANT : décrémente les compteurs en DB après usage.
-async function consumeBoostsForMatch(userId){
-  if(!userId) return { coinsMul:1, xpMul:1, consumedCoins:false, consumedXp:false };
-  try{
-    const db = window.db;
-    if(!db) return { coinsMul:1, xpMul:1, consumedCoins:false, consumedXp:false };
-    const { data } = await db.from('players')
-      .select('boost_coins_x2_remaining, boost_xp_x2_remaining')
-      .eq('id', userId).maybeSingle();
-    const c = Math.max(0, parseInt(data?.boost_coins_x2_remaining||0,10)||0);
-    const x = Math.max(0, parseInt(data?.boost_xp_x2_remaining||0,10)||0);
-    const useC = c>0, useX = x>0;
-    if(useC || useX){
-      const upd = {};
-      if(useC) upd.boost_coins_x2_remaining = c-1;
-      if(useX) upd.boost_xp_x2_remaining    = x-1;
-      await db.from('players').update(upd).eq('id', userId);
-    }
-    return {
-      coinsMul: useC?2:1,
-      xpMul:    useX?2:1,
-      consumedCoins: useC,
-      consumedXp:    useX,
-      remainingCoins: useC ? c-1 : c,
-      remainingXp:    useX ? x-1 : x,
-    };
-  }catch(e){
-    console.error('consumeBoostsForMatch',e);
-    return { coinsMul:1, xpMul:1, consumedCoins:false, consumedXp:false };
-  }
-}
-window.consumeBoostsForMatch = consumeBoostsForMatch;
-window.loadActiveBoosts      = loadActiveBoosts;
-
 
 
 // Trade : 1x/jour
@@ -809,9 +738,24 @@ function startDailyTicker(){
 // loadCollection défini plus bas dans le bloc principal
 
 const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
-const RARITY_ORDER=["common","uncommon","rare","mythic"];
-const RARITY_COLOR={mythic:"#f43f5e",rare:"#a78bfa",uncommon:"#38bdf8",common:"#64748b"};
-const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune"};
+const RARITY_ORDER=["common","uncommon","rare","mythic","secret"];
+const RARITY_COLOR={mythic:"#f43f5e",rare:"#a78bfa",uncommon:"#38bdf8",common:"#64748b",secret:"#f0c040"};
+const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune",secret:"Secrète"};
+
+// ─── TROPHY CARD 119/118 ──────────────────────────────────────────
+// Carte secrète du Set Originel, non jouable, non échangeable.
+// Débloquée automatiquement quand le joueur possède les 118 cartes
+// officielles. Le flag trophy_unlocked dans la table players empêche
+// le pop-up de se rouvrir après le premier déblocage.
+const TROPHY_CARD_ID = 119;
+const OFFICIAL_SET_TOTAL = 118; // 118 cartes officielles du Set Originel
+const isTrophyCard = (c) => {
+  if (!c) return false;
+  const id = typeof c === 'object' ? parseInt(c.id, 10) : parseInt(c, 10);
+  return id === TROPHY_CARD_ID;
+};
+// Filtre helper : retire la carte trophée d'une liste
+const excludeTrophy = (arr) => (arr || []).filter(c => !isTrophyCard(c));
 
 function fmtDate(iso){if(!iso)return"—";return new Date(iso).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});}
 function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});}
@@ -1183,17 +1127,15 @@ let state = {
   recycleConfig: null,
   recycleResultCard: null,
   recycleSpeedupLastResult: null,
+  // Carte trophée 119/118
+  showTrophy: false,         // pop-up de déblocage de la carte trophée
+  trophyJustUnlocked: false, // marqueur pour l'animation spéciale
   // Pioche
   piocheFlipped: {},
   piocheChosen: null,
   piocheResult: null,
   piocheRevealImg: null,
   piocheConsumed: false, // true dès qu'une carte est retournée — bloque la réouverture via croix
-  piocheRewardType: null, // 'card' | 'coins_x2' | 'xp_x2' | 'coins_200' | 'coins_500'
-  piocheRewardData: null, // payload de la récompense (montant, durée, etc.)
-  // Boosts actifs (cross-device via Supabase players.boost_*)
-  boostCoinsX2Remaining: 0, // nb de combats restants avec coins x2
-  boostXpX2Remaining:    0, // nb de combats restants avec xp x2
   // Deck Builder
   showDeckBuilder: false,
   showMarket: false,
@@ -1580,21 +1522,6 @@ function renderGame(th){
         <span style="font-size:${isMobile?'10px':'12px'};font-weight:900;color:${th.yellow};letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${state.coins !== undefined ? state.coins.toLocaleString('fr-FR') : '…'}</span>
       </div>
 
-      <!-- Boosts actifs (affichés uniquement si > 0) -->
-      ${(state.boostCoinsX2Remaining>0) ? `
-      <div title="Tu as un boost actif : tes prochains combats rapportent 2x plus de coins" style="display:flex;align-items:center;gap:3px;padding:${isMobile?'3px 5px':'4px 8px'};background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);flex-shrink:0;animation:boostPulse 2s ease-in-out infinite;">
-        <span style="font-size:${isMobile?'10px':'12px'};line-height:1;">🪙</span>
-        <span style="font-size:${isMobile?'8px':'9px'};font-weight:900;color:#eab308;letter-spacing:.3px;">×2</span>
-        <span style="font-size:${isMobile?'8px':'9px'};font-weight:700;color:${th.text};letter-spacing:.2px;">${state.boostCoinsX2Remaining}</span>
-      </div>` : ''}
-      ${(state.boostXpX2Remaining>0) ? `
-      <div title="Tu as un boost actif : tes prochains combats rapportent 2x plus d'XP" style="display:flex;align-items:center;gap:3px;padding:${isMobile?'3px 5px':'4px 8px'};background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);flex-shrink:0;animation:boostPulse 2s ease-in-out infinite;">
-        <span style="font-size:${isMobile?'10px':'12px'};line-height:1;">⭐</span>
-        <span style="font-size:${isMobile?'8px':'9px'};font-weight:900;color:#fbbf24;letter-spacing:.3px;">×2</span>
-        <span style="font-size:${isMobile?'8px':'9px'};font-weight:700;color:${th.text};letter-spacing:.2px;">${state.boostXpX2Remaining}</span>
-      </div>` : ''}
-      <style>@keyframes boostPulse { 0%,100%{box-shadow:0 0 0 rgba(234,179,8,0);} 50%{box-shadow:0 0 12px rgba(234,179,8,.4);} }</style>
-
       <!-- Icon cluster -->
       <div style="display:flex;gap:${isMobile?'2px':'4px'};align-items:center;flex-shrink:0;">
         <!-- Messages -->
@@ -1689,6 +1616,7 @@ function renderGame(th){
     ${state.showMarket?renderMarket(th):''}
     ${state.showTrade?renderTradeModal(th):''}
     ${state.showLeaderboard?renderLeaderboardModal(th):''}
+    ${state.showTrophy?renderTrophyUnlockModal(th):''}
     ${state.showTutorial?renderTutorialModal(th):''}
     ${state.showHowTo?renderHowToModal(th):''}
     ${state.showQuests?renderQuestsModal(th,isMobile):''}
@@ -1701,8 +1629,10 @@ function renderProfileModal(th){
   const u = state.currentUser;
   const name = u && u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name) || 'Joueur';
   const avatar = u && u.user_metadata && u.user_metadata.avatar_url;
-  const totalCards = ALL_CARDS.length;
-  const ownedCards = ALL_CARDS.filter(c => c.owned).length;
+  // Compteur officiel : on exclut la carte trophée (119/118)
+  const officialCards = excludeTrophy(ALL_CARDS);
+  const totalCards = officialCards.length;
+  const ownedCards = officialCards.filter(c => c.owned).length;
   const pct = totalCards > 0 ? Math.round(ownedCards/totalCards*100) : 0;
   const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
     ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
@@ -1979,8 +1909,8 @@ function renderDeckEdit(th){
     return s+(card&&card.rarity==='mythic'?c.quantity:0);
   },0);
 
-  // Cartes possédées triées
-  const ownedCards = ALL_CARDS.filter(c=>c.owned).sort((a,b)=>RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
+  // Cartes possédées triées (la carte trophée est non jouable, on l'exclut)
+  const ownedCards = ALL_CARDS.filter(c=>c.owned && !isTrophyCard(c)).sort((a,b)=>RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
 
   // Helper: quantité d'une carte dans le deck
   const qtyInDeck = (cardId)=>{
@@ -2199,7 +2129,7 @@ function renderDeckEdit(th){
 function renderTradeModal(th){
   const friend = (state.friends||[]).find(f=>f.id===state.tradeWithId);
   const friendName = friend?.discord_username || 'Ami';
-  const ownedCards = ALL_CARDS.filter(c=>c.owned);
+  const ownedCards = ALL_CARDS.filter(c=>c.owned && !isTrophyCard(c));
   const myCard = state.tradeMyCard;
   const incoming = state.tradeIncoming;
   // Reset filtres à chaque ouverture (myCard null = sélection initiale)
@@ -2278,7 +2208,7 @@ function renderTradeModal(th){
   if (state.tradeStep === 'pick_my_card' && state.tradeTheirCard) {
     const theirC = state.tradeTheirCard;
     const col2 = RARITY_COLOR[theirC.rarity] || th.textMuted;
-    const myOwned = ALL_CARDS.filter(c => c.owned && c.rarity === theirC.rarity && String(parseInt(c.id)) !== String(parseInt(theirC.id)));
+    const myOwned = ALL_CARDS.filter(c => c.owned && c.rarity === theirC.rarity && String(parseInt(c.id)) !== String(parseInt(theirC.id)) && !isTrophyCard(c));
     return `
     <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;">
       <div style="width:100%;max-width:360px;background:${th.bgSecondary};border:2px solid #000;display:flex;flex-direction:column;max-height:85vh;overflow:hidden;">
@@ -2326,8 +2256,8 @@ function renderTradeModal(th){
     const sameRarity = standOfferCards.filter(c => c.rarity === myC.rarity);
     const standDisplay = sameRarity.length ? sameRarity : standOfferCards;
     const filter = state.tradeStandFilter || 'stand';
-    // Cartes manquantes : toutes les cartes non possédées du jeu
-    const missingCards = ALL_CARDS.filter(c => !c.owned);
+    // Cartes manquantes : toutes les cartes non possédées du jeu (hors trophée)
+    const missingCards = ALL_CARDS.filter(c => !c.owned && !isTrophyCard(c));
     const displayCards = filter === 'missing' ? missingCards : standDisplay;
     return `
     <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;">
@@ -2426,6 +2356,7 @@ function renderTradeModal(th){
     //               si recherche par ID pur (chiffres) → toutes raretés (l'ID est public)
     const suggestions = tradeSearch.length >= 1
       ? ALL_CARDS.filter(c => {
+          if (isTrophyCard(c)) return false; // non échangeable
           const q = tradeSearch.toLowerCase();
           const isIdSearch = /^\d+$/.test(tradeSearch.trim());
           const matchId   = String(parseInt(c.id)).includes(q) || c.id.toLowerCase().includes(q);
@@ -2924,7 +2855,9 @@ function renderTabPlay(th){
 
 // ─── TAB COLLECTION ───────────────────────────────────────────────
 function renderTabCollection(th){
-  const owned = ALL_CARDS.filter(c=>c.owned).length;
+  // Compteur officiel : on exclut la carte trophée (119/118) du dénominateur
+  const officialAll = excludeTrophy(ALL_CARDS);
+  const owned = officialAll.filter(c=>c.owned).length;
   let cards = [...ALL_CARDS]
     .filter(c=>state.collFilterSet==="all"||c.set===state.collFilterSet)
     .filter(c=>state.collFilterRarity==="all"||c.rarity===state.collFilterRarity)
@@ -2940,7 +2873,12 @@ function renderTabCollection(th){
       if(c.owned && c.name.toLowerCase().includes(q)) return true;
       return false;
     })
+    // La carte trophée n'apparaît dans la grille QUE si elle est possédée
+    .filter(c => !isTrophyCard(c) || c.owned)
     .sort((a,b)=>{
+      // La carte trophée toujours en premier si possédée
+      if (isTrophyCard(a) && a.owned) return -1;
+      if (isTrophyCard(b) && b.owned) return 1;
       const aFav=a.owned&&state.collFavorites.has(String(a.id))?1:0;
       const bFav=b.owned&&state.collFavorites.has(String(b.id))?1:0;
       if(bFav!==aFav) return bFav-aFav;
@@ -2951,7 +2889,7 @@ function renderTabCollection(th){
       if(state.collSortBy==="date"){const da=a.obtainedAt?new Date(a.obtainedAt).getTime():0;const db2=b.obtainedAt?new Date(b.obtainedAt).getTime():0;if(!da&&!db2)return 0;if(!da)return 1;if(!db2)return -1;return dir*(da-db2);}
       return dir*(RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
     });
-  const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
+  const pct = officialAll.length>0?Math.round(owned/officialAll.length*100):0;
 
   return `
   <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;position:relative;background:transparent;">
@@ -2963,7 +2901,7 @@ function renderTabCollection(th){
         <div style="width:40px;height:40px;flex-shrink:0;background:${th.accent}18;border:1px solid ${th.accent}40;display:flex;align-items:center;justify-content:center;font-size:18px;">🗂️</div>
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Luckiest Guy',cursive;font-size:12px;font-weight:400;color:${th.text};letter-spacing:.5px;">Deck Builder</div>
-          <div style="font-size:11px;font-weight:700;color:${th.text};margin-top:2px;"><span style="color:${th.accent};font-weight:900;">${owned}</span><span style="color:${th.textMuted};font-weight:500;"> / ${ALL_CARDS.length} cartes</span> <span style="color:${pct>=100?th.accent:pct>=50?'#22c55e':th.textMuted};font-weight:700;">(${pct}%)</span></div>
+          <div style="font-size:11px;font-weight:700;color:${th.text};margin-top:2px;"><span style="color:${th.accent};font-weight:900;">${owned}</span><span style="color:${th.textMuted};font-weight:500;"> / ${officialAll.length} cartes</span> <span style="color:${pct>=100?th.accent:pct>=50?'#22c55e':th.textMuted};font-weight:700;">(${pct}%)</span></div>
           <div style="height:2px;background:${th.bg};margin-top:6px;overflow:hidden;">
             <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${th.accent},${th.accentAlt});"></div>
           </div>
@@ -3034,9 +2972,9 @@ function renderTabCollection(th){
         <button class="type-btn" data-type="Ruse" style="padding:4px 12px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Ruse'?'#10b98180':th.border};background:${state.collFilterType==='Ruse'?'rgba(16,185,129,.12)':'transparent'};color:${state.collFilterType==='Ruse'?'#10b981':th.textMuted};transition:all .15s;flex-shrink:0;">🃏 Ruse</button>
         <button class="type-btn" data-type="Arcane" style="padding:4px 12px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Arcane'?'#8b5cf680':th.border};background:${state.collFilterType==='Arcane'?'rgba(139,92,246,.12)':'transparent'};color:${state.collFilterType==='Arcane'?'#8b5cf6':th.textMuted};transition:all .15s;flex-shrink:0;">✦ Arcane</button>
       </div>
-      <div style="font-size:9px;color:${th.textMuted};letter-spacing:.3px;">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:.3px;">${owned}/${officialAll.length} obtenues · ${cards.length} affichées</div>
       ${(()=>{
-        const TIER={common:'C',uncommon:'U',rare:'R',mythic:'M'};
+        const TIER={common:'C',uncommon:'U',rare:'R',mythic:'M',secret:'S'};
         const doubsByRar = RARITY_ORDER.map(r=>{
           const cardsOfRar = ALL_CARDS.filter(c=>c.owned && c.rarity===r);
           const totalCards = cardsOfRar.reduce((s,c)=>s+(c.count||1),0);
@@ -3136,10 +3074,11 @@ function renderCardDetailModal(card,th){
       ? `<div style="width:100%;height:100%;background:linear-gradient(135deg,${card.color}40,${card.color}15);display:flex;align-items:center;justify-content:center;font-size:${Math.round(cardW*0.38)}px;">🃏</div>`
       : `<img src="https://i.goopics.net/iic46c.png" style="width:100%;height:100%;object-fit:contain;display:block;" />`;
 
+  const trophyMode = isTrophyCard(card);
   const infoRows = card.owned ? `
-    <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'16px':'22px'};font-weight:400;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
-    <div style="font-size:${isMobile?'10px':'12px'};color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:2px;">◆ ${RARITY_LABEL[card.rarity]}</div>
-    ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
+    <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'16px':'22px'};font-weight:400;color:${trophyMode?'#f0c040':th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${trophyMode?'text-shadow:0 0 14px rgba(240,192,64,.45);':''}">${card.name}</div>
+    <div style="font-size:${isMobile?'10px':'12px'};color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:2px;">◆ ${RARITY_LABEL[card.rarity]}${trophyMode?' · 🏆 TROPHÉE':''}</div>
+    ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}${trophyMode?'/118':''}`}].map(r=>`
     <div style="display:flex;justify-content:space-between;padding:${isMobile?'4':'7'}px 0;border-bottom:1px solid ${th.border};">
       <span style="font-size:${isMobile?'11':'13'}px;color:${th.textMuted};">${r.l}</span>
       <span style="font-size:${isMobile?'11':'13'}px;font-weight:600;color:${th.text};">${r.v}</span>
@@ -3163,7 +3102,14 @@ function renderCardDetailModal(card,th){
         <span style="font-size:${isMobile?'11':'12'}px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
       </div>
     </div>
-    <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'11':'13'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'14'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
+    ${trophyMode ? `
+      <div style="padding:${isMobile?'10':'12'}px 14px;background:linear-gradient(135deg,rgba(240,192,64,.10),rgba(240,192,64,.04));border:2px solid rgba(240,192,64,.4);display:flex;flex-direction:column;gap:4px;">
+        <div style="font-size:${isMobile?'10':'11'}px;font-weight:900;color:#f0c040;letter-spacing:.8px;">🏆 CARTE TROPHÉE</div>
+        <div style="font-size:${isMobile?'10':'11'}px;color:${th.textMuted};line-height:1.45;">Non jouable · Non échangeable · Obtenue en complétant les 118/118 cartes officielles.</div>
+      </div>
+    ` : `
+      <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'11':'13'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'14'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
+    `}
 
   ` : `
     <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'18px':'22px'};font-weight:400;color:${th.textMuted};letter-spacing:2px;">???</div>
@@ -3483,7 +3429,7 @@ function renderTabBoosters(th){
           <div style="flex:1;min-width:0;">
             <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'11px':'13px'};font-weight:400;color:${th.text};letter-spacing:.3px;">Pioche Classique</div>
             <div style="font-size:${isMobile?'8px':'10px'};color:${_pUsed?_pColor:th.textMuted};margin-top:2px;">
-              ${_pUsed ? `⏳ Disponible dans <span data-daily-timer>${timeUntilMidnight()}</span>` : (isMobile?'1 carte ou bonus rare · 1× par jour':'50 cartes face cachée · carte aléatoire ou ✨ bonus rare (coins, boosts) · 1× par jour')}
+              ${_pUsed ? `⏳ Disponible dans <span data-daily-timer>${timeUntilMidnight()}</span>` : (isMobile?'1 carte gratuite · 1× par jour':'50 cartes face cachée · retourne-en une · 1× par jour')}
             </div>
           </div>
           <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_pUsed?th.surface:th.green};color:${_pUsed?th.textMuted:'#fff'};border:${_pUsed?'1px solid #000':'none'};font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:${_pUsed?'none':'0 3px 12px '+th.green+'40'};flex-shrink:0;">${_pUsed?'ÉPUISÉ':'PIOCHER'}</div>
@@ -3494,50 +3440,27 @@ function renderTabBoosters(th){
     <!-- ═══ Bouton Recyclage (ajouté) ═══ -->
     ${(()=>{
       const _rColor = '#a855f7';
-      // Lire l'état du recyclage actif (chargé en arrière-plan)
-      const _rJob = state.recycleActiveJob;
-      let _rRemainMs = 0;
-      let _rIsReady = false;
-      let _rRemainLabel = '';
-      if (_rJob && _rJob.ready_at) {
-        _rRemainMs = Math.max(0, new Date(_rJob.ready_at).getTime() - Date.now());
-        _rIsReady = _rRemainMs <= 0;
-        if (!_rIsReady) {
-          const totalMin = Math.ceil(_rRemainMs / 60000);
-          const h = Math.floor(totalMin / 60);
-          const m = totalMin % 60;
-          _rRemainLabel = h > 0 ? `${h}h ${String(m).padStart(2,'0')}min` : `${m}min`;
-        }
-      }
-      // Couleur dynamique : vert si prêt, orange si en cours, violet si rien
-      const _rState = _rIsReady ? 'ready' : (_rJob ? 'progress' : 'idle');
-      const _rDynColor = _rState === 'ready' ? '#22c55e' : (_rState === 'progress' ? '#f59e0b' : _rColor);
       return `<div id="btn-recycle"
         onclick="if(typeof openRecycleModal==='function'){openRecycleModal();}else{alert('Module recyclage pas chargé');}"
         style="margin:${isMobile?'4px 12px':'8px 14px'};flex-shrink:0;
-          background:linear-gradient(135deg,${_rDynColor}12,${_rDynColor}03);
-          border:1px solid ${_rDynColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_rDynColor}90,transparent);"></div>
+          background:linear-gradient(135deg,${_rColor}12,${_rColor}03);
+          border:1px solid ${_rColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,${_rColor}90,transparent);"></div>
         <div style="display:flex;align-items:center;gap:${isMobile?'7px':'12px'};padding:${isMobile?'5px 10px':'10px 16px'};">
-          <div style="font-size:${isMobile?'24px':'34px'};line-height:1;animation:recycleIconSpin ${_rState==='ready'?'1.5s':'6s'} linear infinite;flex-shrink:0;width:${isMobile?'24px':'36px'};text-align:center;">${_rState==='ready'?'🎁':'♻'}</div>
+          <div style="font-size:${isMobile?'24px':'34px'};line-height:1;animation:recycleIconSpin 6s linear infinite;flex-shrink:0;width:${isMobile?'24px':'36px'};text-align:center;">♻</div>
           <div style="flex:1;min-width:0;">
             <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'11px':'13px'};font-weight:400;color:${th.text};letter-spacing:.3px;">Recyclage</div>
-            <div style="font-size:${isMobile?'8px':'10px'};color:${_rState==='idle'?th.textMuted:_rDynColor};margin-top:2px;">
-              ${_rState==='ready'
-                ? '✓ Carte prête à réclamer !'
-                : (_rState==='progress'
-                    ? `⏳ Reste <span data-recycle-btn-timer style="font-weight:900;">${_rRemainLabel}</span>`
-                    : (isMobile?'Doublons → cartes ↑':'Échange tes doublons contre des cartes de rareté supérieure'))}
+            <div style="font-size:${isMobile?'8px':'10px'};color:${th.textMuted};margin-top:2px;">
+              ${isMobile?'Doublons → cartes ↑':'Échange tes doublons contre des cartes de rareté supérieure'}
             </div>
           </div>
-          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_rDynColor};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${_rDynColor}40;flex-shrink:0;${_rState==='ready'?'animation:recyclePulseBtn 1.2s infinite;':''}">${_rState==='ready'?'RÉCLAMER':(_rState==='progress'?'EN COURS':'OUVRIR')}</div>
+          <div style="padding:${isMobile?'5px 9px':'7px 14px'};background:${_rColor};color:#fff;font-size:${isMobile?'9px':'10px'};font-weight:900;letter-spacing:.7px;box-shadow:0 3px 12px ${_rColor}40;flex-shrink:0;">OUVRIR</div>
         </div>
       </div>`;
     })()}
 
     <style>
       @keyframes recycleIconSpin { to { transform: rotate(360deg); } }
-      @keyframes recyclePulseBtn { 0%,100%{transform:scale(1);box-shadow:0 3px 12px #22c55e40;} 50%{transform:scale(1.04);box-shadow:0 4px 18px #22c55e80;} }
     </style>
 
     <style>
@@ -3756,8 +3679,9 @@ function renderTabStats(th){
   // Collection
   let collectionPct = '—';
   if (typeof ALL_CARDS !== 'undefined' && ALL_CARDS.length > 0) {
-    const owned = ALL_CARDS.filter(c => c.owned).length;
-    collectionPct = Math.round((owned / ALL_CARDS.length) * 100) + '% (' + owned + '/' + ALL_CARDS.length + ')';
+    const official = excludeTrophy(ALL_CARDS);
+    const owned = official.filter(c => c.owned).length;
+    collectionPct = Math.round((owned / official.length) * 100) + '% (' + owned + '/' + official.length + ')';
   }
 
   // Boosters / coins
@@ -4366,40 +4290,7 @@ function renderPiocheMechanic(th){
         </div>`;
       }).join('')}
     </div>`:''}
-    ${state.piocheResult?(()=>{
-      // ─── Cas récompense spéciale (boost / paquet de pièces) ───
-      if(state.piocheResult.__reward){
-        const rt = state.piocheResult.type;
-        const payload = state.piocheResult.payload || {};
-        const presets = {
-          coins_200: { icon:'💰', title:'+200 PIÈCES', sub:'Ajoutées à ton solde', color:'#22d3ee', bg:'linear-gradient(135deg,#22d3ee30,#0891b210)', borderCol:'#22d3ee80' },
-          coins_500: { icon:'💰', title:'+500 PIÈCES', sub:'Ajoutées à ton solde', color:'#a855f7', bg:'linear-gradient(135deg,#a855f730,#7e22ce10)', borderCol:'#a855f780' },
-          coins_x2:  { icon:'🪙', title:'COINS ×2', sub:`Pendant ${payload.combats||10} combats`, color:'#eab308', bg:'linear-gradient(135deg,#eab30830,#a1620810)', borderCol:'#eab30880' },
-          xp_x2:     { icon:'⭐', title:'XP ×2',    sub:`Pendant ${payload.combats||10} combats`, color:'#fbbf24', bg:'linear-gradient(135deg,#fbbf2430,#d9770610)', borderCol:'#fbbf2480' },
-        };
-        const p = presets[rt] || presets.coins_200;
-        return `
-        <div class="fade-up" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
-          <div style="width:110px;aspect-ratio:2/3;background:${p.bg};border:2px solid ${p.borderCol};display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 0 40px ${p.color}55;">
-            <div style="font-size:48px;line-height:1;">${p.icon}</div>
-            <div style="margin-top:8px;font-family:'Luckiest Guy',cursive;font-size:14px;color:#fff;letter-spacing:.5px;text-align:center;padding:0 4px;">${p.title}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;padding:6px 16px;background:${p.color}15;border:1.5px solid ${p.color}55;">
-            <span style="font-size:14px;">🎉</span>
-            <div>
-              <div style="font-size:10px;font-weight:900;color:${p.color};letter-spacing:.5px;">RÉCOMPENSE BONUS !</div>
-              <div style="font-size:9px;color:#8a9ab5;margin-top:1px;">${p.sub}</div>
-            </div>
-          </div>
-          <div style="text-align:center;">
-            <div style="font-family:'Luckiest Guy',cursive;font-size:15px;color:#f2f3f5;">${p.title}</div>
-            <div style="font-size:11px;color:${p.color};margin-top:3px;">${p.sub}</div>
-          </div>
-          <button id="pioche-collect" style="padding:10px 28px;background:linear-gradient(135deg,${p.color},${p.color}cc);color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 20px ${p.color}50;">${rt.startsWith('coins_x2')||rt.startsWith('xp_x2')?'ACTIVER LE BOOST':'RÉCUPÉRER'}</button>
-        </div>`;
-      }
-      // ─── Cas carte normale (logique d'origine) ───
-      return `
+    ${state.piocheResult?`
     <div class="fade-up" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
       <div style="width:110px;aspect-ratio:2/3;background:linear-gradient(160deg,${state.piocheResult.color}30,#2b2d31);border:2px solid ${state.piocheResult.color||RARITY_COLOR[state.piocheResult.rarity]}80;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 40px ${state.piocheResult.color||RARITY_COLOR[state.piocheResult.rarity]}50;">
         ${state.piocheResult.image_url
@@ -4424,9 +4315,132 @@ function renderPiocheMechanic(th){
         <div style="font-size:11px;color:${RARITY_COLOR[state.piocheResult.rarity]};margin-top:3px;">◆ ${RARITY_LABEL[state.piocheResult.rarity]} · ${state.piocheResult.type}</div>
       </div>
       <button id="pioche-collect" style="padding:10px 28px;background:linear-gradient(135deg,#38bdf8,#818cf8);color:#fff;border:none;font-size:11px;font-weight:800;cursor:pointer;letter-spacing:.5px;box-shadow:0 4px 20px rgba(56,189,248,.3);">AJOUTER À LA COLLECTION</button>
-    </div>`;
-    })():''}
+    </div>`:''}
   </div>`;
+}
+
+// ─── TROPHY UNLOCK MODAL ─────────────────────────────────────────
+// Pop-up qui s'affiche UNE SEULE FOIS lorsque le joueur débloque la
+// carte 119/118 (en complétant les 118 cartes officielles du Set Originel).
+// Animation spéciale : particules dorées, rayons de lumière, shine.
+function renderTrophyUnlockModal(th){
+  const trophyCard = ALL_CARDS.find(c => isTrophyCard(c));
+  const cardImg = trophyCard && trophyCard.image_url
+    ? `<img src="${trophyCard.image_url}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    : `<div style="width:100%;height:100%;background:radial-gradient(circle at 30% 30%,#f7d76c,#c79a1f 60%,#7a5a0c);display:flex;align-items:center;justify-content:center;font-size:64px;text-shadow:0 4px 16px rgba(0,0,0,.6);">🏆</div>`;
+  const trophyName = trophyCard?.name || 'Carte Trophée';
+
+  // Génère 18 particules dorées à des positions/délais variables
+  const particles = Array.from({length:18}, (_,i) => {
+    const angle = (i / 18) * 360;
+    const dist = 60 + (i*7) % 80; // distance variable
+    const delay = (i*0.07).toFixed(2);
+    const dur = (2.4 + (i%4)*0.3).toFixed(2);
+    const size = 4 + (i%3)*2;
+    return `<div style="position:absolute;top:50%;left:50%;width:${size}px;height:${size}px;background:radial-gradient(circle,#fff7c8 0%,#f0c040 50%,transparent 70%);border-radius:50%;transform:translate(-50%,-50%);animation:trophyParticle ${dur}s ease-out ${delay}s infinite;--angle:${angle}deg;--dist:${dist}px;opacity:0;pointer-events:none;"></div>`;
+  }).join('');
+
+  // Rayons de lumière
+  const rays = Array.from({length:8}, (_,i) => {
+    const rot = i * 45;
+    return `<div style="position:absolute;top:50%;left:50%;width:2px;height:200px;background:linear-gradient(to bottom,rgba(240,192,64,.7),transparent);transform-origin:top center;transform:translate(-50%,0) rotate(${rot}deg);animation:trophyRay 4s ease-in-out infinite;animation-delay:${(i*0.12).toFixed(2)}s;pointer-events:none;"></div>`;
+  }).join('');
+
+  return `
+  <div id="trophy-bg" style="position:fixed;inset:0;z-index:600;background:radial-gradient(ellipse at center,rgba(120,80,0,.35) 0%,rgba(0,0,0,.92) 70%);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .35s ease-out;">
+
+    <!-- Rayons de lumière derrière la carte -->
+    <div style="position:absolute;top:50%;left:50%;width:0;height:0;pointer-events:none;">
+      ${rays}
+    </div>
+
+    <!-- Particules dorées flottantes -->
+    <div style="position:absolute;top:50%;left:50%;width:0;height:0;pointer-events:none;">
+      ${particles}
+    </div>
+
+    <!-- Contenu principal -->
+    <div style="position:relative;width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:18px;animation:trophyPop .9s cubic-bezier(.16,1,.3,1);">
+
+      <!-- Bandeau d'annonce -->
+      <div style="font-family:'Luckiest Guy',cursive;font-size:11px;font-weight:400;letter-spacing:4px;color:#f0c040;text-shadow:0 0 20px rgba(240,192,64,.8),0 2px 4px rgba(0,0,0,.6);text-align:center;animation:trophyShimmer 2.4s ease-in-out infinite;">
+        ✦  COLLECTION COMPLÈTE  ✦
+      </div>
+      <div style="font-family:'Luckiest Guy',cursive;font-size:22px;font-weight:400;letter-spacing:1.5px;color:#fff;text-shadow:0 0 30px rgba(240,192,64,.6),0 4px 12px rgba(0,0,0,.7);text-align:center;line-height:1.1;">
+        118 / 118 cartes
+      </div>
+      <div style="font-size:11px;color:#e8d5a0;text-align:center;line-height:1.5;max-width:300px;letter-spacing:.3px;">
+        Tu as réuni toutes les cartes officielles du Set Originel.<br>
+        En récompense, voici ta carte trophée :
+      </div>
+
+      <!-- La carte trophée avec effet shine -->
+      <div style="position:relative;width:200px;aspect-ratio:2/3;animation:trophyFloat 3.4s ease-in-out infinite;">
+        <!-- Halo doré -->
+        <div style="position:absolute;inset:-20px;background:radial-gradient(circle,rgba(240,192,64,.5) 0%,rgba(240,192,64,.15) 40%,transparent 70%);filter:blur(20px);animation:trophyGlow 2.2s ease-in-out infinite;pointer-events:none;"></div>
+        <!-- Cadre doré -->
+        <div style="position:relative;width:100%;height:100%;border:3px solid #f0c040;box-shadow:0 0 40px rgba(240,192,64,.6),0 0 80px rgba(240,192,64,.3),inset 0 0 20px rgba(255,247,200,.2);overflow:hidden;background:#0a0a0a;">
+          ${cardImg}
+          <!-- Shine balayage -->
+          <div style="position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.4) 50%,transparent 70%);animation:trophyShine 3.2s ease-in-out infinite;pointer-events:none;"></div>
+          <!-- Badge 119/118 -->
+          <div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.85);border:1.5px solid #f0c040;padding:4px 9px;font-family:'Luckiest Guy',cursive;font-size:11px;letter-spacing:1px;color:#f0c040;text-shadow:0 0 8px rgba(240,192,64,.6);">119/118</div>
+        </div>
+      </div>
+
+      <!-- Nom + rareté -->
+      <div style="text-align:center;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:18px;font-weight:400;color:#fff;text-shadow:0 0 14px rgba(240,192,64,.5),0 2px 4px rgba(0,0,0,.6);letter-spacing:.5px;">${trophyName}</div>
+        <div style="font-size:10px;color:#f0c040;font-weight:900;letter-spacing:1.5px;margin-top:6px;text-transform:uppercase;">◆ Carte Secrète · Trophée</div>
+      </div>
+
+      <!-- Mentions -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+        <span style="font-size:9px;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);padding:4px 10px;letter-spacing:.5px;">🚫 NON JOUABLE</span>
+        <span style="font-size:9px;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);padding:4px 10px;letter-spacing:.5px;">🔒 NON ÉCHANGEABLE</span>
+      </div>
+
+      <!-- Bouton de fermeture -->
+      <button id="trophy-close" style="margin-top:6px;padding:12px 36px;background:linear-gradient(135deg,#f0c040,#c79a1f);color:#1a0f00;border:2px solid #1a0f00;font-family:'Luckiest Guy',cursive;font-size:13px;font-weight:400;cursor:pointer;letter-spacing:1.5px;box-shadow:0 6px 24px rgba(240,192,64,.4),0 2px 6px rgba(0,0,0,.6);transition:transform .15s;">
+        ✦ MAGNIFIQUE ! ✦
+      </button>
+    </div>
+  </div>
+  <style>
+    @keyframes trophyPop {
+      0%   { transform:scale(.4); opacity:0; }
+      55%  { transform:scale(1.04); opacity:1; }
+      100% { transform:scale(1); opacity:1; }
+    }
+    @keyframes trophyFloat {
+      0%,100% { transform:translateY(0); }
+      50%     { transform:translateY(-8px); }
+    }
+    @keyframes trophyGlow {
+      0%,100% { opacity:.7; transform:scale(1); }
+      50%     { opacity:1; transform:scale(1.08); }
+    }
+    @keyframes trophyShine {
+      0%   { left:-100%; }
+      100% { left:200%; }
+    }
+    @keyframes trophyShimmer {
+      0%,100% { opacity:.85; }
+      50%     { opacity:1; }
+    }
+    @keyframes trophyRay {
+      0%,100% { opacity:.15; transform:translate(-50%,0) rotate(var(--rot,0deg)) scaleY(.6); }
+      50%     { opacity:.55; transform:translate(-50%,0) rotate(var(--rot,0deg)) scaleY(1); }
+    }
+    @keyframes trophyParticle {
+      0%   { opacity:0; transform:translate(-50%,-50%) rotate(var(--angle)) translateX(0); }
+      15%  { opacity:1; }
+      85%  { opacity:.4; }
+      100% { opacity:0; transform:translate(-50%,-50%) rotate(var(--angle)) translateX(var(--dist)); }
+    }
+    #trophy-close:hover { transform:translateY(-2px); }
+    #trophy-close:active { transform:translateY(0); }
+  </style>`;
 }
 
 // ─── MODALS ───────────────────────────────────────────────────────
@@ -5721,6 +5735,7 @@ function bindGame(){
       const q = _mktOfferQ.toLowerCase();
       const offerIds = state.marketOfferIds||[];
       const filtered = ALL_CARDS.filter(c=>{
+        if(isTrophyCard(c)) return false; // non échangeable
         if(!_mOwned(c.id)) return false;
         if(!q) return true;
         return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
@@ -5739,6 +5754,7 @@ function bindGame(){
       const q = _mktWantQ.toLowerCase().trim();
       const wantIds = state.marketWantIds||[];
       const filtered = q ? ALL_CARDS.filter(c=>{
+        if(isTrophyCard(c)) return false; // non échangeable
         return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q)||(c.type||'').toLowerCase().includes(q);
       }).slice(0,80) : [];
       const th = THEMES[state.theme]||THEMES.dark;
@@ -6867,64 +6883,29 @@ function bindGame(){
     setState({showPioche:false});
   });
 
+  // Trophée 119/118 — fermeture du pop-up de déblocage
+  const trophyClose = document.getElementById('trophy-close');
+  if(trophyClose) trophyClose.addEventListener('click', ()=>{
+    setState({ showTrophy:false, trophyJustUnlocked:false });
+  });
+
   document.querySelectorAll('.pioche-card').forEach(el=>{
     el.addEventListener('click', async ()=>{
       if(state.piocheChosen!==null)return;
       if(state.piocheConsumed)return; // sécurité anti-double-clic
       const idx=parseInt(el.dataset.idx);
       const newFlipped={...state.piocheFlipped,[idx]:true};
-
-      // ─── Roll global : 92% carte normale, 8% récompense spéciale ───
-      // Chaque récompense spéciale a sa propre probabilité dans la slice 8%.
-      const _globalRoll = Math.random() * 100;
-      let _rewardType = 'card';
-      let _rewardPayload = null;
-      let _drawnCard = null;
-      let _revealImg = null;
-
-      if (_globalRoll < 1.0) {
-        // 1.0% : XP doublé pendant 10 combats (le plus rare des boosts)
-        _rewardType = 'xp_x2';
-        _rewardPayload = { combats: 10 };
-        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbbf24"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="80" fill="#fff" font-weight="900">⭐</text><text x="100" y="180" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="36" fill="#fff" font-weight="900">XP ×2</text><text x="100" y="220" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="16" fill="#fff" font-weight="700">10 COMBATS</text></svg>`);
-      } else if (_globalRoll < 3.0) {
-        // 2.0% : Coins doublés pendant 10 combats
-        _rewardType = 'coins_x2';
-        _rewardPayload = { combats: 10 };
-        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#eab308"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="80" fill="#fff" font-weight="900">🪙</text><text x="100" y="180" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="32" fill="#fff" font-weight="900">COINS ×2</text><text x="100" y="220" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="16" fill="#fff" font-weight="700">10 COMBATS</text></svg>`);
-      } else if (_globalRoll < 4.5) {
-        // 1.5% : 500 pièces offertes (le + gros lot direct)
-        _rewardType = 'coins_500';
-        _rewardPayload = { amount: 500 };
-        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#7e22ce"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="70" fill="#fff" font-weight="900">💰</text><text x="100" y="190" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="56" fill="#fff" font-weight="900">+500</text><text x="100" y="230" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="18" fill="#fff" font-weight="700">PIÈCES</text></svg>`);
-      } else if (_globalRoll < 8.0) {
-        // 3.5% : 200 pièces offertes
-        _rewardType = 'coins_200';
-        _rewardPayload = { amount: 200 };
-        _revealImg = 'data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#0891b2"/></linearGradient></defs><rect width="200" height="300" fill="url(#g)"/><text x="100" y="120" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="70" fill="#fff" font-weight="900">💰</text><text x="100" y="190" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="56" fill="#fff" font-weight="900">+200</text><text x="100" y="230" text-anchor="middle" font-family="Arial Black,sans-serif" font-size="18" fill="#fff" font-weight="700">PIÈCES</text></svg>`);
-      } else {
-        // 92% : carte normale (logique d'origine)
-        _rewardType = 'card';
-        const _roll = Math.random() * 100;
-        let _targetRarity;
-        if (_roll < 0.1)       _targetRarity = 'mythic';
-        else if (_roll < 1.1)  _targetRarity = 'rare';
-        else if (_roll < 13.0) _targetRarity = 'uncommon';
-        else                   _targetRarity = 'common';
-        const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity);
-        const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS;
-        _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
-        _revealImg = _drawnCard?.image_url || null;
-      }
-
-      setState({
-        piocheChosen:idx,
-        piocheFlipped:newFlipped,
-        piocheConsumed:true,
-        piocheRevealImg:_revealImg,
-        piocheRewardType:_rewardType,
-        piocheRewardData:_rewardPayload
-      });
+      // ── Tirer la carte immédiatement pour afficher le PNG pendant le flip ──
+      const _roll = Math.random() * 100;
+      let _targetRarity;
+      if (_roll < 0.1)       _targetRarity = 'mythic';
+      else if (_roll < 1.1)  _targetRarity = 'rare';
+      else if (_roll < 13.0) _targetRarity = 'uncommon';
+      else                   _targetRarity = 'common';
+      const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity && !isTrophyCard(c));
+      const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS.filter(c => !isTrophyCard(c));
+      const _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
+      setState({piocheChosen:idx,piocheFlipped:newFlipped,piocheConsumed:true,piocheRevealImg:_drawnCard?.image_url||null});
       // ── Quête pioche : déclencher immédiatement au moment du tirage ──
       progressDailyQuest('pioche');
 
@@ -6942,71 +6923,40 @@ function bindGame(){
       })();
 
       setTimeout(async ()=>{
-        if(_rewardType === 'card'){
-          const drawn = _drawnCard;
-          if(!drawn){ setState({piocheResult:null}); return; }
+        const drawn = _drawnCard;
+        if(!drawn){ setState({piocheResult:null}); return; }
 
-          // ── Ajouter la carte en BDD IMMÉDIATEMENT ──
-          const db = window.db;
-          if(db && myId && drawn){
-            const cardIdNum = parseInt(drawn.id, 10);
-            const { data: existing } = await db.from('player_cards')
-              .select('id, quantity').eq('player_id', myId).eq('card_id', cardIdNum).single();
-            if(existing){
-              await db.from('player_cards').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
-            } else {
-              await db.from('player_cards').insert({ player_id: myId, card_id: cardIdNum, quantity: 1 });
-            }
-            if(window.loadCollection) window.loadCollection();
-            drawn.owned = !!existing;
-            try{
-              const rarityField = { common:'cards_common', uncommon:'cards_uncommon', rare:'cards_rare', mythic:'cards_mythic' }[drawn.rarity];
-              if(rarityField) db.rpc('increment_stat', { p_user_id: myId, p_field: rarityField }).then(()=>{}).catch(()=>{});
-            }catch(e){}
+        // ── Ajouter la carte en BDD IMMÉDIATEMENT (avant que le joueur clique collect) ──
+        const db = window.db;
+        if(db && myId && drawn){
+          const cardIdNum = parseInt(drawn.id, 10);
+          const { data: existing } = await db.from('player_cards')
+            .select('id, quantity').eq('player_id', myId).eq('card_id', cardIdNum).single();
+          if(existing){
+            await db.from('player_cards').update({ quantity: existing.quantity + 1 }).eq('id', existing.id);
+          } else {
+            await db.from('player_cards').insert({ player_id: myId, card_id: cardIdNum, quantity: 1 });
           }
-
-          setState({piocheResult: drawn});
-        } else {
-          // ── Récompense spéciale : appliquer côté Supabase ──
-          const db = window.db;
-          if(db && myId){
-            try{
-              if(_rewardType === 'coins_200' || _rewardType === 'coins_500'){
-                const amount = _rewardPayload.amount;
-                const { data:p } = await db.from('players').select('coins').eq('id', myId).single();
-                const newCoins = (p?.coins||0) + amount;
-                await db.from('players').update({ coins: newCoins }).eq('id', myId);
-                setState({ coins: newCoins });
-                // Stats
-                await db.rpc('increment_stat', { p_user_id: myId, p_field: 'coins_earned', p_amount: amount }).catch(()=>{});
-              } else if(_rewardType === 'coins_x2'){
-                await addBoostCombats(myId, 'coins_x2', _rewardPayload.combats);
-              } else if(_rewardType === 'xp_x2'){
-                await addBoostCombats(myId, 'xp_x2', _rewardPayload.combats);
-              }
-            }catch(e){ console.error('pioche reward apply', e); }
-          }
-          // Marquer comme résultat (objet sentinelle pour que le UI affiche le résultat)
-          setState({ piocheResult: { __reward: true, type:_rewardType, payload:_rewardPayload } });
+          if(window.loadCollection) window.loadCollection();
+          // Vérifier si déjà possédée (avant insert)
+          drawn.owned = !!existing;
+          // ── Stats cartes par rareté ─────────────────────────────
+          try{
+            const rarityField = { common:'cards_common', uncommon:'cards_uncommon', rare:'cards_rare', mythic:'cards_mythic' }[drawn.rarity];
+            if(rarityField) db.rpc('increment_stat', { p_user_id: myId, p_field: rarityField }).then(()=>{}).catch(()=>{});
+          }catch(e){}
         }
+
+        setState({piocheResult: drawn});
       },700);
     });
   });
 
   const piocheCollect = document.getElementById('pioche-collect');
   if(piocheCollect) piocheCollect.addEventListener('click', async ()=>{
-    const r = state.piocheResult;
-    if(r && r.__reward){
-      // Récompense spéciale déjà appliquée — toast de confirmation
-      const labels = {
-        coins_200: '+200 pièces ajoutées 💰',
-        coins_500: '+500 pièces ajoutées 💰',
-        coins_x2:  'Boost Coins x2 actif (10 combats) 🪙',
-        xp_x2:     'Boost XP x2 actif (10 combats) ⭐',
-      };
-      showToast(labels[r.type] || 'Récompense reçue !', '✓');
-    } else if(r){
-      showToast(`${r.name} ajoutée à la collection !`, '✓');
+    const card = state.piocheResult;
+    if(card){
+      showToast(`${card.name} ajoutée à la collection !`, '✓');
     }
     setState({showPioche:false});
   });
@@ -7598,8 +7548,14 @@ function validateDeck(deck) {
   let total = 0;
   let mythCount = 0;
   const dupOver = []; // cartes (toutes raretés) > 2 exemplaires
+  let trophyInDeck = false;
   for (const c of cards) {
     const card = ALL_CARDS.find(x => parseInt(x.id) === parseInt(c.card_id));
+    // La carte trophée 119/118 ne peut JAMAIS être jouée
+    if (isTrophyCard(c.card_id)) {
+      trophyInDeck = true;
+      continue; // on ne la compte pas dans le total
+    }
     total += c.quantity;
     if (!card) continue;
     if (card.rarity === 'mythic') {
@@ -7610,6 +7566,7 @@ function validateDeck(deck) {
       dupOver.push({ name: card.name, qty: c.quantity, rarity: card.rarity });
     }
   }
+  if (trophyInDeck) errors.push({ code: 'trophy', msg: `La carte trophée 119/118 n'est pas jouable — c'est un trophée d'honneur` });
   if (total !== 30) errors.push({ code: 'total', msg: `Le deck doit contenir exactement 30 cartes (actuellement ${total}/30)` });
   if (mythCount > 2) errors.push({ code: 'mythTotal', msg: `Maximum 2 cartes Mythiques au total dans le deck (actuellement ${mythCount})` });
   dupOver.forEach(c => {
@@ -7812,13 +7769,6 @@ function enterGame(user, coins) {
   }
     // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
     canPiocheToday(user.id).then(()=>{ setState({}); }); // force re-render après chargement
-    // Précharger les boosts actifs (Coins x2 / XP x2 sur N combats) depuis Supabase
-    loadActiveBoosts(user.id).then(b => {
-      setState({
-        boostCoinsX2Remaining: b.coinsX2 || 0,
-        boostXpX2Remaining:    b.xpX2    || 0,
-      });
-    }).catch(()=>{});
     // Précharger les compteurs de boosters depuis Supabase (cross-device, par compte)
     _loadBoosterCache(user.id).then(()=>{ setState({}); });
     // Précharger le cache des quêtes depuis Supabase (cross-plateforme)
@@ -9025,7 +8975,60 @@ async function loadCollection() {
     hp:        c.hp        ?? null,
   }));
   render();
+  // Vérifier si on doit débloquer la carte trophée
+  checkTrophyUnlock().catch(e => console.error('[Trophy]', e));
 }
+
+// ─── TROPHY UNLOCK ────────────────────────────────────────────────
+// Vérifie si le joueur possède les 118 cartes officielles du Set Originel
+// et déclenche le déblocage de la carte trophée 119/118 si c'est le cas.
+// Le pop-up ne s'affiche qu'UNE SEULE fois (flag trophy_unlocked dans players).
+async function checkTrophyUnlock() {
+  const db = window.db;
+  if (!db) return;
+  const userId = state.currentUser?.id;
+  if (!userId) return;
+  if (!Array.isArray(ALL_CARDS) || ALL_CARDS.length === 0) return;
+
+  // Compter les cartes officielles possédées (hors trophée)
+  const officialOwned = ALL_CARDS.filter(c => c.owned && !isTrophyCard(c)).length;
+  if (officialOwned < OFFICIAL_SET_TOTAL) return; // pas encore complet
+
+  // Vérifier l'état du flag côté serveur (source de vérité)
+  const { data: player, error: playerErr } = await db.from('players')
+    .select('trophy_unlocked').eq('id', userId).single();
+  if (playerErr) { console.warn('[Trophy] fetch player fail', playerErr); return; }
+
+  // Déjà débloqué : ne rien faire (silencieux, pas de re-pop-up)
+  if (player && player.trophy_unlocked === true) return;
+
+  // ── Déblocage : attribuer la carte 119 + flag trophy_unlocked + pop-up ──
+  console.log('[Trophy] 🏆 Unlock conditions met → granting trophy card');
+
+  // 1) Insérer la carte trophée dans player_cards (si pas déjà là)
+  const { data: existing } = await db.from('player_cards')
+    .select('id').eq('player_id', userId).eq('card_id', TROPHY_CARD_ID).maybeSingle();
+  if (!existing) {
+    const { error: insertErr } = await db.from('player_cards')
+      .insert({ player_id: userId, card_id: TROPHY_CARD_ID, quantity: 1 });
+    if (insertErr) { console.error('[Trophy] insert player_card fail', insertErr); return; }
+  }
+
+  // 2) Marquer le flag côté Supabase pour ne plus afficher le pop-up
+  const { error: flagErr } = await db.from('players')
+    .update({ trophy_unlocked: true }).eq('id', userId);
+  if (flagErr) { console.error('[Trophy] flag update fail', flagErr); return; }
+
+  // 3) Afficher le pop-up avec animation spéciale
+  setState({ showTrophy: true, trophyJustUnlocked: true });
+
+  // 4) Recharger la collection pour refléter la nouvelle carte
+  if (window.loadCollection) {
+    // léger délai pour laisser le pop-up s'afficher en premier, puis sync
+    setTimeout(() => { window.loadCollection(); }, 100);
+  }
+}
+window.checkTrophyUnlock = checkTrophyUnlock;
 
 // ─── FRIENDS SYSTEM ───────────────────────────────────────────────
 async function loadFriends() {
@@ -10880,6 +10883,7 @@ function _mktApplyOfferFilter(){
   const offerIds = state.marketOfferIds||[];
   const RARITY_O = {common:0,uncommon:1,rare:2,mythic:3};
   let filtered = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false; // non échangeable
     if(!_mOwned(c.id)) return false;
     if(_mktOfferDoubles && (c.count||1) < 2) return false;
     if(_mktOfferRarity && c.rarity !== _mktOfferRarity) return false;
@@ -10908,6 +10912,7 @@ function _mktApplyWantFilter(){
   const wantIds = state.marketWantIds||[];
   const RARITY_O = {common:0,uncommon:1,rare:2,mythic:3};
   let filtered = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false; // non échangeable
     if(_mktWantMissing && _mOwned(c.id)) return false;
     if(_mktWantRarity && c.rarity !== _mktWantRarity) return false;
     if(!q) return true;
@@ -11226,78 +11231,13 @@ function renderMarket(th){
         // Filtres locaux (persistés sur window pour survive au re-render)
         if(window._mktFilterMissing===undefined) window._mktFilterMissing=false;
         if(window._mktFilterOwned===undefined) window._mktFilterOwned=false;
-        // Filtres rareté/type cumulables (Sets persistés) — partagés par les deux sections (Propose / Cherche)
-        if(!window._mktFilterRarities) window._mktFilterRarities=new Set();
-        if(!window._mktFilterTypes)    window._mktFilterTypes=new Set();
 
-        // Helper : applique les filtres rareté + type cumulables à une liste d'IDs
-        const _applyRarTypeFilters = (ids) => {
-          const rar = window._mktFilterRarities;
-          const typ = window._mktFilterTypes;
-          if(rar.size===0 && typ.size===0) return ids;
-          return ids.filter(id => {
-            const c = _mGetCard(id);
-            if(!c) return false;
-            const okRar = rar.size===0 || rar.has(c.rarity);
-            const okTyp = typ.size===0 || typ.has(c.type || 'Héro');
-            return okRar && okTyp;
-          });
-        };
-
-        const filteredOfferIds = _applyRarTypeFilters(
-          window._mktFilterMissing ? allOfferIds.filter(id=>!_mOwned(id)) : allOfferIds
-        );
-        const filteredWantIds = _applyRarTypeFilters(
-          window._mktFilterOwned ? allWantIds.filter(id=>_mOwned(id)) : allWantIds
-        );
-
-        // Toggle helpers exposés à window (utilisés par les boutons inline)
-        window._mktToggleRarity = function(r){
-          if(window._mktFilterRarities.has(r)) window._mktFilterRarities.delete(r);
-          else window._mktFilterRarities.add(r);
-          window._mktRerender();
-        };
-        window._mktToggleType = function(ty){
-          if(window._mktFilterTypes.has(ty)) window._mktFilterTypes.delete(ty);
-          else window._mktFilterTypes.add(ty);
-          window._mktRerender();
-        };
-        window._mktResetRarTypeFilters = function(){
-          window._mktFilterRarities.clear();
-          window._mktFilterTypes.clear();
-          window._mktRerender();
-        };
-
-        // Rendu de la barre de filtres rareté + type (cumulables)
-        const _rarChip = (key, label, color) => {
-          const active = window._mktFilterRarities.has(key);
-          return `<button onclick="window._mktToggleRarity('${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':'◆ '}${label}</button>`;
-        };
-        const _typChip = (key, label, color) => {
-          const active = window._mktFilterTypes.has(key);
-          return `<button onclick="window._mktToggleType('${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':''}${label}</button>`;
-        };
-        const totalFiltersActive = window._mktFilterRarities.size + window._mktFilterTypes.size;
-        const rarTypeBar = `
-          <div style="margin:6px 0 10px;padding:8px 10px;background:${th.bg};border:1px solid ${th.border};">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <div style="font-size:9px;font-weight:800;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">Filtrer par rareté & type</div>
-              ${totalFiltersActive>0?`<button onclick="window._mktResetRarTypeFilters()" style="padding:1px 7px;font-size:8px;font-weight:800;cursor:pointer;border:1px solid ${th.red}50;background:${th.red}15;color:${th.red};letter-spacing:.3px;">✕ RESET (${totalFiltersActive})</button>`:''}
-              <div style="flex:1;"></div>
-              <div style="font-size:8px;color:${th.textFaint};font-style:italic;">cliquable · cumulable</div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
-              ${_rarChip('common','Commune','#94a3b8')}
-              ${_rarChip('uncommon','Peu Commune','#38bdf8')}
-              ${_rarChip('rare','Rare','#a78bfa')}
-              ${_rarChip('mythic','Mythique','#fbbf24')}
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">
-              ${_typChip('Héro','⚔ Héro','#f59e0b')}
-              ${_typChip('Ruse','🃏 Ruse','#10b981')}
-              ${_typChip('Arcane','✦ Arcane','#8b5cf6')}
-            </div>
-          </div>`;
+        const filteredOfferIds = window._mktFilterMissing
+          ? allOfferIds.filter(id=>!_mOwned(id))
+          : allOfferIds;
+        const filteredWantIds = window._mktFilterOwned
+          ? allWantIds.filter(id=>_mOwned(id))
+          : allWantIds;
 
         const standDetailRow=(ids,isOffer,rowIsMe)=>{
           if(!ids.length) return `<span style="font-size:10px;color:${th.textFaint};font-style:italic;padding:8px 0;">Aucune carte</span>`;
@@ -11330,7 +11270,7 @@ function renderMarket(th){
           <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.10;pointer-events:none;"></div>
           <!-- Header détail -->
           <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
-            <button onclick="window._mktFilterMissing=false;window._mktFilterOwned=false;if(window._mktFilterRarities)window._mktFilterRarities.clear();if(window._mktFilterTypes)window._mktFilterTypes.clear();setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
+            <button onclick="window._mktFilterMissing=false;window._mktFilterOwned=false;setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
             <div style="flex:1;min-width:0;">
               <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">MARCHÉ DES ÉCHANGES</div>
             </div>
@@ -11352,14 +11292,14 @@ function renderMarket(th){
             <div style="padding:14px 12px 0;">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                 <div style="height:2px;flex:1;background:linear-gradient(90deg,#22c55e,transparent);"></div>
-                <div style="font-size:11px;font-weight:900;color:#22c55e;">🟢 PROPOSÉES (${filteredOfferIds.length}${(filteredOfferIds.length!==allOfferIds.length)?'/'+allOfferIds.length:''})</div>
+                <div style="font-size:11px;font-weight:900;color:#22c55e;">🟢 PROPOSÉES (${filteredOfferIds.length}${window._mktFilterMissing?'/'+allOfferIds.length:''})</div>
                 <div style="height:2px;flex:1;background:linear-gradient(270deg,#22c55e,transparent);"></div>
               </div>
-              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:6px;">
+              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:10px;">
                 <button onclick="window._mktFilterMissing=!window._mktFilterMissing;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterMissing?'#22c55e':'rgba(34,197,94,.35)'};background:${window._mktFilterMissing?'rgba(34,197,94,.18)':'transparent'};color:${window._mktFilterMissing?'#22c55e':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterMissing?'✓ ':''} MANQUANTES SEULEMENT
                 </button>
-              </div>${rarTypeBar}`:'<div style="margin-bottom:10px;"></div>'}
+              </div>`:'<div style="margin-bottom:10px;"></div>'}
               <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;">
                 ${standDetailRow(filteredOfferIds,true,isMe)}
               </div>
@@ -11370,14 +11310,14 @@ function renderMarket(th){
             <div style="padding:0 12px 16px;">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                 <div style="height:2px;flex:1;background:linear-gradient(90deg,#ef4444,transparent);"></div>
-                <div style="font-size:11px;font-weight:900;color:#ef4444;">🔴 RECHERCHÉES (${filteredWantIds.length}${(filteredWantIds.length!==allWantIds.length)?'/'+allWantIds.length:''})</div>
+                <div style="font-size:11px;font-weight:900;color:#ef4444;">🔴 RECHERCHÉES (${filteredWantIds.length}${window._mktFilterOwned?'/'+allWantIds.length:''})</div>
                 <div style="height:2px;flex:1;background:linear-gradient(270deg,#ef4444,transparent);"></div>
               </div>
-              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:6px;">
+              ${!isMe?`<div style="display:flex;justify-content:flex-start;margin-bottom:10px;">
                 <button onclick="window._mktFilterOwned=!window._mktFilterOwned;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterOwned?'#ef4444':'rgba(239,68,68,.35)'};background:${window._mktFilterOwned?'rgba(239,68,68,.18)':'transparent'};color:${window._mktFilterOwned?'#ef4444':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterOwned?'✓ ':''} POSSÉDÉES SEULEMENT
                 </button>
-              </div>${rarTypeBar}`:'<div style="margin-bottom:10px;"></div>'}
+              </div>`:'<div style="margin-bottom:10px;"></div>'}
               <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;">
                 ${standDetailRow(filteredWantIds,false,isMe)}
               </div>
@@ -11427,6 +11367,7 @@ function renderMarket(th){
   const offerQ = _mktOfferQ || '';
   const wantQ  = _mktWantQ  || '';
   const myOwnedCards = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false; // non échangeable
     if(!_mOwned(c.id)) return false;
     if(!offerQ) return true;
     const q=offerQ.toLowerCase();
@@ -11434,6 +11375,7 @@ function renderMarket(th){
   }).slice(0,80);
   const RARITY_O_W = {common:0,uncommon:1,rare:2,mythic:3};
   const wantCards = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false; // non échangeable
     if(!wantQ) return true;
     const q=wantQ.toLowerCase();
     return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
@@ -11561,7 +11503,8 @@ let _deckPreviewList = [];
 
 function _buildDeckPreviewList() {
   // Reproduit la même logique de filtre/tri que la grille du deck builder
-  const ownedCards = ALL_CARDS.filter(c => c.owned);
+  // La carte trophée est non jouable, donc absente de la preview du deck builder
+  const ownedCards = ALL_CARDS.filter(c => c.owned && !isTrophyCard(c));
   const typeFiltered = state.deckTypeFilter
     ? ownedCards.filter(c => (c.type || 'Héro') === state.deckTypeFilter)
     : ownedCards;
@@ -12762,31 +12705,30 @@ function renderRecycleModal() {
   else if (step === 'select')                                body = renderRecycleSelect();
   else                                                       body = renderRecycleMenu();
 
-  // ── MODALE CENTRÉE (PC + mobile) — s'adapte aux résolutions ───────
-  // Mobile : prend quasi tout l'écran avec petits marges. PC : largeur raisonnable, jamais "trop gros".
-  const sheetMaxW = isMobile ? '100%' : '480px';
-  const sheetMaxH = isMobile ? 'calc(100dvh - 24px)' : 'min(86vh, 720px)';
-  const outerPad  = isMobile ? '12px 6px' : '20px';
-
   return `
-  <div id="recycle-bg" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:300;padding:${outerPad};box-sizing:border-box;">
-    <div id="recycle-sheet" class="fade-up" style="width:100%;max-width:${sheetMaxW};max-height:${sheetMaxH};display:flex;flex-direction:column;background:${th.bgSecondary};border:${isMobile?'2px':'3px'} solid #000;box-shadow:0 16px 60px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);box-sizing:border-box;overflow:hidden;">
+  <div id="recycle-bg" style="position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;z-index:100;${isMobile?'padding:0 4px;':''}box-sizing:border-box;">
+    <div id="recycle-sheet" class="slide-up" style="width:100%;max-width:440px;height:auto;max-height:min(94vh,calc(100dvh - 8px));display:flex;flex-direction:column;background:${th.bgSecondary};border-top:4px solid #000;border-left:${isMobile?'2px':'3px'} solid #000;border-right:${isMobile?'2px':'3px'} solid #000;box-shadow:-4px -4px 0 #000;box-sizing:border-box;overflow:hidden;">
+
+      <!-- Pull handle (fixe) -->
+      <div style="display:flex;justify-content:center;padding:10px 0 0;flex-shrink:0;">
+        <div style="width:40px;height:4px;background:rgba(255,255,255,.12);"></div>
+      </div>
 
       <!-- Header (fixe) -->
-      <div style="padding:${isMobile?'12px 12px 12px':'14px 18px 14px'};display:flex;align-items:center;gap:${isNarrow?'6px':(isMobile?'8px':'10px')};border-bottom:2px solid #000;flex-shrink:0;background:${th.bgTertiary}40;">
-        <div style="font-size:${isMobile?'22px':'26px'};line-height:1;flex-shrink:0;">♻</div>
+      <div style="padding:${isMobile?'10px 10px 12px':'10px 18px 14px'};display:flex;align-items:center;gap:${isNarrow?'6px':(isMobile?'8px':'10px')};border-bottom:2px solid #000;flex-shrink:0;">
+        <div style="font-size:${isMobile?'20px':'24px'};line-height:1;flex-shrink:0;">♻</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'16px':'19px'};letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
+          <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'15px':'18px'};letter-spacing:.6px;color:${th.text};line-height:1;">RECYCLAGE</div>
           <div style="font-size:${isMobile?'8px':'9px'};color:${th.textMuted};margin-top:3px;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Doublons → cartes supérieures</div>
         </div>
         <button id="recycle-help-btn" title="Comment ça marche ?"
-          style="width:${isMobile?'28px':'32px'};height:${isMobile?'28px':'32px'};background:${th.bgTertiary};border:2px solid #000;cursor:pointer;font-size:${isMobile?'13px':'15px'};font-weight:900;color:${th.text};flex-shrink:0;padding:0;">?</button>
+          style="width:${isMobile?'26px':'30px'};height:${isMobile?'26px':'30px'};background:${th.bgTertiary};border:2px solid #000;cursor:pointer;font-size:${isMobile?'12px':'14px'};font-weight:900;color:${th.text};flex-shrink:0;padding:0;">?</button>
         <button id="recycle-close-btn"
-          style="padding:${isMobile?'6px 10px':'7px 13px'};background:transparent;border:1px solid ${th.red}40;color:${th.red};font-size:${isMobile?'9px':'10px'};font-weight:800;cursor:pointer;letter-spacing:.8px;flex-shrink:0;white-space:nowrap;">FERMER</button>
+          style="padding:${isMobile?'5px 8px':'6px 11px'};background:transparent;border:1px solid ${th.red}35;color:${th.red};font-size:${isMobile?'8px':'9px'};font-weight:800;cursor:pointer;letter-spacing:.8px;flex-shrink:0;white-space:nowrap;">FERMER</button>
       </div>
 
       <!-- Body (scrollable, occupe l'espace restant) -->
-      <div id="recycle-body" style="flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:${isMobile?'12px 12px':'16px 18px'};padding-bottom:${isMobile?'16px':'20px'};overscroll-behavior:contain;">${body}</div>
+      <div id="recycle-body" style="flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:${isMobile?'12px 10px':'14px 16px'};padding-bottom:max(env(safe-area-inset-bottom,0px),${isMobile?'14px':'20px'});">${body}</div>
 
     </div>
   </div>`;
@@ -13309,12 +13251,6 @@ function bindRecycleEvents() {
 
   if (!state.showRecycle) return;
 
-  // Clic sur le fond (hors sheet) → fermer la modale
-  const bg = document.getElementById('recycle-bg');
-  if (bg) bg.addEventListener('click', (e) => {
-    if (e.target === bg) closeRecycleModal();
-  });
-
   // Header
   const closeBtn = document.getElementById('recycle-close-btn');
   if (closeBtn) closeBtn.addEventListener('click', closeRecycleModal);
@@ -13717,70 +13653,16 @@ async function claimRecyclingFlow() {
 
 // ─── TIMER LIVE (mise à jour de l'affichage) ─────────────────────────
 
-// Charger le job actif en arrière-plan pour afficher l'état sur le bouton page boosters
-async function refreshActiveRecycleJobGlobal() {
-  try {
-    const uid = state.currentUser?.id;
-    if (!uid || !window.db) return;
-    const job = await loadActiveRecycleJob(uid);
-    // Ne pas écraser un job courant identique pour éviter les re-renders inutiles
-    const prev = state.recycleActiveJob;
-    const prevId = prev?.id || null;
-    const nextId = job?.id || null;
-    const prevReady = prev?.ready_at || null;
-    const nextReady = job?.ready_at || null;
-    if (prevId !== nextId || prevReady !== nextReady) {
-      setState({ recycleActiveJob: job || null });
-    } else if (!prev && !job) {
-      // rien à faire
-    }
-  } catch (e) {
-    // silent
-  }
-}
-window.refreshActiveRecycleJobGlobal = refreshActiveRecycleJobGlobal;
-
-// Helper pour formater le temps restant version compacte pour le bouton
-function _fmtBtnDuration(remainingMs) {
-  const totalMin = Math.ceil(remainingMs / 60000);
-  if (totalMin <= 0) return '0min';
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return h > 0 ? `${h}h ${String(m).padStart(2,'0')}min` : `${m}min`;
-}
-
 let _recycleTimerInterval = null;
-let _recycleBtnLastState = null; // 'idle' | 'progress' | 'ready'
 function startRecycleTimerTicker() {
   if (_recycleTimerInterval) return;
   _recycleTimerInterval = setInterval(() => {
-    // ─── Mise à jour du bouton de la page boosters (toujours, même sans modale ouverte) ───
-    const job = state.recycleActiveJob;
-    let curState = 'idle';
-    let remainingMs = 0;
-    if (job && job.ready_at) {
-      remainingMs = Math.max(0, new Date(job.ready_at).getTime() - Date.now());
-      curState = remainingMs <= 0 ? 'ready' : 'progress';
-    }
-    // Mise à jour textuelle du timer du bouton (sans re-render)
-    const btnTimerEl = document.querySelector('[data-recycle-btn-timer]');
-    if (btnTimerEl && curState === 'progress') {
-      btnTimerEl.textContent = _fmtBtnDuration(remainingMs);
-    }
-    // Changement d'état (idle ↔ progress ↔ ready) → forcer re-render du bouton via setState
-    if (curState !== _recycleBtnLastState) {
-      _recycleBtnLastState = curState;
-      // Re-render seulement si on est sur la page d'accueil (sinon coût inutile)
-      if (typeof setState === 'function' && state.currentPage !== 'combat-pvp') {
-        // micro setState pour déclencher le re-render
-        setState({ _recycleBtnTick: Date.now() });
-      }
-    }
-
     if (!state.showRecycle) return;
 
-    // ─── Mise à jour du timer dans la modale (job en cours) ───
+    // Mise à jour du timer en cours
+    const job = state.recycleActiveJob;
     if (job && state.recycleStep === 'progress') {
+      const remainingMs = Math.max(0, new Date(job.ready_at).getTime() - Date.now());
       const remainingMin = Math.ceil(remainingMs / 60000);
       const el = document.querySelector('[data-recycle-timer]');
       if (el) el.textContent = formatDuration(remainingMin);
@@ -13807,15 +13689,6 @@ function startRecycleTimerTicker() {
       midEl.textContent = `${h}h ${String(m).padStart(2,'0')}min`;
     }
   }, 1000);
-
-  // Charger l'état initial du job actif + rafraîchir toutes les 60s en arrière-plan
-  refreshActiveRecycleJobGlobal();
-  setInterval(() => {
-    // Ne recharger que si on est connecté et qu'il n'y a pas de modale ouverte
-    if (state.currentUser?.id && !state.showRecycle) {
-      refreshActiveRecycleJobGlobal();
-    }
-  }, 60000);
 }
 
 // Démarrer le ticker au chargement
