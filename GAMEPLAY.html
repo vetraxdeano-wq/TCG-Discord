@@ -3042,24 +3042,54 @@ function endGame(w, reason){
     _coins = -50;
     _xp    = 0;
   }
-  const rewardEl=document.getElementById('ov-reward');
-  if(rewardEl){
-    rewardEl.innerHTML=`
-      <div style="display:inline-flex;align-items:center;gap:8px;background:var(--s3);border:1px solid var(--bdr2);border-radius:100px;padding:6px 16px;">
-        <span style="font-size:15px;">${_coins<0?'💸':'🪙'}</span>
-        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:${_coins<0?'var(--red)':'var(--gold)'};">${_coins>=0?'+':''}${_coins}</span>
-        <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">coins</span>
-        <span style="width:1px;height:14px;background:var(--bdr3);display:inline-block;margin:0 2px;"></span>
-        <span style="font-size:15px;">⭐</span>
-        <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--gold);">+${_xp}</span>
-        <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">xp</span>
-      </div>
-      ${isPenalty?`<div style="margin-top:8px;font-size:11px;color:var(--red);font-weight:700;letter-spacing:.05em;">⚠ Pénalité ${reason==='forfeit'?'forfait':'déconnexion'}</div>`:''}
-    `;
-  }
 
-  // Enregistrer le résultat côté DB + stats
-  savePvpResult(_isWin, _coins, _xp, reason||'normal');
+  // ── Appliquer boosts actifs (seulement si pas de pénalité et gain positif) ──
+  // On encapsule dans une IIFE async pour ne pas bloquer l'affichage des stats
+  (async () => {
+    let usedCoinsBoost = false, usedXpBoost = false;
+    let remCoins = 0, remXp = 0;
+    if(!isPenalty && _coins > 0 && _db && _currentUser){
+      try{
+        const myId = _currentUser.id;
+        const { data } = await _db.from('players')
+          .select('boost_coins_x2_remaining, boost_xp_x2_remaining')
+          .eq('id', myId).maybeSingle();
+        const c = Math.max(0, parseInt(data?.boost_coins_x2_remaining||0,10)||0);
+        const x = Math.max(0, parseInt(data?.boost_xp_x2_remaining||0,10)||0);
+        if(c > 0){ _coins = _coins * 2; usedCoinsBoost = true; remCoins = c - 1; }
+        if(x > 0){ _xp    = _xp    * 2; usedXpBoost    = true; remXp    = x - 1; }
+        if(usedCoinsBoost || usedXpBoost){
+          const upd = {};
+          if(usedCoinsBoost) upd.boost_coins_x2_remaining = remCoins;
+          if(usedXpBoost)    upd.boost_xp_x2_remaining    = remXp;
+          await _db.from('players').update(upd).eq('id', myId);
+        }
+      }catch(e){ console.warn('[PvP] boost apply failed', e); }
+    }
+
+    const rewardEl=document.getElementById('ov-reward');
+    if(rewardEl){
+      rewardEl.innerHTML=`
+        <div style="display:inline-flex;align-items:center;gap:8px;background:var(--s3);border:1px solid var(--bdr2);border-radius:100px;padding:6px 16px;">
+          <span style="font-size:15px;">${_coins<0?'💸':'🪙'}</span>
+          <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:${_coins<0?'var(--red)':'var(--gold)'};">${_coins>=0?'+':''}${_coins}${usedCoinsBoost?'<span style="color:#eab308;font-size:10px;margin-left:4px;">(×2)</span>':''}</span>
+          <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">coins</span>
+          <span style="width:1px;height:14px;background:var(--bdr3);display:inline-block;margin:0 2px;"></span>
+          <span style="font-size:15px;">⭐</span>
+          <span style="font-family:'DM Mono',monospace;font-weight:800;font-size:14px;color:var(--gold);">+${_xp}${usedXpBoost?'<span style="color:#fbbf24;font-size:10px;margin-left:4px;">(×2)</span>':''}</span>
+          <span style="font-size:10px;color:var(--sub);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">xp</span>
+        </div>
+        ${isPenalty?`<div style="margin-top:8px;font-size:11px;color:var(--red);font-weight:700;letter-spacing:.05em;">⚠ Pénalité ${reason==='forfeit'?'forfait':'déconnexion'}</div>`:''}
+        ${(usedCoinsBoost||usedXpBoost)?`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
+          ${usedCoinsBoost?`<span style="font-size:10px;font-weight:900;color:#eab308;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.45);padding:3px 10px;letter-spacing:.4px;">🪙 BOOST ACTIF — reste ${remCoins}</span>`:''}
+          ${usedXpBoost   ?`<span style="font-size:10px;font-weight:900;color:#fbbf24;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.45);padding:3px 10px;letter-spacing:.4px;">⭐ BOOST ACTIF — reste ${remXp}</span>`:''}
+        </div>`:''}
+      `;
+    }
+
+    // Enregistrer le résultat côté DB + stats (APRÈS boost appliqué)
+    savePvpResult(_isWin, _coins, _xp, reason||'normal');
+  })();
 
   const dm=G.stats.dmgByCard;
   let mvpNom='—',mvpVal=0;
