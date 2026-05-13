@@ -3512,8 +3512,12 @@ function renderTabBoosters(th){
       // Couleur dynamique : vert si prêt, orange si en cours, violet si rien
       const _rState = _rIsReady ? 'ready' : (_rJob ? 'progress' : 'idle');
       const _rDynColor = _rState === 'ready' ? '#22c55e' : (_rState === 'progress' ? '#f59e0b' : _rColor);
+      // Action du bouton : si prêt → claim direct, sinon → ouvrir la modale
+      const _rOnclick = _rState === 'ready'
+        ? `if(typeof claimRecyclingFlow==='function'){openRecycleModal();setTimeout(()=>{if(typeof claimRecyclingFlow==='function')claimRecyclingFlow();},120);}else if(typeof openRecycleModal==='function'){openRecycleModal();}`
+        : `if(typeof openRecycleModal==='function'){openRecycleModal();}else{alert('Module recyclage pas chargé');}`;
       return `<div id="btn-recycle"
-        onclick="if(typeof openRecycleModal==='function'){openRecycleModal();}else{alert('Module recyclage pas chargé');}"
+        onclick="${_rOnclick}"
         style="margin:${isMobile?'4px 12px':'8px 14px'};flex-shrink:0;
           background:linear-gradient(135deg,${_rDynColor}12,${_rDynColor}03);
           border:1px solid ${_rDynColor}30;overflow:hidden;cursor:pointer;position:relative;transition:all .22s;">
@@ -7791,7 +7795,31 @@ function enterGame(user, coins) {
     const _musicWasOn = _loadMusicPref();
     const _musicVol = parseInt(localStorage.getItem('music_volume')||'25');
     state.musicVolume = isNaN(_musicVol) ? 25 : _musicVol;
-    setState({ screen: "game", musicOn: _musicWasOn, currentUser: user, coins: coins });
+
+    // ── PRÉ-CHARGEMENT BLOQUANT : job recyclage + boosts (timeout 1.5s max pour éviter de bloquer) ──
+    // Objectif : avoir l'info AVANT le 1er render, pour ne pas voir "OUVRIR" puis "RÉCLAMER" en flash.
+    let _prefetchedJob = null;
+    let _prefetchedBoosts = null;
+    try {
+      const _withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(()=>r(null), ms))]);
+      const [job, boosts] = await Promise.all([
+        typeof loadActiveRecycleJob === 'function' ? _withTimeout(loadActiveRecycleJob(user.id), 1500) : null,
+        typeof loadActiveBoosts     === 'function' ? _withTimeout(loadActiveBoosts(user.id),     1500) : null,
+      ]);
+      _prefetchedJob = job || null;
+      _prefetchedBoosts = boosts || null;
+    } catch(e) { /* silencieux : on aura un fallback via le ticker */ }
+
+    setState({
+      screen: "game",
+      musicOn: _musicWasOn,
+      currentUser: user,
+      coins: coins,
+      // Inclure les données pré-chargées dans le 1er setState → 1er render correct
+      recycleActiveJob: _prefetchedJob,
+      boostCoinsX2Remaining: _prefetchedBoosts?.coinsX2 || 0,
+      boostXpX2Remaining:    _prefetchedBoosts?.xpX2    || 0,
+    });
     // 3. Démarrer (ou non) selon la vérité Supabase
     if (_musicWasOn && !audioPlaying) audioPlay();
     else if (!_musicWasOn && audioPlaying) audioStop();
@@ -7813,12 +7841,22 @@ function enterGame(user, coins) {
     // Précharger le statut de pioche depuis Supabase (pour affichage UI correct cross-device)
     canPiocheToday(user.id).then(()=>{ setState({}); }); // force re-render après chargement
     // Précharger les boosts actifs (Coins x2 / XP x2 sur N combats) depuis Supabase
-    loadActiveBoosts(user.id).then(b => {
-      setState({
-        boostCoinsX2Remaining: b.coinsX2 || 0,
-        boostXpX2Remaining:    b.xpX2    || 0,
-      });
-    }).catch(()=>{});
+    //   → déjà préchargé ci-dessus (cas timeout : on retente ici)
+    if (_prefetchedBoosts === null) {
+      loadActiveBoosts(user.id).then(b => {
+        setState({
+          boostCoinsX2Remaining: b.coinsX2 || 0,
+          boostXpX2Remaining:    b.xpX2    || 0,
+        });
+      }).catch(()=>{});
+    }
+    // Précharger le job de recyclage actif (timer bouton page boosters)
+    //   → déjà préchargé ci-dessus (cas timeout : on retente ici en background)
+    if (_prefetchedJob === null && typeof loadActiveRecycleJob === 'function') {
+      loadActiveRecycleJob(user.id).then(job => {
+        if (job) setState({ recycleActiveJob: job });
+      }).catch(()=>{});
+    }
     // Précharger les compteurs de boosters depuis Supabase (cross-device, par compte)
     _loadBoosterCache(user.id).then(()=>{ setState({}); });
     // Précharger le cache des quêtes depuis Supabase (cross-plateforme)
@@ -11226,14 +11264,19 @@ function renderMarket(th){
         // Filtres locaux (persistés sur window pour survive au re-render)
         if(window._mktFilterMissing===undefined) window._mktFilterMissing=false;
         if(window._mktFilterOwned===undefined) window._mktFilterOwned=false;
-        // Filtres rareté/type cumulables (Sets persistés) — partagés par les deux sections (Propose / Cherche)
+        // Filtres rareté/type cumulables — INDÉPENDANTS entre Propose et Recherche
+        if(!window._mktFilterRaritiesOffer) window._mktFilterRaritiesOffer=new Set();
+        if(!window._mktFilterTypesOffer)    window._mktFilterTypesOffer=new Set();
+        if(!window._mktFilterRaritiesWant)  window._mktFilterRaritiesWant=new Set();
+        if(!window._mktFilterTypesWant)     window._mktFilterTypesWant=new Set();
+        // Compat ancien code (au cas où qqc lit encore l'ancienne version)
         if(!window._mktFilterRarities) window._mktFilterRarities=new Set();
         if(!window._mktFilterTypes)    window._mktFilterTypes=new Set();
 
-        // Helper : applique les filtres rareté + type cumulables à une liste d'IDs
-        const _applyRarTypeFilters = (ids) => {
-          const rar = window._mktFilterRarities;
-          const typ = window._mktFilterTypes;
+        // Helper : applique les filtres rareté + type d'une section (offer/want) à une liste d'IDs
+        const _applyRarTypeFilters = (ids, section) => {
+          const rar = section==='offer' ? window._mktFilterRaritiesOffer : window._mktFilterRaritiesWant;
+          const typ = section==='offer' ? window._mktFilterTypesOffer    : window._mktFilterTypesWant;
           if(rar.size===0 && typ.size===0) return ids;
           return ids.filter(id => {
             const c = _mGetCard(id);
@@ -11245,59 +11288,73 @@ function renderMarket(th){
         };
 
         const filteredOfferIds = _applyRarTypeFilters(
-          window._mktFilterMissing ? allOfferIds.filter(id=>!_mOwned(id)) : allOfferIds
+          window._mktFilterMissing ? allOfferIds.filter(id=>!_mOwned(id)) : allOfferIds,
+          'offer'
         );
         const filteredWantIds = _applyRarTypeFilters(
-          window._mktFilterOwned ? allWantIds.filter(id=>_mOwned(id)) : allWantIds
+          window._mktFilterOwned ? allWantIds.filter(id=>_mOwned(id)) : allWantIds,
+          'want'
         );
 
-        // Toggle helpers exposés à window (utilisés par les boutons inline)
-        window._mktToggleRarity = function(r){
-          if(window._mktFilterRarities.has(r)) window._mktFilterRarities.delete(r);
-          else window._mktFilterRarities.add(r);
+        // Toggle helpers exposés à window (utilisés par les boutons inline) — par section
+        window._mktToggleRaritySection = function(section, r){
+          const set = section==='offer' ? window._mktFilterRaritiesOffer : window._mktFilterRaritiesWant;
+          if(set.has(r)) set.delete(r); else set.add(r);
           window._mktRerender();
         };
-        window._mktToggleType = function(ty){
-          if(window._mktFilterTypes.has(ty)) window._mktFilterTypes.delete(ty);
-          else window._mktFilterTypes.add(ty);
+        window._mktToggleTypeSection = function(section, ty){
+          const set = section==='offer' ? window._mktFilterTypesOffer : window._mktFilterTypesWant;
+          if(set.has(ty)) set.delete(ty); else set.add(ty);
           window._mktRerender();
         };
-        window._mktResetRarTypeFilters = function(){
-          window._mktFilterRarities.clear();
-          window._mktFilterTypes.clear();
+        window._mktResetSectionFilters = function(section){
+          if(section==='offer'){
+            window._mktFilterRaritiesOffer.clear();
+            window._mktFilterTypesOffer.clear();
+          } else {
+            window._mktFilterRaritiesWant.clear();
+            window._mktFilterTypesWant.clear();
+          }
           window._mktRerender();
         };
 
-        // Rendu de la barre de filtres rareté + type (cumulables)
-        const _rarChip = (key, label, color) => {
-          const active = window._mktFilterRarities.has(key);
-          return `<button onclick="window._mktToggleRarity('${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':'◆ '}${label}</button>`;
+        // Rendu d'une barre de filtres rareté + type pour UNE section (offer ou want)
+        const _buildRarTypeBar = (section) => {
+          const rarSet = section==='offer' ? window._mktFilterRaritiesOffer : window._mktFilterRaritiesWant;
+          const typSet = section==='offer' ? window._mktFilterTypesOffer    : window._mktFilterTypesWant;
+          const totalActive = rarSet.size + typSet.size;
+          const accentCol = section==='offer' ? '#22c55e' : '#ef4444';
+          const _rarChip = (key, label, color) => {
+            const active = rarSet.has(key);
+            return `<button onclick="window._mktToggleRaritySection('${section}','${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':'◆ '}${label}</button>`;
+          };
+          const _typChip = (key, label, color) => {
+            const active = typSet.has(key);
+            return `<button onclick="window._mktToggleTypeSection('${section}','${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':''}${label}</button>`;
+          };
+          return `
+            <div style="margin:6px 0 10px;padding:8px 10px;background:${th.bg};border:1px solid ${accentCol}30;border-left:3px solid ${accentCol};">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <div style="font-size:9px;font-weight:800;color:${accentCol};letter-spacing:.5px;text-transform:uppercase;">Filtrer ${section==='offer'?'les proposées':'les recherchées'}</div>
+                ${totalActive>0?`<button onclick="window._mktResetSectionFilters('${section}')" style="padding:1px 7px;font-size:8px;font-weight:800;cursor:pointer;border:1px solid ${th.red}50;background:${th.red}15;color:${th.red};letter-spacing:.3px;">✕ RESET (${totalActive})</button>`:''}
+                <div style="flex:1;"></div>
+                <div style="font-size:8px;color:${th.textFaint};font-style:italic;">cumulable</div>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+                ${_rarChip('common','Commune','#94a3b8')}
+                ${_rarChip('uncommon','Peu Commune','#38bdf8')}
+                ${_rarChip('rare','Rare','#a78bfa')}
+                ${_rarChip('mythic','Mythique','#fbbf24')}
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                ${_typChip('Héro','⚔ Héro','#f59e0b')}
+                ${_typChip('Ruse','🃏 Ruse','#10b981')}
+                ${_typChip('Arcane','✦ Arcane','#8b5cf6')}
+              </div>
+            </div>`;
         };
-        const _typChip = (key, label, color) => {
-          const active = window._mktFilterTypes.has(key);
-          return `<button onclick="window._mktToggleType('${key}')" style="padding:3px 9px;font-size:9px;font-weight:900;cursor:pointer;border:1.5px solid ${active?color:color+'40'};background:${active?color+'22':'transparent'};color:${active?color:color+'aa'};letter-spacing:.3px;white-space:nowrap;transition:all .15s;">${active?'✓ ':''}${label}</button>`;
-        };
-        const totalFiltersActive = window._mktFilterRarities.size + window._mktFilterTypes.size;
-        const rarTypeBar = `
-          <div style="margin:6px 0 10px;padding:8px 10px;background:${th.bg};border:1px solid ${th.border};">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <div style="font-size:9px;font-weight:800;color:${th.textMuted};letter-spacing:.5px;text-transform:uppercase;">Filtrer par rareté & type</div>
-              ${totalFiltersActive>0?`<button onclick="window._mktResetRarTypeFilters()" style="padding:1px 7px;font-size:8px;font-weight:800;cursor:pointer;border:1px solid ${th.red}50;background:${th.red}15;color:${th.red};letter-spacing:.3px;">✕ RESET (${totalFiltersActive})</button>`:''}
-              <div style="flex:1;"></div>
-              <div style="font-size:8px;color:${th.textFaint};font-style:italic;">cliquable · cumulable</div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
-              ${_rarChip('common','Commune','#94a3b8')}
-              ${_rarChip('uncommon','Peu Commune','#38bdf8')}
-              ${_rarChip('rare','Rare','#a78bfa')}
-              ${_rarChip('mythic','Mythique','#fbbf24')}
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">
-              ${_typChip('Héro','⚔ Héro','#f59e0b')}
-              ${_typChip('Ruse','🃏 Ruse','#10b981')}
-              ${_typChip('Arcane','✦ Arcane','#8b5cf6')}
-            </div>
-          </div>`;
+        const rarTypeBarOffer = _buildRarTypeBar('offer');
+        const rarTypeBarWant  = _buildRarTypeBar('want');
 
         const standDetailRow=(ids,isOffer,rowIsMe)=>{
           if(!ids.length) return `<span style="font-size:10px;color:${th.textFaint};font-style:italic;padding:8px 0;">Aucune carte</span>`;
@@ -11330,7 +11387,7 @@ function renderMarket(th){
           <div style="position:absolute;inset:0;z-index:0;background-image:url(https://i.goopics.net/wphl19.png);background-size:cover;background-position:center;opacity:0.10;pointer-events:none;"></div>
           <!-- Header détail -->
           <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(env(safe-area-inset-top,10px),10px);background:${th.bgSecondary};border-bottom:2px solid #000;flex-shrink:0;">
-            <button onclick="window._mktFilterMissing=false;window._mktFilterOwned=false;if(window._mktFilterRarities)window._mktFilterRarities.clear();if(window._mktFilterTypes)window._mktFilterTypes.clear();setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
+            <button onclick="window._mktFilterMissing=false;window._mktFilterOwned=false;if(window._mktFilterRaritiesOffer)window._mktFilterRaritiesOffer.clear();if(window._mktFilterTypesOffer)window._mktFilterTypesOffer.clear();if(window._mktFilterRaritiesWant)window._mktFilterRaritiesWant.clear();if(window._mktFilterTypesWant)window._mktFilterTypesWant.clear();setState({marketSelectedStand:null})" style="width:36px;height:36px;background:${th.bgTertiary};border:2px solid #000;color:${th.textMuted};display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;">←</button>
             <div style="flex:1;min-width:0;">
               <div style="font-family:'Luckiest Guy',cursive;font-size:14px;color:#fbbf24;letter-spacing:1px;">MARCHÉ DES ÉCHANGES</div>
             </div>
@@ -11359,7 +11416,7 @@ function renderMarket(th){
                 <button onclick="window._mktFilterMissing=!window._mktFilterMissing;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterMissing?'#22c55e':'rgba(34,197,94,.35)'};background:${window._mktFilterMissing?'rgba(34,197,94,.18)':'transparent'};color:${window._mktFilterMissing?'#22c55e':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterMissing?'✓ ':''} MANQUANTES SEULEMENT
                 </button>
-              </div>${rarTypeBar}`:'<div style="margin-bottom:10px;"></div>'}
+              </div>${rarTypeBarOffer}`:'<div style="margin-bottom:10px;"></div>'}
               <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;">
                 ${standDetailRow(filteredOfferIds,true,isMe)}
               </div>
@@ -11377,7 +11434,7 @@ function renderMarket(th){
                 <button onclick="window._mktFilterOwned=!window._mktFilterOwned;window._mktRerender()" style="padding:3px 10px;font-size:9px;font-weight:800;cursor:pointer;border:1.5px solid ${window._mktFilterOwned?'#ef4444':'rgba(239,68,68,.35)'};background:${window._mktFilterOwned?'rgba(239,68,68,.18)':'transparent'};color:${window._mktFilterOwned?'#ef4444':'#6b7280'};letter-spacing:.3px;">
                   ${window._mktFilterOwned?'✓ ':''} POSSÉDÉES SEULEMENT
                 </button>
-              </div>${rarTypeBar}`:'<div style="margin-bottom:10px;"></div>'}
+              </div>${rarTypeBarWant}`:'<div style="margin-bottom:10px;"></div>'}
               <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;">
                 ${standDetailRow(filteredWantIds,false,isMe)}
               </div>
@@ -13808,14 +13865,14 @@ function startRecycleTimerTicker() {
     }
   }, 1000);
 
-  // Charger l'état initial du job actif + rafraîchir toutes les 60s en arrière-plan
+  // Charger l'état initial du job actif + rafraîchir toutes les 15s en arrière-plan
   refreshActiveRecycleJobGlobal();
   setInterval(() => {
     // Ne recharger que si on est connecté et qu'il n'y a pas de modale ouverte
     if (state.currentUser?.id && !state.showRecycle) {
       refreshActiveRecycleJobGlobal();
     }
-  }, 60000);
+  }, 15000);
 }
 
 // Démarrer le ticker au chargement
