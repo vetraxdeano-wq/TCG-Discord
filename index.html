@@ -908,12 +908,17 @@ const RARITY_ORDER=["common","uncommon","rare","mythic","secret"];
 const RARITY_COLOR={mythic:"#f43f5e",rare:"#a78bfa",uncommon:"#38bdf8",common:"#64748b",secret:"#f0c040"};
 const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune",secret:"Secrète"};
 
-// ─── TROPHY CARD 119/118 ──────────────────────────────────────────
-// Carte secrète du Set Originel, non jouable, non échangeable, non recyclable.
+// ─── TROPHY CARD S01 (ID interne : 1001) ──────────────────────────
+// Carte secrète "Maitre du Set de Base" — Set Originel
+// Non jouable, non échangeable, non recyclable.
 // Débloquée automatiquement quand le joueur possède les 118 cartes officielles.
 // Le flag players.trophy_unlocked empêche le pop-up de se rouvrir.
-const TROPHY_CARD_ID    = 119;
-const OFFICIAL_SET_TOTAL = 118; // 118 cartes officielles du Set Originel
+//
+// IMPORTANT : ID en BDD = 1001 (numérique pour ne pas casser la colonne).
+//             Affichée comme "S01" dans le jeu (label visuel uniquement).
+const TROPHY_CARD_ID     = 1001;
+const TROPHY_CARD_LABEL  = 'S01';  // Affichage visuel
+const OFFICIAL_SET_TOTAL = 118;    // 118 cartes officielles du Set Originel
 
 const isTrophyCard = (c) => {
   if (c === null || c === undefined) return false;
@@ -928,6 +933,8 @@ const isTrophyCard = (c) => {
   // Cas 2 : on passe un ID (string ou number)
   return parseInt(c, 10) === TROPHY_CARD_ID;
 };
+// Affichage du numéro : "S01" pour la carte trophée, sinon "#X"
+const formatCardNumber = (c) => isTrophyCard(c) ? TROPHY_CARD_LABEL : `#${parseInt(c.id||c,10)}`;
 // Helpers : retire la carte trophée d'une liste / d'un tableau d'IDs
 const excludeTrophy    = (arr) => (arr || []).filter(c => !isTrophyCard(c));
 const excludeTrophyIds = (arr) => (arr || []).filter(id => parseInt(id,10) !== TROPHY_CARD_ID);
@@ -2076,7 +2083,7 @@ function renderDeckZoomModal(cardId, th){
         <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:800;color:${rarCol};letter-spacing:.5px;text-transform:uppercase;">${rarLabel}</span>
           <span style="font-size:13px;color:${th.textMuted};">·</span>
-          <span style="font-size:13px;color:${th.textMuted};font-weight:600;">#${parseInt(card.id)}</span>
+          <span style="font-size:13px;color:${th.textMuted};font-weight:600;">${isTrophyCard(card)?TROPHY_CARD_LABEL:`#${parseInt(card.id)}`}</span>
           ${card.type ? `<span style="font-size:13px;color:${th.textMuted};">·</span><span style="font-size:13px;color:${th.textMuted};font-weight:600;">${card.type}</span>` : ''}
         </div>
       </div>
@@ -3268,7 +3275,7 @@ function renderCardDetailModal(card,th){
   const infoRows = card.owned ? `
     <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'16px':'22px'};font-weight:400;color:${th.text};line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${card.name}</div>
     <div style="font-size:${isMobile?'10px':'12px'};color:${RARITY_COLOR[card.rarity]};font-weight:700;margin-top:2px;">◆ ${RARITY_LABEL[card.rarity]}</div>
-    ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:`#${card.id}`}].map(r=>`
+    ${[{l:"Type",v:card.type},{l:"Set",v:SET_LABELS[card.set]||card.set||'SET-1'},{l:"ID",v:isTrophyCard(card)?TROPHY_CARD_LABEL:`#${card.id}`}].map(r=>`
     <div style="display:flex;justify-content:space-between;padding:${isMobile?'4':'7'}px 0;border-bottom:1px solid ${th.border};">
       <span style="font-size:${isMobile?'11':'13'}px;color:${th.textMuted};">${r.l}</span>
       <span style="font-size:${isMobile?'11':'13'}px;font-weight:600;color:${th.text};">${r.v}</span>
@@ -3292,7 +3299,10 @@ function renderCardDetailModal(card,th){
         <span style="font-size:${isMobile?'11':'12'}px;font-weight:600;color:${th.text};">${fmtTime(card.obtainedAt)}</span>
       </div>
     </div>
-    <button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'11':'13'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'14'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>
+    ${isTrophyCard(card) 
+      ? `<div style="padding:${isMobile?'11':'13'}px;background:#f0c04015;color:#f0c040;border:1.5px solid #f0c04050;font-size:${isMobile?'11':'12'}px;font-weight:700;text-align:center;letter-spacing:.5px;">🏆 CARTE TROPHÉE · Non jouable</div>`
+      : `<button id="btn-add-to-deck" data-cardid="${card.id}" style="padding:${isMobile?'11':'13'}px;background:${th.accent};color:#000;border:none;font-size:${isMobile?'12':'14'}px;font-weight:800;cursor:pointer;letter-spacing:.5px;transition:all .18s;width:100%;">＋ AJOUTER AU DECK</button>`
+    }
 
   ` : `
     <div style="font-family:'Luckiest Guy',cursive;font-size:${isMobile?'18px':'22px'};font-weight:400;color:${th.textMuted};letter-spacing:2px;">???</div>
@@ -4896,8 +4906,8 @@ function renderTrophyModal(th){
         </div>
         <!-- Numéro en haut à droite -->
         <div style="position:absolute;top:-10px;right:-10px;width:48px;height:48px;background:linear-gradient(135deg,#f0c040,#d4a020);border:2px solid #1a1408;display:flex;align-items:center;justify-content:center;font-family:'Luckiest Guy',cursive;color:#1a1408;font-size:10px;line-height:1;flex-direction:column;box-shadow:0 4px 16px #f0c04080;animation:trophyBadgePop .5s ease-out 1.5s both;">
-          <span style="font-size:14px;">119</span>
-          <span style="font-size:7px;opacity:.7;">/ 118</span>
+          <span style="font-size:14px;">${TROPHY_CARD_LABEL}</span>
+          <span style="font-size:7px;opacity:.7;">SECRÈTE</span>
         </div>
       </div>
 
@@ -12106,7 +12116,7 @@ function _renderDeckPreviewContent(flashAdded) {
         <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:800;color:${rarCol};letter-spacing:.5px;text-transform:uppercase;">${rarLabel}</span>
           <span style="font-size:13px;color:${th.textMuted};">·</span>
-          <span style="font-size:13px;color:${th.textMuted};font-weight:600;">#${parseInt(card.id)}</span>
+          <span style="font-size:13px;color:${th.textMuted};font-weight:600;">${isTrophyCard(card)?TROPHY_CARD_LABEL:`#${parseInt(card.id)}`}</span>
           ${card.type ? `<span style="font-size:13px;color:${th.textMuted};">·</span><span style="font-size:13px;color:${th.textMuted};font-weight:600;">${card.type}</span>` : ''}
         </div>
       </div>
