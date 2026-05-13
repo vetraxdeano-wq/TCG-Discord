@@ -761,6 +761,101 @@ async function consumeBoostsForMatch(userId){
 window.consumeBoostsForMatch = consumeBoostsForMatch;
 window.loadActiveBoosts      = loadActiveBoosts;
 
+// ─── TROPHÉE 119/118 — Set Originel complété ──────────────────────
+// Stockage : players.trophy_unlocked (BOOLEAN, default false)
+//
+// Logique :
+//   1) loadTrophyStatus(uid) : lit le flag au démarrage → state.trophyUnlocked
+//   2) checkAndUnlockTrophy(uid) : appelée après ouverture booster / trade / recyclage
+//      → compte les cartes officielles (ID 1..118, quantity > 0)
+//      → si = 118 ET pas encore en player_cards → INSERT carte 119
+//      → si = 118 ET trophy_unlocked === false → popup + set flag à true
+//      → idempotent : peut être appelée plusieurs fois sans effet de bord
+
+async function loadTrophyStatus(userId){
+  try{
+    const db = window.db;
+    if(!db || !userId) return false;
+    const { data } = await db.from('players')
+      .select('trophy_unlocked')
+      .eq('id', userId).maybeSingle();
+    return !!data?.trophy_unlocked;
+  }catch(e){ return false; }
+}
+
+async function checkAndUnlockTrophy(userId){
+  try{
+    const db = window.db;
+    if(!db || !userId) return { unlocked:false, alreadyHad:false };
+
+    // 1) Compter les cartes officielles distinctes possédées (ID 1..OFFICIAL_SET_TOTAL)
+    const { data: owned, error: ownedErr } = await db.from('player_cards')
+      .select('card_id, quantity')
+      .eq('player_id', userId)
+      .gte('card_id', 1)
+      .lte('card_id', OFFICIAL_SET_TOTAL);
+    if(ownedErr) throw ownedErr;
+
+    const distinctOwned = new Set(
+      (owned||[])
+        .filter(r => (r.quantity||0) > 0)
+        .map(r => parseInt(r.card_id, 10))
+    );
+    const ownedCount = distinctOwned.size;
+
+    if(ownedCount < OFFICIAL_SET_TOTAL) {
+      return { unlocked:false, alreadyHad:false, ownedCount };
+    }
+
+    // 2) 118/118 atteint — vérifier si la carte 119 est déjà dans player_cards
+    const { data: existingTrophy } = await db.from('player_cards')
+      .select('id, quantity')
+      .eq('player_id', userId)
+      .eq('card_id', TROPHY_CARD_ID)
+      .maybeSingle();
+
+    let justInserted = false;
+    if(!existingTrophy){
+      const { error: insErr } = await db.from('player_cards')
+        .insert({ player_id: userId, card_id: TROPHY_CARD_ID, quantity: 1 });
+      if(insErr) throw insErr;
+      justInserted = true;
+    }
+
+    // 3) Lire le flag trophy_unlocked
+    const { data: player } = await db.from('players')
+      .select('trophy_unlocked')
+      .eq('id', userId).maybeSingle();
+    const alreadyHad = !!player?.trophy_unlocked;
+
+    // 4) Si jamais montré → afficher le popup + setter le flag
+    if(!alreadyHad){
+      await db.from('players').update({ trophy_unlocked: true }).eq('id', userId);
+      // Mettre à jour ALL_CARDS local pour que la carte apparaisse instantanément dans la collection
+      if(Array.isArray(window.ALL_CARDS)){
+        const tc = window.ALL_CARDS.find(c => parseInt(c.id,10) === TROPHY_CARD_ID);
+        if(tc){
+          tc.owned = true;
+          tc.count = (tc.count||0) + (justInserted ? 1 : 0);
+          if(!tc.obtainedAt) tc.obtainedAt = new Date().toISOString();
+        }
+      }
+      // Recharger la collection en arrière-plan pour synchroniser
+      if(typeof window.loadCollection === 'function') window.loadCollection().catch?.(()=>{});
+      // Afficher le popup
+      setState({ trophyUnlocked: true, showTrophyModal: true });
+      return { unlocked:true, alreadyHad:false, justInserted };
+    }
+
+    return { unlocked:true, alreadyHad:true, justInserted };
+  }catch(e){
+    console.error('checkAndUnlockTrophy', e);
+    return { unlocked:false, alreadyHad:false, error:true };
+  }
+}
+window.checkAndUnlockTrophy = checkAndUnlockTrophy;
+window.loadTrophyStatus     = loadTrophyStatus;
+
 
 
 // Trade : 1x/jour
@@ -809,9 +904,33 @@ function startDailyTicker(){
 // loadCollection défini plus bas dans le bloc principal
 
 const SET_LABELS={all:"Tous les Sets","SET-1":"Set de base","SET-2":"Set 2","SET-3":"Set 3"};
-const RARITY_ORDER=["common","uncommon","rare","mythic"];
-const RARITY_COLOR={mythic:"#f43f5e",rare:"#a78bfa",uncommon:"#38bdf8",common:"#64748b"};
-const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune"};
+const RARITY_ORDER=["common","uncommon","rare","mythic","secret"];
+const RARITY_COLOR={mythic:"#f43f5e",rare:"#a78bfa",uncommon:"#38bdf8",common:"#64748b",secret:"#f0c040"};
+const RARITY_LABEL={mythic:"Mythique",rare:"Rare",uncommon:"Peu commune",common:"Commune",secret:"Secrète"};
+
+// ─── TROPHY CARD 119/118 ──────────────────────────────────────────
+// Carte secrète du Set Originel, non jouable, non échangeable, non recyclable.
+// Débloquée automatiquement quand le joueur possède les 118 cartes officielles.
+// Le flag players.trophy_unlocked empêche le pop-up de se rouvrir.
+const TROPHY_CARD_ID    = 119;
+const OFFICIAL_SET_TOTAL = 118; // 118 cartes officielles du Set Originel
+
+const isTrophyCard = (c) => {
+  if (c === null || c === undefined) return false;
+  // Cas 1 : on passe un objet carte → on regarde aussi son type/rareté pour robustesse
+  if (typeof c === 'object') {
+    const id = parseInt(c.id, 10);
+    if (id === TROPHY_CARD_ID) return true;
+    // Filet de sécurité : si type=Trophée ou rareté=secret, c'est aussi un trophée
+    if (c.type === 'Trophée' || c.rarity === 'secret') return true;
+    return false;
+  }
+  // Cas 2 : on passe un ID (string ou number)
+  return parseInt(c, 10) === TROPHY_CARD_ID;
+};
+// Helpers : retire la carte trophée d'une liste / d'un tableau d'IDs
+const excludeTrophy    = (arr) => (arr || []).filter(c => !isTrophyCard(c));
+const excludeTrophyIds = (arr) => (arr || []).filter(id => parseInt(id,10) !== TROPHY_CARD_ID);
 
 function fmtDate(iso){if(!iso)return"—";return new Date(iso).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});}
 function fmtTime(iso){if(!iso)return"—";return new Date(iso).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});}
@@ -1194,6 +1313,9 @@ let state = {
   // Boosts actifs (cross-device via Supabase players.boost_*)
   boostCoinsX2Remaining: 0, // nb de combats restants avec coins x2
   boostXpX2Remaining:    0, // nb de combats restants avec xp x2
+  // Trophée 119/118 — Set Originel complété
+  trophyUnlocked: false,    // Reflète players.trophy_unlocked (popup déjà vu)
+  showTrophyModal: false,   // Affiche le popup d'obtention
   // Deck Builder
   showDeckBuilder: false,
   showMarket: false,
@@ -1692,6 +1814,7 @@ function renderGame(th){
     ${state.showTutorial?renderTutorialModal(th):''}
     ${state.showHowTo?renderHowToModal(th):''}
     ${state.showQuests?renderQuestsModal(th,isMobile):''}
+    ${state.showTrophyModal?renderTrophyModal(th):''}
   </div>`;
 }
 
@@ -1701,8 +1824,9 @@ function renderProfileModal(th){
   const u = state.currentUser;
   const name = u && u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name) || 'Joueur';
   const avatar = u && u.user_metadata && u.user_metadata.avatar_url;
-  const totalCards = ALL_CARDS.length;
-  const ownedCards = ALL_CARDS.filter(c => c.owned).length;
+  const officialCards = excludeTrophy(ALL_CARDS);
+  const totalCards = officialCards.length;
+  const ownedCards = officialCards.filter(c => c.owned).length;
   const pct = totalCards > 0 ? Math.round(ownedCards/totalCards*100) : 0;
   const winRate = (state.wins !== null && state.losses !== null && (state.wins+state.losses) > 0)
     ? Math.round(state.wins/(state.wins+state.losses)*100) : null;
@@ -1979,8 +2103,8 @@ function renderDeckEdit(th){
     return s+(card&&card.rarity==='mythic'?c.quantity:0);
   },0);
 
-  // Cartes possédées triées
-  const ownedCards = ALL_CARDS.filter(c=>c.owned).sort((a,b)=>RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
+  // Cartes possédées triées (la carte trophée 119 est non jouable → exclue du deck builder)
+  const ownedCards = ALL_CARDS.filter(c=>c.owned && !isTrophyCard(c)).sort((a,b)=>RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
 
   // Helper: quantité d'une carte dans le deck
   const qtyInDeck = (cardId)=>{
@@ -2199,7 +2323,7 @@ function renderDeckEdit(th){
 function renderTradeModal(th){
   const friend = (state.friends||[]).find(f=>f.id===state.tradeWithId);
   const friendName = friend?.discord_username || 'Ami';
-  const ownedCards = ALL_CARDS.filter(c=>c.owned);
+  const ownedCards = ALL_CARDS.filter(c=>c.owned && !isTrophyCard(c));
   const myCard = state.tradeMyCard;
   const incoming = state.tradeIncoming;
   // Reset filtres à chaque ouverture (myCard null = sélection initiale)
@@ -2278,7 +2402,7 @@ function renderTradeModal(th){
   if (state.tradeStep === 'pick_my_card' && state.tradeTheirCard) {
     const theirC = state.tradeTheirCard;
     const col2 = RARITY_COLOR[theirC.rarity] || th.textMuted;
-    const myOwned = ALL_CARDS.filter(c => c.owned && c.rarity === theirC.rarity && String(parseInt(c.id)) !== String(parseInt(theirC.id)));
+    const myOwned = ALL_CARDS.filter(c => c.owned && c.rarity === theirC.rarity && String(parseInt(c.id)) !== String(parseInt(theirC.id)) && !isTrophyCard(c));
     return `
     <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;">
       <div style="width:100%;max-width:360px;background:${th.bgSecondary};border:2px solid #000;display:flex;flex-direction:column;max-height:85vh;overflow:hidden;">
@@ -2326,8 +2450,8 @@ function renderTradeModal(th){
     const sameRarity = standOfferCards.filter(c => c.rarity === myC.rarity);
     const standDisplay = sameRarity.length ? sameRarity : standOfferCards;
     const filter = state.tradeStandFilter || 'stand';
-    // Cartes manquantes : toutes les cartes non possédées du jeu
-    const missingCards = ALL_CARDS.filter(c => !c.owned);
+    // Cartes manquantes : toutes les cartes non possédées du jeu (sauf trophée non échangeable)
+    const missingCards = ALL_CARDS.filter(c => !c.owned && !isTrophyCard(c));
     const displayCards = filter === 'missing' ? missingCards : standDisplay;
     return `
     <div id="trade-bg" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;">
@@ -2426,6 +2550,7 @@ function renderTradeModal(th){
     //               si recherche par ID pur (chiffres) → toutes raretés (l'ID est public)
     const suggestions = tradeSearch.length >= 1
       ? ALL_CARDS.filter(c => {
+          if(isTrophyCard(c)) return false; // trophée non échangeable
           const q = tradeSearch.toLowerCase();
           const isIdSearch = /^\d+$/.test(tradeSearch.trim());
           const matchId   = String(parseInt(c.id)).includes(q) || c.id.toLowerCase().includes(q);
@@ -2924,8 +3049,12 @@ function renderTabPlay(th){
 
 // ─── TAB COLLECTION ───────────────────────────────────────────────
 function renderTabCollection(th){
-  const owned = ALL_CARDS.filter(c=>c.owned).length;
+  // Compteur officiel : sur 118 (le trophée ne compte pas dans le total)
+  const officialCards = excludeTrophy(ALL_CARDS);
+  const owned = officialCards.filter(c=>c.owned).length;
   let cards = [...ALL_CARDS]
+    // Masquer la carte trophée tant que non possédée (invisible jusqu'au déblocage)
+    .filter(c => !isTrophyCard(c) || c.owned)
     .filter(c=>state.collFilterSet==="all"||c.set===state.collFilterSet)
     .filter(c=>state.collFilterRarity==="all"||c.rarity===state.collFilterRarity)
     .filter(c=>state.collShowOwned==="all"||(state.collShowOwned==="owned"&&c.owned)||(state.collShowOwned==="missing"&&!c.owned))
@@ -2951,7 +3080,7 @@ function renderTabCollection(th){
       if(state.collSortBy==="date"){const da=a.obtainedAt?new Date(a.obtainedAt).getTime():0;const db2=b.obtainedAt?new Date(b.obtainedAt).getTime():0;if(!da&&!db2)return 0;if(!da)return 1;if(!db2)return -1;return dir*(da-db2);}
       return dir*(RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
     });
-  const pct = ALL_CARDS.length>0?Math.round(owned/ALL_CARDS.length*100):0;
+  const pct = officialCards.length>0?Math.round(owned/officialCards.length*100):0;
 
   return `
   <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;position:relative;background:transparent;">
@@ -2963,7 +3092,7 @@ function renderTabCollection(th){
         <div style="width:40px;height:40px;flex-shrink:0;background:${th.accent}18;border:1px solid ${th.accent}40;display:flex;align-items:center;justify-content:center;font-size:18px;">🗂️</div>
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Luckiest Guy',cursive;font-size:12px;font-weight:400;color:${th.text};letter-spacing:.5px;">Deck Builder</div>
-          <div style="font-size:11px;font-weight:700;color:${th.text};margin-top:2px;"><span style="color:${th.accent};font-weight:900;">${owned}</span><span style="color:${th.textMuted};font-weight:500;"> / ${ALL_CARDS.length} cartes</span> <span style="color:${pct>=100?th.accent:pct>=50?'#22c55e':th.textMuted};font-weight:700;">(${pct}%)</span></div>
+          <div style="font-size:11px;font-weight:700;color:${th.text};margin-top:2px;"><span style="color:${th.accent};font-weight:900;">${owned}</span><span style="color:${th.textMuted};font-weight:500;"> / ${officialCards.length} cartes</span> <span style="color:${pct>=100?th.accent:pct>=50?'#22c55e':th.textMuted};font-weight:700;">(${pct}%)</span></div>
           <div style="height:2px;background:${th.bg};margin-top:6px;overflow:hidden;">
             <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${th.accent},${th.accentAlt});"></div>
           </div>
@@ -3034,7 +3163,7 @@ function renderTabCollection(th){
         <button class="type-btn" data-type="Ruse" style="padding:4px 12px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Ruse'?'#10b98180':th.border};background:${state.collFilterType==='Ruse'?'rgba(16,185,129,.12)':'transparent'};color:${state.collFilterType==='Ruse'?'#10b981':th.textMuted};transition:all .15s;flex-shrink:0;">🃏 Ruse</button>
         <button class="type-btn" data-type="Arcane" style="padding:4px 12px;font-size:9px;font-weight:700;white-space:nowrap;border:1px solid ${state.collFilterType==='Arcane'?'#8b5cf680':th.border};background:${state.collFilterType==='Arcane'?'rgba(139,92,246,.12)':'transparent'};color:${state.collFilterType==='Arcane'?'#8b5cf6':th.textMuted};transition:all .15s;flex-shrink:0;">✦ Arcane</button>
       </div>
-      <div style="font-size:9px;color:${th.textMuted};letter-spacing:.3px;">${owned}/${ALL_CARDS.length} obtenues · ${cards.length} affichées</div>
+      <div style="font-size:9px;color:${th.textMuted};letter-spacing:.3px;">${owned}/${officialCards.length} obtenues · ${cards.length} affichées</div>
       ${(()=>{
         const TIER={common:'C',uncommon:'U',rare:'R',mythic:'M'};
         const doubsByRar = RARITY_ORDER.map(r=>{
@@ -3760,8 +3889,10 @@ function renderTabStats(th){
   // Collection
   let collectionPct = '—';
   if (typeof ALL_CARDS !== 'undefined' && ALL_CARDS.length > 0) {
-    const owned = ALL_CARDS.filter(c => c.owned).length;
-    collectionPct = Math.round((owned / ALL_CARDS.length) * 100) + '% (' + owned + '/' + ALL_CARDS.length + ')';
+    const officialCards = excludeTrophy(ALL_CARDS);
+    const owned = officialCards.filter(c => c.owned).length;
+    const total = officialCards.length;
+    collectionPct = total>0 ? Math.round((owned / total) * 100) + '% (' + owned + '/' + total + ')' : '—';
   }
 
   // Boosters / coins
@@ -4704,6 +4835,120 @@ function renderLeaderboardModal(th){
       </div>
     </div>
   </div>`;
+}
+
+// ─── TROPHY MODAL — Set Originel complété (carte 119/118) ─────────
+// Affiché UNE SEULE FOIS lorsque le joueur débloque la carte trophée.
+// Style "achievement unlocked" doré avec carte qui se révèle.
+function renderTrophyModal(th){
+  const card = (Array.isArray(window.ALL_CARDS) ? window.ALL_CARDS.find(c => parseInt(c.id,10) === TROPHY_CARD_ID) : null) || {};
+  const cardImg = card.image_url || 'https://i.goopics.net/iic46c.png'; // fallback dos P&L doré si l'image n'est pas encore chargée
+  return `
+  <div id="trophy-bg" style="position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.92);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;">
+    <!-- Confettis dorés (CSS-only) -->
+    ${Array.from({length:24}).map((_,i)=>{
+      const left = (i*4.2 + Math.random()*4).toFixed(1);
+      const delay = (Math.random()*3).toFixed(2);
+      const dur = (2.8 + Math.random()*2.4).toFixed(2);
+      const size = (6 + Math.random()*8).toFixed(0);
+      const colors = ['#f0c040','#ffd966','#e9b923','#fff3b0','#ffeb99'];
+      const col = colors[i%colors.length];
+      const rot = (Math.random()*360).toFixed(0);
+      return `<div style="position:absolute;top:-20px;left:${left}%;width:${size}px;height:${size}px;background:${col};opacity:.85;transform:rotate(${rot}deg);animation:trophyConfetti ${dur}s linear ${delay}s infinite;pointer-events:none;border-radius:1px;box-shadow:0 0 6px ${col}80;"></div>`;
+    }).join('')}
+
+    <!-- Halo doré central pulsant -->
+    <div style="position:absolute;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle,#f0c04040 0%,#f0c04015 35%,transparent 70%);animation:trophyPulseHalo 3s ease-in-out infinite;pointer-events:none;"></div>
+
+    <div class="trophy-sheet" style="position:relative;width:100%;max-width:380px;background:linear-gradient(180deg,#1a1408 0%,#0f0a04 100%);border:3px solid #f0c040;box-shadow:0 0 80px #f0c04055, inset 0 0 40px #f0c04010;padding:24px 20px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;animation:trophyAppear .8s cubic-bezier(.16,1.2,.4,1) both;">
+
+      <!-- Bordure dorée animée -->
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#f0c040,#fff3b0,#f0c040,transparent);background-size:200% 100%;animation:trophyShine 2.4s linear infinite;"></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#f0c040,#fff3b0,#f0c040,transparent);background-size:200% 100%;animation:trophyShine 2.4s linear infinite reverse;"></div>
+
+      <!-- Badge "ACHIEVEMENT UNLOCKED" -->
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 14px;background:#f0c04018;border:1.5px solid #f0c04060;animation:trophyBadgePop .5s ease-out .4s both;">
+        <span style="font-size:14px;line-height:1;">🏆</span>
+        <span style="font-family:'Luckiest Guy',cursive;font-size:11px;color:#f0c040;letter-spacing:1.5px;">ACHIEVEMENT UNLOCKED</span>
+      </div>
+
+      <!-- Titre -->
+      <div style="text-align:center;animation:trophyTitleSlide .6s ease-out .5s both;">
+        <div style="font-family:'Luckiest Guy',cursive;font-size:22px;line-height:1.1;color:#fff;letter-spacing:.5px;text-shadow:0 0 12px #f0c04088,0 2px 0 #000;">SET ORIGINEL</div>
+        <div style="font-family:'Luckiest Guy',cursive;font-size:22px;line-height:1.1;color:#f0c040;letter-spacing:.5px;text-shadow:0 0 12px #f0c04088,0 2px 0 #000;margin-top:2px;">COMPLÉTÉ !</div>
+      </div>
+
+      <!-- Sous-titre -->
+      <div style="font-size:11px;color:#d4b966;text-align:center;line-height:1.5;animation:trophyTitleSlide .6s ease-out .7s both;padding:0 8px;">
+        Tu as collectionné les <b style="color:#fff3b0;">118 cartes officielles</b>.<br/>
+        Voici ta récompense :
+      </div>
+
+      <!-- LA CARTE qui apparaît -->
+      <div style="position:relative;width:200px;aspect-ratio:2/3;animation:trophyCardReveal 1.1s cubic-bezier(.2,1.3,.3,1) .9s both;">
+        <!-- Glow derrière la carte -->
+        <div style="position:absolute;inset:-12px;background:radial-gradient(circle,#f0c04060 0%,transparent 70%);animation:trophyCardGlow 2.4s ease-in-out infinite;pointer-events:none;"></div>
+        <!-- La carte elle-même -->
+        <div style="position:relative;width:100%;height:100%;border:2.5px solid #f0c040;overflow:hidden;background:linear-gradient(160deg,#f0c04030,#1a1408);box-shadow:0 0 32px #f0c04088,0 8px 24px rgba(0,0,0,.6);">
+          <img src="${cardImg}" alt="Maitre du Set de Base" onerror="this.src='https://i.goopics.net/iic46c.png'" style="width:100%;height:100%;object-fit:cover;display:block;" />
+          <!-- Effet rare/secret shimmer -->
+          <div style="position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,243,176,.3) 50%,transparent 70%);background-size:200% 100%;animation:trophyShimmer 3s linear infinite;pointer-events:none;"></div>
+        </div>
+        <!-- Numéro en haut à droite -->
+        <div style="position:absolute;top:-10px;right:-10px;width:48px;height:48px;background:linear-gradient(135deg,#f0c040,#d4a020);border:2px solid #1a1408;display:flex;align-items:center;justify-content:center;font-family:'Luckiest Guy',cursive;color:#1a1408;font-size:10px;line-height:1;flex-direction:column;box-shadow:0 4px 16px #f0c04080;animation:trophyBadgePop .5s ease-out 1.5s both;">
+          <span style="font-size:14px;">119</span>
+          <span style="font-size:7px;opacity:.7;">/ 118</span>
+        </div>
+      </div>
+
+      <!-- Bouton fermer -->
+      <button id="trophy-close-btn" style="margin-top:10px;width:100%;padding:13px;background:linear-gradient(135deg,#f0c040,#d4a020);color:#1a1408;border:2px solid #1a1408;font-family:'Luckiest Guy',cursive;font-size:14px;letter-spacing:1.5px;cursor:pointer;box-shadow:0 4px 16px #f0c04060,2px 2px 0 #000;transition:transform .15s,box-shadow .15s;animation:trophyTitleSlide .6s ease-out 1.2s both;">BRAVO !</button>
+    </div>
+  </div>
+
+  <style>
+    @keyframes trophyConfetti {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 0; }
+      10%  { opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+    @keyframes trophyPulseHalo {
+      0%,100% { transform: scale(1); opacity: .6; }
+      50%     { transform: scale(1.15); opacity: 1; }
+    }
+    @keyframes trophyAppear {
+      0%   { transform: scale(.7) translateY(20px); opacity: 0; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    @keyframes trophyShine {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    @keyframes trophyBadgePop {
+      0%   { transform: scale(.5); opacity: 0; }
+      60%  { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes trophyTitleSlide {
+      0%   { transform: translateY(8px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes trophyCardReveal {
+      0%   { transform: scale(.4) rotateY(180deg); opacity: 0; }
+      50%  { opacity: 1; }
+      100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+    }
+    @keyframes trophyCardGlow {
+      0%,100% { opacity: .5; transform: scale(1); }
+      50%     { opacity: 1; transform: scale(1.08); }
+    }
+    @keyframes trophyShimmer {
+      0%   { background-position: -100% 0; }
+      100% { background-position: 200% 0; }
+    }
+    #trophy-close-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 22px #f0c04080,2px 2px 0 #000; }
+    #trophy-close-btn:active { transform: translateY(0); }
+  </style>`;
 }
 
 // ─── TUTORIAL MODAL ──────────────────────────────────────────────
@@ -5725,6 +5970,7 @@ function bindGame(){
       const q = _mktOfferQ.toLowerCase();
       const offerIds = state.marketOfferIds||[];
       const filtered = ALL_CARDS.filter(c=>{
+        if(isTrophyCard(c)) return false;
         if(!_mOwned(c.id)) return false;
         if(!q) return true;
         return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
@@ -5743,6 +5989,7 @@ function bindGame(){
       const q = _mktWantQ.toLowerCase().trim();
       const wantIds = state.marketWantIds||[];
       const filtered = q ? ALL_CARDS.filter(c=>{
+        if(isTrophyCard(c)) return false;
         return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q)||(c.type||'').toLowerCase().includes(q);
       }).slice(0,80) : [];
       const th = THEMES[state.theme]||THEMES.dark;
@@ -6834,6 +7081,16 @@ function bindGame(){
   // Recyclage : binder events à chaque render
   if (typeof bindRecycleEvents === 'function') bindRecycleEvents();
 
+  // Trophy modal : binder fermeture
+  const trophyClose = document.getElementById('trophy-close-btn');
+  if(trophyClose) trophyClose.addEventListener('click', ()=>{
+    setState({ showTrophyModal: false });
+  });
+  const trophyBg = document.getElementById('trophy-bg');
+  if(trophyBg) trophyBg.addEventListener('click', (e)=>{
+    if(e.target === trophyBg) setState({ showTrophyModal: false });
+  });
+
   const btnPioche = document.getElementById('btn-pioche');
   if(btnPioche) btnPioche.addEventListener('click', async ()=>{
     const _uid = state.currentUser?.id || '';
@@ -6915,8 +7172,9 @@ function bindGame(){
         else if (_roll < 1.1)  _targetRarity = 'rare';
         else if (_roll < 13.0) _targetRarity = 'uncommon';
         else                   _targetRarity = 'common';
-        const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity);
-        const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS;
+        // Exclure la carte trophée 119 et les cartes spéciales non-pioche (PEACE/LOVE)
+        const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity && !isTrophyCard(c) && parseInt(c.id,10) !== 99 && parseInt(c.id,10) !== 100);
+        const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS.filter(c => !isTrophyCard(c));
         _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
         _revealImg = _drawnCard?.image_url || null;
       }
@@ -7855,6 +8113,18 @@ function enterGame(user, coins) {
     if (_prefetchedJob === null && typeof loadActiveRecycleJob === 'function') {
       loadActiveRecycleJob(user.id).then(job => {
         if (job) setState({ recycleActiveJob: job });
+      }).catch(()=>{});
+    }
+    // Charger l'état du trophée + filet de sécurité (au cas où un déblocage ait été manqué)
+    if (typeof loadTrophyStatus === 'function') {
+      loadTrophyStatus(user.id).then(t => {
+        setState({ trophyUnlocked: !!t });
+        // Si le flag est déjà true → ne rien faire (popup déjà vu)
+        // Si le flag est false → vérifier en arrière-plan (collection peut-être déjà à 118)
+        if (!t && typeof checkAndUnlockTrophy === 'function') {
+          // Petit délai pour laisser loadCollection() peupler ALL_CARDS
+          setTimeout(() => checkAndUnlockTrophy(user.id).catch(()=>{}), 2500);
+        }
       }).catch(()=>{});
     }
     // Précharger les compteurs de boosters depuis Supabase (cross-device, par compte)
@@ -9063,6 +9333,13 @@ async function loadCollection() {
     hp:        c.hp        ?? null,
   }));
   render();
+
+  // ── Hook trophée 119 : vérifier à chaque rechargement collection ──
+  // checkAndUnlockTrophy est idempotente : si déjà débloqué + popup vu, elle ne fait rien.
+  // Si la collection vient d'atteindre 118/118 → INSERT carte 119 + popup.
+  if (typeof checkAndUnlockTrophy === 'function' && userId) {
+    checkAndUnlockTrophy(userId).catch(()=>{});
+  }
 }
 
 // ─── FRIENDS SYSTEM ───────────────────────────────────────────────
@@ -10918,6 +11195,7 @@ function _mktApplyOfferFilter(){
   const offerIds = state.marketOfferIds||[];
   const RARITY_O = {common:0,uncommon:1,rare:2,mythic:3};
   let filtered = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false;
     if(!_mOwned(c.id)) return false;
     if(_mktOfferDoubles && (c.count||1) < 2) return false;
     if(_mktOfferRarity && c.rarity !== _mktOfferRarity) return false;
@@ -10946,6 +11224,7 @@ function _mktApplyWantFilter(){
   const wantIds = state.marketWantIds||[];
   const RARITY_O = {common:0,uncommon:1,rare:2,mythic:3};
   let filtered = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false;
     if(_mktWantMissing && _mOwned(c.id)) return false;
     if(_mktWantRarity && c.rarity !== _mktWantRarity) return false;
     if(!q) return true;
@@ -11484,6 +11763,7 @@ function renderMarket(th){
   const offerQ = _mktOfferQ || '';
   const wantQ  = _mktWantQ  || '';
   const myOwnedCards = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false; // trophée non échangeable
     if(!_mOwned(c.id)) return false;
     if(!offerQ) return true;
     const q=offerQ.toLowerCase();
@@ -11491,6 +11771,7 @@ function renderMarket(th){
   }).slice(0,80);
   const RARITY_O_W = {common:0,uncommon:1,rare:2,mythic:3};
   const wantCards = ALL_CARDS.filter(c=>{
+    if(isTrophyCard(c)) return false; // trophée non échangeable
     if(!wantQ) return true;
     const q=wantQ.toLowerCase();
     return String(parseInt(c.id)).includes(q)||c.name.toLowerCase().includes(q);
@@ -12507,7 +12788,7 @@ const RECYCLE_DEFAULTS = {
     rare:     0.20,
     mythic:   0.35
   },
-  excluded_card_ids: [99, 100]   // LOVE et PEACE
+  excluded_card_ids: [99, 100, 119]   // LOVE, PEACE et Trophée 119/118
 };
 
 const RARITY_LABELS = {
@@ -12910,7 +13191,7 @@ function renderRecycleHelp() {
         &nbsp;&nbsp;— vers Rare : 20% d'échec<br>
         &nbsp;&nbsp;— vers Mythique : 35% d'échec<br>
         &nbsp;&nbsp;En cas d'échec, les coins sont perdus mais le recyclage continue.<br>
-        • <b style="color:${th.text};">PEACE</b> et <b style="color:${th.text};">LOVE</b> ne peuvent ni être recyclées ni obtenues par recyclage.
+        • <b style="color:${th.text};">PEACE</b>, <b style="color:${th.text};">LOVE</b> et la <b style="color:#f0c040;">carte trophée 119/118</b> ne peuvent ni être recyclées ni obtenues par recyclage.
       </div>
     </div>
 
