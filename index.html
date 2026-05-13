@@ -768,7 +768,7 @@ window.loadActiveBoosts      = loadActiveBoosts;
 //   1) loadTrophyStatus(uid) : lit le flag au démarrage → state.trophyUnlocked
 //   2) checkAndUnlockTrophy(uid) : appelée après ouverture booster / trade / recyclage
 //      → compte les cartes officielles (ID 1..118, quantity > 0)
-//      → si = 118 ET pas encore en player_cards → INSERT carte 119
+//      → si = 118 ET pas encore en player_cards → INSERT carte 1001
 //      → si = 118 ET trophy_unlocked === false → popup + set flag à true
 //      → idempotent : peut être appelée plusieurs fois sans effet de bord
 
@@ -2110,7 +2110,7 @@ function renderDeckEdit(th){
     return s+(card&&card.rarity==='mythic'?c.quantity:0);
   },0);
 
-  // Cartes possédées triées (la carte trophée 119 est non jouable → exclue du deck builder)
+  // Cartes possédées triées (la carte trophée (ID 1001) est non jouable → exclue du deck builder)
   const ownedCards = ALL_CARDS.filter(c=>c.owned && !isTrophyCard(c)).sort((a,b)=>RARITY_ORDER.indexOf(a.rarity)-RARITY_ORDER.indexOf(b.rarity));
 
   // Helper: quantité d'une carte dans le deck
@@ -7182,7 +7182,7 @@ function bindGame(){
         else if (_roll < 1.1)  _targetRarity = 'rare';
         else if (_roll < 13.0) _targetRarity = 'uncommon';
         else                   _targetRarity = 'common';
-        // Exclure la carte trophée 119 et les cartes spéciales non-pioche (PEACE/LOVE)
+        // Exclure la carte trophée (ID 1001) et les cartes spéciales non-pioche (PEACE/LOVE)
         const _pool = ALL_CARDS.filter(c => c.rarity === _targetRarity && !isTrophyCard(c) && parseInt(c.id,10) !== 99 && parseInt(c.id,10) !== 100);
         const _finalPool = _pool.length > 0 ? _pool : ALL_CARDS.filter(c => !isTrophyCard(c));
         _drawnCard = _finalPool[Math.floor(Math.random() * _finalPool.length)];
@@ -9344,9 +9344,9 @@ async function loadCollection() {
   }));
   render();
 
-  // ── Hook trophée 119 : vérifier à chaque rechargement collection ──
+  // ── Hook trophée (1001) : vérifier à chaque rechargement collection ──
   // checkAndUnlockTrophy est idempotente : si déjà débloqué + popup vu, elle ne fait rien.
-  // Si la collection vient d'atteindre 118/118 → INSERT carte 119 + popup.
+  // Si la collection vient d'atteindre 118/118 → INSERT carte 1001 + popup.
   if (typeof checkAndUnlockTrophy === 'function' && userId) {
     checkAndUnlockTrophy(userId).catch(()=>{});
   }
@@ -13201,7 +13201,7 @@ function renderRecycleHelp() {
         &nbsp;&nbsp;— vers Rare : 20% d'échec<br>
         &nbsp;&nbsp;— vers Mythique : 35% d'échec<br>
         &nbsp;&nbsp;En cas d'échec, les coins sont perdus mais le recyclage continue.<br>
-        • <b style="color:${th.text};">PEACE</b>, <b style="color:${th.text};">LOVE</b> et la <b style="color:#f0c040;">carte trophée 119/118</b> ne peuvent ni être recyclées ni obtenues par recyclage.
+        • <b style="color:${th.text};">PEACE</b>, <b style="color:${th.text};">LOVE</b> et la <b style="color:#f0c040;">carte trophée (ID 1001)/118</b> ne peuvent ni être recyclées ni obtenues par recyclage.
       </div>
     </div>
 
