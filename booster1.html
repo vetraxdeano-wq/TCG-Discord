@@ -1873,7 +1873,17 @@ async function loadCardsFromSupabase() {
   const { data, error } = await db.from('cards').select('*');
   if (error) { console.error('[Booster] erreur chargement cartes:', error.message); return; }
 
-  ALL_CARDS = (data || []).map(c => ({
+  // ── EXCLUSION : carte trophée (ID 1001 / rareté 'secret' / type 'Trophée') ──
+  // Elle ne doit JAMAIS apparaître dans un booster. Filtre triple : ID, rareté, type.
+  const _safeCards = (data || []).filter(c => {
+    const id = parseInt(c.id, 10);
+    if (id === 1001) return false;
+    if (c.rarity === 'secret') return false;
+    if (c.type === 'Trophée') return false;
+    return true;
+  });
+
+  ALL_CARDS = _safeCards.map(c => ({
     id:        '#' + c.id,
     dbId:      c.id,
     rarity:    RARITY_MAP[c.rarity] || 'COMMUNE',
